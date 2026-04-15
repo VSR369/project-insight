@@ -1,10 +1,6 @@
 /**
- * generate-suggestions — Unified Pass 2: ONE AI call to generate suggestions for ALL sections.
- *
- * Receives Pass 1 reviews + context digest + full challenge context.
- * Returns format-correct suggestions per section.
- *
- * Replaces the wave-by-wave Pass 2 calls to review-challenge-sections.
+ * generate-suggestions — Unified Pass 2: ONE AI call for all section suggestions.
+ * Receives Pass 1 reviews + context digest + full context. Returns format-correct suggestions.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -12,7 +8,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildUnifiedContext } from "../_shared/buildUnifiedContext.ts";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 import { safeJsonParse } from "../_shared/safeJsonParse.ts";
-// NOTE: Cannot import across function boundaries. Format maps inlined below.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,11 +15,38 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/* ── Inline format map (cannot import cross-function) ── */
+const SECTION_FORMAT_MAP: Record<string, string> = {
+  problem_statement: 'rich_text', scope: 'rich_text', hook: 'rich_text',
+  context_and_background: 'rich_text',
+  deliverables: 'line_items', expected_outcomes: 'line_items',
+  submission_guidelines: 'line_items', root_causes: 'line_items',
+  current_deficiencies: 'line_items', preferred_approach: 'line_items',
+  approaches_not_of_interest: 'line_items',
+  evaluation_criteria: 'table', affected_stakeholders: 'table',
+  success_metrics_kpis: 'table', data_resources_provided: 'table',
+  phase_schedule: 'schedule_table', reward_structure: 'custom',
+  solver_expertise: 'custom', complexity: 'complexity_assessment',
+  ip_model: 'checkbox_single', maturity_level: 'checkbox_single',
+  eligibility: 'checkbox_multi', visibility: 'checkbox_multi',
+  domain_tags: 'tag_input', solution_type: 'checkbox_multi',
+};
+
+const FORMAT_INSTRUCTIONS: Record<string, string> = {
+  rich_text: 'Output: formatted markdown/HTML. No JSON.',
+  line_items: 'Output: JSON array of strings or objects per section spec.',
+  table: 'Output: JSON array of row objects with keys from section definition.',
+  schedule_table: 'Output: JSON array of phase objects: {phase_name, duration_days, start_date, end_date}.',
+  checkbox_multi: 'Output: JSON array of codes from allowed values ONLY.',
+  checkbox_single: 'Output: {"selected_id":"CODE","rationale":"..."}. Code MUST be from allowed values.',
+  custom: 'Output: structured JSON appropriate to section.',
+  tag_input: 'Output: JSON array of tag strings.',
+};
+
 function stripHtml(s: unknown): string {
   if (!s || typeof s !== 'string') return '(empty)';
   return s.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 3000) || '(empty)';
 }
-
 function jsonBrief(v: unknown): string {
   if (!v) return '(empty)';
   if (typeof v === 'string') return v.substring(0, 2000);
@@ -42,240 +64,130 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required", correlationId } }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Auth required", correlationId } }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } },
-    );
+    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } });
     const token = authHeader.replace("Bearer ", "");
     const { error: authError } = await supabaseClient.auth.getClaims(token);
     if (authError) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Invalid token", correlationId } }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Invalid token", correlationId } }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const { challenge_id, pass1_reviews } = await req.json();
     if (!challenge_id) {
-      return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id required", correlationId } }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id required", correlationId } }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log(`[${correlationId}] generate-suggestions START for ${challenge_id}`);
 
-    // ── Build unified context ──
     const ctx = await buildUnifiedContext(challenge_id, correlationId);
     const ch = ctx.challenge;
     const eb = ctx.extendedBrief;
 
-    // ── Determine which sections need suggestions ──
-    // Use provided pass1_reviews or load from DB
     let reviews: Record<string, unknown>[] = pass1_reviews ?? [];
-    if (reviews.length === 0) {
-      const aiReviews = ch.ai_section_reviews;
-      if (Array.isArray(aiReviews)) {
-        reviews = aiReviews as Record<string, unknown>[];
-      }
+    if (reviews.length === 0 && Array.isArray(ch.ai_section_reviews)) {
+      reviews = ch.ai_section_reviews as Record<string, unknown>[];
     }
 
-    // Filter to sections that need suggestions (not pass status)
-    const sectionsNeedingSuggestions = reviews.filter((r: Record<string, unknown>) => {
+    const needsSuggestions = reviews.filter((r) => {
       const status = r.status as string;
       return status === 'needs_revision' || status === 'warning' || status === 'generated';
     });
 
-    if (sectionsNeedingSuggestions.length === 0) {
-      console.log(`[${correlationId}] All sections pass — no suggestions needed`);
-      return new Response(
-        JSON.stringify({ success: true, data: { reviews: [], correlationId, message: "All sections pass — no suggestions needed" } }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (needsSuggestions.length === 0) {
+      return new Response(JSON.stringify({ success: true, data: { reviews: [], correlationId, message: "All pass" } }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log(`[${correlationId}] Generating suggestions for ${sectionsNeedingSuggestions.length} sections`);
+    console.log(`[${correlationId}] Generating for ${needsSuggestions.length} sections`);
 
-    // ── Build per-section format instructions ──
+    const configMap = new Map((ctx.sectionConfigs as Record<string, unknown>[]).map(c => [c.section_key as string, c]));
     const sectionInstructions: string[] = [];
-    const sectionConfigs = ctx.sectionConfigs as Record<string, unknown>[];
-    const configMap = new Map(sectionConfigs.map(c => [c.section_key as string, c]));
 
-    for (const review of sectionsNeedingSuggestions) {
+    for (const review of needsSuggestions) {
       const key = review.section_key as string;
       const config = configMap.get(key);
       const format = SECTION_FORMAT_MAP[key] ?? 'rich_text';
-      const formatInstruction = EXTENDED_BRIEF_FORMAT_INSTRUCTIONS[key] ?? `Format: ${format}`;
+      const formatInstr = FORMAT_INSTRUCTIONS[format] ?? FORMAT_INSTRUCTIONS.rich_text;
 
-      // Current content
-      let content = ch[key] ?? eb[key] ?? null;
-      if (!content) {
-        const ebKey = key.replace(/-/g, '_');
-        content = eb[ebKey] ?? null;
-      }
-      const currentContent = content
-        ? (typeof content === 'string' ? stripHtml(content) : jsonBrief(content))
-        : '(empty)';
+      let content = ch[key] ?? eb[key] ?? eb[key.replace(/-/g, '_')] ?? null;
+      const currentContent = content ? (typeof content === 'string' ? stripHtml(content) : jsonBrief(content)) : '(empty)';
+      const comments = (review.comments as Record<string, unknown>[])?.map(c => `[${c.type}] ${c.text}`).join('\n') ?? '';
 
-      const comments = (review.comments as Record<string, unknown>[])?.map(
-        (c: Record<string, unknown>) => `[${c.type}] ${c.text}`
-      ).join('\n') ?? '';
-
-      sectionInstructions.push(`### ${key} (${config?.section_label ?? key})
+      sectionInstructions.push(`### ${key} (${(config as Record<string, unknown>)?.section_label ?? key})
 STATUS: ${review.status}
-CURRENT CONTENT: ${currentContent}
-PASS 1 COMMENTS:
-${comments}
-FORMAT INSTRUCTION: ${formatInstruction}
-${config?.dos ? `DO: ${config.dos}` : ''}
-${config?.donts ? `DON'T: ${config.donts}` : ''}`);
+CURRENT: ${currentContent}
+COMMENTS:\n${comments}
+FORMAT: ${formatInstr}
+${(config as Record<string, unknown>)?.dos ? `DO: ${(config as Record<string, unknown>).dos}` : ''}
+${(config as Record<string, unknown>)?.donts ? `DON'T: ${(config as Record<string, unknown>).donts}` : ''}`);
     }
 
-    // ── Master data constraints ──
     const masterDataBlock = Object.entries(ctx.masterData)
-      .map(([key, options]) => `${key}: ${options.map(o => `${o.code} (${o.label})`).join(', ')}`)
+      .map(([k, opts]) => `${k}: ${opts.map(o => `${o.code} (${o.label})`).join(', ')}`)
       .join('\n');
 
-    // ── Context intelligence ──
-    const contextIntelligence = buildContextIntelligence(ch, {
-      maturityLevel: ch.maturity_level,
-      complexityLevel: ch.complexity_level,
-      solutionType: ch.solution_type,
-    }, ctx.org);
+    const systemPrompt = `You are a PRINCIPAL CONSULTANT generating improved challenge content.
+Write from the organization's perspective ("we", "our") except evaluation/submission sections.
 
-    // ── System prompt ──
-    const systemPrompt = `${INTELLIGENCE_DIRECTIVE}
-
-${contextIntelligence}
-
-## MASTER DATA CONSTRAINTS — HARD RULES
-For master-data-backed sections, you MUST use ONLY these codes:
+## MASTER DATA — HARD RULES
 ${masterDataBlock}
-Any suggestion using a code NOT in this list will be REJECTED.
+Any code NOT in this list will be REJECTED.
 
-${ctx.contextDigest ? `## VERIFIED CONTEXT (from external sources)\n${ctx.contextDigest.substring(0, 4000)}` : ''}
+${ctx.contextDigest ? `## VERIFIED CONTEXT\n${ctx.contextDigest.substring(0, 4000)}` : ''}
 
-## YOUR TASK: GENERATE IMPROVED CONTENT
+Today's date: ${new Date().toISOString().split('T')[0]}
 
-For each section below, generate an IMPROVED version that addresses ALL Pass 1 comments.
-Write from the SEEKING ORGANIZATION'S perspective ("we", "our", "us") — except evaluation_criteria and submission_guidelines which use neutral procedural voice.
+For each section, generate improved content addressing ALL comments.
+Return JSON: { "<section_key>": { "status": "generated", "suggestion": <content in correct format>, "comments": [{"type":"strength","text":"..."}] } }`;
 
-CRITICAL RULES:
-1. Each section MUST follow its specific FORMAT INSTRUCTION exactly
-2. Master-data-backed sections MUST use ONLY allowed codes
-3. evaluation_criteria weights MUST sum to exactly 100%
-4. phase_schedule dates MUST be in the future relative to today (${new Date().toISOString().split('T')[0]})
-5. Preserve any creator-provided intent — improve, don't replace
-6. Cross-reference other sections for consistency
+    const userPrompt = `# CHALLENGE: ${ch.title}\n\n${sectionInstructions.join('\n\n---\n\n')}\n\nGenerate now. ONLY JSON.`;
 
-Return a JSON object:
-{
-  "<section_key>": {
-    "status": "generated",
-    "suggestion": <the improved content in the correct format>,
-    "comments": [
-      { "type": "strength" | "best_practice", "text": "<what was improved>" }
-    ]
-  }
-}
-
-ONLY include sections that need suggestions. Match the format exactly.`;
-
-    const userPrompt = `# CHALLENGE: ${ch.title}
-
-## SECTIONS NEEDING SUGGESTIONS
-
-${sectionInstructions.join('\n\n---\n\n')}
-
-Generate improved content for ALL sections above. Return ONLY the JSON object.`;
-
-    const model = ctx.globalConfig?.critical_model as string || ctx.globalConfig?.default_model as string || 'google/gemini-3-flash-preview';
+    const model = (ctx.globalConfig?.critical_model ?? ctx.globalConfig?.default_model ?? 'google/gemini-3-flash-preview') as string;
     const aiResp = await callAIWithFallback(LOVABLE_API_KEY, {
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: 16000,
-      temperature: 0.3,
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+      max_tokens: 16000, temperature: 0.3,
     }, model);
 
     if (!aiResp.ok) {
-      const status = aiResp.status;
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "AI credits exhausted", correlationId } }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "AI_RATE_LIMITED", message: "Rate limited", correlationId } }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      throw new Error(`AI returned ${status}`);
+      const s = aiResp.status;
+      if (s === 402) return new Response(JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "Credits exhausted", correlationId } }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (s === 429) return new Response(JSON.stringify({ success: false, error: { code: "AI_RATE_LIMITED", message: "Rate limited", correlationId } }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      throw new Error(`AI returned ${s}`);
     }
 
     const aiResult = await aiResp.json();
     const rawContent = aiResult.choices?.[0]?.message?.content ?? '{}';
     const parsed = safeJsonParse<Record<string, Record<string, unknown>>>(rawContent, {});
 
-    console.log(`[${correlationId}] AI suggestions generated for ${Object.keys(parsed).length} sections`);
+    console.log(`[${correlationId}] Suggestions for ${Object.keys(parsed).length} sections`);
 
-    // ── Merge suggestions into review format ──
     const suggestionReviews: Record<string, unknown>[] = [];
-
-    for (const [sectionKey, sectionResult] of Object.entries(parsed)) {
-      const suggestion = sectionResult.suggestion;
-      const suggestionStr = typeof suggestion === 'string'
-        ? suggestion
-        : suggestion ? JSON.stringify(suggestion) : null;
-
-      // Find original review to merge comments
-      const originalReview = reviews.find((r: Record<string, unknown>) => r.section_key === sectionKey);
+    for (const [sectionKey, sr] of Object.entries(parsed)) {
+      const suggestion = sr.suggestion;
+      const suggestionStr = typeof suggestion === 'string' ? suggestion : suggestion ? JSON.stringify(suggestion) : null;
+      const originalReview = reviews.find(r => r.section_key === sectionKey);
 
       suggestionReviews.push({
         section_key: sectionKey,
-        status: sectionResult.status ?? 'generated',
-        comments: [
-          ...((originalReview?.comments as unknown[]) ?? []),
-          ...((sectionResult.comments as unknown[]) ?? []),
-        ],
+        status: sr.status ?? 'generated',
+        comments: [...((originalReview?.comments as unknown[]) ?? []), ...((sr.comments as unknown[]) ?? [])],
         suggestion: suggestionStr,
         reviewed_at: new Date().toISOString(),
         addressed: false,
       });
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          reviews: suggestionReviews,
-          correlationId,
-        },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ success: true, data: { reviews: suggestionReviews, correlationId } }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    console.error(`[${correlationId}] generate-suggestions ERROR:`, err);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: "GENERATION_FAILED",
-          message: err instanceof Error ? err.message : "Unknown error",
-          correlationId,
-        },
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    console.error(`[${correlationId}] ERROR:`, err);
+    return new Response(JSON.stringify({ success: false, error: { code: "GENERATION_FAILED", message: err instanceof Error ? err.message : "Unknown", correlationId } }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

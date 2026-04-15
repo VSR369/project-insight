@@ -1,10 +1,6 @@
 /**
  * analyse-challenge — Unified Pass 1: ONE AI call to analyse ALL sections.
- *
- * Returns overall assessment + per-section status, comments, cross-section issues.
- * No suggestions generated — that's Pass 2 (generate-suggestions).
- *
- * Replaces the wave-by-wave Pass 1 calls to review-challenge-sections.
+ * Returns overall assessment + per-section status/comments/cross-section issues.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -12,9 +8,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildUnifiedContext } from "../_shared/buildUnifiedContext.ts";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 import { safeJsonParse } from "../_shared/safeJsonParse.ts";
-// NOTE: contextIntelligence and industryGeoPrompt cannot be imported cross-function.
-// These functions will use the unified context from buildUnifiedContext which already
-// assembles all intelligence layers. The AI prompt includes org/industry/geo context inline.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +26,20 @@ function jsonBrief(v: unknown): string {
   try { return JSON.stringify(v).substring(0, 2000); } catch { return '(empty)'; }
 }
 
+function buildOrgBlock(org: Record<string, unknown>): string {
+  const lines: string[] = [];
+  lines.push(`Organization: ${org.orgName ?? '(unknown)'}`);
+  if (org.tradeBrand) lines.push(`Brand: ${org.tradeBrand}`);
+  if (org.orgDescription) lines.push(`About: ${(org.orgDescription as string).substring(0, 400)}`);
+  if (org.orgType) lines.push(`Type: ${org.orgType}`);
+  if (org.hqCity || org.hqCountry) lines.push(`HQ: ${[org.hqCity, org.hqCountry].filter(Boolean).join(', ')}`);
+  if (org.websiteUrl) lines.push(`Website: ${org.websiteUrl}`);
+  if (org.operatingModel) lines.push(`Operating Model: ${org.operatingModel}`);
+  const industries = org.industries as { name: string; isPrimary: boolean }[] | undefined;
+  if (industries?.length) lines.push(`Industries: ${industries.map(i => i.name).join(', ')}`);
+  return lines.join('\n');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -45,12 +52,11 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Authentication required", correlationId } }),
+        JSON.stringify({ success: false, error: { code: "UNAUTHORIZED", message: "Auth required", correlationId } }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Verify auth
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -75,207 +81,116 @@ serve(async (req) => {
 
     console.log(`[${correlationId}] analyse-challenge START for ${challenge_id}`);
 
-    // ── Build unified context ──
     const ctx = await buildUnifiedContext(challenge_id, correlationId);
-
-    // ── Build section content document ──
-    const sectionConfigs = ctx.sectionConfigs as { section_key: string; section_label: string; section_description: string | null; importance_level: string; required_elements: string[]; quality_criteria: unknown }[];
+    const sectionConfigs = ctx.sectionConfigs as { section_key: string; section_label: string; section_description: string | null; importance_level: string }[];
     const eb = ctx.extendedBrief;
     const ch = ctx.challenge;
 
-    // Map all section content
     const sectionContentLines: string[] = [];
     const sectionListLines: string[] = [];
 
     for (const config of sectionConfigs) {
       const key = config.section_key;
-      // Try direct column first, then extended_brief
-      let content = ch[key] ?? eb[key] ?? null;
-      if (content === null || content === undefined) {
-        // Check JSONB field mapping
-        const ebKey = key.replace(/-/g, '_');
-        content = eb[ebKey] ?? null;
-      }
-
+      let content = ch[key] ?? eb[key] ?? eb[key.replace(/-/g, '_')] ?? null;
       const displayContent = content
         ? (typeof content === 'string' ? stripHtml(content) : jsonBrief(content))
         : '(empty — not yet filled)';
-
       sectionListLines.push(`${config.section_label} [${config.importance_level}]: ${config.section_description ?? key}`);
       sectionContentLines.push(`### ${config.section_label} (${key})\n${displayContent}`);
     }
 
-    // ── Build intelligence layers ──
-    const domainTags = Array.isArray(ch.domain_tags) ? ch.domain_tags : [];
-    const frameworks = detectDomainFrameworks(
-      domainTags.map((t: unknown) => typeof t === 'object' && t !== null ? (t as Record<string, unknown>).name as string : String(t)),
-      ch.problem_statement as string,
-      ch.scope as string,
-    );
-
-    const contextIntelligence = buildContextIntelligence(ch, {
-      maturityLevel: ch.maturity_level,
-      complexityLevel: ch.complexity_level,
-      solutionType: ch.solution_type,
-    }, ctx.org);
-
-    const industryIntelligence = ctx.industryPack ? buildIndustryIntelligence(ctx.industryPack) : '';
-    const geoIntelligence = ctx.geoContext ? buildGeographyContext(ctx.geoContext) : '';
-
-    // ── Master data constraints ──
+    const orgBlock = buildOrgBlock(ctx.org as unknown as Record<string, unknown>);
     const masterDataBlock = Object.entries(ctx.masterData)
       .map(([key, options]) => `${key}: ${options.map(o => `${o.code} (${o.label})`).join(', ')}`)
       .join('\n');
 
-    // ── Build the prompt ──
-    const systemPrompt = `${INTELLIGENCE_DIRECTIVE}
+    const industryBlock = ctx.industryPack
+      ? `## INDUSTRY INTELLIGENCE\n${jsonBrief(ctx.industryPack)}`
+      : '';
+    const geoBlock = ctx.geoContext
+      ? `## GEOGRAPHY CONTEXT\n${jsonBrief(ctx.geoContext)}`
+      : '';
 
-${contextIntelligence}
+    const systemPrompt = `## YOUR ROLE: DOMAIN EXPERT CONSULTANT
+You are a PRINCIPAL CONSULTANT performing a comprehensive challenge quality review.
+For each section, assess content quality, completeness, industry fit, cross-section consistency, and solver comprehension.
 
-${industryIntelligence}
+## ORGANIZATION CONTEXT
+${orgBlock}
 
-${geoIntelligence}
-
-${frameworks.length > 0 ? `## RELEVANT FRAMEWORKS\n${frameworks.join(', ')}` : ''}
+${industryBlock}
+${geoBlock}
 
 ## MASTER DATA CONSTRAINTS
-When reviewing master-data-backed sections (maturity_level, ip_model, eligibility, visibility, solution_type), 
-the section MUST use ONLY codes from these allowed values:
 ${masterDataBlock}
 
-${ctx.contextDigest ? `## CONTEXT DIGEST (from verified external sources)\n${ctx.contextDigest.substring(0, 3000)}` : ''}
+${ctx.contextDigest ? `## VERIFIED CONTEXT\n${ctx.contextDigest.substring(0, 3000)}` : ''}
 
-## YOUR TASK: COMPREHENSIVE CHALLENGE ANALYSIS
-
-Analyze ALL sections of this challenge holistically. For each section:
-1. Assess quality, completeness, industry-appropriateness, and cross-section consistency
-2. Identify specific gaps, errors, and improvement opportunities
-3. Flag cross-section dependencies (e.g., deliverables must align with evaluation criteria)
-
-SECTIONS TO REVIEW:
+## SECTIONS TO REVIEW
 ${sectionListLines.join('\n')}
 
-Return a JSON object with this EXACT structure:
+Return JSON:
 {
   "overall_assessment": {
-    "score": <number 0-100>,
-    "readiness": "ready" | "needs_work" | "major_gaps",
-    "summary": "<2-3 sentence overall assessment>",
-    "cross_section_issues": [
-      { "sections": ["section_a", "section_b"], "issue": "<description>", "severity": "error" | "warning" }
-    ]
+    "score": <0-100>,
+    "readiness": "ready"|"needs_work"|"major_gaps",
+    "summary": "<2-3 sentences>",
+    "cross_section_issues": [{"sections":["a","b"],"issue":"...","severity":"error"|"warning"}]
   },
   "sections": {
     "<section_key>": {
-      "status": "pass" | "warning" | "needs_revision",
-      "score": <number 0-100>,
-      "comments": [
-        { "type": "error" | "warning" | "suggestion" | "strength" | "best_practice", "text": "<specific actionable comment>" }
-      ],
-      "dependency_gaps": ["<related section key that has inconsistency>"],
-      "industry_alignment": "<brief note on industry-specific considerations>"
+      "status": "pass"|"warning"|"needs_revision",
+      "score": <0-100>,
+      "comments": [{"type":"error"|"warning"|"suggestion"|"strength"|"best_practice","text":"..."}],
+      "dependency_gaps": [],
+      "industry_alignment": "..."
     }
   }
 }
 
-CRITICAL RULES:
-- Every section MUST appear in the response
-- Comments must be SPECIFIC and ACTIONABLE — reference domain knowledge
-- "pass" sections still get 1-2 "strength" or "best_practice" comments
-- Cross-section issues MUST flag real inconsistencies (not generic advice)
-- Empty sections get "needs_revision" with a comment explaining what's needed
-- DO NOT include any "suggestion" field — this is analysis only`;
+RULES: Every section must appear. Comments must be specific and actionable. No "suggestion" field.`;
 
-    const userPrompt = `# CHALLENGE: ${ch.title}
+    const userPrompt = `# CHALLENGE: ${ch.title}\n\n${sectionContentLines.join('\n\n')}\n\n## LEGAL DOCS\n${ctx.legalDocs.length > 0 ? ctx.legalDocs.map((d: Record<string, unknown>) => `- ${d.document_type} (${d.tier}): ${d.status}`).join('\n') : '(none)'}\n\nAnalyze now. Return ONLY JSON.`;
 
-## SECTION CONTENTS
-
-${sectionContentLines.join('\n\n')}
-
-## LEGAL DOCUMENTS
-${ctx.legalDocs.length > 0
-  ? ctx.legalDocs.map((d: Record<string, unknown>) => `- ${d.document_type} (${d.tier}): ${d.status}`).join('\n')
-  : '(no legal docs attached)'}
-
-${ctx.rateCard ? `## RATE CARD\nEffort floor: $${(ctx.rateCard as Record<string, unknown>).effort_rate_floor}/hr, Reward floor: $${(ctx.rateCard as Record<string, unknown>).reward_floor_amount}` : ''}
-
-Analyze this challenge now. Return ONLY the JSON object.`;
-
-    console.log(`[${correlationId}] Calling AI for analysis (${sectionConfigs.length} sections)`);
-
-    const model = ctx.globalConfig?.critical_model as string || ctx.globalConfig?.default_model as string || 'google/gemini-3-flash-preview';
+    const model = (ctx.globalConfig?.critical_model ?? ctx.globalConfig?.default_model ?? 'google/gemini-3-flash-preview') as string;
     const aiResp = await callAIWithFallback(LOVABLE_API_KEY, {
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       max_tokens: 12000,
       temperature: 0.2,
     }, model);
 
     if (!aiResp.ok) {
-      const status = aiResp.status;
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "AI credits exhausted", correlationId } }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: { code: "AI_RATE_LIMITED", message: "Rate limited — try again shortly", correlationId } }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      throw new Error(`AI returned ${status}`);
+      const s = aiResp.status;
+      if (s === 402) return new Response(JSON.stringify({ success: false, error: { code: "AI_CREDITS_EXHAUSTED", message: "Credits exhausted", correlationId } }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (s === 429) return new Response(JSON.stringify({ success: false, error: { code: "AI_RATE_LIMITED", message: "Rate limited", correlationId } }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      throw new Error(`AI returned ${s}`);
     }
 
     const aiResult = await aiResp.json();
     const rawContent = aiResult.choices?.[0]?.message?.content ?? '{}';
     const parsed = safeJsonParse<Record<string, unknown>>(rawContent, {});
 
-    console.log(`[${correlationId}] AI analysis complete. Overall score: ${(parsed.overall_assessment as Record<string, unknown>)?.score ?? 'N/A'}`);
-
-    // ── Convert to SectionReview[] format for compatibility ──
     const sections = (parsed.sections ?? {}) as Record<string, Record<string, unknown>>;
     const reviews: Record<string, unknown>[] = [];
-
-    for (const [sectionKey, sectionResult] of Object.entries(sections)) {
+    for (const [sectionKey, sr] of Object.entries(sections)) {
       reviews.push({
-        section_key: sectionKey,
-        status: sectionResult.status ?? 'needs_revision',
-        score: sectionResult.score ?? 0,
-        comments: sectionResult.comments ?? [],
-        dependency_gaps: sectionResult.dependency_gaps ?? [],
-        industry_alignment: sectionResult.industry_alignment ?? null,
-        reviewed_at: new Date().toISOString(),
-        addressed: false,
+        section_key: sectionKey, status: sr.status ?? 'needs_revision', score: sr.score ?? 0,
+        comments: sr.comments ?? [], dependency_gaps: sr.dependency_gaps ?? [],
+        industry_alignment: sr.industry_alignment ?? null,
+        reviewed_at: new Date().toISOString(), addressed: false,
       });
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          overall_assessment: parsed.overall_assessment ?? { score: 0, readiness: 'major_gaps', summary: 'Analysis failed to parse' },
-          reviews,
-          correlationId,
-        },
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    console.log(`[${correlationId}] Analysis complete. Score: ${(parsed.overall_assessment as Record<string, unknown>)?.score ?? 'N/A'}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: { overall_assessment: parsed.overall_assessment ?? { score: 0, readiness: 'major_gaps', summary: 'Parse failed' }, reviews, correlationId },
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
-    console.error(`[${correlationId}] analyse-challenge ERROR:`, err);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: "ANALYSIS_FAILED",
-          message: err instanceof Error ? err.message : "Unknown error",
-          correlationId,
-        },
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    console.error(`[${correlationId}] ERROR:`, err);
+    return new Response(JSON.stringify({
+      success: false, error: { code: "ANALYSIS_FAILED", message: err instanceof Error ? err.message : "Unknown", correlationId },
+    }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
