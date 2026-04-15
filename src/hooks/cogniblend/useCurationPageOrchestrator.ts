@@ -316,7 +316,7 @@ export function useCurationPageOrchestrator() {
   }, [challengeId, setContextLibraryReviewed]);
 
   return {
-    challengeId, navigate, user, analyseProgress,
+    challengeId, navigate, user,
     challenge, isLoading, orgTypeName, legalDocs, legalDetails, escrowRecord, masterData,
     userRoleCodes, complexityParams, industrySegments, solutionTypeGroups, solutionTypesData, solutionTypeMap,
     activeGroup, activeGroupDef, editingSection, setEditingSection, savingSection, setSavingSection,
