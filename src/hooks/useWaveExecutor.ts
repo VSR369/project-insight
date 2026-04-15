@@ -139,6 +139,21 @@ export function useWaveExecutor({
       }));
       onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
+      // Persist wave progress summary to localStorage for recovery
+      try {
+        const progressSummary = {
+          waveNumber: wave.waveNumber,
+          status: waveStatus,
+          sectionsCompleted: totalReviewedSoFar,
+          timestamp: new Date().toISOString(),
+        };
+        const storageKey = `wave-progress-${challengeId}`;
+        const existing = JSON.parse(localStorage.getItem(storageKey) ?? '{"waves":[]}');
+        existing.waves = [...(existing.waves ?? []).filter((w: { waveNumber: number }) => w.waveNumber !== wave.waveNumber), progressSummary];
+        existing.overallStatus = 'running';
+        localStorage.setItem(storageKey, JSON.stringify(existing));
+      } catch { /* localStorage unavailable */ }
+
       context = buildChallengeContext(buildContextOptions());
 
       if (i < EXECUTION_WAVES.length - 1) {
@@ -153,6 +168,15 @@ export function useWaveExecutor({
     } else {
       toast.warning('AI review cancelled after completing current wave.');
     }
+
+    // Persist final status to localStorage
+    try {
+      const storageKey = `wave-progress-${challengeId}`;
+      const existing = JSON.parse(localStorage.getItem(storageKey) ?? '{"waves":[]}');
+      existing.overallStatus = cancelRef.current ? 'cancelled' : 'completed';
+      existing.completedAt = new Date().toISOString();
+      localStorage.setItem(storageKey, JSON.stringify(existing));
+    } catch { /* localStorage unavailable */ }
 
     inFlightRef.current = false;
   }, [challengeId, buildContextOptions, reviewSingleSection]);
