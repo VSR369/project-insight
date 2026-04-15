@@ -1,40 +1,58 @@
 
 
-# Context Parity Fix for Generate Suggestions (Pass 2)
+# Fix Remaining Curator Module Gaps
 
-## Problem
-Pass 2 (`generate-suggestions`) receives only master data and digest context. It is missing 6 context blocks that Pass 1 (`analyse-challenge`) uses: organization context, industry intelligence, geography context, section dependency map, legal docs summary, and reference content from passing sections. This means the AI generates suggestions without knowing the organization, its industry, geography, regulations, or how sections depend on each other.
+## 5 Items to Address
 
-## Verification
-`buildUnifiedContext` already returns all the data needed — `org`, `industryPack`, `geoContext`, `sectionDependencyMap`, `legalDocs`, `sectionConfigs`. The only change is in **one file**: `generate-suggestions/index.ts`.
+### 1. Add correlationId to discover-context-resources
+**File:** `supabase/functions/discover-context-resources/index.ts`
+- Generate a `crypto.randomUUID()` at request start
+- Include in all error responses and the success response
+- Log it with `console.log` at entry and on errors
 
-## Changes — `supabase/functions/generate-suggestions/index.ts`
+### 2. PreviewSectionEditor — format-aware editors
+**File:** `src/components/cogniblend/preview/PreviewSectionEditor.tsx`
+- Add `LineItemsEditor` for `line_items` / `tag_input` — renders editable list with add/remove
+- Add `TableEditor` for `table` / `schedule_table` — renders editable rows with column headers from config
+- Add `CheckboxEditor` for `checkbox_single` / `checkbox_multi` — renders selectable options
+- Keep textarea fallback for `structured_fields` / `custom`
+- This will exceed 250 lines, so split into `PreviewSectionEditor.tsx` (router + action buttons, ~50 lines) and `src/components/cogniblend/preview/editors/` folder with `LineItemsEditor.tsx`, `TableEditor.tsx`, `CheckboxEditor.tsx`
 
-### 1. Add `buildOrgBlock` helper (inline)
-Build organization context string from `ctx.org` — name, brand, type, HQ, industries, description, website, operating model.
+### 3. Remove old wave executor props from useCurationAIActions interface
+**File:** `src/hooks/cogniblend/useCurationAIActions.ts`
+- Remove `pass1SetWaveProgress` from the options interface (it's only used for legacy wave progress display, not the unified flow)
+- Check if `isWaveRunning` is still needed — it guards against concurrent runs, so keep it but rename context to clarify
+- Remove imports: `DISCOVERY_WAVE_NUMBER`, `createInitialWaveProgressWithDiscovery`, `WaveProgress`
+- Clean up any internal references to wave progress that aren't used
 
-### 2. Build all missing context blocks after `buildUnifiedContext` call
-- `orgBlock` from `ctx.org`
-- `industryBlock` from `ctx.industryPack` (using existing `jsonBrief`)
-- `geoBlock` from `ctx.geoContext`
-- `dependencyBlock` from `ctx.sectionDependencyMap`
-- `legalBlock` from `ctx.legalDocs`
+**File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
+- Stop passing removed props to `useCurationAIActions`
 
-### 3. Build reference content from passing sections
-Loop through `sectionConfigs`, find sections with `pass`/`best_practice` status, extract their content from `ch`/`eb`, and build a read-only reference block so the AI can cross-reference when generating dependent sections.
+### 4. SERPER_API_KEY — no code change needed
+The Gemini grounding fallback is already implemented (line 377). This is a deployment config item, not a code fix. Will add a clearer log message when fallback activates.
 
-### 4. Replace the system prompt
-Add all context blocks (org, industry, geo, master data, dependencies, digest, reference sections, legal). Add explicit dependency rules for generation ordering (deliverables aligns with problem_statement, evaluation_criteria covers deliverables, etc.).
+### 5. Replace reReviewStale with per-section unified review
+**File:** `src/hooks/useWaveExecutor.ts`
+- `reReviewStale` currently calls `review-challenge-sections` (legacy combined pass) for each stale section
+- Change to call `review-challenge-sections` in review-only mode (pass1Only), which is already supported
+- The `useWaveReviewSection` already respects `pass1Only` — the issue is that `fullExecutor` (not `pass1Executor`) provides `reReviewStale`
+- Fix: In `useCurationWaveSetup.ts`, use `pass1Executor.reReviewStale` instead of `fullExecutor.reReviewStale` so stale re-reviews are review-only, not combined pass
 
-### 5. Update the user prompt
-Wrap with instructions to reference existing content for cross-section coherence.
+**File:** `src/hooks/cogniblend/useCurationWaveSetup.ts` (line 173)
+- Change `reReviewStale: fullExecutor.reReviewStale` → `reReviewStale: pass1Executor.reReviewStale`
 
-### 6. Deploy
-Redeploy `generate-suggestions`.
+## Files Changed
+| File | Change |
+|------|--------|
+| `supabase/functions/discover-context-resources/index.ts` | Add correlationId |
+| `src/components/cogniblend/preview/PreviewSectionEditor.tsx` | Router only |
+| `src/components/cogniblend/preview/editors/LineItemsEditor.tsx` | New — list editor |
+| `src/components/cogniblend/preview/editors/TableEditor.tsx` | New — table editor |
+| `src/components/cogniblend/preview/editors/CheckboxEditor.tsx` | New — checkbox editor |
+| `src/hooks/cogniblend/useCurationAIActions.ts` | Remove unused wave props + imports |
+| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Stop passing removed props |
+| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Use pass1Executor for reReviewStale |
 
-## Result
-After this fix, Pass 2 receives strictly more context than Pass 1: everything Pass 1 has, plus the full digest corpus, plus Pass 1 review comments, plus dependency generation rules, plus format instructions.
-
-## Total scope
-~60 lines added/changed in one file. No other files need modification.
+## Deploy
+- `discover-context-resources` (correlationId addition)
 
