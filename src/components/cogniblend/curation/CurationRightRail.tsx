@@ -132,6 +132,12 @@ export function CurationRightRail(props: CurationRightRailProps) {
     return counts;
   }, [props.curationStore]);
 
+  const diagSections = useMemo<Partial<Record<SectionKey, SectionStoreEntry>>>(() => {
+    if (!props.curationStore) return {};
+    const store = props.curationStore;
+    return store.getState?.()?.sections ?? store.sections ?? {};
+  }, [props.curationStore]);
+
   return (
     <div className="space-y-4">
       {/* Preview Document + Diagnostics */}
