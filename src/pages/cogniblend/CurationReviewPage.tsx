@@ -65,7 +65,7 @@ export default function CurationReviewPage() {
   }, [o.curationStore, o.navigate]);
 
   // ── Loading / not-found ──
-  if (o.isLoading) {
+  if (o.isLoading && !o.isWaveRunning) {
     return (
       <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
         <Skeleton className="h-7 w-64" />
