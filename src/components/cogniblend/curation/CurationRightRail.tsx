@@ -14,7 +14,7 @@ import ModificationPointsTracker from "@/components/cogniblend/ModificationPoint
 import { CreatorApprovalStatusBanner } from "@/components/cogniblend/curation/CreatorApprovalStatusBanner";
 import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
-import { AnalyseProgressPanel, type AnalyseProgressState } from "@/components/cogniblend/curation/AnalyseProgressPanel";
+import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
 import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
