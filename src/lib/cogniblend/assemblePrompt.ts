@@ -491,6 +491,8 @@ export function assembleBatchPrompt(
   if (context.operatingModel) parts.push(`Operating model: ${context.operatingModel}`);
   if (context.solutionType) parts.push(`Solution type: ${context.solutionType}`);
   if (context.seekerSegment) parts.push(`Industry: ${context.seekerSegment}`);
+  parts.push(`Maturity: ${context.maturityLevel || 'Not set'}`);
+  parts.push(`Complexity: ${context.complexityLevel || 'Not set'}`);
   if (context.rateCard) {
     const rc = context.rateCard;
     parts.push(`Rate card: $${rc.effortRateFloor}/hr floor, $${rc.rewardFloorAmount} reward floor`);
