@@ -3,8 +3,9 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import type { SectionKey } from '@/types/sections';
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Bot, Loader2, Sparkles, BookOpen, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -98,6 +99,20 @@ export function CurationRightRail(props: CurationRightRailProps) {
   } = props;
 
   const navigate = useNavigate();
+
+  const commentCounts = useMemo(() => {
+    if (!props.curationStore) return undefined;
+    const store = props.curationStore;
+    const counts: Partial<Record<SectionKey, number>> = {};
+    const sections = store.getState?.()?.sections ?? store.sections ?? {};
+    for (const [key, entry] of Object.entries(sections)) {
+      const e = entry as { aiComments?: unknown[] | null } | undefined;
+      if (e?.aiComments && Array.isArray(e.aiComments)) {
+        counts[key as SectionKey] = e.aiComments.length;
+      }
+    }
+    return counts;
+  }, [props.curationStore]);
 
   return (
     <div className="space-y-4">
