@@ -55,14 +55,18 @@ function sanitizeToHtml(text: string): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const correlationId = crypto.randomUUID().substring(0, 8);
+
   try {
     const { challenge_id } = await req.json();
     if (!challenge_id) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log(`[${correlationId}] generate-context-digest START for ${challenge_id}`);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -78,17 +82,19 @@ serve(async (req) => {
     );
 
     // P4 FIX: Include extraction_quality in query for quality-aware digest
+    // GAP 4 FIX: Exclude low-quality sources from digest
     const { data: attachments, error: attErr } = await adminClient
       .from("challenge_attachments")
       .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method, extraction_status, extraction_quality")
       .eq("challenge_id", challenge_id)
       .eq("discovery_status", "accepted")
-      .in("extraction_status", ["completed", "partial"]);
+      .in("extraction_status", ["completed", "partial"])
+      .neq("extraction_quality", "low");
 
     if (attErr) throw new Error(attErr.message);
     if (!attachments || attachments.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "NO_SOURCES", message: "No accepted sources to digest" } }),
+        JSON.stringify({ success: false, error: { code: "NO_SOURCES", message: "No accepted sources to digest", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
