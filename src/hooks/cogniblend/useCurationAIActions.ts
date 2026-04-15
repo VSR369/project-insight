@@ -3,6 +3,8 @@
  * Restored to wave-based architecture for maximum quality per section.
  * Pass 1: Wave executor with pass1Only=true (comments only).
  * Pass 2: Wave executor with skipAnalysis=true (suggestions using Pass 1 comments).
+ *
+ * Gates success flags on real executor outcome (completed/cancelled/error).
  */
 
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
@@ -23,6 +25,7 @@ import type { SectionReview } from '@/components/cogniblend/curation/CurationAIR
 import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
 import type { Json } from '@/integrations/supabase/types';
 import type { WaveProgress } from '@/lib/cogniblend/waveConfig';
+import type { ExecutionResult } from '@/services/cogniblend/waveExecutionHistory';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
@@ -34,8 +37,8 @@ interface UseCurationAIActionsOptions {
   aiReviews: SectionReview[];
   buildContextOptions: () => BuildChallengeContextOptions;
   pass1SetWaveProgress: Dispatch<SetStateAction<WaveProgress>>;
-  executeWavesPass1: () => Promise<void>;
-  executeWavesPass2: () => Promise<void>;
+  executeWavesPass1: () => Promise<ExecutionResult>;
+  executeWavesPass2: () => Promise<ExecutionResult>;
   saveSectionMutationRef: React.RefObject<ReturnType<typeof import('@tanstack/react-query').useMutation>>;
   setPreFlightResult: (v: unknown) => void;
   setPreFlightDialogOpen: (v: boolean) => void;
@@ -145,7 +148,13 @@ export function useCurationAIActions({
 
     try {
       // ── Pass 1: Wave-based analysis (comments only) ──
-      await executeWavesPass1();
+      const pass1Result = await executeWavesPass1();
+
+      if (pass1Result.outcome !== 'completed') {
+        const label = pass1Result.outcome === 'cancelled' ? 'cancelled' : 'failed';
+        toast.error(`Analysis ${label} at wave ${pass1Result.lastCompletedWave}/${pass1Result.totalWaves}.${pass1Result.errorMessage ? ` Error: ${pass1Result.errorMessage}` : ''}`);
+        return;
+      }
 
       // ── Discovery: discover-context-resources ──
       let autoAcceptedCount = 0;
@@ -220,7 +229,13 @@ export function useCurationAIActions({
       } catch { /* non-blocking */ }
 
       // Stage 2: Wave-based Pass 2 (suggestions using Pass 1 comments)
-      await executeWavesPass2();
+      const pass2Result = await executeWavesPass2();
+
+      if (pass2Result.outcome !== 'completed') {
+        const label = pass2Result.outcome === 'cancelled' ? 'cancelled' : 'failed';
+        toast.error(`Generation ${label} at wave ${pass2Result.lastCompletedWave}/${pass2Result.totalWaves}.${pass2Result.errorMessage ? ` Error: ${pass2Result.errorMessage}` : ''}`);
+        return;
+      }
 
       // Stage 3: Post-processing
       const ctx = buildChallengeContext(buildContextOptions());

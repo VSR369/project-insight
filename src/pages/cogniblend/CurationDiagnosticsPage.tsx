@@ -12,6 +12,7 @@ import { DiagnosticsReviewPanel } from '@/components/cogniblend/diagnostics/Diag
 import { DiagnosticsSuggestionsPanel } from '@/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel';
 import { DiagnosticsDiscoveryPanel } from '@/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
+import { loadExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
 /**
@@ -37,6 +38,9 @@ export default function CurationDiagnosticsPage() {
     if (!challengeId) return {};
     return loadSectionsFromStorage(challengeId);
   }, [challengeId]);
+
+  const analyseRecord = useMemo(() => challengeId ? loadExecutionRecord(challengeId, 'analyse') : null, [challengeId]);
+  const generateRecord = useMemo(() => challengeId ? loadExecutionRecord(challengeId, 'generate') : null, [challengeId]);
 
   if (!challengeId) return null;
 
@@ -64,8 +68,8 @@ export default function CurationDiagnosticsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} />
-          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} />
+          <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} executionRecord={analyseRecord} />
+          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} executionRecord={generateRecord} />
           <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
         </div>
       )}

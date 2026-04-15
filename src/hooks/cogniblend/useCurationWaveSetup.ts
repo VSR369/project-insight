@@ -11,6 +11,7 @@ import { useWaveExecutor } from '@/hooks/useWaveExecutor';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
 import { buildChallengeContext, type BuildChallengeContextOptions } from '@/lib/cogniblend/challengeContextAssembler';
 import { getCurationFormStore } from '@/store/curationFormStore';
+import { EXECUTION_WAVES } from '@/lib/cogniblend/waveConfig';
 import type { SectionKey } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { UseMutationResult } from '@tanstack/react-query';
@@ -93,9 +94,10 @@ export function useCurationWaveSetup({
     }),
     onAllComplete: () => {
       if (waveRunningRef) waveRunningRef.current = false;
+      const totalSections = EXECUTION_WAVES.reduce((sum, w) => sum + w.sectionIds.length, 0);
       updateProgress.mutate({
         challengeId: challengeId!, status: 'curator_editing',
-        ai_review_completed_at: new Date().toISOString(), sections_reviewed: 27,
+        ai_review_completed_at: new Date().toISOString(), sections_reviewed: totalSections,
       });
     },
   };

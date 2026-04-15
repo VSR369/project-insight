@@ -5,6 +5,9 @@
  * Each wave calls the existing edge function per section.
  * Updates running context between waves so downstream waves
  * benefit from newly generated/reviewed content.
+ *
+ * Returns a typed ExecutionResult so callers can distinguish
+ * completed / cancelled / error outcomes.
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -22,6 +25,17 @@ import {
   type WaveResult,
   type SectionAction,
 } from '@/lib/cogniblend/waveConfig';
+import {
+  createFreshRecord,
+  updateWaveStart,
+  updateWaveComplete,
+  finalizeRecord,
+  saveExecutionRecord,
+  type ExecutionResult,
+  type PassType,
+  type WaveSectionResult,
+} from '@/services/cogniblend/waveExecutionHistory';
+import type { SectionKey } from '@/types/sections';
 
 interface WaveProgressCallbacks {
   onWaveStart?: (waveNum: number) => void;
@@ -33,7 +47,7 @@ interface UseWaveExecutorOptions {
   challengeId: string;
   buildContextOptions: () => BuildChallengeContextOptions;
   onSectionReviewed: (sectionKey: string, review: SectionReview) => void;
-  onComplexitySuggestion?: (suggestion: Record<string, any>) => void;
+  onComplexitySuggestion?: (suggestion: Record<string, unknown>) => void;
   onProgress?: WaveProgressCallbacks;
   pass1Only?: boolean;
   skipAnalysis?: boolean;
@@ -41,13 +55,21 @@ interface UseWaveExecutorOptions {
 }
 
 interface UseWaveExecutorReturn {
-  executeWaves: () => Promise<void>;
-  reReviewStale: () => Promise<void>;
+  executeWaves: () => Promise<ExecutionResult>;
+  reReviewStale: () => Promise<ExecutionResult>;
   cancelReview: () => void;
   waveProgress: WaveProgress;
   updateWaveProgress: React.Dispatch<React.SetStateAction<WaveProgress>>;
   isRunning: boolean;
 }
+
+const FAILED_RESULT: ExecutionResult = {
+  outcome: 'error',
+  lastCompletedWave: 0,
+  totalWaves: EXECUTION_WAVES.length,
+  errorMessage: 'Already running',
+  failedSections: [],
+};
 
 export function useWaveExecutor({
   challengeId,
@@ -63,6 +85,8 @@ export function useWaveExecutor({
   const cancelRef = useRef(false);
   const inFlightRef = useRef(false);
 
+  const passType: PassType = skipAnalysis ? 'generate' : (pass1Only ? 'analyse' : 'generate');
+
   const reviewSingleSection = useWaveReviewSection({
     challengeId,
     onSectionReviewed,
@@ -72,13 +96,23 @@ export function useWaveExecutor({
     providedCommentsBySectionKey,
   });
 
-  const executeWaves = useCallback(async () => {
+  const executeWaves = useCallback(async (): Promise<ExecutionResult> => {
     if (inFlightRef.current) {
       toast.warning('A review is already in progress.');
-      return;
+      return FAILED_RESULT;
     }
     inFlightRef.current = true;
     cancelRef.current = false;
+
+    let execRecord = createFreshRecord(
+      challengeId,
+      passType,
+      EXECUTION_WAVES.map((w) => ({ waveNumber: w.waveNumber, name: w.name, sectionIds: w.sectionIds })),
+    );
+    saveExecutionRecord(execRecord);
+
+    const failedSections: SectionKey[] = [];
+    let lastCompletedWave = 0;
 
     try {
       const initialProgress = createInitialWaveProgress();
@@ -96,11 +130,23 @@ export function useWaveExecutor({
               idx >= i ? { ...w, status: 'cancelled' } : w
             ),
           }));
-          break;
+          execRecord = finalizeRecord(execRecord, 'cancelled');
+          saveExecutionRecord(execRecord);
+          toast.warning('AI review cancelled after completing current wave.');
+          return {
+            outcome: 'cancelled',
+            lastCompletedWave,
+            totalWaves: EXECUTION_WAVES.length,
+            errorMessage: null,
+            failedSections,
+          };
         }
 
         const wave = EXECUTION_WAVES[i];
         onProgress?.onWaveStart?.(i + 1);
+
+        execRecord = updateWaveStart(execRecord, wave.waveNumber);
+        saveExecutionRecord(execRecord);
 
         setWaveProgress((prev) => ({
           ...prev,
@@ -116,6 +162,8 @@ export function useWaveExecutor({
         }));
 
         const sectionResults: WaveResult['sections'] = [];
+        const historyResults: WaveSectionResult[] = [];
+
         for (const sa of sectionActions) {
           const store = getCurationFormStore(challengeId);
           store.getState().setAiAction(sa.sectionId, sa.action);
@@ -126,10 +174,17 @@ export function useWaveExecutor({
             action: sa.action,
             status: result,
           });
+          historyResults.push({
+            sectionId: sa.sectionId,
+            action: sa.action,
+            status: result,
+          });
+          if (result === 'error') failedSections.push(sa.sectionId);
         }
 
         const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
         const totalReviewedSoFar = EXECUTION_WAVES.slice(0, i + 1).reduce((sum, w) => sum + w.sectionIds.length, 0);
+
         setWaveProgress((prev) => ({
           ...prev,
           waves: prev.waves.map((w) =>
@@ -138,22 +193,12 @@ export function useWaveExecutor({
               : w
           ),
         }));
-        onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
-        // Persist wave progress summary to localStorage for recovery
-        try {
-          const progressSummary = {
-            waveNumber: wave.waveNumber,
-            status: waveStatus,
-            sectionsCompleted: totalReviewedSoFar,
-            timestamp: new Date().toISOString(),
-          };
-          const storageKey = `wave-progress-${challengeId}`;
-          const existing = JSON.parse(localStorage.getItem(storageKey) ?? '{"waves":[]}');
-          existing.waves = [...(existing.waves ?? []).filter((w: { waveNumber: number }) => w.waveNumber !== wave.waveNumber), progressSummary];
-          existing.overallStatus = 'running';
-          localStorage.setItem(storageKey, JSON.stringify(existing));
-        } catch { /* localStorage unavailable */ }
+        execRecord = updateWaveComplete(execRecord, wave.waveNumber, historyResults);
+        saveExecutionRecord(execRecord);
+
+        lastCompletedWave = wave.waveNumber;
+        onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
 
         context = buildChallengeContext(buildContextOptions());
 
@@ -162,46 +207,55 @@ export function useWaveExecutor({
         }
       }
 
-      if (!cancelRef.current) {
-        setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
-        onProgress?.onAllComplete?.();
-        toast.success('All section reviews complete.');
-      } else {
-        toast.warning('AI review cancelled after completing current wave.');
-      }
+      setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
+      execRecord = finalizeRecord(execRecord, 'completed');
+      saveExecutionRecord(execRecord);
 
-      // Persist final status to localStorage
-      try {
-        const storageKey = `wave-progress-${challengeId}`;
-        const existing = JSON.parse(localStorage.getItem(storageKey) ?? '{"waves":[]}');
-        existing.overallStatus = cancelRef.current ? 'cancelled' : 'completed';
-        existing.completedAt = new Date().toISOString();
-        localStorage.setItem(storageKey, JSON.stringify(existing));
-      } catch { /* localStorage unavailable */ }
+      onProgress?.onAllComplete?.();
+      toast.success('All section reviews complete.');
+
+      return {
+        outcome: 'completed',
+        lastCompletedWave,
+        totalWaves: EXECUTION_WAVES.length,
+        errorMessage: null,
+        failedSections,
+      };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'error' }));
+      execRecord = finalizeRecord(execRecord, 'error', message);
+      saveExecutionRecord(execRecord);
       toast.error(`AI review failed: ${message}`);
+      return {
+        outcome: 'error',
+        lastCompletedWave,
+        totalWaves: EXECUTION_WAVES.length,
+        errorMessage: message,
+        failedSections,
+      };
     } finally {
       inFlightRef.current = false;
     }
-  }, [challengeId, buildContextOptions, reviewSingleSection, onProgress]);
+  }, [challengeId, buildContextOptions, reviewSingleSection, onProgress, passType]);
 
-  const reReviewStale = useCallback(async () => {
+  const reReviewStale = useCallback(async (): Promise<ExecutionResult> => {
     if (inFlightRef.current) {
       toast.warning('A review is already in progress.');
-      return;
+      return FAILED_RESULT;
     }
 
     const store = getCurationFormStore(challengeId);
     const stale = selectStaleSections(store.getState());
     if (stale.length === 0) {
       toast.info('No stale sections to re-review.');
-      return;
+      return { outcome: 'completed', lastCompletedWave: 0, totalWaves: 0, errorMessage: null, failedSections: [] };
     }
 
     inFlightRef.current = true;
     cancelRef.current = false;
+    const failedSections: SectionKey[] = [];
+    let lastCompletedWave = 0;
 
     try {
       const staleIds = new Set(stale.map((s) => s.key));
@@ -236,6 +290,7 @@ export function useWaveExecutor({
         for (const sectionId of sectionsInWave) {
           const result = await reviewSingleSection(sectionId, 'review', context);
           sectionResults.push({ sectionId, action: 'review', status: result });
+          if (result === 'error') failedSections.push(sectionId);
         }
 
         const skippedSections = wave.sectionIds
@@ -251,18 +306,22 @@ export function useWaveExecutor({
           ),
         }));
 
+        lastCompletedWave = wave.waveNumber;
         context = buildChallengeContext(buildContextOptions());
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      setWaveProgress((prev) => ({ ...prev, overallStatus: cancelRef.current ? 'cancelled' : 'completed' }));
+      const outcome = cancelRef.current ? 'cancelled' : 'completed';
+      setWaveProgress((prev) => ({ ...prev, overallStatus: outcome }));
       if (!cancelRef.current) {
         toast.success(`Re-reviewed ${stale.length} stale section(s).`);
       }
+      return { outcome, lastCompletedWave, totalWaves: affectedWaves.length, errorMessage: null, failedSections };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'error' }));
       toast.error(`Stale re-review failed: ${message}`);
+      return { outcome: 'error', lastCompletedWave, totalWaves: EXECUTION_WAVES.length, errorMessage: message, failedSections };
     } finally {
       inFlightRef.current = false;
     }

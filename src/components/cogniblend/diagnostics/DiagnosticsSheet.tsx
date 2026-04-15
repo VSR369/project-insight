@@ -1,6 +1,7 @@
 /**
  * DiagnosticsSheet — Inline slide-over panel for AI pipeline diagnostics.
  * Renders inside the curation page to avoid navigation/auth issues.
+ * Reads authoritative execution history from localStorage.
  */
 
 import React from 'react';
@@ -15,6 +16,7 @@ import { DiagnosticsReviewPanel } from '@/components/cogniblend/diagnostics/Diag
 import { DiagnosticsSuggestionsPanel } from '@/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel';
 import { DiagnosticsDiscoveryPanel } from '@/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
+import { loadExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
@@ -27,6 +29,9 @@ interface DiagnosticsSheetProps {
 
 export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: DiagnosticsSheetProps) {
   const { attachmentStats, digest, importanceLevels, isLoading } = useDiagnosticsData(challengeId);
+
+  const analyseRecord = open ? loadExecutionRecord(challengeId, 'analyse') : null;
+  const generateRecord = open ? loadExecutionRecord(challengeId, 'generate') : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -47,8 +52,16 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
             </div>
           ) : (
             <>
-              <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} />
-              <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} />
+              <DiagnosticsReviewPanel
+                sections={sections}
+                importanceLevels={importanceLevels}
+                executionRecord={analyseRecord}
+              />
+              <DiagnosticsSuggestionsPanel
+                sections={sections}
+                importanceLevels={importanceLevels}
+                executionRecord={generateRecord}
+              />
               <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
             </>
           )}
