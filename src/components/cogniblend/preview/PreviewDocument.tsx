@@ -1,18 +1,24 @@
 /**
  * PreviewDocument — Scrollable document body rendering all groups/sections.
  * Composes SECTIONS renderers + special sections into a seamless document.
+ * Inline editing writes directly to DB via supabase client.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { SECTIONS, GROUPS, SECTION_MAP, LOCKED_SECTIONS } from '@/lib/cogniblend/curationSectionDefs';
 import { isControlledMode, resolveGovernanceMode } from '@/lib/governanceMode';
 import { parseJson } from '@/lib/cogniblend/curationHelpers';
+import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import { PreviewGroupHeader } from './PreviewGroupHeader';
 import { PreviewSection } from './PreviewSection';
 import { PreviewOrgSection } from './PreviewOrgSection';
 import { PreviewLegalSection } from './PreviewLegalSection';
 import { PreviewEscrowSection } from './PreviewEscrowSection';
 import { PreviewDigestSection } from './PreviewDigestSection';
+import { PreviewSectionEditor } from './PreviewSectionEditor';
 import type { ChallengeData, LegalDocDetail, EscrowRecord } from '@/lib/cogniblend/curationTypes';
 import type { OrgData, DigestData, PreviewAttachment } from './usePreviewData';
 
@@ -50,6 +56,8 @@ export function PreviewDocument({
   canEditSection,
 }: PreviewDocumentProps) {
   const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [savingSection, setSavingSection] = useState(false);
+  const queryClient = useQueryClient();
 
   const isControlled = useMemo(
     () => isControlledMode(resolveGovernanceMode(challenge.governance_mode_override ?? challenge.governance_profile)),
@@ -78,22 +86,72 @@ export function PreviewDocument({
     setEditingSection(key);
   };
 
+  const handleCancelEdit = useCallback(() => {
+    setEditingSection(null);
+  }, []);
+
+  /** Write section value to DB, invalidate cache, close editor */
+  const handleSectionSave = useCallback(async (sectionKey: string, value: unknown) => {
+    setSavingSection(true);
+    try {
+      const jsonbField = EXTENDED_BRIEF_FIELD_MAP[sectionKey];
+      if (jsonbField) {
+        // extended_brief subsection: read-modify-write
+        const { data: row } = await supabase
+          .from('challenges')
+          .select('extended_brief')
+          .eq('id', challenge.id)
+          .single();
+        const current = parseJson<Record<string, unknown>>(row?.extended_brief ?? null) ?? {};
+        current[jsonbField] = value;
+        const { error } = await supabase
+          .from('challenges')
+          .update({ extended_brief: current as Record<string, unknown> } as Record<string, unknown>)
+          .eq('id', challenge.id);
+        if (error) throw new Error(error.message);
+      } else {
+        // Direct column
+        const { error } = await supabase
+          .from('challenges')
+          .update({ [sectionKey]: value } as Record<string, unknown>)
+          .eq('id', challenge.id);
+        if (error) throw new Error(error.message);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['challenge-preview', challenge.id] });
+      await queryClient.invalidateQueries({ queryKey: ['curation-review', challenge.id] });
+      setEditingSection(null);
+      toast.success('Section saved');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Save failed';
+      toast.error(msg);
+    } finally {
+      setSavingSection(false);
+    }
+  }, [challenge.id, queryClient]);
+
+  /** Get current DB value for a section key */
+  const getSectionValue = useCallback((sectionKey: string): unknown => {
+    const jsonbField = EXTENDED_BRIEF_FIELD_MAP[sectionKey];
+    if (jsonbField && extendedBrief) {
+      return extendedBrief[jsonbField] ?? '';
+    }
+    return (challenge as unknown as Record<string, unknown>)[sectionKey] ?? '';
+  }, [challenge, extendedBrief]);
+
   const renderStandardSection = (sectionKey: string) => {
     const def = SECTION_MAP.get(sectionKey);
     if (!def) return null;
 
-    // Skip sections rendered as special components
     if (sectionKey === 'legal_docs' || sectionKey === 'escrow_funding') return null;
 
     const isLocked = LOCKED_SECTIONS.has(sectionKey);
     const canEdit = canEditSection(sectionKey);
     const isEditing = editingSection === sectionKey;
 
-    // Some sections have null render (rendered via dedicated components in curation)
     const rendered = def.render(challenge, [], legalDetails, escrowRecord);
     const hasContent = rendered !== null;
 
-    // P5 FIX: Show accepted sources for this section
     const sectionSources = attachments.filter((a) => a.section_key === sectionKey);
 
     return (
@@ -106,6 +164,18 @@ export function PreviewDocument({
         isLocked={isLocked}
         isEditing={isEditing}
         onStartEdit={() => handleStartEdit(sectionKey)}
+        onCancelEdit={handleCancelEdit}
+        editContent={
+          isEditing ? (
+            <PreviewSectionEditor
+              sectionKey={sectionKey}
+              initialValue={getSectionValue(sectionKey)}
+              onSave={(val) => handleSectionSave(sectionKey, val)}
+              onCancel={handleCancelEdit}
+              saving={savingSection}
+            />
+          ) : undefined
+        }
       >
         {hasContent ? rendered : (
           <p className="text-sm text-muted-foreground italic">
@@ -155,7 +225,6 @@ export function PreviewDocument({
         <div key={group.id}>
           <PreviewGroupHeader id={group.id} icon={group.icon} label={group.label.replace(/^\d+\.\s*/, '')} />
           {group.sectionKeys.map((key) => {
-            // Legal/escrow rendered separately
             if (key === 'legal_docs') {
               return (
                 <PreviewSection
@@ -202,6 +271,7 @@ export function PreviewDocument({
         isLocked={false}
         isEditing={editingSection === 'context_digest'}
         onStartEdit={() => handleStartEdit('context_digest')}
+        onCancelEdit={handleCancelEdit}
       >
         <PreviewDigestSection digest={digest} />
       </PreviewSection>
