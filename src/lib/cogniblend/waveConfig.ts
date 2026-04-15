@@ -42,7 +42,7 @@ export interface WaveProgress {
   overallStatus: 'idle' | 'running' | 'completed' | 'cancelled' | 'error';
 }
 
-const LOCKED_SECTIONS: SectionKey[] = ['legal_docs', 'escrow_funding'];
+const LOCKED_SECTIONS: SectionKey[] = [];
 
 /** Sections backed by attachments/external data — always review, never generate */
 const ATTACHMENT_SECTIONS: SectionKey[] = ['creator_references', 'reference_urls'];
@@ -53,7 +53,7 @@ export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 1,
     name: 'Foundation — Problem & Context',
-    sectionIds: ['problem_statement', 'scope', 'expected_outcomes', 'context_and_background'],
+    sectionIds: ['organization_context', 'problem_statement', 'scope', 'expected_outcomes', 'context_and_background'],
     prerequisiteSections: [],
   },
   {
@@ -91,7 +91,7 @@ export const EXECUTION_WAVES: WaveConfig[] = [
     sectionIds: [
       'hook', 'visibility', 'domain_tags',
       'evaluation_config', 'solver_audience',
-      'legal_docs', 'escrow_funding',
+      'creator_legal_instructions', 'legal_docs', 'escrow_funding',
     ],
     prerequisiteSections: ['problem_statement', 'deliverables', 'reward_structure', 'evaluation_criteria'],
   },
