@@ -22,6 +22,7 @@ interface UseCurationWaveSetupOptions {
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
   setAiSuggestedComplexity: (v: any) => void;
   saveSectionMutationRef: React.MutableRefObject<UseMutationResult<void, Error, { field: string; value: any }>>;
+  waveRunningRef?: React.MutableRefObject<boolean>;
 }
 
 export function useCurationWaveSetup({
@@ -31,6 +32,7 @@ export function useCurationWaveSetup({
   setAiReviews,
   setAiSuggestedComplexity,
   saveSectionMutationRef,
+  waveRunningRef,
 }: UseCurationWaveSetupOptions) {
 
   const buildContextOptions = useCallback((): BuildChallengeContextOptions => {
@@ -77,17 +79,25 @@ export function useCurationWaveSetup({
   const updateProgress = useUpdateCurationProgress();
 
   const progressCallbacks = {
-    onWaveStart: (waveNum: number) => updateProgress.mutate({
-      challengeId: challengeId!, status: 'ai_review', current_wave: waveNum,
-      ...(waveNum === 1 ? { ai_review_started_at: new Date().toISOString() } : {}),
-    }),
+    onWaveStart: (waveNum: number) => {
+      // Set waveRunningRef synchronously BEFORE any section review starts
+      // to prevent saveSectionMutation.onSuccess from triggering query invalidation
+      if (waveRunningRef) waveRunningRef.current = true;
+      updateProgress.mutate({
+        challengeId: challengeId!, status: 'ai_review', current_wave: waveNum,
+        ...(waveNum === 1 ? { ai_review_started_at: new Date().toISOString() } : {}),
+      });
+    },
     onWaveComplete: (_waveNum: number, _count: number, total: number) => updateProgress.mutate({
       challengeId: challengeId!, sections_reviewed: total,
     }),
-    onAllComplete: () => updateProgress.mutate({
-      challengeId: challengeId!, status: 'curator_editing',
-      ai_review_completed_at: new Date().toISOString(), sections_reviewed: 27,
-    }),
+    onAllComplete: () => {
+      if (waveRunningRef) waveRunningRef.current = false;
+      updateProgress.mutate({
+        challengeId: challengeId!, status: 'curator_editing',
+        ai_review_completed_at: new Date().toISOString(), sections_reviewed: 27,
+      });
+    },
   };
 
   // ── Pass 1 executor (analyse only — no suggestions) ──

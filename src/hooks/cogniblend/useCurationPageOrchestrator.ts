@@ -162,6 +162,7 @@ export function useCurationPageOrchestrator() {
   const waveSetup = useCurationWaveSetup({
     challengeId, challenge: challenge as Record<string, any> | null,
     aiReviews, setAiReviews, setAiSuggestedComplexity, saveSectionMutationRef,
+    waveRunningRef,
   });
 
   // Keep waveRunningRef in sync so saveSectionMutation.onSuccess can check it
