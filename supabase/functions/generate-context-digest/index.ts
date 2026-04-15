@@ -187,6 +187,7 @@ ${keyData ? `\nSTRUCTURED DATA:\n${keyData}` : ''}`;
 CHALLENGE: "${challenge?.title || "Unknown"}"
 PROBLEM: ${challenge?.problem_statement || "Not specified"}
 ${orgContext}
+${gapSectionsInstruction}
 
 Synthesize the provided source materials into a comprehensive 600-word context digest.
 
