@@ -1,5 +1,6 @@
 /**
  * PreviewOrgSection — Organization context section for preview.
+ * P5 FIX: Shows accepted sources with quality indicators per section.
  */
 
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,13 @@ interface PreviewOrgSectionProps {
   extendedBrief: Record<string, unknown> | null;
   attachments: PreviewAttachment[];
 }
+
+const QUALITY_COLORS: Record<string, string> = {
+  high: 'text-emerald-600 border-emerald-300',
+  medium: 'text-amber-600 border-amber-300',
+  low: 'text-orange-600 border-orange-300',
+  seed: 'text-muted-foreground border-border',
+};
 
 export function PreviewOrgSection({
   orgData,
@@ -79,14 +87,19 @@ export function PreviewOrgSection({
         </div>
       </div>
 
-      {/* Org documents */}
+      {/* Org documents with quality badges */}
       {orgAttachments.length > 0 && (
         <div className="pt-3 border-t border-border/50 space-y-2">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Organization Documents</h4>
           {orgAttachments.map((att) => (
             <div key={att.id} className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>📄</span>
-              <span>{att.display_name ?? att.file_name ?? 'Document'}</span>
+              <span>{att.display_name ?? att.url_title ?? att.file_name ?? 'Document'}</span>
+              {att.extraction_quality && (
+                <Badge variant="outline" className={`text-[9px] ${QUALITY_COLORS[att.extraction_quality] ?? ''}`}>
+                  {att.extraction_quality}
+                </Badge>
+              )}
             </div>
           ))}
         </div>
