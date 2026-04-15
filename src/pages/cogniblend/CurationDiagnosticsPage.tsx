@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,7 +31,6 @@ function loadSectionsFromStorage(challengeId: string): Partial<Record<SectionKey
 
 export default function CurationDiagnosticsPage() {
   const { id: challengeId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { attachmentStats, digest, importanceLevels, isLoading } = useDiagnosticsData(challengeId);
 
   const sections = useMemo(() => {
