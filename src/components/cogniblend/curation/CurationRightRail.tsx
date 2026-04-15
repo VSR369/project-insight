@@ -183,7 +183,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
         </Button>
       )}
 
-      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} />
+      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} commentCounts={commentCounts} />
 
       <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
 
