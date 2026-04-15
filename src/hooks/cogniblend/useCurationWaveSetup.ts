@@ -4,7 +4,7 @@
  * Now supports two-step workflow: pass1Executor (analyse) + fullExecutor (generate).
  */
 
-import { useCallback, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 import { useUpdateCurationProgress } from '@/hooks/cogniblend/useCurationProgress';
 import { useCompletenessCheckDefs, useRunCompletenessCheck } from '@/hooks/queries/useCompletenessChecks';
 import { useWaveExecutor } from '@/hooks/useWaveExecutor';
@@ -139,6 +139,23 @@ export function useCurationWaveSetup({
 
   const isWaveRunning = pass1Executor.isRunning || fullExecutor.isRunning || pass2Executor.isRunning;
 
+  // ── Track which pass type is active or was last active ──
+  const lastPassTypeRef = useRef<'analyse' | 'generate'>('analyse');
+  const [currentPassType, setCurrentPassType] = useState<'analyse' | 'generate'>('analyse');
+
+  useEffect(() => {
+    if (pass1Executor.isRunning) {
+      lastPassTypeRef.current = 'analyse';
+      setCurrentPassType('analyse');
+    } else if (pass2Executor.isRunning || fullExecutor.isRunning) {
+      lastPassTypeRef.current = 'generate';
+      setCurrentPassType('generate');
+    } else {
+      // Not running — show last completed pass type
+      setCurrentPassType(lastPassTypeRef.current);
+    }
+  }, [pass1Executor.isRunning, pass2Executor.isRunning, fullExecutor.isRunning]);
+
   // ── Completeness checks ──
   const { data: completenessCheckDefs = [] } = useCompletenessCheckDefs();
   const { result: completenessResult, run: runCompletenessCheck, isRunning: completenessRunning } = useRunCompletenessCheck({
@@ -163,9 +180,7 @@ export function useCurationWaveSetup({
 
   return {
     buildContextOptions,
-    // Legacy: executeWaves points to full executor for backward compatibility
     executeWaves: fullExecutor.executeWaves,
-    // New: separate pass1, pass2, and full executors
     executeWavesPass1: pass1Executor.executeWaves,
     executeWavesFull: fullExecutor.executeWaves,
     executeWavesPass2: pass2Executor.executeWaves,
@@ -176,13 +191,13 @@ export function useCurationWaveSetup({
       fullExecutor.cancelReview();
       pass2Executor.cancelReview();
     },
-    // Show progress from whichever is running
     waveProgress: pass1Executor.isRunning
       ? pass1Executor.waveProgress
       : pass2Executor.isRunning
         ? pass2Executor.waveProgress
         : fullExecutor.waveProgress,
     isWaveRunning,
+    currentPassType,
     completenessCheckDefs,
     completenessResult,
     completenessRunning,

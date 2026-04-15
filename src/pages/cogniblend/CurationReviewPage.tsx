@@ -290,6 +290,7 @@ export default function CurationReviewPage() {
           onGenerateSuggestions={o.handleGenerateSuggestions}
           pass1Done={o.pass1DoneSession}
           waveProgress={o.waveProgress}
+          passType={o.currentPassType}
           onCancelReview={o.cancelReview}
           budgetShortfall={o.budgetShortfall}
           curationStore={o.curationStore}

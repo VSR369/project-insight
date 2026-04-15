@@ -32,6 +32,7 @@ export interface CurationRightRailProps {
   aiQuality: AIQualitySummary | null;
   aiQualityLoading: boolean;
   onAIQualityAnalysis: () => void;
+  passType?: 'analyse' | 'generate';
   challengeCtx: any;
   allSectionKeys: string[];
   completenessResult: any;
@@ -114,6 +115,20 @@ export function CurationRightRail(props: CurationRightRailProps) {
     return counts;
   }, [props.curationStore]);
 
+  const suggestionCounts = useMemo(() => {
+    if (!props.curationStore) return undefined;
+    const store = props.curationStore;
+    const counts: Partial<Record<SectionKey, number>> = {};
+    const sections = store.getState?.()?.sections ?? store.sections ?? {};
+    for (const [key, entry] of Object.entries(sections)) {
+      const e = entry as { aiSuggestion?: string | null } | undefined;
+      if (e?.aiSuggestion) {
+        counts[key as SectionKey] = 1;
+      }
+    }
+    return counts;
+  }, [props.curationStore]);
+
   return (
     <div className="space-y-4">
       {/* Preview Document button */}
@@ -183,7 +198,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
         </Button>
       )}
 
-      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} commentCounts={commentCounts} />
+      <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} passType={props.passType} commentCounts={commentCounts} suggestionCounts={suggestionCounts} />
 
       <CompletenessChecklistCard result={completenessResult} checkDefs={completenessCheckDefs} isRunning={completenessRunning} onRun={onRunCompletenessCheck} onNavigateToSection={onNavigateToSection} />
 
