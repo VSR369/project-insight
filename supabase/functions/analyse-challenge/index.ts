@@ -12,8 +12,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildUnifiedContext } from "../_shared/buildUnifiedContext.ts";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 import { safeJsonParse } from "../_shared/safeJsonParse.ts";
-import { buildContextIntelligence, detectDomainFrameworks, INTELLIGENCE_DIRECTIVE } from "../review-challenge-sections/contextIntelligence.ts";
-import { buildIndustryIntelligence, buildGeographyContext } from "../review-challenge-sections/industryGeoPrompt.ts";
+// NOTE: contextIntelligence and industryGeoPrompt cannot be imported cross-function.
+// These functions will use the unified context from buildUnifiedContext which already
+// assembles all intelligence layers. The AI prompt includes org/industry/geo context inline.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

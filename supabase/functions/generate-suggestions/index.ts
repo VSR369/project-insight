@@ -12,8 +12,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildUnifiedContext } from "../_shared/buildUnifiedContext.ts";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 import { safeJsonParse } from "../_shared/safeJsonParse.ts";
-import { buildContextIntelligence, INTELLIGENCE_DIRECTIVE } from "../review-challenge-sections/contextIntelligence.ts";
-import { SECTION_FORMAT_MAP, EXTENDED_BRIEF_FORMAT_INSTRUCTIONS } from "../review-challenge-sections/promptConstants.ts";
+// NOTE: Cannot import across function boundaries. Format maps inlined below.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
