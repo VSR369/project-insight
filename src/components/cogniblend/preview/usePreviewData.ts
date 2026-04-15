@@ -37,6 +37,9 @@ export interface PreviewAttachment {
   section_key: string;
   source_type: string;
   source_url: string | null;
+  url_title: string | null;
+  extraction_quality: string | null;
+  discovery_status: string;
 }
 
 export function usePreviewData(challengeId: string | undefined) {
@@ -127,13 +130,15 @@ export function usePreviewData(challengeId: string | undefined) {
     staleTime: 0,
   });
 
+  // P5 FIX: Only show accepted sources in preview, include quality + title
   const attachmentsQuery = useQuery({
     queryKey: ['preview-attachments', challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenge_attachments')
-        .select('id, file_name, display_name, storage_path, section_key, source_type, source_url')
+        .select('id, file_name, display_name, storage_path, section_key, source_type, source_url, url_title, extraction_quality, discovery_status')
         .eq('challenge_id', challengeId!)
+        .eq('discovery_status', 'accepted')
         .order('display_order');
       if (error) throw new Error(error.message);
       return (data ?? []) as PreviewAttachment[];
