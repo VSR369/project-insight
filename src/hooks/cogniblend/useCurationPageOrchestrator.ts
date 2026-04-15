@@ -266,6 +266,7 @@ export function useCurationPageOrchestrator() {
       await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
 
       toast.success(`Accepted AI suggestions for ${totalCount} section${totalCount !== 1 ? 's' : ''}`);
+      navigate(`/cogni/curation/${challengeId}/preview`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast.error(`Bulk accept failed: ${message}`);
