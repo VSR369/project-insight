@@ -53,6 +53,20 @@ function jsonBrief(v: unknown): string {
   try { return JSON.stringify(v).substring(0, 2000); } catch { return '(empty)'; }
 }
 
+function buildOrgBlock(org: Record<string, unknown>): string {
+  const lines: string[] = [];
+  lines.push(`Organization: ${org.orgName ?? '(unknown)'}`);
+  if (org.tradeBrand) lines.push(`Brand: ${org.tradeBrand}`);
+  if (org.orgDescription) lines.push(`About: ${(org.orgDescription as string).substring(0, 400)}`);
+  if (org.orgType) lines.push(`Type: ${org.orgType}`);
+  if (org.hqCity || org.hqCountry) lines.push(`HQ: ${[org.hqCity, org.hqCountry].filter(Boolean).join(', ')}`);
+  if (org.websiteUrl) lines.push(`Website: ${org.websiteUrl}`);
+  if (org.operatingModel) lines.push(`Operating Model: ${org.operatingModel}`);
+  const industries = org.industries as { name: string; isPrimary: boolean }[] | undefined;
+  if (industries?.length) lines.push(`Industries: ${industries.map(i => i.name).join(', ')}`);
+  return lines.join('\n');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -116,7 +130,7 @@ serve(async (req) => {
       const format = SECTION_FORMAT_MAP[key] ?? 'rich_text';
       const formatInstr = FORMAT_INSTRUCTIONS[format] ?? FORMAT_INSTRUCTIONS.rich_text;
 
-      let content = ch[key] ?? eb[key] ?? eb[key.replace(/-/g, '_')] ?? null;
+      const content = ch[key] ?? eb[key] ?? eb[key.replace(/-/g, '_')] ?? null;
       const currentContent = content ? (typeof content === 'string' ? stripHtml(content) : jsonBrief(content)) : '(empty)';
       const comments = (review.comments as Record<string, unknown>[])?.map(c => `[${c.type}] ${c.text}`).join('\n') ?? '';
 
@@ -129,11 +143,31 @@ ${(config as Record<string, unknown>)?.dos ? `DO: ${(config as Record<string, un
 ${(config as Record<string, unknown>)?.donts ? `DON'T: ${(config as Record<string, unknown>).donts}` : ''}`);
     }
 
+    // ═══ BUILD SAME CONTEXT BLOCKS AS PASS 1 ═══
+
+    const orgBlock = buildOrgBlock(ctx.org as unknown as Record<string, unknown>);
+
+    const industryBlock = ctx.industryPack
+      ? `## INDUSTRY INTELLIGENCE\n${jsonBrief(ctx.industryPack)}`
+      : '';
+
+    const geoBlock = ctx.geoContext
+      ? `## GEOGRAPHY CONTEXT\n${jsonBrief(ctx.geoContext)}`
+      : '';
+
+    const depMap = ctx.sectionDependencyMap as Record<string, { strategicRole: string; downstream: string[] }>;
+    const dependencyBlock = Object.entries(depMap)
+      .map(([key, info]) => {
+        const downstreamStr = info.downstream.length > 0 ? info.downstream.join(', ') : '(none)';
+        return `${key}: ${info.strategicRole} → downstream: [${downstreamStr}]`;
+      })
+      .join('\n');
+
     const masterDataBlock = Object.entries(ctx.masterData)
       .map(([k, opts]) => `${k}: ${opts.map(o => `${o.code} (${o.label})`).join(', ')}`)
       .join('\n');
 
-    // Build rich context block from full digest (key_facts + raw_context_block)
+    // Build rich context block from full digest
     const digestFull = ctx.contextDigestFull;
     let contextBlock = '';
     if (digestFull?.digestText) {
@@ -151,21 +185,87 @@ ${(config as Record<string, unknown>)?.donts ? `DON'T: ${(config as Record<strin
       contextBlock = `## VERIFIED CONTEXT\n${ctx.contextDigest.substring(0, 4000)}`;
     }
 
-    const systemPrompt = `You are a PRINCIPAL CONSULTANT generating improved challenge content.
-Write from the organization's perspective ("we", "our") except evaluation/submission sections.
+    // ═══ REFERENCE CONTENT FROM PASSING SECTIONS ═══
+    const allSectionConfigs = ctx.sectionConfigs as { section_key: string; section_label: string }[];
+    const passSectionKeys = new Set(
+      reviews
+        .filter(r => (r.status as string) === 'pass' || (r.status as string) === 'best_practice')
+        .map(r => r.section_key as string)
+    );
+
+    const referenceLines: string[] = [];
+    for (const config of allSectionConfigs) {
+      const key = config.section_key;
+      if (!passSectionKeys.has(key)) continue;
+      const content = ch[key] ?? eb[key] ?? eb[key.replace(/-/g, '_')] ?? null;
+      if (!content) continue;
+      const displayContent = typeof content === 'string' ? stripHtml(content) : jsonBrief(content);
+      referenceLines.push(`### ${config.section_label} (${key}) [PASS — reference only]\n${displayContent}`);
+    }
+    const referenceBlock = referenceLines.length > 0
+      ? `## EXISTING CONTENT (reference — do NOT regenerate these)\n${referenceLines.join('\n\n')}`
+      : '';
+
+    // ═══ LEGAL DOCS BLOCK ═══
+    const legalBlock = ctx.legalDocs.length > 0
+      ? `## LEGAL DOCS\n${ctx.legalDocs.map((d: Record<string, unknown>) => `- ${d.document_type} (${d.tier}): ${d.status}`).join('\n')}`
+      : '';
+
+    // ═══ FULL SYSTEM PROMPT WITH ALL CONTEXT ═══
+    const systemPrompt = `## YOUR ROLE: PRINCIPAL CONSULTANT — CONTENT GENERATION
+You are generating improved, publication-ready content for an innovation challenge.
+Write from the organization's perspective ("we", "our") except for evaluation/submission sections.
+
+## ORGANIZATION CONTEXT
+${orgBlock}
+
+${industryBlock}
+
+${geoBlock}
 
 ## MASTER DATA — HARD RULES
 ${masterDataBlock}
-Any code NOT in this list will be REJECTED.
+Any code NOT in this list will be REJECTED by the validator.
+- For checkbox_single sections: output {"selected_id":"CODE","rationale":"..."}
+- For checkbox_multi sections: output JSON array of codes ONLY from the list above
+- For evaluation_criteria: weights MUST sum to exactly 100%
+
+## SECTION DEPENDENCY MAP
+${dependencyBlock}
+
+## DEPENDENCY RULES FOR GENERATION
+1. If section A depends on section B, and BOTH need generation: generate B's content FIRST in your mind, then use it for A
+2. "deliverables" must align with "problem_statement" and "scope"
+3. "evaluation_criteria" must cover ALL deliverables, weights sum to 100%
+4. "solver_expertise" must match "deliverables" and "solution_type"
+5. "phase_schedule" durations must reflect deliverable complexity
+6. "submission_guidelines" must reference specific deliverables
+7. "reward_structure" must be proportional to complexity and scope
+8. "hook" must be compelling, derived from problem_statement
+9. Always use industry-specific terminology from the Industry Intelligence above
+10. Always consider geographic regulations from the Geography Context above
 
 ${contextBlock}
 
+${referenceBlock}
+
+${legalBlock}
+
 Today's date: ${new Date().toISOString().split('T')[0]}
 
-For each section, generate improved content addressing ALL comments.
+For each section below, generate improved content addressing ALL review comments.
+Use the EXISTING CONTENT sections above as reference to ensure cross-section coherence.
+
 Return JSON: { "<section_key>": { "status": "generated", "suggestion": <content in correct format>, "comments": [{"type":"strength","text":"..."}] } }`;
 
-    const userPrompt = `# CHALLENGE: ${ch.title}\n\n${sectionInstructions.join('\n\n---\n\n')}\n\nGenerate now. ONLY JSON.`;
+    const userPrompt = `# CHALLENGE: "${ch.title}"
+
+## SECTIONS TO IMPROVE
+
+${sectionInstructions.join('\n\n---\n\n')}
+
+Generate improved content for ALL sections above. Reference the EXISTING CONTENT sections for cross-section coherence.
+For master data sections, use ONLY codes from the MASTER DATA list. Return ONLY valid JSON.`;
 
     const model = (ctx.globalConfig?.critical_model ?? ctx.globalConfig?.default_model ?? 'google/gemini-3-flash-preview') as string;
     const aiResp = await callAIWithFallback(LOVABLE_API_KEY, {
@@ -183,12 +283,10 @@ Return JSON: { "<section_key>": { "status": "generated", "suggestion": <content 
     const aiResult = await aiResp.json();
     const rawContent = aiResult.choices?.[0]?.message?.content ?? '{}';
     const rawParsed = safeJsonParse<Record<string, unknown>>(rawContent, {});
-    // Handle {sections: {...}} wrapper from some AI models
     const parsed = (rawParsed.sections && typeof rawParsed.sections === 'object' && !Array.isArray(rawParsed.sections)
       ? rawParsed.sections
       : rawParsed) as Record<string, Record<string, unknown>>;
 
-    // Filter out meta keys that aren't section data
     const META_KEYS = new Set(['overall_assessment', 'sections', 'summary', 'metadata']);
 
     console.log(`[${correlationId}] Suggestions for ${Object.keys(parsed).filter(k => !META_KEYS.has(k)).length} sections`);
