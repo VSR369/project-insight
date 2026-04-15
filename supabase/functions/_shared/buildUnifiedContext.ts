@@ -104,6 +104,14 @@ export interface UnifiedChallengeContext {
   rateCard: Record<string, unknown> | null;
   masterData: Record<string, { code: string; label: string }[]>;
   contextDigest: string | null;
+  contextDigestFull: {
+    digestText: string | null;
+    keyFacts: Record<string, unknown> | null;
+    rawContextBlock: string | null;
+    curatorEdited: boolean;
+    originalDigestText: string | null;
+    sourceCount: number;
+  } | null;
   legalDocs: Record<string, unknown>[];
   escrow: Record<string, unknown> | null;
   sectionConfigs: Record<string, unknown>[];
@@ -347,7 +355,7 @@ export async function buildUnifiedContext(
     }
   }
 
-  console.log(`[${correlationId}] Context assembled: org=${org.orgName}, industry=${primaryIndustry?.name ?? 'N/A'}, digest=${digestRes.data ? 'yes' : 'no'}`);
+  const digestRow = digestRes.data as Record<string, unknown> | null;
 
   return {
     challenge,
@@ -357,7 +365,15 @@ export async function buildUnifiedContext(
     geoContext,
     rateCard,
     masterData,
-    contextDigest: (digestRes.data as Record<string, unknown>)?.digest_text as string ?? null,
+    contextDigest: (digestRow?.digest_text as string) ?? null,
+    contextDigestFull: digestRow ? {
+      digestText: (digestRow.digest_text as string) ?? null,
+      keyFacts: (digestRow.key_facts as Record<string, unknown>) ?? null,
+      rawContextBlock: (digestRow.raw_context_block as string) ?? null,
+      curatorEdited: (digestRow.curator_edited as boolean) ?? false,
+      originalDigestText: (digestRow.original_digest_text as string) ?? null,
+      sourceCount: (digestRow.source_count as number) ?? 0,
+    } : null,
     legalDocs: (legalRes.data ?? []) as Record<string, unknown>[],
     escrow: escrowRes.data as Record<string, unknown> | null,
     sectionConfigs: (configRes.data ?? []) as Record<string, unknown>[],
