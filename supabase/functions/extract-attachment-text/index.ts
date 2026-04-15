@@ -519,13 +519,15 @@ KEY_DATA:
       responseData.error_code = method.includes("credits_exhausted") ? "AI_CREDITS_EXHAUSTED" : "AI_RATE_LIMITED";
     }
 
+    console.log(`[${correlationId}] extract-attachment-text DONE: method=${responseData.extraction_method}, quality=${responseData.extraction_quality}`);
+
     return new Response(
-      JSON.stringify({ success: true, data: responseData }),
+      JSON.stringify({ success: true, data: { ...responseData, correlationId } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error("extract-attachment-text error:", err);
+    console.error(`[${correlationId}] extract-attachment-text error:`, err);
 
     try {
       const body = await req.clone().json().catch(() => ({}));
@@ -543,7 +545,7 @@ KEY_DATA:
     } catch { /* best effort */ }
 
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: errMsg } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: errMsg, correlationId } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
