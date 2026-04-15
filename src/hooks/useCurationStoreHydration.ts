@@ -155,7 +155,7 @@ export function useCurationStoreHydration({
       const newStatus = toReviewStatus(review.status);
 
       // Fix 1 & 7: Extract and parse suggestion from review
-      const rawSuggestion = (review as Record<string, unknown>).suggestion ?? null;
+      const rawSuggestion = (review as unknown as Record<string, unknown>).suggestion ?? null;
       const parsedSuggestion = rawSuggestion && typeof rawSuggestion === 'string'
         ? parseSuggestionForSection(sectionKey, rawSuggestion)
         : rawSuggestion as SectionStoreEntry['data'];
