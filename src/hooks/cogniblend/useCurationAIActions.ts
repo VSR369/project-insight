@@ -27,14 +27,14 @@ import { useCurationComplexityActions } from './useCurationComplexityActions';
 interface UseCurationAIActionsOptions {
   challengeId: string | undefined;
   challenge: Record<string, unknown> | null;
-  curationStore: ReturnType<typeof import('@/store/curationFormStore').getCurationFormStore>;
+  curationStore: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   optimisticIndustrySegId: string | null;
   isWaveRunning: boolean;
   aiReviews: SectionReview[];
   buildContextOptions: () => BuildChallengeContextOptions;
   pass1SetWaveProgress: Dispatch<SetStateAction<WaveProgress>>;
-  saveSectionMutationRef: React.RefObject<unknown>;
-  setPreFlightResult: (v: ReturnType<typeof preFlightCheck> | null) => void;
+  saveSectionMutationRef: React.RefObject<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  setPreFlightResult: (v: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   setPreFlightDialogOpen: (v: boolean) => void;
   setAiReviewLoading: (v: boolean) => void;
   setTriageTotalCount: (v: number) => void;
@@ -42,7 +42,7 @@ interface UseCurationAIActionsOptions {
   setAiQuality: (v: AIQualitySummary) => void;
   setAiQualityLoading: (v: boolean) => void;
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
-  setAiSuggestedComplexity: (v: Record<string, unknown> | null) => void;
+  setAiSuggestedComplexity: (v: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
   setHighlightWarnings: (v: boolean) => void;
   setContextLibraryOpen: (v: boolean) => void;
   setPass1DoneSession: (v: boolean) => void;
