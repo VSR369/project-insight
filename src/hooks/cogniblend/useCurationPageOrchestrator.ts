@@ -334,7 +334,7 @@ export function useCurationPageOrchestrator() {
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
     ...sectionActionsHook, ...aiActionsHook,
     handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting,
-    ...waveSetup, executeWavesWithBudgetCheck: aiActionsHook.executeWavesWithBudgetCheck,
+    ...waveSetup, runAnalyseFlow: aiActionsHook.runAnalyseFlow,
     ...callbacks, handleExpandCollapseAll, handleApproveLockedSection, handleUndoApproval,
     getSectionActions: getSectionActionsForKey,
     phase2Status, triageTotalCount,
