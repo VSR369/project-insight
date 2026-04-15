@@ -70,14 +70,13 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, executionRe
             return { id, entry: sections[id], execSection };
           });
 
-          // Use execution record for counts when available
-          const reviewed = execWave
+          const ready = execWave
             ? execWave.sections.filter(s => s.status === 'success').length
             : wSections.filter(s => s.entry?.reviewStatus === 'reviewed').length;
           const errors = execWave
             ? execWave.sections.filter(s => s.status === 'error').length
             : wSections.filter(s => s.entry?.reviewStatus === 'error').length;
-          const skipped = wSections.length - reviewed - errors;
+          const skipped = wSections.length - ready - errors;
 
           const waveStatus = execWave?.status ?? 'pending';
 
@@ -89,7 +88,7 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, executionRe
                   <span className="text-xs font-medium">Wave {wave.waveNumber}: {wave.name}</span>
                 </div>
                 <div className="flex gap-2">
-                  <Badge variant="secondary" className="text-[10px]">{reviewed} analysed</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{ready} ready</Badge>
                   {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} errors</Badge>}
                   {skipped > 0 && <Badge variant="outline" className="text-[10px]">{skipped} skipped</Badge>}
                 </div>
@@ -115,12 +114,20 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, executionRe
 
                     const statusLabel = (() => {
                       if (execSection) {
-                        if (execSection.status === 'success') return execSection.action === 'generate' ? 'Drafted' : 'Analysed';
+                        if (execSection.status === 'success') {
+                          return execSection.action === 'generate'
+                            ? 'Drafted & Suggestion Ready'
+                            : 'Suggestion Ready';
+                        }
                         if (execSection.status === 'error') return 'Error';
                         return 'Skipped';
                       }
                       if (!entry) return 'Not Run';
-                      if (entry.reviewStatus === 'reviewed') return entry.aiAction === 'generate' ? 'Drafted' : 'Analysed';
+                      if (entry.reviewStatus === 'reviewed') {
+                        return entry.aiAction === 'generate'
+                          ? 'Drafted & Suggestion Ready'
+                          : 'Suggestion Ready';
+                      }
                       if (entry.reviewStatus === 'error') return 'Error';
                       if (entry.reviewStatus === 'pending') return 'Pending';
                       return entry.aiAction === 'skip' ? 'Skipped' : 'Not Run';
