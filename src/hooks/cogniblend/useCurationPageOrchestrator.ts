@@ -240,7 +240,7 @@ export function useCurationPageOrchestrator() {
 
         // Sync store for each subsection
         for (const item of partition.extendedBrief) {
-          syncSectionToStore(item.key, currentBrief[EXTENDED_BRIEF_FIELD_MAP[item.key]]);
+          syncSectionToStore(item.key, currentBrief[EXTENDED_BRIEF_FIELD_MAP[item.key]] as Record<string, unknown>);
         }
       }
 
