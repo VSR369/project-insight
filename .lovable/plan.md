@@ -1,58 +1,56 @@
 
 
-# Fix Remaining Curator Module Gaps
+# Fix: JSZip Crash + Stage-Based Progress Panel
 
-## 5 Items to Address
+## Problem Summary
+1. **`extract-attachment-text` is 100% broken** — named import `{ JSZip }` causes BootFailure on every call. This breaks ALL extraction, meaning discovery sources never get real content, digests are empty, and suggestions are generic.
+2. **No progress feedback** during Analyse or Generate — the unified flow only touches wave 7 (discovery) while waves 1-6 sit at "pending" forever. The `WaveProgressPanel` shows nothing useful.
+3. **Generate Suggestions has zero progress** — only a button spinner.
 
-### 1. Add correlationId to discover-context-resources
-**File:** `supabase/functions/discover-context-resources/index.ts`
-- Generate a `crypto.randomUUID()` at request start
-- Include in all error responses and the success response
-- Log it with `console.log` at entry and on errors
+## Changes
 
-### 2. PreviewSectionEditor — format-aware editors
-**File:** `src/components/cogniblend/preview/PreviewSectionEditor.tsx`
-- Add `LineItemsEditor` for `line_items` / `tag_input` — renders editable list with add/remove
-- Add `TableEditor` for `table` / `schedule_table` — renders editable rows with column headers from config
-- Add `CheckboxEditor` for `checkbox_single` / `checkbox_multi` — renders selectable options
-- Keep textarea fallback for `structured_fields` / `custom`
-- This will exceed 250 lines, so split into `PreviewSectionEditor.tsx` (router + action buttons, ~50 lines) and `src/components/cogniblend/preview/editors/` folder with `LineItemsEditor.tsx`, `TableEditor.tsx`, `CheckboxEditor.tsx`
+### 1. Fix JSZip import (CRITICAL — 1 line)
+**File:** `supabase/functions/extract-attachment-text/index.ts` line 14
+- Change `import { JSZip }` to `import JSZip` (default export)
+- Redeploy immediately
 
-### 3. Remove old wave executor props from useCurationAIActions interface
+### 2. New component: `AnalyseProgressPanel.tsx` (~80 lines)
+**File:** `src/components/cogniblend/curation/AnalyseProgressPanel.tsx`
+- Stage-based progress (not wave-based) with types: `AnalyseProgressState`, `ProgressStage`
+- Renders vertical stepper with status icons (CheckCircle2/Loader2/Circle/XCircle)
+- Progress bar showing completed/total stages
+- Completion summary badge
+- Exported `IDLE_PROGRESS` constant for initial state
+
+### 3. Wire progress into `useCurationAIActions.ts`
 **File:** `src/hooks/cogniblend/useCurationAIActions.ts`
-- Remove `pass1SetWaveProgress` from the options interface (it's only used for legacy wave progress display, not the unified flow)
-- Check if `isWaveRunning` is still needed — it guards against concurrent runs, so keep it but rename context to clarify
-- Remove imports: `DISCOVERY_WAVE_NUMBER`, `createInitialWaveProgressWithDiscovery`, `WaveProgress`
-- Clean up any internal references to wave progress that aren't used
+- Add `setAnalyseProgress` to options interface (replaces reliance on `pass1SetWaveProgress` for unified flow display)
+- Keep `pass1SetWaveProgress` — it's still called for legacy wave tracking
+- In `runAnalyseFlow`: set 3 stages (Analysing → Discovering → Extracting), update each as it completes
+- In `handleGenerateSuggestions`: set 3 stages (Digest → Generating → Validating), update each as it completes
 
+### 4. Add state in `useCurationPageOrchestrator.ts`
 **File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
-- Stop passing removed props to `useCurationAIActions`
+- Add `const [analyseProgress, setAnalyseProgress] = useState(IDLE_PROGRESS)`
+- Pass `setAnalyseProgress` to `useCurationAIActions`
+- Expose `analyseProgress` in return object
 
-### 4. SERPER_API_KEY — no code change needed
-The Gemini grounding fallback is already implemented (line 377). This is a deployment config item, not a code fix. Will add a clearer log message when fallback activates.
+### 5. Update `CurationRightRail.tsx`
+**File:** `src/components/cogniblend/curation/CurationRightRail.tsx`
+- Add `analyseProgress` to props interface
+- Import and render `AnalyseProgressPanel` (replaces `WaveProgressPanel` for unified flow)
+- Keep `WaveProgressPanel` only for legacy single-section re-review (when `waveProgress.overallStatus !== 'idle'` AND `analyseProgress.phase === 'idle'`)
 
-### 5. Replace reReviewStale with per-section unified review
-**File:** `src/hooks/useWaveExecutor.ts`
-- `reReviewStale` currently calls `review-challenge-sections` (legacy combined pass) for each stale section
-- Change to call `review-challenge-sections` in review-only mode (pass1Only), which is already supported
-- The `useWaveReviewSection` already respects `pass1Only` — the issue is that `fullExecutor` (not `pass1Executor`) provides `reReviewStale`
-- Fix: In `useCurationWaveSetup.ts`, use `pass1Executor.reReviewStale` instead of `fullExecutor.reReviewStale` so stale re-reviews are review-only, not combined pass
-
-**File:** `src/hooks/cogniblend/useCurationWaveSetup.ts` (line 173)
-- Change `reReviewStale: fullExecutor.reReviewStale` → `reReviewStale: pass1Executor.reReviewStale`
-
-## Files Changed
-| File | Change |
-|------|--------|
-| `supabase/functions/discover-context-resources/index.ts` | Add correlationId |
-| `src/components/cogniblend/preview/PreviewSectionEditor.tsx` | Router only |
-| `src/components/cogniblend/preview/editors/LineItemsEditor.tsx` | New — list editor |
-| `src/components/cogniblend/preview/editors/TableEditor.tsx` | New — table editor |
-| `src/components/cogniblend/preview/editors/CheckboxEditor.tsx` | New — checkbox editor |
-| `src/hooks/cogniblend/useCurationAIActions.ts` | Remove unused wave props + imports |
-| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Stop passing removed props |
-| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Use pass1Executor for reReviewStale |
+### 6. Pass prop in `CurationReviewPage.tsx`
+**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+- Add `analyseProgress={o.analyseProgress}` to CurationRightRail
 
 ## Deploy
-- `discover-context-resources` (correlationId addition)
+- `extract-attachment-text` (critical fix)
+
+## Result
+- Extraction works for PDFs, DOCX, URLs, images
+- User sees real-time stage progress during both Analyse and Generate flows
+- Digests built from actual extracted content instead of search snippets
+- Suggestions grounded in real research
 
