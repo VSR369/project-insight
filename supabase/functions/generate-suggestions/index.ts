@@ -94,9 +94,10 @@ serve(async (req) => {
       reviews = ch.ai_section_reviews as Record<string, unknown>[];
     }
 
+    // Generate for ALL non-pass sections (broadened filter)
     const needsSuggestions = reviews.filter((r) => {
-      const status = r.status as string;
-      return status === 'needs_revision' || status === 'warning' || status === 'generated';
+      const status = (r.status as string) ?? '';
+      return status !== 'pass' && status !== 'best_practice' && status !== '';
     });
 
     if (needsSuggestions.length === 0) {
@@ -163,12 +164,19 @@ Return JSON: { "<section_key>": { "status": "generated", "suggestion": <content 
 
     const aiResult = await aiResp.json();
     const rawContent = aiResult.choices?.[0]?.message?.content ?? '{}';
-    const parsed = safeJsonParse<Record<string, Record<string, unknown>>>(rawContent, {});
+    const rawParsed = safeJsonParse<Record<string, unknown>>(rawContent, {});
+    // Handle {sections: {...}} wrapper from some AI models
+    const parsed = (rawParsed.sections && typeof rawParsed.sections === 'object' && !Array.isArray(rawParsed.sections)
+      ? rawParsed.sections
+      : rawParsed) as Record<string, Record<string, unknown>>;
 
-    console.log(`[${correlationId}] Suggestions for ${Object.keys(parsed).length} sections`);
+    // Filter out meta keys that aren't section data
+    const META_KEYS = new Set(['overall_assessment', 'sections', 'summary', 'metadata']);
+
+    console.log(`[${correlationId}] Suggestions for ${Object.keys(parsed).filter(k => !META_KEYS.has(k)).length} sections`);
 
     const suggestionReviews: Record<string, unknown>[] = [];
-    for (const [sectionKey, sr] of Object.entries(parsed)) {
+    for (const [sectionKey, sr] of Object.entries(parsed).filter(([k]) => !META_KEYS.has(k))) {
       const suggestion = sr.suggestion;
       const suggestionStr = typeof suggestion === 'string' ? suggestion : suggestion ? JSON.stringify(suggestion) : null;
       const originalReview = reviews.find(r => r.section_key === sectionKey);
