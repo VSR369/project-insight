@@ -182,6 +182,7 @@ export async function buildUnifiedContext(
     legalRes,
     escrowRes,
     digestRes,
+    digestFullRes,
   ] = await Promise.all([
     adminClient.from("challenges")
       .select(`

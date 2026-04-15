@@ -440,14 +440,13 @@ Return JSON array: [{"title":"...","url":"...","snippet":"..."}]. Only real URLs
       .filter((r): r is PromiseFulfilledResult<CheckedCandidate> => r.status === "fulfilled")
       .map(r => r.value);
 
-    const accessible = allChecked.filter(c => c.access_status === "accessible");
-    const usable = accessible.length >= 8
-      ? accessible
-      : allChecked.filter(c => c.access_status !== "paywall").slice(0, 20);
+    // STRICT: Only persist accessible sources — discard blocked/failed/paywall entirely
+    const usable = allChecked.filter(c => c.access_status === "accessible");
+    const discardedCount = allChecked.length - usable.length;
 
     if (usable.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, suggestions: [], count: 0, auto_accepted: 0, reason: "All candidates blocked or paywalled" }),
+        JSON.stringify({ success: true, suggestions: [], count: 0, auto_accepted: 0, discarded: discardedCount, reason: "All candidates blocked, failed, or paywalled — none accessible" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -573,15 +572,26 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
         .single();
 
       if (!insertErr && newAtt?.id) {
+        // Auto-accepted sources: await extraction (deterministic, not fire-and-forget)
         if (shouldAutoAccept) {
-          fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ attachment_id: newAtt.id }),
-          }).catch(() => {});
+          try {
+            const extResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/extract-attachment-text`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ attachment_id: newAtt.id }),
+            });
+            if (!extResp.ok) {
+              console.warn(`Extraction failed for ${newAtt.id}: HTTP ${extResp.status}`);
+              await extResp.text(); // consume body
+            } else {
+              await extResp.text(); // consume body
+            }
+          } catch (extErr) {
+            console.warn(`Extraction error for ${newAtt.id}:`, extErr);
+          }
         }
 
         inserted.push({
@@ -598,8 +608,10 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
       JSON.stringify({
         success: true, suggestions: inserted, count: inserted.length,
         auto_accepted: autoAcceptedCount,
+        auto_accepted_ids: inserted.filter(i => i.auto_accepted).map(i => i.id).filter(Boolean),
         suggested: inserted.length - autoAcceptedCount,
-        candidates_found: candidates.length, accessible_checked: accessible.length, scored_relevant: scored.length,
+        discarded: discardedCount,
+        candidates_found: candidates.length, accessible_count: usable.length, scored_relevant: scored.length,
         gaps_targeted: Object.keys(gapMap).length,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
