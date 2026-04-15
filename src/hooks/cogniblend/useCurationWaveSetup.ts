@@ -17,11 +17,11 @@ import type { UseMutationResult } from '@tanstack/react-query';
 
 interface UseCurationWaveSetupOptions {
   challengeId: string | undefined;
-  challenge: Record<string, unknown> | null;
+  challenge: Record<string, any> | null;
   aiReviews: SectionReview[];
   setAiReviews: React.Dispatch<React.SetStateAction<SectionReview[]>>;
-  setAiSuggestedComplexity: (v: Record<string, unknown>) => void;
-  saveSectionMutationRef: React.MutableRefObject<UseMutationResult<void, Error, { field: string; value: unknown }>>;
+  setAiSuggestedComplexity: (v: any) => void;
+  saveSectionMutationRef: React.MutableRefObject<UseMutationResult<void, Error, { field: string; value: any }>>;
   waveRunningRef?: React.MutableRefObject<boolean>;
 }
 
