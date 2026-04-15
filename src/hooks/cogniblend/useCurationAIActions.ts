@@ -128,72 +128,27 @@ export function useCurationAIActions({
     return pfResult;
   }, [challengeId, challenge, isWaveRunning, curationStore, optimisticIndustrySegId]);
 
-  const executeWavesWithBudgetCheck = useCallback(async () => {
-    setAiReviewLoading(true);
-    setTriageTotalCount(0);
-    try {
-      await executeWaves();
-      const ctx = buildChallengeContext(buildContextOptions());
-      const shortfall = detectBudgetShortfall(ctx);
-      setBudgetShortfall(shortfall);
-      setTriageTotalCount(24);
-    } catch (e: any) {
-      toast.error(`AI review failed: ${e.message ?? "Unknown error"}`);
-    } finally {
-      setAiReviewLoading(false);
-    }
-  }, [executeWaves, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall]);
-
-  const handleAIReview = useCallback(async () => {
-    const pfResult = runPreFlight();
-    if (!pfResult) return;
-    setPreFlightResult(pfResult);
-    if (!pfResult.canProceed || pfResult.warnings.length > 0) {
-      setPreFlightDialogOpen(true);
-      return;
-    }
-    await executeWavesWithBudgetCheck();
-  }, [runPreFlight, executeWavesWithBudgetCheck, setPreFlightResult, setPreFlightDialogOpen]);
-
-  // ── Step 1: Analyse Challenge (Pass 1 only) ──
-  const handleAnalyse = useCallback(async () => {
-    const pfResult = runPreFlight();
-    if (!pfResult) return;
-    setPreFlightResult(pfResult);
-    if (!pfResult.canProceed || pfResult.warnings.length > 0) {
-      setPreFlightDialogOpen(true);
-      return;
-    }
+  // ── runAnalyseFlow: post-preflight analysis logic (reusable by PreFlightDialog) ──
+  const runAnalyseFlow = useCallback(async () => {
     // ═══ RESET ALL STATE from previous analysis run ═══
-    // 1. Hide Generate button until THIS analysis completes
     setPass1DoneSession(false);
-    // 2. Clear completion banner from previous Generate
     setGenerateDoneSession(false);
-    // 3. Clear old Pass 1 review results (stale badges)
     setAiReviews([]);
-    // 4. Reset context library gate so user must re-confirm
     setContextLibraryReviewed?.(false);
     if (challengeId) {
       sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
     }
-    // 5. Invalidate stale digest + source queries from React Query cache
     queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
-    // ═══ END RESETS ═══
 
     setAiReviewLoading(true);
     setTriageTotalCount(0);
-
-    // Clear stale Pass 2 suggestions before running Pass 1
     curationStore.getState().clearAllSuggestions();
-
-    // Override initial progress to include Wave 7 (discovery)
     pass1SetWaveProgress(createInitialWaveProgressWithDiscovery());
 
     try {
-      // ═══ UNIFIED: Call analyse-challenge edge function (1 AI call) ═══
       const { data: analyseResult, error: analyseError } = await supabase.functions.invoke('analyse-challenge', {
         body: { challenge_id: challengeId },
       });
@@ -203,21 +158,16 @@ export function useCurationAIActions({
         throw new Error(msg);
       }
 
-      // Parse and validate reviews
       const rawReviews: SectionReview[] = (analyseResult.data?.reviews ?? []).map(normalizeSectionReview);
-
-      // ═══ POST-AI VALIDATION: strip invalid master data codes ═══
       const validation = validateMasterDataInReviews(rawReviews);
       if (!validation.isValid) {
         logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'analyse_challenge', component: 'useCurationAIActions' });
       }
       const validatedReviews = validation.correctedReviews;
 
-      // Save to store and DB
       setAiReviews(validatedReviews);
       saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: validatedReviews });
 
-      // Transition Wave 7 to running
       pass1SetWaveProgress((prev) => ({
         ...prev,
         currentWave: DISCOVERY_WAVE_NUMBER,
@@ -227,20 +177,38 @@ export function useCurationAIActions({
         ),
       }));
 
-      // Run context discovery
+      // Run context discovery with proper error surfacing
       let discoveryOk = true;
       try {
-        await supabase.functions.invoke('discover-context-resources', {
+        const { data: discoverResult, error: discoverError } = await supabase.functions.invoke('discover-context-resources', {
           body: { challenge_id: challengeId },
         });
+
+        if (discoverError) {
+          discoveryOk = false;
+          toast.warning(`Source discovery failed: ${discoverError.message}. Add sources manually in Context Library.`, { duration: 6000 });
+        } else if (!discoverResult?.success) {
+          discoveryOk = false;
+          const reason = discoverResult?.reason ?? discoverResult?.error?.message ?? 'Unknown';
+          toast.warning(`Discovery: ${reason}. You can add sources manually.`, { duration: 6000 });
+        } else {
+          const autoCount = discoverResult?.auto_accepted ?? 0;
+          const totalCount = discoverResult?.count ?? 0;
+          if (totalCount === 0) {
+            toast.info('No sources discovered. You can add sources manually in Context Library.', { duration: 6000 });
+          } else {
+            toast.success(`Discovered ${totalCount} sources${autoCount > 0 ? ` (${autoCount} auto-accepted)` : ''}`);
+          }
+        }
         queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
         queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
-      } catch {
+      } catch (discErr: unknown) {
         discoveryOk = false;
+        const msg = discErr instanceof Error ? discErr.message : 'Network error';
+        toast.warning(`Source discovery failed: ${msg}. You can add sources manually.`, { duration: 6000 });
       }
 
-      // Mark Wave 7 complete/error
       pass1SetWaveProgress((prev) => ({
         ...prev,
         overallStatus: 'completed',
@@ -261,41 +229,48 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [runPreFlight, executeWavesPass1, pass1SetWaveProgress, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed]);
+  }, [pass1SetWaveProgress, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore, saveSectionMutationRef]);
 
-  // ── Step 2: Generate Suggestions (full Pass 1 + Pass 2) ──
+  // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
+  // ── Step 1: Analyse Challenge (Pass 1 only) ──
+  const handleAnalyse = useCallback(async () => {
+    const pfResult = runPreFlight();
+    if (!pfResult) return;
+    setPreFlightResult(pfResult);
+    if (!pfResult.canProceed || pfResult.warnings.length > 0) {
+      setPreFlightDialogOpen(true);
+      return;
+    }
+    await runAnalyseFlow();
+  }, [runPreFlight, runAnalyseFlow, setPreFlightResult, setPreFlightDialogOpen]);
+
+  // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
+  const handleAIReview = useCallback(async () => {
+    await handleAnalyse();
+  }, [handleAnalyse]);
+
+  // ── Step 2: Generate Suggestions (Pass 2 — digest is OPTIONAL) ──
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
     try {
-      // Regenerate digest so Pass 2 has enriched context from accepted sources
-      const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      });
-
-      if (digestError || !digestResult?.success) {
-        const errorCode = digestResult?.error?.code ?? '';
-        const errorMsg = digestResult?.error?.message ?? digestError?.message ?? '';
-
-        if (errorCode === 'NO_SOURCES' || errorMsg.includes('No accepted sources')) {
-          toast.error(
-            'No accepted sources found. Open the Context Library, run "Re-discover Sources", accept at least one source, then try again.',
-            { duration: 8000 }
-          );
-        } else if (errorCode === 'NO_EXTRACTABLE_CONTENT' || errorMsg.includes('none have sufficient text')) {
-          toast.error(
-            'Accepted sources have no extractable text. Try adding URLs or uploading documents with readable content in the Context Library.',
-            { duration: 8000 }
-          );
-        } else {
-          toast.error(`Digest generation failed: ${errorMsg || 'Unknown error'}`, { duration: 8000 });
+      // TRY digest but do NOT block on failure
+      let digestAvailable = false;
+      try {
+        const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
+          body: { challenge_id: challengeId },
+        });
+        digestAvailable = !digestError && digestResult?.success;
+        if (!digestAvailable) {
+          toast.info('Context digest unavailable — generating suggestions from challenge content and industry intelligence.', { duration: 5000 });
         }
-        setAiReviewLoading(false);
-        return;
+      } catch {
+        toast.info('Context digest unavailable — proceeding with available context.', { duration: 5000 });
       }
-      // ═══ UNIFIED: Call generate-suggestions edge function (1 AI call) ═══
+
+      // ALWAYS proceed to generate-suggestions with current aiReviews from client state
       const { data: genResult, error: genError } = await supabase.functions.invoke('generate-suggestions', {
-        body: { challenge_id: challengeId },
+        body: { challenge_id: challengeId, pass1_reviews: aiReviews },
       });
 
       if (genError || !genResult?.success) {
@@ -303,16 +278,13 @@ export function useCurationAIActions({
         throw new Error(msg);
       }
 
-      // Parse suggestions and merge into existing reviews
       const suggestions: SectionReview[] = (genResult.data?.reviews ?? []).map(normalizeSectionReview);
 
-      // ═══ POST-AI VALIDATION ═══
       const validation = validateMasterDataInReviews(suggestions);
       if (!validation.isValid) {
         logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'generate_suggestions', component: 'useCurationAIActions' });
       }
 
-      // Merge suggestions into existing aiReviews
       let mergedResult: SectionReview[] = [];
       setAiReviews((prev) => {
         const merged = [...prev];
@@ -328,10 +300,8 @@ export function useCurationAIActions({
         return merged;
       });
 
-      // Save merged reviews to DB (use captured mergedResult, not stale closure)
       saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: mergedResult });
 
-      // Budget check
       const ctx = buildChallengeContext(buildContextOptions());
       const shortfall = detectBudgetShortfall(ctx);
       setBudgetShortfall(shortfall);
@@ -390,9 +360,9 @@ export function useCurationAIActions({
   });
 
   return {
-    executeWavesWithBudgetCheck,
     handleAIReview,
     handleAnalyse,
+    runAnalyseFlow,
     handleGenerateSuggestions,
     handleAIQualityAnalysis,
     handleSingleSectionReview,

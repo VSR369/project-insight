@@ -381,7 +381,10 @@ export default function CurationReviewPage() {
         open={o.preFlightDialogOpen}
         onOpenChange={o.setPreFlightDialogOpen}
         onGoToSection={o.handlePreFlightGoToSection}
-        onProceed={o.executeWavesWithBudgetCheck}
+        onProceed={async () => {
+          o.setPreFlightDialogOpen(false);
+          await o.runAnalyseFlow();
+        }}
         groups={GROUPS}
         sectionMap={SECTION_MAP}
         groupProgress={o.groupProgress}
