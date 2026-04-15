@@ -192,8 +192,29 @@ export function useCurationAIActions({
     pass1SetWaveProgress(createInitialWaveProgressWithDiscovery());
 
     try {
-      // Run Pass 1 analysis (waves 1-6)
-      await executeWavesPass1();
+      // ═══ UNIFIED: Call analyse-challenge edge function (1 AI call) ═══
+      const { data: analyseResult, error: analyseError } = await supabase.functions.invoke('analyse-challenge', {
+        body: { challenge_id: challengeId },
+      });
+
+      if (analyseError || !analyseResult?.success) {
+        const msg = analyseResult?.error?.message ?? analyseError?.message ?? 'Unknown error';
+        throw new Error(msg);
+      }
+
+      // Parse and validate reviews
+      const rawReviews: SectionReview[] = (analyseResult.data?.sections ?? []).map(normalizeSectionReview);
+
+      // ═══ POST-AI VALIDATION: strip invalid master data codes ═══
+      const validation = validateMasterDataInReviews(rawReviews);
+      if (!validation.isValid) {
+        console.warn(`[analyse] Master data validation stripped ${validation.issues.length} invalid value(s)`);
+      }
+      const validatedReviews = validation.correctedReviews;
+
+      // Save to store and DB
+      setAiReviews(validatedReviews);
+      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: validatedReviews });
 
       // Transition Wave 7 to running
       pass1SetWaveProgress((prev) => ({
@@ -229,7 +250,7 @@ export function useCurationAIActions({
         ),
       }));
 
-      setTriageTotalCount(24);
+      setTriageTotalCount(validatedReviews.length);
       setPass1DoneSession(true);
       toast.success('Analysis complete. Review discovered sources in the Context Library, then Generate Suggestions.');
       setContextLibraryOpen(true);
@@ -271,12 +292,47 @@ export function useCurationAIActions({
         setAiReviewLoading(false);
         return;
       }
-      // Run Pass 2 only — reuses stored Pass 1 comments, skips re-analysis
-      await executeWavesPass2();
+      // ═══ UNIFIED: Call generate-suggestions edge function (1 AI call) ═══
+      const { data: genResult, error: genError } = await supabase.functions.invoke('generate-suggestions', {
+        body: { challenge_id: challengeId },
+      });
+
+      if (genError || !genResult?.success) {
+        const msg = genResult?.error?.message ?? genError?.message ?? 'Unknown error';
+        throw new Error(msg);
+      }
+
+      // Parse suggestions and merge into existing reviews
+      const suggestions: SectionReview[] = (genResult.data?.sections ?? []).map(normalizeSectionReview);
+
+      // ═══ POST-AI VALIDATION ═══
+      const validation = validateMasterDataInReviews(suggestions);
+      if (!validation.isValid) {
+        console.warn(`[generate] Master data validation stripped ${validation.issues.length} invalid value(s)`);
+      }
+
+      // Merge suggestions into existing aiReviews
+      setAiReviews((prev) => {
+        const merged = [...prev];
+        for (const s of validation.correctedReviews) {
+          const idx = merged.findIndex((r) => r.section_key === s.section_key);
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], ...s };
+          } else {
+            merged.push(s);
+          }
+        }
+        return merged;
+      });
+
+      // Save merged reviews to DB
+      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: aiReviews });
+
+      // Budget check
       const ctx = buildChallengeContext(buildContextOptions());
       const shortfall = detectBudgetShortfall(ctx);
       setBudgetShortfall(shortfall);
-      setTriageTotalCount(24);
+      setTriageTotalCount(suggestions.length);
       setGenerateDoneSession(true);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -284,7 +340,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [executeWavesPass2, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession]);
+  }, [buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession, setAiReviews, aiReviews, saveSectionMutationRef]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
