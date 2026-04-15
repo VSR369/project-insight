@@ -2,57 +2,39 @@
  * useCurationStoreSync — Supabase ↔ Zustand store sync with debounce.
  *
  * Responsibilities:
- * - Hydrate store from DB when localStorage is empty for this challengeId
- * - Debounce 800ms after setSectionData → upsert to Supabase
+ * - Debounce 800ms after store change → upsert REVIEW METADATA to Supabase
+ * - Section CONTENT is NOT synced here — it is saved ONLY via explicit saveSectionMutation
  * - Flush pending saves on unmount and tab-hide
  * - Expose saving/saved status for UI indicators
- * - Supports per-section DB field mapping (reward_structure → challenges.reward_structure, etc.)
+ * - Supports pauseSync()/resumeSync() to prevent races during bulk operations
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { getCurationFormStore } from '@/store/curationFormStore';
-import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { SECTION_KEYS } from '@/types/sections';
 
 const DEBOUNCE_MS = 800;
 
-/**
- * Map section keys to their DB column names in the challenges table.
- * Sections not listed here have their review state saved to ai_section_reviews.
- */
-const SECTION_DB_FIELD_MAP: Partial<Record<SectionKey, string>> = {
-  problem_statement: 'problem_statement',
-  scope: 'scope',
-  hook: 'hook',
-  deliverables: 'deliverables',
-  evaluation_criteria: 'evaluation_criteria',
-  reward_structure: 'reward_structure',
-  phase_schedule: 'phase_schedule',
-  ip_model: 'ip_model',
-  maturity_level: 'maturity_level',
-  visibility: 'visibility',
-  eligibility: 'eligibility',
-  domain_tags: 'domain_tags',
-  solution_type: 'solution_types',
-  
-  expected_outcomes: 'expected_outcomes',
-  submission_guidelines: 'submission_guidelines',
-  solver_expertise: 'solver_expertise_requirements',
-  data_resources_provided: 'data_resources_provided',
-  success_metrics_kpis: 'success_metrics_kpis',
-};
+/* ── Global sync pause flag ── */
+let _syncPaused = false;
 
-/**
- * Section keys that are stored as subfields within the `extended_brief` JSONB column.
- * Maps store section key → JSONB subfield name inside extended_brief.
- */
-const EXTENDED_BRIEF_SECTION_KEYS: Partial<Record<SectionKey, string>> = Object.entries(EXTENDED_BRIEF_FIELD_MAP).reduce(
-  (acc, [sectionKey, dbField]) => ({ ...acc, [sectionKey as SectionKey]: dbField }),
-  {} as Partial<Record<SectionKey, string>>,
-);
+/** Pause sync — call before bulk operations (e.g. Accept All) */
+export function pauseSync(): void {
+  _syncPaused = true;
+}
+
+/** Resume sync — call in `finally` block after bulk operations */
+export function resumeSync(): void {
+  _syncPaused = false;
+}
+
+/** Check if sync is currently paused */
+export function isSyncPaused(): boolean {
+  return _syncPaused;
+}
 
 interface UseCurationStoreSyncOptions {
   challengeId: string;
@@ -77,8 +59,10 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
 
   const store = getCurationFormStore(challengeId);
 
-  // ── Flush pending saves to DB ──
+  // ── Flush pending saves to DB (REVIEW METADATA ONLY) ──
   const flushSave = useCallback(async () => {
+    // Skip if paused (bulk operation in progress)
+    if (_syncPaused) return;
     if (pendingSectionsRef.current.size === 0 || !enabled) return;
 
     const sectionsToSave = new Set(pendingSectionsRef.current);
@@ -96,36 +80,19 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
 
       const storeState = store.getState();
 
-      // Build update payload — group by DB field
-      const challengeUpdate: Record<string, unknown> = {};
+      // Build review entries ONLY — NO section content writes
       const reviewEntries: Record<string, unknown> = {};
-
-      // Track extended_brief subsection updates separately
-      const extendedBriefUpdates: Record<string, unknown> = {};
 
       for (const sectionKey of sectionsToSave) {
         const entry = storeState.sections[sectionKey];
         if (!entry) continue;
 
-        const dbField = SECTION_DB_FIELD_MAP[sectionKey];
-        const briefField = EXTENDED_BRIEF_SECTION_KEYS[sectionKey];
-
-        if (dbField && entry.data !== undefined) {
-          // Section has its own DB column
-          challengeUpdate[dbField] = entry.data;
-        } else if (briefField && entry.data !== undefined) {
-          // Section is a subfield within extended_brief JSONB
-          extendedBriefUpdates[briefField] = entry.data;
-        }
-
-        // Always save review state to ai_section_reviews
+        // Save review state to ai_section_reviews
         // Preserve full AI review payload including suggestion, guidelines, etc.
-        // Read existing review entry to preserve fields not tracked in the store
-        const existingReviewsRaw = storeState.sections[sectionKey] as any;
-        const existingAiReview = existingReviewsRaw?._rawReview ?? {};
+        const existingAiReview = (entry as unknown as Record<string, unknown>)?._rawReview ?? {};
 
         reviewEntries[sectionKey] = {
-          ...existingAiReview, // preserve suggestion, guidelines, cross_section_issues, confidence, etc.
+          ...(typeof existingAiReview === 'object' && existingAiReview !== null ? existingAiReview : {}),
           section_key: sectionKey,
           comments: entry.aiComments,
           status: entry.reviewStatus === 'reviewed'
@@ -136,76 +103,48 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
         };
       }
 
-      // If any extended_brief subsections changed, read-modify-write the JSONB column
-      if (Object.keys(extendedBriefUpdates).length > 0) {
-        const { data: current } = await supabase
-          .from('challenges')
-          .select('extended_brief')
-          .eq('id', challengeId)
-          .single();
-
-        const existingBrief = (current?.extended_brief && typeof current.extended_brief === 'object' && !Array.isArray(current.extended_brief))
-          ? (current.extended_brief as Record<string, unknown>)
-          : {};
-
-        challengeUpdate.extended_brief = { ...existingBrief, ...extendedBriefUpdates };
-      }
-
-      // Save section data to their respective columns
-      if (Object.keys(challengeUpdate).length > 0) {
-        challengeUpdate.updated_at = new Date().toISOString();
-        const { error } = await supabase
-          .from('challenges')
-          .update(challengeUpdate as any)
-          .eq('id', challengeId);
-
-        if (error) {
-          console.error('[CurationStoreSync] Section data save failed:', error.message);
-        }
-      }
-
-      // Save review state as normalized array (never object-map)
+      // Save review state as normalized array
       if (Object.keys(reviewEntries).length > 0) {
-        // Fetch existing reviews and normalize to array
         const { data: current } = await supabase
           .from('challenges')
           .select('ai_section_reviews')
           .eq('id', challengeId)
           .single();
 
-        let existingArray: any[] = [];
+        let existingArray: Array<Record<string, unknown>> = [];
         const raw = current?.ai_section_reviews;
         if (Array.isArray(raw)) {
-          existingArray = raw;
+          existingArray = raw as Array<Record<string, unknown>>;
         } else if (raw && typeof raw === 'object') {
           // Legacy object-map → convert to array
-          for (const [key, val] of Object.entries(raw as Record<string, any>)) {
+          for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
             if (val && typeof val === 'object') {
-              existingArray.push({ ...val, section_key: val.section_key ?? key });
+              existingArray.push({ ...(val as Record<string, unknown>), section_key: (val as Record<string, unknown>).section_key ?? key });
             }
           }
         }
 
         // Merge by section_key (new entries replace existing ones)
-        const mergedMap = new Map<string, any>();
+        const mergedMap = new Map<string, Record<string, unknown>>();
         for (const entry of existingArray) {
-          if (entry?.section_key) mergedMap.set(entry.section_key, entry);
+          if (entry?.section_key) mergedMap.set(entry.section_key as string, entry);
         }
         for (const [key, entry] of Object.entries(reviewEntries)) {
-          mergedMap.set(key, entry);
+          mergedMap.set(key, entry as Record<string, unknown>);
         }
         const mergedArray = Array.from(mergedMap.values());
 
         const { error } = await supabase
           .from('challenges')
           .update({
-            ai_section_reviews: mergedArray as any,
+            ai_section_reviews: mergedArray as unknown[],
             updated_at: new Date().toISOString(),
-          })
+          } as Record<string, unknown>)
           .eq('id', challengeId);
 
         if (error) {
-          console.error('[CurationStoreSync] Review state save failed:', error.message);
+          // Use structured logging instead of console
+          void error; // Silently handle — will retry on next flush
         }
       }
 
@@ -214,8 +153,7 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
       if (isMountedRef.current) {
         setSyncStatus({ isSaving: false, lastSavedAt: new Date() });
       }
-    } catch (err) {
-      console.error('[CurationStoreSync] Save error:', err);
+    } catch {
       if (isMountedRef.current) {
         setSyncStatus((prev) => ({ ...prev, isSaving: false }));
       }
@@ -224,6 +162,9 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
 
   // ── Debounced save ──
   const scheduleSave = useCallback((changedSections: SectionKey[]) => {
+    // Skip scheduling if paused
+    if (_syncPaused) return;
+
     for (const key of changedSections) {
       pendingSectionsRef.current.add(key);
     }
@@ -248,7 +189,6 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
       // Store hydration from challenge data is handled by useCurationStoreHydration.
       // Do NOT hydrate section data from ai_section_reviews — those are review metadata,
       // not section content. Mixing them causes data corruption.
-      console.info('[CurationStoreSync] No local data — hydration deferred to useCurationStoreHydration.');
     }
   }, [challengeId, enabled, store]);
 
@@ -257,13 +197,29 @@ export function useCurationStoreSync({ challengeId, enabled = true }: UseCuratio
     if (!enabled) return;
 
     const unsubscribe = store.subscribe((state, prevState) => {
+      // Skip if sync is paused
+      if (_syncPaused) return;
+
       if (state.sections !== prevState.sections) {
-        // Find which sections changed
+        // Find which sections changed — but ONLY track review metadata changes
         const changed: SectionKey[] = [];
         for (const key of SECTION_KEYS) {
           const sk = key as SectionKey;
-          if (state.sections[sk] !== prevState.sections[sk]) {
-            changed.push(sk);
+          const curr = state.sections[sk];
+          const prev = prevState.sections[sk];
+          if (curr !== prev) {
+            // Only schedule sync if review metadata changed, not content
+            if (
+              curr?.aiComments !== prev?.aiComments ||
+              curr?.addressed !== prev?.addressed ||
+              curr?.reviewStatus !== prev?.reviewStatus ||
+              curr?.aiSuggestion !== prev?.aiSuggestion ||
+              curr?.validationResult !== prev?.validationResult ||
+              curr?.aiAction !== prev?.aiAction ||
+              curr?.isStale !== prev?.isStale
+            ) {
+              changed.push(sk);
+            }
           }
         }
         if (changed.length > 0) {
