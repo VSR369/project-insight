@@ -232,10 +232,6 @@ export function useCurationAIActions({
   }, [pass1SetWaveProgress, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore, saveSectionMutationRef]);
 
   // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
-  const handleAIReview = useCallback(async () => {
-    await handleAnalyse();
-  }, []);
-
   // ── Step 1: Analyse Challenge (Pass 1 only) ──
   const handleAnalyse = useCallback(async () => {
     const pfResult = runPreFlight();
@@ -247,6 +243,11 @@ export function useCurationAIActions({
     }
     await runAnalyseFlow();
   }, [runPreFlight, runAnalyseFlow, setPreFlightResult, setPreFlightDialogOpen]);
+
+  // ── handleAIReview: redirects to handleAnalyse (kills old wave path) ──
+  const handleAIReview = useCallback(async () => {
+    await handleAnalyse();
+  }, [handleAnalyse]);
 
   // ── Step 2: Generate Suggestions (Pass 2 — digest is OPTIONAL) ──
   const handleGenerateSuggestions = useCallback(async () => {
