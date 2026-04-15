@@ -1,90 +1,105 @@
 
 
-# Fix: Enable Context Intelligence + Add Missing Section Configs + Set Critical Model
+# Enhanced Wave Progress Panel + Pre-Flight Field Analysis
 
-## What's Already Working (Confirmed)
+## Finding: All 33 Sections Already Have Rich Configs
 
-The wave architecture restoration from the previous implementation is **correctly wired**:
-- `useCurationAIActions.ts` calls `executeWavesPass1()` and `executeWavesPass2()` — correct
-- `useWaveExecutor.ts` processes 6 waves with `MAX_BATCH_SIZE=6` batching — correct
-- `useWaveReviewSection.ts` handles `pass1Only` and `skipAnalysis` flags — correct
-- `review-challenge-sections` (974 lines) has all prompt engineering intact — correct
-- `waveConfig.ts` has all 33 sections across 6 waves — correct
-- `bulkAcceptHelpers.ts` has empty `BULK_SKIP_SECTIONS` — correct
-- Deleted edge functions (`analyse-challenge`, `generate-suggestions`, `curation-intelligence`) are gone — correct
-- `AnalyseProgressPanel` is removed, `WaveProgressPanel` is active — correct
-- JSZip uses default import (`import JSZip from "..."`) — correct
-- Context digest code exists in `review-challenge-sections` lines 580-614 — correct
+The database confirms ALL 33 sections in `ai_review_section_config` have:
+- `review_instructions` (147–1450 chars each)
+- `dos` and `donts` (43–290 chars each)
+- `min_words` and `max_words` ranges
+- `importance_level` and `tone`
 
-## What's Broken (Root Causes Found)
+The "14 missing sections" issue from the expert assessment is **already resolved**. No config migration needed.
 
-### 1. Context Digest is DEAD — `use_context_intelligence = false`
+## What Needs Fixing: WaveProgressPanel Per-Section Status
 
-**DB evidence:** `ai_review_global_config` has `use_context_intelligence: false`
+Currently the panel shows only aggregate counts per wave ("4 reviewed, 1 drafted"). You need per-section detail for testing. The data already exists in `WaveResult.sections` — it just needs rendering.
 
-This means line 583 of `review-challenge-sections`:
-```typescript
-if (resolvedContext === "curation" && useContextIntelligence) {
-```
-...NEVER executes. The digest from "Discover Sources" is fetched, stored in `challenge_context_digest`, but **never read by the AI during Pass 2**. All the discovery/extraction work is wasted.
+### Change 1: Add Section-Level Detail to WaveProgressPanel
 
-**Fix:** SQL migration to set `use_context_intelligence = true` and `critical_model = 'google/gemini-3-flash-preview'`.
+Expand each completed wave to show individual sections with:
+- Section name (human-readable label from a mapping)
+- Action taken: Reviewed / Drafted / Skipped
+- Comment count (read from curation store's `aiComments` array length)
+- Status icon (success/error/skipped)
 
-### 2. Six sections have NO config rows — get GENERIC review instructions
+**File:** `src/components/cogniblend/curation/WaveProgressPanel.tsx`
 
-**Missing from `ai_review_section_config`:**
-- `organization_context` — new section, no config
-- `creator_references` — in waves, no config
-- `reference_urls` — in waves, no config  
-- `evaluation_config` — in waves, no config
-- `solver_audience` — in waves, no config
-- `creator_legal_instructions` — new section, no config
-
-These sections fall back to the hardcoded `CURATION_SECTIONS` descriptions (which exist and work), but they get NO specific `review_instructions`, `dos`, `donts`, `importance_level`, or `min_words` guidance. The AI treats them generically.
-
-**Fix:** SQL migration to insert 6 config rows with rich, section-specific review instructions.
-
-### 3. Legacy config rows exist for deprecated keys
-
-Three config rows exist for keys not in any wave: `challenge_visibility`, `effort_level`, `submission_deadline`. These are harmless but wasteful.
-
-**Fix:** Delete them in the same migration (cleanup).
-
-## Changes
-
-### Migration: Enable context intelligence + add 6 missing configs
-
-Single SQL migration that:
-
-1. **Updates `ai_review_global_config`**: Sets `use_context_intelligence = true` and `critical_model = 'google/gemini-3-flash-preview'`
-
-2. **Inserts 6 missing section configs** with rich review instructions:
-   - `organization_context`: Review org profile completeness for solver context
-   - `creator_references`: Verify attachments are relevant, accessible, properly scoped
-   - `reference_urls`: Verify URLs are active, relevant, not paywalled
-   - `evaluation_config`: Verify SINGLE vs DELPHI aligns with complexity/eligibility
-   - `solver_audience`: Verify Internal/External/All aligns with operating model
-   - `creator_legal_instructions`: Review legal instructions for clarity and IP alignment
-
-3. **Deletes 3 deprecated config rows**: `challenge_visibility`, `effort_level`, `submission_deadline`
-
-### No code changes needed
-
-All code paths are already correctly implemented. The only issue is database configuration.
-
-## Expected Result After Migration
-
-- Pass 2 will read the context digest from `challenge_context_digest` and inject it into every AI prompt
-- All 33 sections get rich, specific review instructions (not generic fallbacks)
-- Critical sections (`problem_statement`, `deliverables`, etc.) route to `critical_model`
-- Discovery → Extraction → Digest → Pass 2 pipeline is fully connected end-to-end
-
-## Technical Details
-
+Add a collapsible section list under each wave. For each section:
 ```text
-Before:  Discovery → Digest stored → Pass 2 IGNORES digest (flag=false)
-After:   Discovery → Digest stored → Pass 2 READS digest (flag=true) → grounded suggestions
+✅ Problem Statement — Reviewed · 3 comments
+✅ Scope — Drafted · 2 comments  
+⏭ Organization Context — Skipped
+❌ Deliverables — Error
 ```
 
-Total sections with config: 30 (existing) + 6 (new) - 3 (deleted) = 33 config rows
+This requires:
+- A `SECTION_LABELS` map (section_key → human label) — add to `waveConfig.ts`
+- Access to the curation store to read `aiComments.length` per section
+- The WaveProgressPanel needs `challengeId` prop to read store state
+
+### Change 2: Add SECTION_LABELS Map
+
+**File:** `src/lib/cogniblend/waveConfig.ts`
+
+Add a constant mapping all 33 section keys to human-readable labels for display in progress panels and debugging.
+
+### Change 3: Accept `challengeId` Prop in WaveProgressPanel
+
+**File:** `src/components/cogniblend/curation/WaveProgressPanel.tsx`
+
+Add optional `challengeId` prop. When provided, read comment counts from the curation store for each completed section.
+
+## Pre-Flight Fields: Impact Analysis
+
+The pre-flight dialog checks these fields before AI review:
+
+### Mandatory (3 fields — blocks AI if missing)
+| Field | Why Mandatory | Impact if Missing |
+|-------|--------------|-------------------|
+| `problem_statement` (min 50 chars) | Core business problem. AI cannot infer this. | AI has no foundation — all sections get generic output |
+| `maturity_level` (min 2 chars) | Blueprint/POC/Pilot determines scale of all content | Timeline, budget, complexity all miscalibrated |
+| `domain_tags` (min 3 chars) | Industry context for frameworks and benchmarks | No industry/geo pack grounding, generic expertise |
+
+### Recommended (3 fields — warns but allows proceeding)
+| Field | Why Recommended | Impact if Missing |
+|-------|----------------|-------------------|
+| `scope` (min 30 chars) | Bounds AI output. AI-generated if empty | Deliverables, evaluation criteria less focused |
+| `expected_outcomes` (min 30 chars) | Guides KPI and evaluation generation | Success metrics and evaluation less specific |
+| `context_and_background` (min 30 chars) | Industry context for specificity | AI uses org profile as fallback — less precise |
+
+### Additional Checks (non-blocking)
+- **Budget alignment**: If reward_structure budget exists, validates against maturity ranges
+- **Domain coverage**: Warns if domains are too thin or too broad (3-5 optimal)
+- **Org context score**: Warns if org profile is under 50% complete
+
+### Quality Prediction Tiers
+| Sections Filled | Quality | Manual Edits Needed |
+|----------------|---------|-------------------|
+| All 6 (mandatory + recommended) | 95% | 2–3 sections |
+| Mandatory + outcomes only | 85% | 5–7 sections |
+| Mandatory + scope only | 80% | 5–7 sections |
+| Mandatory only | 65% | 10–15 sections |
+
+### Dependency Chain
+```text
+problem_statement → scope → deliverables → complexity → phase_schedule
+                 → expected_outcomes → success_metrics_kpis → evaluation_criteria
+domain_tags → industry/geo packs → context_and_background enrichment
+maturity_level → budget validation → reward_structure → escrow_funding
+```
+
+When upstream fields are empty, the AI drafts them first (Wave 1), then downstream waves use those AI-drafted values. Quality cascades — weak foundations produce weaker downstream output, even though every section still gets reviewed.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/lib/cogniblend/waveConfig.ts` | Add `SECTION_LABELS` map (33 entries) |
+| `src/components/cogniblend/curation/WaveProgressPanel.tsx` | Add per-section status rows with action, comment count, collapsible detail |
+
+## No Database Changes Needed
+
+All 33 config rows exist with rich instructions. No migration required.
 
