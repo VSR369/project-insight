@@ -7,7 +7,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { fetchMasterDataOptions } from "../review-challenge-sections/masterData.ts";
+// Master data fetched inline — cannot import across function boundaries
 
 /* ── Country → Region mapping ── */
 
