@@ -1,110 +1,139 @@
 
 
-# Challenge Preview Page — Implementation Plan
+# Curator Module — Definitive Stabilization Plan (Final Merged)
 
-## Overview
-Build a new seamless document-style preview page at `/cogni/curation/:id/preview` that renders all challenge data as one continuous professional report with inline editing, scroll-spy navigation, and business-rule-driven editability.
+## Confirmed Systemic Failures (7)
 
-## Architecture
+| # | Failure | Evidence |
+|---|---------|----------|
+| F1 | 43+ write paths, `mutate()` fire-and-forget, extended_brief JSONB corruption | `useCurationAcceptRefinement.ts` lines 121, 162 use `.mutate()` not `.mutateAsync()` |
+| F2 | AI sees fragments. `seekerSegment: null`, `organizationTypeId: null` always | `useCurationWaveSetup.ts` lines 50-51 hardcoded null |
+| F3 | `visibility = eligibility` wrong mapping. `visibility` column is `varchar(20)` causing truncation errors | `masterData.ts` line 52; DB confirms `varchar(20)` on `challenges.visibility` |
+| F4 | Context Library fragile chain. No extraction quality gate. Placeholders pass as completed | No `extraction_quality` column exists. `hasRealContent()` is soft-only |
+| F5 | 3-way state: Zustand + React Query + DB. Store sync races with mutations (800ms debounce) | `useCurationStoreSync.ts` writes section content + review state to DB on every store change |
+| F6 | Preview editing not wired. No inline save pipeline | `PreviewSection.tsx` accepts `editContent` prop but no component provides it |
+| F7 | No correlation IDs. Failures silent | Edge functions log but no tracing across stages |
 
-The preview page is a NEW route and page — it does not modify existing curation workspace components. It reuses existing renderers (`SECTIONS` array, `AiContentRenderer`, `DeliverableCardRenderer`, `RewardStructureDisplay`, etc.) but composes them into a document layout instead of the tabbed/grouped curation workspace.
+---
 
-```text
-Route: /cogni/curation/:id/preview
-Access: Right rail button, header button, Accept All auto-nav, direct URL
-Data: Fresh from DB (staleTime: 0, refetchOnWindowFocus: true)
-```
+## Execution: 5 Prompts, Strict Sequential Order
 
-## File Structure (13 files)
+### PROMPT 1: Fix Writes + State Authority
 
-```text
-src/pages/cogniblend/ChallengePreviewPage.tsx         — Route page (composition)
-src/components/cogniblend/preview/
-  usePreviewData.ts           — Combined data loading (challenge, legal, escrow, digest, attachments, field rules)
-  usePreviewEditability.ts    — Business rule evaluation (isGlobalReadOnly, canEditSection)
-  PreviewDocument.tsx         — Scrollable document body rendering all groups/sections
-  PreviewTopBar.tsx           — Sticky header (back, title, read-only badge)
-  PreviewSideNav.tsx          — Sticky left scroll-spy navigation
-  PreviewBottomBar.tsx        — Sticky footer (progress count, back, submit button)
-  PreviewGroupHeader.tsx      — Group divider (icon + title + horizontal rule)
-  PreviewSection.tsx          — Individual section: view/edit toggle, edit icon, lock icon
-  PreviewOrgSection.tsx       — Organization context (name, type, description, preferences, attachments)
-  PreviewLegalSection.tsx     — Conditional LC rendering (pending placeholder vs full doc list)
-  PreviewEscrowSection.tsx    — Conditional FC rendering (pending placeholder vs escrow details)
-  PreviewDigestSection.tsx    — Context digest with edit capability
-  SectionEditSwitch.tsx       — Routes section key → correct editor component
-```
+**Files modified:** `useCurationAcceptRefinement.ts`, `useCurationPageOrchestrator.ts`, `useCurationStoreSync.ts`
 
-## Key Technical Decisions
+1. **Replace `mutate()` with `mutateAsync()`** in `useCurationAcceptRefinement.ts` lines 121 and 162. Both containing functions are already `async`.
 
-### 1. Data Loading (`usePreviewData.ts`)
-- Single hook combining 6 queries: challenge (with org join), legal docs, escrow, digest, attachments, governance field rules
-- All queries use `staleTime: 0` — always fresh
-- Returns typed composite object + loading/error states
+2. **Batch extended_brief writes in Accept All** (`useCurationPageOrchestrator.ts` lines 200-204): Replace the sequential loop with: read `extended_brief` once from DB → merge ALL subsections in memory → ONE write back. Use `EXTENDED_BRIEF_FIELD_MAP` for key mapping.
 
-### 2. Editability (`usePreviewEditability.ts`)
-- Computes `isGlobalReadOnly` from phase, lock status, master status, phase status
-- `canEditSection(key)` checks global read-only, locked sections (legal/escrow), field visibility rules
-- Returns both + a `sectionEditability` map for all section keys
+3. **Add sync pause flag** to `useCurationStoreSync.ts`: Export `pauseSync()` / `resumeSync()`. In the store subscription callback (line 259-276), return early if paused. Call `pauseSync()` at start of `handleAcceptAllSuggestions`, `resumeSync()` in `finally`.
 
-### 3. Document Layout (`PreviewDocument.tsx`)
-- Renders sections in spec order: Org → Foundation → Analysis → Specification → Assessment → Execution → Publish Settings → Legal & Compliance → Context Digest
-- Uses `SECTIONS` array renderers for standard sections
-- Special components for Org, Legal, Escrow, Digest
-- Single `editingSection` state — only one section editable at a time
-- No card borders between sections — subtle dividers, group headers as visual breaks
+4. **Stop store sync from writing section content**: The debounced auto-save currently writes section data AND review state to DB on every Zustand change. Remove section content writes from `flushSave()` — only sync review metadata (addressed, comments, status). Section content is saved ONLY via explicit `saveSectionMutation`.
 
-### 4. Inline Editing (`PreviewSection.tsx` + `SectionEditSwitch.tsx`)
-- Edit icon visible only when `canEditSection(key)` is true
-- Click toggles inline editor (reuses existing `TextSectionEditor`, `DeliverablesEditor`, etc.)
-- Save triggers mutation → query invalidation → section re-renders
-- Cancel reverts without saving
-- Switching sections auto-cancels current edit
+5. **Fix `varchar(20)` on `challenges.visibility`**: DB migration to `ALTER COLUMN visibility TYPE TEXT`. This is the confirmed source of "value too long" errors.
 
-### 5. Organization Section (`PreviewOrgSection.tsx`)
-- Renders org name, type, website, LinkedIn, description, tagline from `seeker_organizations` join
-- Embeds `ChallengePreferencesInfo` for creator preferences
-- Embeds `OrgAttachmentList` for org documents (download links)
+**Verification:** Accept one suggestion → DB has value. Accept All with extended_brief → ALL subsections preserved. No varchar errors. Store sync no longer writes section content.
 
-### 6. Legal & Escrow (`PreviewLegalSection.tsx`, `PreviewEscrowSection.tsx`)
-- Conditional rendering based on `lc_compliance_complete` / `fc_compliance_complete`
-- Pending: shows placeholder with clock icon and explanation text
-- Complete: shows full document list / escrow details
-- Always displays lock icon — never editable by curator
+---
 
-### 7. Access Points (2 existing files to modify)
-- `CurationRightRail.tsx`: Add "Preview Document" button linking to `/cogni/curation/:id/preview`
-- `CurationHeaderBar.tsx`: Add "Preview" icon button in header actions
+### PROMPT 2: Organization First-Class + Master Data Fixes
 
-### 8. Route Registration (`App.tsx`)
-- Add lazy import for `ChallengePreviewPage`
-- Add route: `/cogni/curation/:id/preview`
+**Files modified:** `useCurationWaveSetup.ts`, `challengeContextAssembler.ts`, `masterData.ts`, `review-challenge-sections/contextIntelligence.ts`, `discover-context-resources/index.ts`
 
-## Styling Approach
-- No card borders between sections — sections separated by subtle `border-border/50` dividers
-- Group headers: bold visual break with `border-t-2`, larger spacing
-- Document max-width ~800px centered for readability
-- Print-friendly: hide interactive elements via `@media print`
-- Left nav: 200px sticky sidebar with scroll-spy using `IntersectionObserver`
+1. **Fix `buildContextOptions()`** in `useCurationWaveSetup.ts` lines 50-51: Replace `seekerSegment: null` and `organizationTypeId: null` with actual values from `challenge?.seeker_organizations` join (industry segment name, org type ID). Add `organizationName`, `organizationDescription`, `organizationCity`, `operatingModel`.
 
-## Reused Components
-- `SECTIONS` array (renderers for all standard sections)
-- `AiContentRenderer` (rich text display)
-- `DeliverableCardRenderer` (deliverables, outcomes, guidelines)
-- `RewardStructureDisplay` (reward tiers)
-- `ChallengePreferencesInfo` (challenge preferences)
-- `OrgAttachmentList` (org documents)
-- `LcStatusBadge` (legal doc status)
-- `TextSectionEditor` / `DeliverablesEditor` etc. (inline editing)
-- `useGovernanceFieldRules` (field visibility)
-- `isFieldVisible` (field rule checks)
+2. **Update `BuildChallengeContextOptions` type** in `challengeContextAssembler.ts`: Add org fields. Add organization narrative block to the assembled context document.
 
-## Implementation Order
-1. `usePreviewData.ts` + `usePreviewEditability.ts` (data + rules)
-2. `PreviewTopBar.tsx` + `PreviewBottomBar.tsx` + `PreviewSideNav.tsx` (shell)
-3. `PreviewGroupHeader.tsx` + `PreviewSection.tsx` + `SectionEditSwitch.tsx` (section rendering)
-4. `PreviewOrgSection.tsx` + `PreviewLegalSection.tsx` + `PreviewEscrowSection.tsx` + `PreviewDigestSection.tsx` (special sections)
-5. `PreviewDocument.tsx` (composition)
-6. `ChallengePreviewPage.tsx` (route page)
-7. Route registration in `App.tsx` + access buttons in `CurationRightRail.tsx` and `CurationHeaderBar.tsx`
+3. **Fix `masterData.ts` line 52**: Replace `result.visibility = result.eligibility` with static visibility values: `[{code: "public", label: "Public"}, {code: "private", label: "Private"}, {code: "invite_only", label: "Invite Only"}]` (already in `STATIC_MASTER_DATA` but overwritten by line 52).
+
+4. **Fix `challengeContextAssembler.ts` line 243**: Replace wrong fallback `validVisibilityOptions: ['anonymous', 'named', 'verified']` with `['public', 'private', 'invite_only']`.
+
+5. **Verify org context in edge functions**: Ensure `buildContextIntelligence()` outputs org name, type, description in the AI prompt. Ensure `discover-context-resources` includes org name in search query generation.
+
+**Verification:** Edge function logs show org name in AI prompt. Master data visibility has 3 correct options. Discovery queries reference org name.
+
+---
+
+### PROMPT 3: Unified AI Brain + Master Data Validation
+
+**New files:** `supabase/functions/_shared/buildUnifiedContext.ts`, `supabase/functions/analyse-challenge/index.ts`, `supabase/functions/generate-suggestions/index.ts`, `src/lib/cogniblend/masterDataValidator.ts`
+
+**Modified:** `useCurationAIActions.ts`, `useCurationWaveSetup.ts`
+
+1. **`buildUnifiedContext.ts`** — ONE shared function assembling ALL challenge data: org + industry pack + geography + master data + ALL 31 sections + governance rules + context digest. Fetched via `Promise.all` for parallelism.
+
+2. **`analyse-challenge/index.ts`** — ONE AI call for Pass 1. Receives full context document. Returns `{ overall_assessment: { score, readiness, summary, cross_section_issues }, sections: { [key]: { status, score, comments, dependency_gaps, industry_alignment } } }`. Includes STRICT master data value lists in prompt.
+
+3. **`generate-suggestions/index.ts`** — ONE AI call for Pass 2. Receives full context + Pass 1 reviews + digest. Returns suggestions in correct format per section (rich_text→HTML, line_items→JSON array, table→JSON array, checkbox→code from allowed list).
+
+4. **`masterDataValidator.ts`** — Post-AI hard validation: reject `maturity_level` not in `{BLUEPRINT, POC, PROTOTYPE, PILOT, PRODUCTION}`, `ip_model` not in `{IP-EA, IP-NEL, IP-EL, IP-JO, IP-SR}`, etc. Check eval criteria weights sum to 100%. Strip invalid values, add error comments.
+
+5. **Update `useCurationAIActions.ts`**: `handleAnalyse` calls `analyse-challenge` (1 call, not 6 waves) → runs discovery → sets `pass1DoneSession`. `handleGenerateSuggestions` calls `generate-suggestions` (1 call, not 6 waves) → sets `generateDoneSession`. Keep `review-challenge-sections` for single-section re-review only.
+
+6. **Simplify wave progress**: No more wave-by-wave display for global passes. Show single progress indicator.
+
+**Verification:** Analyse returns ALL sections in ONE response. Org name in comments. Master data sections suggest ONLY valid codes. Cross-section issues flagged. Eval criteria weights = 100%. Single-section re-review still works.
+
+---
+
+### PROMPT 4: Context Library Stabilization
+
+**Modified:** `discover-context-resources/index.ts`, `extract-attachment-text/index.ts`, `generate-context-digest/index.ts`
+
+**DB migration:** Add `extraction_quality TEXT DEFAULT 'pending'` column to `challenge_attachments`.
+
+1. **Discovery uses Pass 1 gaps**: After loading challenge, read `ai_section_reviews`. Extract sections with `status = 'needs_revision'` or `'generate'`. Add to query generation prompt: "CHALLENGE GAPS TO FILL: [gap list]. Prioritize sources for these gaps."
+
+2. **Extraction quality gate**: After extraction, measure real text length (excluding placeholders/markers). Set `extraction_quality`: `low` (<200 chars), `medium` (200-1000), `high` (>1000). Save to DB.
+
+3. **Digest filters by quality + targets gaps**: Add `.neq('extraction_quality', 'low')` to source query. Load Pass 1 gaps. Add to digest prompt: "Challenge has gaps in: [sections]. Focus on filling these. Reference sources by [Source N]."
+
+4. **Add correlation IDs**: All 3 edge functions generate `correlationId` at start, log at every decision point, include in response.
+
+**Verification:** Discovery queries reference challenge gaps. Low-quality extractions excluded from digest. Digest differs when sources change. Logs show correlationId.
+
+---
+
+### PROMPT 5: Accept All Atomic + Preview Editing + Final Verification
+
+**Modified:** `useCurationPageOrchestrator.ts`, preview components, `CurationRightRail.tsx`, `CurationHeaderBar.tsx`
+
+1. **Atomic Accept All** (`handleAcceptAllSuggestions`): `pauseSync()` → read `extended_brief` ONCE → build ONE update object (regular sections as direct columns, extended_brief merged) → ONE `supabase.update()` call → mark all addressed in store → `await queryClient.invalidateQueries()` → update `aiReviews` state → `resumeSync()` in `finally`.
+
+2. **Wire editing in PreviewDocument**: `PreviewSection` `onSave` writes to DB, invalidates cache, closes editor. For `extended_brief` subsections, do read-modify-write. Route to existing editors via `SectionEditSwitch.tsx` using `SECTION_FORMAT_CONFIG` format. Only ONE section editable at a time.
+
+3. **Preview fresh data**: `usePreviewData` queries use `staleTime: 0`, `refetchOnWindowFocus: true`, `refetchOnMount: 'always'`.
+
+4. **Preview button accessible anytime**: Already added to `CurationRightRail` and `CurationHeaderBar` — verify working.
+
+5. **Fix React ref warnings**: Check all preview components for unforwarded refs and missing keys.
+
+**Final Verification Checklist (8 items):**
+1. Open STRUCTURED challenge → Analyse → ONE AI call → ALL sections reviewed → org in comments → master data valid
+2. Discover Sources → gap-targeted queries → auto-accept high confidence → summaries appear
+3. Generate Digest → references specific sources → different when sources change
+4. Generate Suggestions → ONE AI call → correct format per section → master data enforced
+5. Accept All → ONE DB write → ALL sections update → panels collapse → navigate to preview
+6. Preview → ALL sections including org → LC/FC conditional → edit works → save persists
+7. Re-analyse → old reviews cleared → Generate hidden → no spinner on Generate
+8. Read-only when phase > 2 or FROZEN
+
+---
+
+## Summary of All Changes
+
+| Category | New Files | Modified Files | DB Migrations |
+|----------|-----------|----------------|---------------|
+| Writes & State | 0 | 3 (`useCurationAcceptRefinement`, `useCurationPageOrchestrator`, `useCurationStoreSync`) | 1 (`visibility` → TEXT) |
+| Org + Master Data | 0 | 4 (`useCurationWaveSetup`, `challengeContextAssembler`, `masterData.ts`, `contextIntelligence.ts`) | 0 |
+| Unified AI | 4 (`buildUnifiedContext`, `analyse-challenge`, `generate-suggestions`, `masterDataValidator`) | 2 (`useCurationAIActions`, `useCurationWaveSetup`) | 0 |
+| Context Library | 0 | 3 (`discover-context-resources`, `extract-attachment-text`, `generate-context-digest`) | 1 (`extraction_quality` column) |
+| Accept All + Preview | 0 | 4 (`useCurationPageOrchestrator`, preview components) | 0 |
+| **Total** | **4** | **~12 unique** | **2** |
+
+## Critical Rules
+1. Execute Prompts 1→2→3→4→5 in order. Each depends on the previous.
+2. Keep existing `review-challenge-sections` for single-section re-review.
+3. Keep ALL existing UI components, editors, renderers, section definitions.
+4. Keep ALL existing DB tables. Only add `extraction_quality` column and widen `visibility`.
 
