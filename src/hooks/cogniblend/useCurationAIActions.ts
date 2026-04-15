@@ -1,6 +1,7 @@
 /**
  * useCurationAIActions — AI review, quality analysis, and wave execution callbacks.
- * Complexity re-review, accept-all, and warning navigation extracted to useCurationComplexityActions.
+ * Now uses unified analyse-challenge and generate-suggestions endpoints.
+ * Keeps wave executors for single-section re-review only.
  */
 
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
@@ -13,6 +14,7 @@ import { detectBudgetShortfall, type BudgetShortfallResult } from '@/lib/cognibl
 import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import { resolveIndustrySegmentId, parseJson } from '@/lib/cogniblend/curationHelpers';
 import { DISCOVERY_WAVE_NUMBER, createInitialWaveProgressWithDiscovery, type WaveProgress } from '@/lib/cogniblend/waveConfig';
+import { validateMasterDataInReviews } from '@/lib/cogniblend/masterDataValidator';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
 import { parseJson as jsonParse } from '@/lib/cogniblend/jsonbUnwrap';
 import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview';
