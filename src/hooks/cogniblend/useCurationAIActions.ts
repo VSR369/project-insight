@@ -78,10 +78,14 @@ export function useCurationAIActions({
     if (curationStore) {
       const state = curationStore.getState();
       for (const [key, entry] of Object.entries(state.sections)) {
-        if ((entry as Record<string, unknown>)?.data != null) {
-          const d = (entry as Record<string, unknown>).data;
+        if (entry?.data != null) {
+          const d = entry.data;
           sectionContents[key] = typeof d === 'string' ? d : JSON.stringify(d);
         } else {
+          sectionContents[key] = (challenge as Record<string, unknown>)?.[key] as string ?? null;
+        }
+      }
+    }
           sectionContents[key] = (challenge as Record<string, unknown>)?.[key] as string ?? null;
         }
       }
@@ -246,7 +250,7 @@ export function useCurationAIActions({
       });
       if (error) {
         let msg = error.message;
-        try { const body = await (error as Record<string, unknown>).context?.json?.(); msg = body?.error?.message ?? msg; } catch { /* ignore */ }
+        try { msg = (error as Record<string, Record<string, () => Promise<Record<string, string>>>>)?.context?.json?.()?.then?.((b: Record<string, string>) => b?.error?.message) as unknown as string ?? msg; } catch { /* ignore */ }
         throw new Error(msg);
       }
       if (data?.success && data?.data) {
