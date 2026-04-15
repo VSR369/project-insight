@@ -5,6 +5,7 @@
  * Extracted from CurationReviewPage.tsx (Phase D3.3).
  */
 
+import { useNavigate } from 'react-router-dom';
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   Eye,
   HelpCircle,
+  FileText,
 } from "lucide-react";
 import { GovernanceModeSwitcher } from "@/components/cogniblend/curation/GovernanceModeSwitcher";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
@@ -122,6 +124,7 @@ export function CurationHeaderBar({
   industrySegments,
   onOpenGuide,
 }: CurationHeaderBarProps) {
+  const previewNav = useNavigate();
   return (
     <>
       {/* Header */}
@@ -151,6 +154,14 @@ export function CurationHeaderBar({
           <Badge variant="secondary" className="text-xs shrink-0">{orgTypeName}</Badge>
         )}
         <div className="flex items-center gap-2 shrink-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => previewNav(`/cogni/curation/${challengeId}/preview`)}>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Preview Document</TooltipContent>
+          </Tooltip>
           {onOpenGuide && (
             <Tooltip>
               <TooltipTrigger asChild>
