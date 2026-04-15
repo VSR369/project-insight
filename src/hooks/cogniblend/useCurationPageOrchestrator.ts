@@ -158,9 +158,8 @@ export function useCurationPageOrchestrator() {
   const aiActionsHook = useCurationAIActions({
     challengeId, challenge: challenge as Record<string, any> | null, curationStore,
     optimisticIndustrySegId, isWaveRunning: waveSetup.isWaveRunning, aiReviews,
-    buildContextOptions: waveSetup.buildContextOptions, executeWaves: waveSetup.executeWaves,
-    executeWavesPass1: waveSetup.executeWavesPass1, executeWavesFull: waveSetup.executeWavesFull,
-    executeWavesPass2: waveSetup.executeWavesPass2, pass1SetWaveProgress: waveSetup.pass1SetWaveProgress,
+    buildContextOptions: waveSetup.buildContextOptions,
+    pass1SetWaveProgress: waveSetup.pass1SetWaveProgress,
     saveSectionMutationRef, setPreFlightResult, setPreFlightDialogOpen, setAiReviewLoading,
     setTriageTotalCount, setBudgetShortfall, setAiQuality, setAiQualityLoading,
     setAiReviews, setAiSuggestedComplexity, setHighlightWarnings, setContextLibraryOpen,
