@@ -1,59 +1,42 @@
 
 
-# Fix: Wave Execution Abandoned Due to Query Invalidation Unmounting Page
+# Fix: Diagnostics Close Button + Navigation Killing Wave Execution
 
-## Root Cause
+## Two Issues
 
-When the wave executor completes each section review, it saves results to the DB via `saveSectionMutation.mutate()`. The mutation's `onSuccess` handler invalidates the `['curation-review', challengeId]` query. This triggers a data refetch, and during refetch `isLoading` can flip to `true`. The CurationReviewPage has an early return: `if (o.isLoading) return <Skeleton/>` — this **unmounts the entire component tree**, killing the wave executor's async loop silently. When the page remounts, all wave state is lost and the user sees the idle curator screen.
+### Issue 1: No Close Button on Diagnostics
+The diagnostics page has a back arrow but no explicit "Close" button. Simple addition.
 
-The edge function logs confirm all calls returned HTTP 200 — the server worked fine. This is purely a client-side unmount issue.
+### Issue 2: Navigating Away Kills Active Wave Execution
+The wave executor's async loop lives inside `CurationReviewPage`'s component tree. Navigating to the diagnostics page (or using browser back) unmounts the component, killing Pass 2 mid-execution. When the user returns, the executor state is reset to idle — Pass 2 is abandoned and the wave progress panel disappears.
 
-## Fix Strategy (Two Changes)
+**Pass 1 data is NOT lost** — it's persisted in Zustand → localStorage. But the wave progress UI state (which wave completed, which errored) is ephemeral React state that disappears on unmount.
 
-### 1. Prevent page unmount during wave execution
+## Fix Strategy
 
-**File:** `src/pages/cogniblend/CurationReviewPage.tsx`
+### 1. Add Close Button to Diagnostics Page
+Add an explicit "Close" button next to the back arrow in the diagnostics header bar.
 
-Change the loading guard so it only shows the skeleton on **initial** load, not during background refetches:
+### 2. Open Diagnostics in New Tab Instead of Same-Page Navigation
+Change the "Diagnostics" link in `CurationRightRail` to open in a **new browser tab** (`window.open`). This prevents unmounting the curation page entirely — the wave executor keeps running undisturbed.
 
-```
-// BEFORE (line 68):
-if (o.isLoading) return <Skeleton.../>
+### 3. Warn Before Navigation During Active Waves
+Add a `beforeunload` event listener and a React Router navigation blocker when `isWaveRunning` is true. This catches browser back button and any in-app navigation attempts, warning the user that leaving will abort the AI pipeline.
 
-// AFTER:
-if (o.isLoading && !o.isWaveRunning) return <Skeleton.../>
-```
-
-This ensures that while waves are running, the page stays mounted even if the underlying query is refetching.
-
-### 2. Suppress query invalidation during active wave execution
-
-**File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
-
-In the `saveSectionMutation.onSuccess` handler, skip the `invalidateQueries` call when a wave is actively running. The data will be re-fetched naturally when the wave completes via the `onAllComplete` callback.
-
-Add a `waveRunningRef` (updated from wave setup) and check it:
-
-```
-onSuccess: () => {
-  if (!waveRunningRef.current) {
-    queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
-  }
-  setSavingSection(false);
-},
-```
-
-Then add a single `invalidateQueries` call in the `onAllComplete` progress callback so the data refreshes once after all waves finish.
+### 4. Persist Wave Progress Summary to localStorage
+After each wave completes, write a lightweight summary (`{ waveNumber, status, sectionsCompleted, errors }`) to localStorage keyed by challenge ID. The diagnostics page and the curation page can read this on mount to restore the last known wave progress state — so even if the page was accidentally unmounted, the user sees what happened.
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Guard loading skeleton with `!o.isWaveRunning` |
-| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Add `waveRunningRef`, suppress invalidation during waves |
-| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Expose `isWaveRunning` (already computed on line 140) — no change needed, already returned |
+| `src/pages/cogniblend/CurationDiagnosticsPage.tsx` | Add explicit "Close" button in header |
+| `src/components/cogniblend/curation/CurationRightRail.tsx` | Change diagnostics link to open in new tab |
+| `src/pages/cogniblend/CurationReviewPage.tsx` | Add `beforeunload` listener when `isWaveRunning` is true |
+| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Persist wave progress summary to localStorage on wave completion |
+| `src/hooks/cogniblend/useWaveExecutor.ts` | Write per-wave status to localStorage as each wave finishes |
 
 ## No Database Changes
 
-This is a client-side state management fix only.
+All changes are client-side navigation and state persistence.
 
