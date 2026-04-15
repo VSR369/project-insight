@@ -121,8 +121,10 @@ const CURATION_SECTIONS = [
   { key: "reference_urls", desc: "Reference URLs provided by the creator — verify they are active, relevant, and appropriately scoped" },
   { key: "evaluation_config", desc: "Evaluation method (single vs Delphi panel) and blind review setting — must match complexity level and eligibility" },
   { key: "solver_audience", desc: "Solution Provider audience targeting (internal/external/all) — verify consistency with operating model and expertise requirements" },
-  { key: "legal_docs", desc: "Required legal agreements — NDA, Terms, IP assignment documents" },
-  { key: "escrow_funding", desc: "Prize fund escrow status and funding confirmation" },
+  { key: "legal_docs", desc: "Required legal agreements — NDA, Terms, IP assignment documents. Review status, recommend missing docs, advise on IP alignment." },
+  { key: "escrow_funding", desc: "Prize fund escrow status and funding confirmation. Review deposit status for CONTROLLED governance." },
+  { key: "creator_legal_instructions", desc: "Legal instructions from the challenge creator — review for clarity and alignment with IP model" },
+  { key: "organization_context", desc: "Organization profile completeness — verify description, industry, website, and operating model are sufficient for solver context" },
 ];
 
 // INTAKE_SECTIONS and SPEC_SECTIONS removed — deprecated role contexts
