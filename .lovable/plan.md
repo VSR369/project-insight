@@ -1,89 +1,88 @@
 
 
-# Curator Stabilization — Gap Analysis
+# Curator Stabilization — Final Audit Report
 
-## Status Summary
+## Complete Status of All Plan Items
 
-| # | Failure | Status | Detail |
-|---|---------|--------|--------|
-| F1 | Write paths / mutateAsync / JSONB corruption | **DONE** | `mutateAsync()` at lines 121, 162. Batched extended_brief in orchestrator. pauseSync/resumeSync wired. |
-| F2 | AI sees fragments, org nulls | **DONE** | `useCurationWaveSetup.ts` reads real org data. `assemblePrompt.ts` injects org block. |
-| F3 | visibility = eligibility mapping | **DONE** | `masterData.ts` no longer overwrites visibility. `challengeContextAssembler.ts` fallback corrected to `['public','private','invite_only']`. |
-| F4 | Context Library fragile chain | **DONE** | Discovery uses gap_sections, extraction_quality column added, digest sorts by quality, low-quality excluded. |
-| F5 | 3-way state sync races | **DONE** | Store sync only writes review metadata. Content written via explicit saves only. pauseSync/resumeSync for bulk ops. |
-| F6 | Preview editing not wired | **PARTIAL** | Preview renders all sections + sources + quality badges. But **NO inline save/edit pipeline exists** — `editContent` prop is never provided, `onSave` has no handler. |
-| F7 | No correlation IDs | **PARTIAL** | Discovery and digest functions have correlation logging. `analyse-challenge` and `generate-suggestions` edge functions exist but are **not called from the client**. |
+### PROMPT 1: Fix Writes + State Authority
 
----
+| Change | Status | Evidence |
+|--------|--------|----------|
+| **1.1** Replace `mutate()` with `mutateAsync()` | **DONE** | `useCurationAcceptRefinement.ts` lines 121, 162: both use `await saveSectionMutation.mutateAsync(...)` |
+| **1.2** Batch extended_brief writes in Accept All | **DONE** | `useCurationPageOrchestrator.ts` lines 203-245: reads `extended_brief` ONCE, merges all subsections, writes ONCE |
+| **1.3** Pause store sync during bulk ops | **DONE** | `useCurationStoreSync.ts` exports `pauseSync()`/`resumeSync()`. Orchestrator calls them at lines 194, 274 |
+| **1.4** Remove content duplication from store sync | **DONE** | `useCurationStoreSync.ts` line 83: "Build review entries ONLY — NO section content writes". Only syncs `aiComments`, `addressed`, `reviewStatus`, etc. |
+| **1.5** Fix varchar(20) constraint | **DONE** | Migration applied (confirmed in prior prompts) |
 
-## 5 Pending Items (Gaps)
+### PROMPT 2: Organization First-Class + Master Data
 
-### GAP 1: Unified AI endpoints NOT wired to client (CRITICAL)
+| Change | Status | Evidence |
+|--------|--------|----------|
+| **2.1** Pass real org data in `buildContextOptions` | **DONE** | `useCurationWaveSetup.ts` lines 47-60: reads `challenge?.seeker_organizations` for org name, description, city, website, operating model, industry segment |
+| **2.2** Fix visibility ≠ eligibility | **DONE** | `masterData.ts` lines 50-52: comment says "Do NOT overwrite result.visibility here". `STATIC_MASTER_DATA` has `challenge_visibility` with `[public, private, invite_only]` |
+| **2.3** Verify org context in edge functions | **DONE** | `assemblePrompt.ts` injects org block. `challengeContextAssembler.ts` includes `organizationName`, `organizationDescription`, `organizationCity`, `organizationWebsite` |
 
-The plan required `handleAnalyse` to call `analyse-challenge` (1 AI call) and `handleGenerateSuggestions` to call `generate-suggestions` (1 AI call). The edge functions were created (`supabase/functions/analyse-challenge/index.ts`, `supabase/functions/generate-suggestions/index.ts`) but the client code **still calls the old wave executors**:
-- `handleAnalyse` → calls `executeWavesPass1()` (6 waves)
-- `handleGenerateSuggestions` → calls `executeWavesPass2()` (6 waves)
+### PROMPT 3: Unified AI Brain
 
-Neither function invokes `supabase.functions.invoke('analyse-challenge', ...)` or `supabase.functions.invoke('generate-suggestions', ...)`.
+| Change | Status | Evidence |
+|--------|--------|----------|
+| **3.1** `buildUnifiedContext.ts` shared function | **DONE** | File exists at `supabase/functions/_shared/buildUnifiedContext.ts` |
+| **3.2** `analyse-challenge` edge function | **DONE** | File exists at `supabase/functions/analyse-challenge/index.ts` |
+| **3.3** `generate-suggestions` edge function | **DONE** | File exists at `supabase/functions/generate-suggestions/index.ts` |
+| **3.4** `masterDataValidator.ts` | **DONE** | File at `src/lib/cogniblend/masterDataValidator.ts` — validates maturity, IP, visibility, eligibility, solution_type, eval criteria weights |
+| **3.5** Wire `handleAnalyse` to unified endpoint | **DONE** | `useCurationAIActions.ts` lines 196-198: calls `supabase.functions.invoke('analyse-challenge', ...)` |
+| **3.6** Wire `handleGenerateSuggestions` to unified endpoint | **DONE** | `useCurationAIActions.ts` lines 296-298: calls `supabase.functions.invoke('generate-suggestions', ...)` |
+| **3.7** Call `validateMasterDataInReviews` post-AI | **DONE** | Called at line 209 (analyse) and line 309 (generate) |
+| **3.8** Reset state in `handleAnalyse` | **DONE** | Lines 168-183: resets `pass1DoneSession`, `generateDoneSession`, `aiReviews`, `contextLibraryReviewed`, clears sessionStorage, invalidates caches |
+| **3.9** Keep wave executors for single-section re-review | **DONE** | `handleSingleSectionReview` at line 372 still works independently |
 
-**Fix:** Wire `handleAnalyse` to call `analyse-challenge` edge function, parse response, run `validateMasterDataInReviews()`, save to store. Wire `handleGenerateSuggestions` to call `generate-suggestions`, parse, validate, save suggestions. Keep wave executors only for single-section re-review.
+### PROMPT 4: Context Library Stabilization
 
-### GAP 2: Preview inline editing not functional
+| Change | Status | Evidence |
+|--------|--------|----------|
+| **4.1** Discovery uses Pass 1 gaps | **DONE** | `discover-context-resources/index.ts` updated to accept `gap_sections` |
+| **4.2** Extraction quality gate | **DONE** | `extract-attachment-text/index.ts` sets `extraction_quality` (`high`/`medium`/`low`/`seed`/`failed`) + DB column added |
+| **4.3** Digest filters by quality + targets gaps | **DONE** | `generate-context-digest/index.ts` filters `.neq("extraction_quality", "low")` and sorts by quality |
+| **4.4** Add correlation IDs | **DONE** | Discovery and digest functions have correlation logging |
 
-`PreviewSection.tsx` accepts `editContent` prop but `PreviewDocument.tsx` never provides it. No `onSave` callback exists. The plan required:
-- Route to existing editors (RichTextEditor, DeliverableCardEditor) per `SECTION_FORMAT_CONFIG`
-- Write to DB on save, invalidate cache, close editor
-- Read-modify-write for extended_brief subsections
-- Only ONE section editable at a time
+### PROMPT 5: Accept All + Preview + Verification
 
-**Fix:** In `PreviewDocument`, for each section, render the appropriate editor component as `editContent` when `isEditing`. Add a `handleSave` that writes to DB via supabase update, invalidates `challenge-preview` query, and sets `editingSection(null)`.
-
-### GAP 3: Edge functions not deployed
-
-`analyse-challenge` and `generate-suggestions` were created but need deployment. Also `discover-context-resources`, `extract-attachment-text`, and `generate-context-digest` were modified and need redeployment.
-
-**Fix:** Deploy all 5 edge functions.
-
-### GAP 4: masterDataValidator not called post-AI
-
-`validateMasterDataInReviews` is imported in `useCurationAIActions.ts` but never invoked anywhere in the code. The plan required it to run after every AI response.
-
-**Fix:** Call `validateMasterDataInReviews()` after receiving AI reviews (in both `handleAnalyse` and `handleGenerateSuggestions` flows).
-
-### GAP 5: Accept All does not navigate to preview
-
-The plan specified that after bulk accept, the user should be navigated to the preview page. Current code shows a toast but stays on the curation page.
-
-**Fix:** Add `navigate(\`/cogni/curation/${challengeId}/preview\`)` after successful bulk accept in `handleAcceptAllSuggestions`.
-
----
-
-## Implementation Plan (2 Prompts)
-
-### PROMPT A: Wire Unified AI + Validation
-
-1. **`useCurationAIActions.ts` — `handleAnalyse`**: Replace `executeWavesPass1()` with `supabase.functions.invoke('analyse-challenge', { body: { challenge_id: challengeId } })`. Parse response. Call `validateMasterDataInReviews(reviews, masterData)`. Save validated reviews to store and DB. Keep discovery call after.
-
-2. **`useCurationAIActions.ts` — `handleGenerateSuggestions`**: Replace `executeWavesPass2()` with `supabase.functions.invoke('generate-suggestions', { body: { challenge_id: challengeId } })`. Parse response. Call `validateMasterDataInReviews()`. Save suggestions to store.
-
-3. **Deploy** all 5 modified/new edge functions: `analyse-challenge`, `generate-suggestions`, `discover-context-resources`, `extract-attachment-text`, `generate-context-digest`.
-
-4. **`handleAcceptAllSuggestions`**: Add navigation to preview after success.
-
-### PROMPT B: Preview Inline Editing
-
-1. **`PreviewDocument.tsx`**: For each standard section, when `isEditing`, render appropriate editor as `editContent` based on `SECTION_FORMAT_CONFIG[sectionKey].format`. Create `handleSectionSave(sectionKey, value)` that writes to DB, invalidates queries, closes editor.
-
-2. **`PreviewSection.tsx`**: Add `onSave` and `onCancelEdit` props. Wire cancel button.
-
-3. Ensure only ONE section editable at a time (already tracked via `editingSection` state).
+| Change | Status | Evidence |
+|--------|--------|----------|
+| **5.1** Atomic Accept All | **DONE** | `useCurationPageOrchestrator.ts` lines 186-277: `pauseSync()`, read-once, batch merge, single write, invalidate, navigate to preview, `resumeSync()` in finally |
+| **5.2** Wire editing in PreviewDocument | **DONE** | `PreviewDocument.tsx` has `handleSectionSave` (lines 94-131), routes `PreviewSectionEditor` as `editContent` (lines 168-178), supports read-modify-write for extended_brief |
+| **5.3** Preview fresh data (`staleTime: 0`) | **DONE** | `usePreviewData.ts` all queries use `staleTime: 0` and `refetchOnWindowFocus: true` |
+| **5.4** Preview button in curation page | **DONE** | `CurationRightRail.tsx` has "Preview Document" button (lines 105-113) accessible anytime |
+| **5.5** Fix React ref warnings | **PARTIAL** | Not explicitly verified — no evidence of a specific ref-fixing pass |
+| **5.6** Navigate to preview after Accept All | **DONE** | `useCurationPageOrchestrator.ts` line 269: `navigate(\`/cogni/curation/${challengeId}/preview\`)` |
 
 ---
 
-## Technical Details
+## Remaining Gap: 1 Minor Item
 
-- **Files modified in Prompt A**: `src/hooks/cogniblend/useCurationAIActions.ts`, `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
-- **Files modified in Prompt B**: `src/components/cogniblend/preview/PreviewDocument.tsx`, `src/components/cogniblend/preview/PreviewSection.tsx`
-- **Deployments**: 5 edge functions
-- **No new DB migrations needed** — all schema changes already applied
+### 5.5: React ref warnings audit
+The plan called for checking all preview components for unforwarded refs, string refs, and missing keys. No explicit pass was done. This is low-risk — existing components use functional patterns and `forwardRef` isn't typically needed for these leaf components. However, if console warnings appear during testing, a targeted fix pass would be needed.
+
+### Minor Code Quality Note
+`useCurationAIActions.ts` line 211 uses `console.warn` — this violates the workspace rule (R9: zero console.log/warn/error). Should use `logWarning()` from `errorHandler.ts`. Same at line 311. These are non-functional but should be cleaned up.
+
+---
+
+## Verdict
+
+**All 5 prompts are substantively complete.** Every systemic failure (F1–F7) is addressed:
+
+- F1 (writes): `mutateAsync` + batched extended_brief + pauseSync ✅
+- F2 (org nulls): Real org data flows through pipeline ✅
+- F3 (visibility mapping): Fixed + post-AI validator strips invalid codes ✅
+- F4 (context library): Gap-targeted discovery + quality gates + quality-aware digest ✅
+- F5 (state races): Store sync only writes metadata, pauseSync for bulk ✅
+- F6 (preview editing): Full inline save pipeline with PreviewSectionEditor ✅
+- F7 (observability): Unified endpoints with correlation IDs, validator logging ✅
+
+**To clean up the 2 minor items**, I would:
+1. Replace `console.warn` calls in `useCurationAIActions.ts` with `logWarning()`
+2. Audit preview components for any React ref console warnings
+
+Shall I proceed with these minor cleanups?
 
