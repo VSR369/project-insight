@@ -3,12 +3,13 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { SectionKey } from '@/types/sections';
+import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Bot, Loader2, Sparkles, BookOpen, FileText, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { DiagnosticsSheet } from "@/components/cogniblend/diagnostics/DiagnosticsSheet";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
