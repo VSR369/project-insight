@@ -104,6 +104,13 @@ serve(async (req) => {
       .map(([key, options]) => `${key}: ${options.map(o => `${o.code} (${o.label})`).join(', ')}`)
       .join('\n');
 
+    const dependencyBlock = Object.entries(ctx.sectionDependencyMap)
+      .map(([key, info]) => {
+        const downstreamStr = info.downstream.length > 0 ? info.downstream.join(', ') : '(none)';
+        return `${key}: ${info.strategicRole} → downstream: [${downstreamStr}]`;
+      })
+      .join('\n');
+
     const industryBlock = ctx.industryPack
       ? `## INDUSTRY INTELLIGENCE\n${jsonBrief(ctx.industryPack)}`
       : '';
@@ -123,6 +130,9 @@ ${geoBlock}
 
 ## MASTER DATA CONSTRAINTS
 ${masterDataBlock}
+
+## SECTION DEPENDENCY MAP
+${dependencyBlock}
 
 ${ctx.contextDigest ? `## VERIFIED CONTEXT\n${ctx.contextDigest.substring(0, 3000)}` : ''}
 

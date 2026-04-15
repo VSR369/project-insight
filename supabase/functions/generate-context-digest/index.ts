@@ -55,14 +55,18 @@ function sanitizeToHtml(text: string): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const correlationId = crypto.randomUUID().substring(0, 8);
+
   try {
     const { challenge_id } = await req.json();
     if (!challenge_id) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log(`[${correlationId}] generate-context-digest START for ${challenge_id}`);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -78,17 +82,19 @@ serve(async (req) => {
     );
 
     // P4 FIX: Include extraction_quality in query for quality-aware digest
+    // GAP 4 FIX: Exclude low-quality sources from digest
     const { data: attachments, error: attErr } = await adminClient
       .from("challenge_attachments")
       .select("section_key, file_name, url_title, source_url, source_type, extracted_summary, extracted_key_data, extracted_text, resource_type, extraction_method, extraction_status, extraction_quality")
       .eq("challenge_id", challenge_id)
       .eq("discovery_status", "accepted")
-      .in("extraction_status", ["completed", "partial"]);
+      .in("extraction_status", ["completed", "partial"])
+      .neq("extraction_quality", "low");
 
     if (attErr) throw new Error(attErr.message);
     if (!attachments || attachments.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "NO_SOURCES", message: "No accepted sources to digest" } }),
+        JSON.stringify({ success: false, error: { code: "NO_SOURCES", message: "No accepted sources to digest", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -98,7 +104,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: { code: "NO_EXTRACTABLE_CONTENT", message: `${attachments.length} source(s) accepted but none have sufficient text. Try re-extracting sources or adding URLs with richer content.` },
+          error: { code: "NO_EXTRACTABLE_CONTENT", message: `${attachments.length} source(s) accepted but none have sufficient text. Try re-extracting sources or adding URLs with richer content.`, correlationId },
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -114,9 +120,23 @@ serve(async (req) => {
 
     const { data: challenge } = await adminClient
       .from("challenges")
-      .select("title, problem_statement, scope, organization_id, domain_tags, maturity_level, solution_type")
+      .select("title, problem_statement, scope, organization_id, domain_tags, maturity_level, solution_type, ai_section_reviews")
       .eq("id", challenge_id)
       .single();
+
+    // GAP 5 FIX: Extract gap sections from Pass 1 reviews for targeted digest
+    let gapSectionsInstruction = '';
+    if (challenge?.ai_section_reviews) {
+      const reviews = Array.isArray(challenge.ai_section_reviews) ? challenge.ai_section_reviews : [];
+      const gapSections = reviews
+        .filter((r: Record<string, unknown>) => r.status === 'needs_revision' || r.status === 'generated')
+        .map((r: Record<string, unknown>) => r.section_key as string)
+        .filter(Boolean);
+      if (gapSections.length > 0) {
+        gapSectionsInstruction = `\n\nCHALLENGE GAPS TO FILL: This challenge has gaps in these sections: ${gapSections.join(', ')}. Focus your digest on information that fills these gaps. Do NOT produce a generic overview — prioritize facts, data, and context relevant to these specific sections.`;
+        console.log(`[${correlationId}] Gap-targeted digest for ${gapSections.length} sections: ${gapSections.join(', ')}`);
+      }
+    }
 
     let orgContext = "";
     if (challenge?.organization_id) {
@@ -167,6 +187,7 @@ ${keyData ? `\nSTRUCTURED DATA:\n${keyData}` : ''}`;
 CHALLENGE: "${challenge?.title || "Unknown"}"
 PROBLEM: ${challenge?.problem_statement || "Not specified"}
 ${orgContext}
+${gapSectionsInstruction}
 
 Synthesize the provided source materials into a comprehensive 600-word context digest.
 
@@ -298,15 +319,16 @@ After the digest, output a JSON block with key facts:
           total_accepted: attachments.length,
           skipped_empty: attachments.length - usableAttachments.length,
           curator_edit_reset: !!existingDigest?.curator_edited,
+          correlationId,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("generate-context-digest error:", err);
+    console.error(`[${correlationId}] generate-context-digest error:`, err);
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message, correlationId } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

@@ -162,14 +162,18 @@ function extractPdfTextDecoder(buffer: ArrayBuffer, fileName: string): { text: s
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const correlationId = crypto.randomUUID().substring(0, 8);
+
   try {
     const { attachment_id } = await req.json();
     if (!attachment_id || typeof attachment_id !== "string") {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "attachment_id is required" } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "attachment_id is required", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log(`[${correlationId}] extract-attachment-text START for ${attachment_id}`);
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -515,13 +519,15 @@ KEY_DATA:
       responseData.error_code = method.includes("credits_exhausted") ? "AI_CREDITS_EXHAUSTED" : "AI_RATE_LIMITED";
     }
 
+    console.log(`[${correlationId}] extract-attachment-text DONE: method=${responseData.extraction_method}, quality=${responseData.extraction_quality}`);
+
     return new Response(
-      JSON.stringify({ success: true, data: responseData }),
+      JSON.stringify({ success: true, data: { ...responseData, correlationId } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error("extract-attachment-text error:", err);
+    console.error(`[${correlationId}] extract-attachment-text error:`, err);
 
     try {
       const body = await req.clone().json().catch(() => ({}));
@@ -539,7 +545,7 @@ KEY_DATA:
     } catch { /* best effort */ }
 
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: errMsg } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: errMsg, correlationId } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
