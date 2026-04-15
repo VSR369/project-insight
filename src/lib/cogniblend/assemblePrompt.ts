@@ -314,8 +314,12 @@ export function assemblePrompt(
   // ── Layer 5: Runtime Context ──
   parts.push('### Challenge Context');
   parts.push(`Today: ${context.todaysDate}`);
+  if (context.organizationName) parts.push(`Organization: ${context.organizationName}`);
+  if (context.organizationDescription) parts.push(`About org: ${context.organizationDescription.substring(0, 300)}`);
+  if (context.organizationCity) parts.push(`HQ: ${context.organizationCity}`);
+  if (context.operatingModel) parts.push(`Operating model: ${context.operatingModel}`);
   if (context.solutionType) parts.push(`Solution type: ${context.solutionType}`);
-  if (context.seekerSegment) parts.push(`Seeker: ${context.seekerSegment}`);
+  if (context.seekerSegment) parts.push(`Industry: ${context.seekerSegment}`);
   parts.push(`Maturity: ${context.maturityLevel || 'Not set'}`);
   parts.push(`Complexity: ${context.complexityLevel || 'Not set'}`);
   if (context.rateCard) {
