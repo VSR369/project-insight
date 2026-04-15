@@ -108,8 +108,41 @@ export interface UnifiedChallengeContext {
   escrow: Record<string, unknown> | null;
   sectionConfigs: Record<string, unknown>[];
   globalConfig: Record<string, unknown> | null;
+  sectionDependencyMap: Record<string, { downstream: string[]; strategicRole: string }>;
   correlationId: string;
 }
+
+/* ── Inline section dependency map (cannot import from client code) ── */
+
+const SECTION_DEPENDENCY_MAP: Record<string, { downstream: string[]; strategicRole: string }> = {
+  context_and_background: { downstream: ['root_causes', 'affected_stakeholders', 'current_deficiencies'], strategicRole: 'Foundation — establishes the operating environment' },
+  problem_statement: { downstream: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'scope', 'deliverables', 'solver_expertise', 'expected_outcomes', 'hook', 'solution_type', 'domain_tags'], strategicRole: 'THE ANCHOR — everything flows from this' },
+  scope: { downstream: ['deliverables', 'solver_expertise', 'eligibility', 'domain_tags', 'complexity', 'data_resources_provided'], strategicRole: 'Boundary setter — defines what is in/out' },
+  expected_outcomes: { downstream: ['evaluation_criteria', 'deliverables', 'success_metrics_kpis'], strategicRole: 'Success definition — what good looks like' },
+  root_causes: { downstream: ['preferred_approach', 'current_deficiencies'], strategicRole: 'Diagnostic depth — why the problem exists' },
+  current_deficiencies: { downstream: ['preferred_approach'], strategicRole: 'Gap analysis — what has been tried and failed' },
+  preferred_approach: { downstream: ['approaches_not_of_interest'], strategicRole: 'Direction setter — guides solution space' },
+  affected_stakeholders: { downstream: [], strategicRole: 'Impact mapping — who benefits from a solution' },
+  approaches_not_of_interest: { downstream: [], strategicRole: 'Anti-patterns — what to avoid' },
+  solution_type: { downstream: ['deliverables', 'complexity', 'solver_expertise', 'domain_tags'], strategicRole: 'Solution classification — shapes deliverable expectations' },
+  deliverables: { downstream: ['complexity', 'solver_expertise', 'submission_guidelines', 'evaluation_criteria', 'maturity_level', 'data_resources_provided'], strategicRole: 'Core output — what solvers must produce' },
+  maturity_level: { downstream: ['complexity', 'phase_schedule', 'reward_structure'], strategicRole: 'Readiness gate — how polished the solution must be' },
+  data_resources_provided: { downstream: ['submission_guidelines'], strategicRole: 'Enablement — what solvers receive to work with' },
+  success_metrics_kpis: { downstream: ['evaluation_criteria'], strategicRole: 'Measurement framework — quantifiable targets' },
+  complexity: { downstream: ['phase_schedule', 'reward_structure', 'solver_expertise', 'escrow_funding'], strategicRole: 'Effort calibrator — drives timeline and reward' },
+  solver_expertise: { downstream: ['eligibility'], strategicRole: 'Talent filter — who can solve this' },
+  eligibility: { downstream: [], strategicRole: 'Access gate — formal participation requirements' },
+  phase_schedule: { downstream: ['submission_guidelines', 'escrow_funding'], strategicRole: 'Timeline — when things happen' },
+  evaluation_criteria: { downstream: ['submission_guidelines'], strategicRole: 'Scoring rubric — how solutions are judged' },
+  submission_guidelines: { downstream: [], strategicRole: 'Solver instructions — how to submit' },
+  reward_structure: { downstream: ['escrow_funding'], strategicRole: 'Incentive design — what solvers earn' },
+  ip_model: { downstream: ['legal_docs'], strategicRole: 'IP governance — who owns the output' },
+  hook: { downstream: [], strategicRole: 'Marketing — attracts solver attention' },
+  visibility: { downstream: [], strategicRole: 'Access control — who can see the challenge' },
+  domain_tags: { downstream: [], strategicRole: 'Discovery — how solvers find the challenge' },
+  escrow_funding: { downstream: [], strategicRole: 'Financial commitment — funds backing the reward' },
+  legal_docs: { downstream: [], strategicRole: 'Legal framework — contracts and agreements' },
+};
 
 /* ── Helpers ── */
 
@@ -329,6 +362,7 @@ export async function buildUnifiedContext(
     escrow: escrowRes.data as Record<string, unknown> | null,
     sectionConfigs: (configRes.data ?? []) as Record<string, unknown>[],
     globalConfig: globalConfigRes.data as Record<string, unknown> | null,
+    sectionDependencyMap: SECTION_DEPENDENCY_MAP,
     correlationId,
   };
 }
