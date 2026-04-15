@@ -96,15 +96,25 @@ async function extractXlsxText(buffer: ArrayBuffer): Promise<string> {
   }
 }
 
+/** Chunked base64 encoder — avoids stack overflow for large buffers */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 /** Use AI vision to read PDF pages as images (base64) */
 async function extractPdfViaVision(
   buffer: ArrayBuffer,
   apiKey: string,
   fileName: string,
 ): Promise<{ text: string; method: string }> {
-  // Convert entire PDF buffer to base64 for vision model
-  const uint8 = new Uint8Array(buffer);
-  const base64 = btoa(String.fromCharCode(...uint8));
+  const base64 = arrayBufferToBase64(buffer);
 
   try {
     const resp = await callAIWithFallback(apiKey, {
@@ -367,7 +377,7 @@ serve(async (req) => {
           method = "image_skipped";
         } else {
           try {
-            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+            const base64 = arrayBufferToBase64(buffer);
             const resp = await callAIWithFallback(LOVABLE_API_KEY, {
               max_tokens: 2000,
               messages: [{
@@ -519,7 +529,7 @@ KEY_DATA:
       responseData.error_code = method.includes("credits_exhausted") ? "AI_CREDITS_EXHAUSTED" : "AI_RATE_LIMITED";
     }
 
-    console.log(`[${correlationId}] extract-attachment-text DONE: method=${responseData.extraction_method}, quality=${responseData.extraction_quality}`);
+    console.log(`[${correlationId}] extract-attachment-text DONE: method=${method}, quality=${extractionQuality}, length=${extractedText.length}`);
 
     return new Response(
       JSON.stringify({ success: true, data: { ...responseData, correlationId } }),

@@ -15,6 +15,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { getCurationFormStore } from '@/store/curationFormStore';
 import { createEmptySectionEntry } from '@/types/sections';
 import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
+import { parseSuggestionForSection } from '@/lib/cogniblend/parseSuggestion';
 import type { SectionKey, SectionStoreEntry, ReviewStatus } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/shared/AIReviewInline';
 
@@ -153,13 +154,19 @@ export function useCurationStoreHydration({
       const currentStatus = existing?.reviewStatus ?? 'idle';
       const newStatus = toReviewStatus(review.status);
 
+      // Fix 1 & 7: Extract and parse suggestion from review
+      const rawSuggestion = (review as Record<string, unknown>).suggestion ?? null;
+      const parsedSuggestion = rawSuggestion && typeof rawSuggestion === 'string'
+        ? parseSuggestionForSection(sectionKey, rawSuggestion)
+        : rawSuggestion as SectionStoreEntry['data'];
+
       const commentsChanged = JSON.stringify(currentComments) !== JSON.stringify(newComments);
       const statusChanged = currentStatus !== newStatus;
       const addressedChanged = currentAddressed !== newAddressed;
+      const suggestionChanged = JSON.stringify(existing?.aiSuggestion) !== JSON.stringify(parsedSuggestion);
 
-      if (commentsChanged || statusChanged || addressedChanged) {
-        // Update store entry without triggering a full re-render cascade
-        storeState.setAiReview(sectionKey, newComments);
+      if (commentsChanged || statusChanged || addressedChanged || suggestionChanged) {
+        storeState.setAiReview(sectionKey, newComments, parsedSuggestion);
         if (newAddressed) {
           storeState.markAddressed(sectionKey);
         }
