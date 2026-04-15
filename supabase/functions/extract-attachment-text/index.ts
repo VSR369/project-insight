@@ -162,14 +162,18 @@ function extractPdfTextDecoder(buffer: ArrayBuffer, fileName: string): { text: s
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const correlationId = crypto.randomUUID().substring(0, 8);
+
   try {
     const { attachment_id } = await req.json();
     if (!attachment_id || typeof attachment_id !== "string") {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "attachment_id is required" } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "attachment_id is required", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
+    console.log(`[${correlationId}] extract-attachment-text START for ${attachment_id}`);
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
