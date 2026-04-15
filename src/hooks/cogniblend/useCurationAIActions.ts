@@ -22,6 +22,8 @@ import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview'
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
 import type { Json } from '@/integrations/supabase/types';
+import type { AnalyseProgressState } from '@/components/cogniblend/curation/AnalyseProgressPanel';
+import { IDLE_PROGRESS } from '@/components/cogniblend/curation/AnalyseProgressPanel';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
@@ -48,6 +50,7 @@ interface UseCurationAIActionsOptions {
   setPass1DoneSession: (v: boolean) => void;
   setGenerateDoneSession: (v: boolean) => void;
   setContextLibraryReviewed?: (v: boolean) => void;
+  setAnalyseProgress: (v: AnalyseProgressState | ((prev: AnalyseProgressState) => AnalyseProgressState)) => void;
 }
 
 export function useCurationAIActions({
