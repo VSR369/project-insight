@@ -167,12 +167,15 @@ async function checkAccessibility(url: string): Promise<AccessStatus> {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const correlationId = crypto.randomUUID();
+  console.log(`[discover-context-resources] START correlationId=${correlationId}`);
+
   try {
     // P4 FIX: Accept gap_sections from Pass 1 analysis
     const { challenge_id, scope, gap_sections } = await req.json();
     if (!challenge_id) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id required" } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id required", correlationId } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -182,7 +185,7 @@ serve(async (req) => {
 
     if (!LOVABLE_API_KEY) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "CONFIG_ERROR", message: "AI gateway not configured" } }),
+        JSON.stringify({ success: false, error: { code: "CONFIG_ERROR", message: "AI gateway not configured", correlationId } }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -209,7 +212,7 @@ serve(async (req) => {
 
     if (chErr || !challenge) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found" } }),
+        JSON.stringify({ success: false, error: { code: "NOT_FOUND", message: "Challenge not found", correlationId } }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -374,7 +377,7 @@ Return ONLY a JSON array of strings. No other text.`;
         }
       });
     } else {
-      console.log("SERPER_API_KEY not configured — using Gemini grounding fallback");
+      console.warn(`[discover-context-resources] correlationId=${correlationId} SERPER_API_KEY not configured — falling back to Gemini grounding search. Set SERPER_API_KEY in Edge Function secrets for better results.`);
       const groundingResp = await callAIWithFallback(LOVABLE_API_KEY, {
         tools: [{ "google_search": {} }],
         messages: [{
@@ -604,6 +607,7 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
       }
     }
 
+    console.log(`[discover-context-resources] DONE correlationId=${correlationId} inserted=${inserted.length} auto=${autoAcceptedCount}`);
     return new Response(
       JSON.stringify({
         success: true, suggestions: inserted, count: inserted.length,
@@ -613,15 +617,16 @@ Only use section_key from AVAILABLE SECTIONS. Return ONLY valid JSON array.`;
         discarded: discardedCount,
         candidates_found: candidates.length, accessible_count: usable.length, scored_relevant: scored.length,
         gaps_targeted: Object.keys(gapMap).length,
+        correlationId,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("discover-context-resources error:", err);
+    console.error(`[discover-context-resources] ERROR correlationId=${correlationId}:`, err);
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message, correlationId } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
