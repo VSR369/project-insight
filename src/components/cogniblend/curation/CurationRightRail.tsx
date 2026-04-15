@@ -6,7 +6,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Bot, Loader2, Sparkles, BookOpen } from "lucide-react";
+import { Bot, Loader2, Sparkles, BookOpen, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
@@ -96,8 +97,20 @@ export function CurationRightRail(props: CurationRightRailProps) {
     onReReviewStale, setAiReviewLoading,
   } = props;
 
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-4">
+      {/* Preview Document button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full"
+        onClick={() => navigate(`/cogni/curation/${challengeId}/preview`)}
+      >
+        <FileText className="h-4 w-4 mr-1.5" />
+        Preview Document
+      </Button>
       {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
         <div className="space-y-2">
