@@ -19,7 +19,7 @@ export function usePreviewEditability({ challenge, fieldRules }: UsePreviewEdita
     const phase = challenge.current_phase ?? 0;
     if (phase > 2) return true;
     if (challenge.curation_lock_status === 'FROZEN') return true;
-    const ms = (challenge as Record<string, unknown>).master_status as string | null;
+    const ms = (challenge as unknown as Record<string, unknown>).master_status as string | null;
     if (ms === 'ACTIVE' || ms === 'COMPLETED') return true;
     if (challenge.phase_status === 'CR_APPROVAL_PENDING') return true;
     return false;

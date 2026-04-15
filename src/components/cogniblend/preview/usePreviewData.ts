@@ -101,12 +101,11 @@ export function usePreviewData(challengeId: string | undefined) {
     queryKey: ['preview-escrow', challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('challenge_escrow_accounts')
-        .select('id, escrow_status, deposit_amount, remaining_amount, bank_name, bank_branch, bank_address, currency, deposit_date, deposit_reference, fc_notes')
-        .eq('challenge_id', challengeId!)
-        .maybeSingle();
+        .rpc('get_challenge_escrow', { p_challenge_id: challengeId! });
       if (error) throw new Error(error.message);
-      return data as EscrowRecord | null;
+      if (!data || (Array.isArray(data) && data.length === 0)) return null;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row as unknown as EscrowRecord | null;
     },
     enabled: !!challengeId,
     staleTime: 0,
