@@ -42,6 +42,43 @@ export interface WaveProgress {
   overallStatus: 'idle' | 'running' | 'completed' | 'cancelled' | 'error';
 }
 
+/** Human-readable labels for all curation sections */
+export const SECTION_LABELS: Record<SectionKey, string> = {
+  organization_context: 'Organization Context',
+  problem_statement: 'Problem Statement',
+  scope: 'Scope',
+  expected_outcomes: 'Expected Outcomes',
+  context_and_background: 'Context & Background',
+  root_causes: 'Root Causes',
+  affected_stakeholders: 'Affected Stakeholders',
+  current_deficiencies: 'Current Deficiencies',
+  preferred_approach: 'Preferred Approach',
+  approaches_not_of_interest: 'Approaches Not of Interest',
+  solution_type: 'Solution Type',
+  deliverables: 'Deliverables',
+  maturity_level: 'Maturity Level',
+  data_resources_provided: 'Data & Resources',
+  success_metrics_kpis: 'Success Metrics / KPIs',
+  creator_references: 'Creator References',
+  reference_urls: 'Reference URLs',
+  complexity: 'Complexity Assessment',
+  solver_expertise: 'Solver Expertise',
+  eligibility: 'Eligibility',
+  phase_schedule: 'Phase Schedule',
+  evaluation_criteria: 'Evaluation Criteria',
+  submission_guidelines: 'Submission Guidelines',
+  reward_structure: 'Reward Structure',
+  ip_model: 'IP Model',
+  hook: 'Hook / Tagline',
+  visibility: 'Visibility',
+  domain_tags: 'Domain Tags',
+  evaluation_config: 'Evaluation Config',
+  solver_audience: 'Solver Audience',
+  creator_legal_instructions: 'Creator Legal Instructions',
+  legal_docs: 'Legal Documents',
+  escrow_funding: 'Escrow & Funding',
+} as Record<SectionKey, string>;
+
 const LOCKED_SECTIONS: SectionKey[] = [];
 
 /** Sections backed by attachments/external data — always review, never generate */
