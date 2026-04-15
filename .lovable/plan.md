@@ -1,86 +1,101 @@
 
 
-# Dual-Mode Wave Progress Panel — Pass 1 (Analyse) + Pass 2 (Generate Suggestions)
+# AI Diagnostic Dashboard — Testing & Status Page
 
-## Problem
+## What This Builds
 
-The `WaveProgressPanel` currently shows identical status labels for both Pass 1 and Pass 2. When "Generate Suggestions" runs, sections still show "Reviewed" / "Drafted" — but the user expects Pass 2-specific labels like "Suggestions Generated". There's no visual distinction between the two passes.
+A new route `/cogni/curation/:challengeId/diagnostics` accessible via a link in the curation sidebar. It provides a read-only, comprehensive test results view covering three pipelines: AI Review, Generate Suggestions, and Context Discovery.
 
-## Architecture Finding
+## Consultant Level Mapping
 
-Both passes share the same `WaveProgress` type and the same panel. The `waveProgress` prop in `CurationRightRail` switches between executors based on which is running (line 180-184 of `useCurationWaveSetup.ts`), but no `passType` metadata is passed to the panel.
+The `importance_level` from `ai_review_section_config` maps to review depth:
 
-## Changes
+| importance_level | Review Level | Suggestion Level |
+|---|---|---|
+| Critical | Principal Consultant | Principal Consultant |
+| High | Senior Consultant | Senior Consultant |
+| Medium | Consultant | Consultant |
+| Low | Junior | Junior |
 
-### 1. Add `passType` to WaveProgressPanel
+This mapping is purely display — it reflects the configured review rigor for each section.
 
-**File:** `src/components/cogniblend/curation/WaveProgressPanel.tsx`
+## Page Layout: Three Collapsible Panels
 
-Add a `passType?: 'analyse' | 'generate'` prop. Use it to change:
+### Panel 1: AI Review (Pass 1) — Wave-by-Wave
 
-- **Header**: "AI Review" → "AI Analysis" (Pass 1) or "Generating Suggestions" (Pass 2)
-- **Section action labels**:
+For each wave (1–6), show a table:
 
-| Pass 1 (Analyse) | Pass 2 (Generate) |
-|---|---|
-| Reviewed · 3 comments | Suggestions Generated · 3 |
-| Drafted · 2 comments | Content Drafted · 2 suggestions |
-| Skipped | Skipped |
-| Error | Error |
+| Section | Status | Action | Comments | Review Level |
+|---|---|---|---|---|
+| Problem Statement | ✅ Success | Reviewed | 💬 3 | Principal Consultant |
+| Scope | ✅ Success | Drafted | 💬 2 | Senior Consultant |
+| Organization Context | ⏭ Skipped | — | — | Senior Consultant |
 
-- **Summary badges**: "Reviewed" → "Analysed" (Pass 1), "Suggestions" (Pass 2)
+Summary row per wave: total reviewed / drafted / skipped / errors.
 
-The `SectionActionLabel` component will branch on `passType` to show contextually correct labels. The `SectionStatusIcon` stays the same (icons are universal).
+### Panel 2: Generate Suggestions (Pass 2) — Wave-by-Wave
 
-### 2. Thread `passType` from executor to panel
+Same wave structure, different labels:
 
-**File:** `src/hooks/cogniblend/useCurationWaveSetup.ts`
+| Section | Status | Action | Suggestions | Suggestion Level |
+|---|---|---|---|---|
+| Problem Statement | ✅ Success | Suggestions Generated | ✨ 3 | Principal Consultant |
+| Deliverables | ✅ Success | Content Drafted | ✨ 2 | Principal Consultant |
+| Eligibility | ❌ Error | — | — | Consultant |
 
-Expose a derived `currentPassType` value:
-- If `pass1Executor.isRunning` → `'analyse'`
-- If `pass2Executor.isRunning` → `'generate'`
-- If completed, remember which ran last (via a `useRef`)
+### Panel 3: Context Discovery Pipeline
 
-**File:** `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
-
-Pass `currentPassType` through to CurationReviewPage.
-
-**File:** `src/components/cogniblend/curation/CurationRightRail.tsx`
-
-Accept `passType` prop, forward to `WaveProgressPanel`.
-
-### 3. Add suggestion counts alongside comment counts
-
-**File:** `src/components/cogniblend/curation/CurationRightRail.tsx`
-
-Compute `suggestionCounts` from the curation store — count sections where `aiSuggestion` is non-null. Pass to `WaveProgressPanel` as `suggestionCounts` prop.
-
-**File:** `src/components/cogniblend/curation/WaveProgressPanel.tsx`
-
-Accept optional `suggestionCounts` prop. In Pass 2 mode, display suggestion count per section instead of comment count.
+A step-by-step status checklist queried from DB:
 
 ```text
-Pass 1 expanded section row:
-  ✅ Problem Statement — Analysed · 💬 3 comments
+Step 1: Web Search .................. ✅ Success / ❌ Failed
+  → Accepted Links: 4
+  → Accepted Documents: 2
+  → Excluded Links: 1
+  → Excluded Documents: 0
 
-Pass 2 expanded section row:
-  ✅ Problem Statement — Suggestions Generated · ✨ 3
-  ✅ Scope — Content Drafted · ✨ 2 suggestions
-  ⏭  Organization Context — Skipped
-  ❌ Deliverables — Error
+Step 2: Extraction Summary
+  → Summary Generated: ✅ Yes (for N sources)
+  → Full Text Extracted: ✅ Yes (N sources) / ⚠️ Partial (M of N)
+  → Key Data Extracted: ✅ Yes / ❌ No
+
+Step 3: Consolidation
+  → All accepted source text consolidated: ✅ Yes / ❌ No
+
+Step 4: Context Digest
+  → Generated: ✅ Success / ❌ Failed / ⚠️ Partial
+  → Source Count: N
+  → Curator Edited: Yes/No
+  → Confirmed & Ready for Generate: ✅ / ❌
 ```
 
-## Files to Change
+Data sources:
+- `challenge_attachments` — query by `discovery_status` (accepted/rejected/suggested) and `source_type` (url/file) for counts
+- `extraction_status`, `extraction_quality`, `extracted_summary`, `extracted_key_data` for extraction steps
+- `challenge_context_digest` — for digest status, `curator_edited`, `source_count`
 
-| File | Change |
-|------|--------|
-| `src/components/cogniblend/curation/WaveProgressPanel.tsx` | Add `passType` + `suggestionCounts` props; branch labels/header by pass |
-| `src/hooks/cogniblend/useCurationWaveSetup.ts` | Expose `currentPassType` derived from active executor |
-| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Thread `currentPassType` |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | Pass `passType` to right rail |
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | Accept `passType`, compute `suggestionCounts`, forward both |
+## Data Sources
+
+- **Curation store (Zustand)**: `aiComments`, `aiSuggestion`, `reviewStatus`, `aiAction` per section
+- **Wave progress state**: Already tracked in `WaveProgress` for both Pass 1 and Pass 2
+- **DB config**: `importance_level` from `ai_review_section_config` (fetched via existing `usePromptConfig`)
+- **DB context sources**: `challenge_attachments` filtered by `challenge_id`
+- **DB digest**: `challenge_context_digest` by `challenge_id`
+
+## Files to Create/Change
+
+| File | Action |
+|---|---|
+| `src/pages/cogniblend/CurationDiagnosticsPage.tsx` | **Create** — Main diagnostic page (~200 lines, composition only) |
+| `src/components/cogniblend/diagnostics/DiagnosticsReviewPanel.tsx` | **Create** — Pass 1 wave table with comment counts and review levels |
+| `src/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel.tsx` | **Create** — Pass 2 wave table with suggestion counts and levels |
+| `src/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel.tsx` | **Create** — Context discovery pipeline status from DB queries |
+| `src/hooks/cogniblend/useDiagnosticsData.ts` | **Create** — Combined hook fetching attachments, digest, config importance levels |
+| `src/routes/cogniRoutes.tsx` | **Edit** — Add lazy route for diagnostics page |
+| `src/components/cogniblend/curation/CurationRightRail.tsx` | **Edit** — Add "Diagnostics" link button to sidebar |
+| `src/lib/cogniblend/waveConfig.ts` | **Edit** — Export `IMPORTANCE_TO_LEVEL` mapping constant |
 
 ## No Database Changes
 
-All data already exists in the curation store (`aiComments`, `aiSuggestion`). This is purely a UI labeling enhancement.
+All data already exists. This is a read-only diagnostic view.
 
