@@ -204,7 +204,7 @@ export function useCurationAIActions({
       }
 
       // Parse and validate reviews
-      const rawReviews: SectionReview[] = (analyseResult.data?.sections ?? []).map(normalizeSectionReview);
+      const rawReviews: SectionReview[] = (analyseResult.data?.reviews ?? []).map(normalizeSectionReview);
 
       // ═══ POST-AI VALIDATION: strip invalid master data codes ═══
       const validation = validateMasterDataInReviews(rawReviews);
@@ -304,7 +304,7 @@ export function useCurationAIActions({
       }
 
       // Parse suggestions and merge into existing reviews
-      const suggestions: SectionReview[] = (genResult.data?.sections ?? []).map(normalizeSectionReview);
+      const suggestions: SectionReview[] = (genResult.data?.reviews ?? []).map(normalizeSectionReview);
 
       // ═══ POST-AI VALIDATION ═══
       const validation = validateMasterDataInReviews(suggestions);
@@ -313,6 +313,7 @@ export function useCurationAIActions({
       }
 
       // Merge suggestions into existing aiReviews
+      let mergedResult: SectionReview[] = [];
       setAiReviews((prev) => {
         const merged = [...prev];
         for (const s of validation.correctedReviews) {
@@ -323,11 +324,12 @@ export function useCurationAIActions({
             merged.push(s);
           }
         }
+        mergedResult = merged;
         return merged;
       });
 
-      // Save merged reviews to DB
-      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: aiReviews });
+      // Save merged reviews to DB (use captured mergedResult, not stale closure)
+      saveSectionMutationRef.current.mutate({ field: 'ai_section_reviews', value: mergedResult });
 
       // Budget check
       const ctx = buildChallengeContext(buildContextOptions());
