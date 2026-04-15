@@ -133,6 +133,24 @@ ${(config as Record<string, unknown>)?.donts ? `DON'T: ${(config as Record<strin
       .map(([k, opts]) => `${k}: ${opts.map(o => `${o.code} (${o.label})`).join(', ')}`)
       .join('\n');
 
+    // Build rich context block from full digest (key_facts + raw_context_block)
+    const digestFull = ctx.contextDigestFull;
+    let contextBlock = '';
+    if (digestFull?.digestText) {
+      contextBlock += `## VERIFIED CONTEXT DIGEST\n${digestFull.digestText.substring(0, 4000)}\n\n`;
+      if (digestFull.keyFacts) {
+        contextBlock += `## KEY FACTS\n${JSON.stringify(digestFull.keyFacts, null, 2).substring(0, 2000)}\n\n`;
+      }
+      if (digestFull.rawContextBlock) {
+        contextBlock += `## RAW SOURCE CONTEXT (extracted from verified sources)\n${digestFull.rawContextBlock.substring(0, 8000)}\n\n`;
+      }
+      if (digestFull.curatorEdited) {
+        contextBlock += `Note: Digest has been edited by the curator — prioritize edited content.\n`;
+      }
+    } else if (ctx.contextDigest) {
+      contextBlock = `## VERIFIED CONTEXT\n${ctx.contextDigest.substring(0, 4000)}`;
+    }
+
     const systemPrompt = `You are a PRINCIPAL CONSULTANT generating improved challenge content.
 Write from the organization's perspective ("we", "our") except evaluation/submission sections.
 
@@ -140,7 +158,7 @@ Write from the organization's perspective ("we", "our") except evaluation/submis
 ${masterDataBlock}
 Any code NOT in this list will be REJECTED.
 
-${ctx.contextDigest ? `## VERIFIED CONTEXT\n${ctx.contextDigest.substring(0, 4000)}` : ''}
+${contextBlock}
 
 Today's date: ${new Date().toISOString().split('T')[0]}
 
