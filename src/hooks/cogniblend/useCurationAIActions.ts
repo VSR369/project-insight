@@ -86,10 +86,6 @@ export function useCurationAIActions({
         }
       }
     }
-          sectionContents[key] = (challenge as Record<string, unknown>)?.[key] as string ?? null;
-        }
-      }
-    }
 
     const ebForPreFlight = jsonParse<Record<string, unknown>>(challenge.extended_brief as Json);
     if (ebForPreFlight) {
