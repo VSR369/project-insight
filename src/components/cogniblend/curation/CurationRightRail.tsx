@@ -15,7 +15,6 @@ import { CreatorApprovalStatusBanner } from "@/components/cogniblend/curation/Cr
 import { AIConfidenceSummary } from "@/components/cogniblend/curation/AIConfidenceSummary";
 import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgressPanel";
 import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
-import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
 import { AIQualityCard, AIReviewSummaryCard, CompletionBanner } from "./RightRailCards";
