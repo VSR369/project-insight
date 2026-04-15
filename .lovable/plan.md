@@ -1,69 +1,110 @@
 
 
-# Fix: "Accept All Suggestions" Not Applying Results
+# Challenge Preview Page — Implementation Plan
 
-## Root Cause Analysis
+## Overview
+Build a new seamless document-style preview page at `/cogni/curation/:id/preview` that renders all challenge data as one continuous professional report with inline editing, scroll-spy navigation, and business-rule-driven editability.
 
-Three bugs prevent the expected behavior:
+## Architecture
 
-### Bug 1: DB writes are fire-and-forget (race condition)
-`handleAcceptRefinement` calls `saveSectionMutation.mutate()` which is async but not awaited. The bulk loop's `await` resolves immediately, so multiple sections fire DB writes simultaneously — they can overwrite each other (especially extended_brief fields that share one DB column).
+The preview page is a NEW route and page — it does not modify existing curation workspace components. It reuses existing renderers (`SECTIONS` array, `AiContentRenderer`, `DeliverableCardRenderer`, `RewardStructureDisplay`, etc.) but composes them into a document layout instead of the tabbed/grouped curation workspace.
 
-### Bug 2: `aiReviews` state not updated during bulk accept
-`handleAcceptAllSuggestions` calls `curationStore.getState().setAddressedOnly(key)` (Zustand), but the `aiReviews` React state (which drives the `review` prop to each `AIReviewInline` component) is never updated. So the UI still sees `addressed: false`.
-
-### Bug 3: `isAddressed` in `useAIReviewInlineState` is a detached local state
-Even if `aiReviews` were updated, line 65 initializes `isAddressed` via `useState(review?.addressed ?? false)` but has no `useEffect` to sync when the prop changes. The component won't react to external state changes.
-
-## Implementation Plan
-
-### File 1: `src/hooks/cogniblend/useCurationPageOrchestrator.ts`
-**In `handleAcceptAllSuggestions`:**
-- After calling `setAddressedOnly` for all keys, also update `aiReviews` state to set `addressed: true` for all accepted section keys
-- This is the same pattern `handleMarkAddressed` uses in `useCurationApprovalActions.ts`
-
-```
-// After the existing for-loop that calls setAddressedOnly:
-setAiReviews((prev) => prev.map((r) =>
-  allKeys.includes(r.section_key as SectionKey) ? { ...r, addressed: true } : r
-));
+```text
+Route: /cogni/curation/:id/preview
+Access: Right rail button, header button, Accept All auto-nav, direct URL
+Data: Fresh from DB (staleTime: 0, refetchOnWindowFocus: true)
 ```
 
-### File 2: `src/components/cogniblend/shared/useAIReviewInlineState.ts`
-**Add a sync effect for `review?.addressed`:**
-- Add a `useEffect` that updates local `isAddressed` when the `review.addressed` prop changes externally (e.g., from bulk accept)
+## File Structure (13 files)
 
-```typescript
-useEffect(() => {
-  if (review?.addressed === true && !isAddressed) {
-    setIsAddressed(true);
-    setIsOpen(false);
-  }
-}, [review?.addressed]);
+```text
+src/pages/cogniblend/ChallengePreviewPage.tsx         — Route page (composition)
+src/components/cogniblend/preview/
+  usePreviewData.ts           — Combined data loading (challenge, legal, escrow, digest, attachments, field rules)
+  usePreviewEditability.ts    — Business rule evaluation (isGlobalReadOnly, canEditSection)
+  PreviewDocument.tsx         — Scrollable document body rendering all groups/sections
+  PreviewTopBar.tsx           — Sticky header (back, title, read-only badge)
+  PreviewSideNav.tsx          — Sticky left scroll-spy navigation
+  PreviewBottomBar.tsx        — Sticky footer (progress count, back, submit button)
+  PreviewGroupHeader.tsx      — Group divider (icon + title + horizontal rule)
+  PreviewSection.tsx          — Individual section: view/edit toggle, edit icon, lock icon
+  PreviewOrgSection.tsx       — Organization context (name, type, description, preferences, attachments)
+  PreviewLegalSection.tsx     — Conditional LC rendering (pending placeholder vs full doc list)
+  PreviewEscrowSection.tsx    — Conditional FC rendering (pending placeholder vs escrow details)
+  PreviewDigestSection.tsx    — Context digest with edit capability
+  SectionEditSwitch.tsx       — Routes section key → correct editor component
 ```
 
-This ensures:
-- When bulk accept marks a section as addressed, the AI review panel collapses
-- The "Re-review" button appears instead of the suggestion content
-- Section data is already saved correctly (the `syncSectionToStore` + `saveSectionMutation.mutate` calls work for individual saves)
+## Key Technical Decisions
 
-### File 3: `src/hooks/cogniblend/useCurationAcceptRefinement.ts` (optional improvement)
-- Change `saveSectionMutation.mutate()` to `saveSectionMutation.mutateAsync()` to properly await DB writes during bulk accept
-- This prevents race conditions when multiple sections write to the same DB row
+### 1. Data Loading (`usePreviewData.ts`)
+- Single hook combining 6 queries: challenge (with org join), legal docs, escrow, digest, attachments, governance field rules
+- All queries use `staleTime: 0` — always fresh
+- Returns typed composite object + loading/error states
 
-### Why this is sufficient
-- Bug 1 (race condition): The 100ms stagger + React Query's sequential queue mostly prevents this. Using `mutateAsync` would be ideal but the stagger is an acceptable workaround. If time permits, we upgrade to `mutateAsync`.
-- Bug 2: Fixed by updating `aiReviews` in the orchestrator after marking addressed.
-- Bug 3: Fixed by the sync effect in `useAIReviewInlineState`.
+### 2. Editability (`usePreviewEditability.ts`)
+- Computes `isGlobalReadOnly` from phase, lock status, master status, phase status
+- `canEditSection(key)` checks global read-only, locked sections (legal/escrow), field visibility rules
+- Returns both + a `sectionEditability` map for all section keys
 
-### Expected Result After Fix
-1. Click "Accept All Suggestions" → AI suggestions override each section's data in DB
-2. AI review panels collapse for all accepted sections
-3. Each section shows "This section has been addressed" with a "Re-review" button
-4. The suggestion count in the bulk action bar drops to 0
+### 3. Document Layout (`PreviewDocument.tsx`)
+- Renders sections in spec order: Org → Foundation → Analysis → Specification → Assessment → Execution → Publish Settings → Legal & Compliance → Context Digest
+- Uses `SECTIONS` array renderers for standard sections
+- Special components for Org, Legal, Escrow, Digest
+- Single `editingSection` state — only one section editable at a time
+- No card borders between sections — subtle dividers, group headers as visual breaks
 
-## Technical Details
-- Files changed: 3
-- Lines changed: ~15
-- Risk: Low — adds state sync without changing save logic
+### 4. Inline Editing (`PreviewSection.tsx` + `SectionEditSwitch.tsx`)
+- Edit icon visible only when `canEditSection(key)` is true
+- Click toggles inline editor (reuses existing `TextSectionEditor`, `DeliverablesEditor`, etc.)
+- Save triggers mutation → query invalidation → section re-renders
+- Cancel reverts without saving
+- Switching sections auto-cancels current edit
+
+### 5. Organization Section (`PreviewOrgSection.tsx`)
+- Renders org name, type, website, LinkedIn, description, tagline from `seeker_organizations` join
+- Embeds `ChallengePreferencesInfo` for creator preferences
+- Embeds `OrgAttachmentList` for org documents (download links)
+
+### 6. Legal & Escrow (`PreviewLegalSection.tsx`, `PreviewEscrowSection.tsx`)
+- Conditional rendering based on `lc_compliance_complete` / `fc_compliance_complete`
+- Pending: shows placeholder with clock icon and explanation text
+- Complete: shows full document list / escrow details
+- Always displays lock icon — never editable by curator
+
+### 7. Access Points (2 existing files to modify)
+- `CurationRightRail.tsx`: Add "Preview Document" button linking to `/cogni/curation/:id/preview`
+- `CurationHeaderBar.tsx`: Add "Preview" icon button in header actions
+
+### 8. Route Registration (`App.tsx`)
+- Add lazy import for `ChallengePreviewPage`
+- Add route: `/cogni/curation/:id/preview`
+
+## Styling Approach
+- No card borders between sections — sections separated by subtle `border-border/50` dividers
+- Group headers: bold visual break with `border-t-2`, larger spacing
+- Document max-width ~800px centered for readability
+- Print-friendly: hide interactive elements via `@media print`
+- Left nav: 200px sticky sidebar with scroll-spy using `IntersectionObserver`
+
+## Reused Components
+- `SECTIONS` array (renderers for all standard sections)
+- `AiContentRenderer` (rich text display)
+- `DeliverableCardRenderer` (deliverables, outcomes, guidelines)
+- `RewardStructureDisplay` (reward tiers)
+- `ChallengePreferencesInfo` (challenge preferences)
+- `OrgAttachmentList` (org documents)
+- `LcStatusBadge` (legal doc status)
+- `TextSectionEditor` / `DeliverablesEditor` etc. (inline editing)
+- `useGovernanceFieldRules` (field visibility)
+- `isFieldVisible` (field rule checks)
+
+## Implementation Order
+1. `usePreviewData.ts` + `usePreviewEditability.ts` (data + rules)
+2. `PreviewTopBar.tsx` + `PreviewBottomBar.tsx` + `PreviewSideNav.tsx` (shell)
+3. `PreviewGroupHeader.tsx` + `PreviewSection.tsx` + `SectionEditSwitch.tsx` (section rendering)
+4. `PreviewOrgSection.tsx` + `PreviewLegalSection.tsx` + `PreviewEscrowSection.tsx` + `PreviewDigestSection.tsx` (special sections)
+5. `PreviewDocument.tsx` (composition)
+6. `ChallengePreviewPage.tsx` (route page)
+7. Route registration in `App.tsx` + access buttons in `CurationRightRail.tsx` and `CurationHeaderBar.tsx`
 
