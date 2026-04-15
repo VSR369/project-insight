@@ -264,22 +264,35 @@ export function useCurationAIActions({
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
-    try {
-      // Regenerate digest to ensure it's fresh before Pass 2
-      toast.info('Refreshing context digest...', { duration: 3000 });
-      const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
-        body: { challenge_id: challengeId },
-      });
-      const digestOk = !digestError && digestResult?.success;
-      if (!digestOk) {
-        const reason = digestResult?.error?.message ?? digestError?.message ?? 'No accepted sources with extracted content';
-        toast.warning(`Context digest unavailable: ${reason}. Suggestions will use challenge content and industry intelligence only.`, { duration: 6000 });
-      } else {
-        toast.success(`Digest refreshed from ${digestResult?.data?.source_count ?? 0} sources`);
-      }
 
-      // Proceed to generate-suggestions with current aiReviews from client state
-      toast.info('Generating suggestions for all sections...', { duration: 3000 });
+    setAnalyseProgress({
+      phase: 'running',
+      stages: [
+        { name: 'Building Context Digest', status: 'running' },
+        { name: 'Generating Suggestions for All Sections', status: 'pending' },
+        { name: 'Validating & Saving Results', status: 'pending' },
+      ],
+    });
+
+    try {
+      // Stage 1: Digest
+      let digestAvailable = false;
+      try {
+        const { data: digestResult, error: digestError } = await supabase.functions.invoke('generate-context-digest', {
+          body: { challenge_id: challengeId },
+        });
+        digestAvailable = !digestError && digestResult?.success;
+      } catch { /* non-blocking */ }
+
+      setAnalyseProgress((prev: AnalyseProgressState) => ({
+        ...prev,
+        stages: prev.stages.map((s, i) =>
+          i === 0 ? { ...s, status: 'completed' as const, detail: digestAvailable ? 'Digest ready' : 'Skipped — using challenge context' } :
+          i === 1 ? { ...s, status: 'running' as const } : s
+        ),
+      }));
+
+      // Stage 2: Generate
       const { data: genResult, error: genError } = await supabase.functions.invoke('generate-suggestions', {
         body: { challenge_id: challengeId, pass1_reviews: aiReviews },
       });
@@ -289,8 +302,16 @@ export function useCurationAIActions({
         throw new Error(msg);
       }
 
-      const suggestions: SectionReview[] = (genResult.data?.reviews ?? []).map(normalizeSectionReview);
+      setAnalyseProgress((prev: AnalyseProgressState) => ({
+        ...prev,
+        stages: prev.stages.map((s, i) =>
+          i === 1 ? { ...s, status: 'completed' as const } :
+          i === 2 ? { ...s, status: 'running' as const } : s
+        ),
+      }));
 
+      // Stage 3: Validate & merge
+      const suggestions: SectionReview[] = (genResult.data?.reviews ?? []).map(normalizeSectionReview);
       const validation = validateMasterDataInReviews(suggestions);
       if (!validation.isValid) {
         logWarning(`Master data validation stripped ${validation.issues.length} invalid value(s)`, { operation: 'generate_suggestions', component: 'useCurationAIActions' });
@@ -301,11 +322,8 @@ export function useCurationAIActions({
         const merged = [...prev];
         for (const s of validation.correctedReviews) {
           const idx = merged.findIndex((r) => r.section_key === s.section_key);
-          if (idx >= 0) {
-            merged[idx] = { ...merged[idx], ...s };
-          } else {
-            merged.push(s);
-          }
+          if (idx >= 0) merged[idx] = { ...merged[idx], ...s };
+          else merged.push(s);
         }
         mergedResult = merged;
         return merged;
@@ -318,14 +336,25 @@ export function useCurationAIActions({
       setBudgetShortfall(shortfall);
       setTriageTotalCount(suggestions.length);
       setGenerateDoneSession(true);
+
+      setAnalyseProgress({
+        phase: 'completed',
+        stages: [
+          { name: 'Building Context Digest', status: 'completed', detail: digestAvailable ? 'Digest ready' : 'Skipped' },
+          { name: 'Generating Suggestions', status: 'completed', detail: `${suggestions.length} sections` },
+          { name: 'Validating & Saving', status: 'completed', detail: validation.isValid ? 'All valid' : `${validation.issues.length} corrected` },
+        ],
+      });
+
       toast.success(`Generated suggestions for ${suggestions.length} sections`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       toast.error(`Generation failed: ${msg}`);
+      setAnalyseProgress((prev: AnalyseProgressState) => ({ ...prev, phase: 'error' }));
     } finally {
       setAiReviewLoading(false);
     }
-  }, [buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession, setAiReviews, aiReviews, saveSectionMutationRef]);
+  }, [setAnalyseProgress, buildContextOptions, setAiReviewLoading, setTriageTotalCount, setBudgetShortfall, challengeId, setGenerateDoneSession, setAiReviews, aiReviews, saveSectionMutationRef]);
 
   const handleAIQualityAnalysis = useCallback(async () => {
     if (!challengeId) return;
