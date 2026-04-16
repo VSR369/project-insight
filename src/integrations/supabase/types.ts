@@ -2769,6 +2769,69 @@ export type Database = {
           },
         ]
       }
+      curator_corrections: {
+        Row: {
+          ai_content: string | null
+          ai_suggestion_hash: string | null
+          challenge_id: string
+          confidence_score: number | null
+          created_at: string
+          created_by: string | null
+          curator_action: string
+          curator_content: string | null
+          edit_distance_percent: number
+          embedding: string | null
+          id: string
+          section_key: string
+          time_spent_seconds: number
+        }
+        Insert: {
+          ai_content?: string | null
+          ai_suggestion_hash?: string | null
+          challenge_id: string
+          confidence_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          curator_action?: string
+          curator_content?: string | null
+          edit_distance_percent?: number
+          embedding?: string | null
+          id?: string
+          section_key: string
+          time_spent_seconds?: number
+        }
+        Update: {
+          ai_content?: string | null
+          ai_suggestion_hash?: string | null
+          challenge_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          curator_action?: string
+          curator_content?: string | null
+          edit_distance_percent?: number
+          embedding?: string | null
+          id?: string
+          section_key?: string
+          time_spent_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curator_corrections_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "curator_corrections_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
       curator_section_actions: {
         Row: {
           action_type: string
@@ -12577,6 +12640,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           domain_tags: Json | null
+          embedding: string | null
           id: string
           is_active: boolean
           maturity_level: string | null
@@ -12594,6 +12658,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           domain_tags?: Json | null
+          embedding?: string | null
           id?: string
           is_active?: boolean
           maturity_level?: string | null
@@ -12611,6 +12676,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           domain_tags?: Json | null
+          embedding?: string | null
           id?: string
           is_active?: boolean
           maturity_level?: string | null

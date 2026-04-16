@@ -73,7 +73,12 @@
   - Non-blocking: rate limit or failure doesn't fail the overall review
   - Stores `_ambiguity_check` synthetic section with clarity score, solver questions
 - `promptTemplate.ts`: Barrel exports for `callAmbiguityPass`, `mergeAmbiguityFindings`, types
-## 🔲 Prompt 7 — Curator Learning Corpus: Database Schema (with pgvector)
+## ✅ Prompt 7 — Curator Learning Corpus: Database Schema (with pgvector) (COMPLETE)
+- DB: Created `curator_corrections` table — per-section edit records with AI/curator content, edit distance, time spent, confidence, vector embedding
+- DB: Enhanced existing `section_example_library` with `embedding` column (vector(1536)), GIN indexes on domain_tags, performance indexes
+- DB: pgvector extension enabled in `extensions` schema
+- DB: RLS on both tables — platform admins can read all; authenticated users can insert corrections and read active examples
+- DB: Indexes on challenge_id, section_key, curator_action, quality_tier, domain_tags (GIN)
 ## 🔲 Prompt 8 — Curator Learning Corpus: Edit Capture Hook
 ## 🔲 Prompt 9 — Correction Extraction + Embedding Generation
 ## 🔲 Prompt 10 — Corpus Injection with Semantic Retrieval
