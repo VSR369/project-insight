@@ -164,6 +164,16 @@ export function useWaveExecutor({
         const sectionResults: WaveResult['sections'] = [];
         const historyResults: WaveSectionResult[] = [];
 
+        // Compute total sections across all waves for accurate progress reporting
+        const totalSectionsAllWaves = EXECUTION_WAVES.reduce(
+          (sum, w) => sum + w.sectionIds.length,
+          0,
+        );
+        let sectionsDoneBeforeWave = EXECUTION_WAVES.slice(0, i).reduce(
+          (sum, w) => sum + w.sectionIds.length,
+          0,
+        );
+
         for (const sa of sectionActions) {
           const store = getCurationFormStore(challengeId);
           store.getState().setAiAction(sa.sectionId, sa.action);
@@ -180,6 +190,27 @@ export function useWaveExecutor({
             status: result,
           });
           if (result === 'error') failedSections.push(sa.sectionId);
+
+          // Live update: push partial section results into the running wave so the
+          // progress bar reflects per-section completion, not just whole-wave completion.
+          const partialResults = [...sectionResults];
+          setWaveProgress((prev) => ({
+            ...prev,
+            waves: prev.waves.map((w) =>
+              w.waveNumber === wave.waveNumber
+                ? { ...w, sections: partialResults }
+                : w
+            ),
+          }));
+
+          // Push per-section progress to curation_progress (non-blocking, best-effort)
+          const sectionsReviewedNow = sectionsDoneBeforeWave + sectionResults.length;
+          void supabaseUpsertProgress(challengeId, {
+            current_wave: wave.waveNumber,
+            sections_reviewed: sectionsReviewedNow,
+            sections_total: totalSectionsAllWaves,
+            status: 'ai_review',
+          });
         }
 
         const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
