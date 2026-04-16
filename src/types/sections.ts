@@ -20,11 +20,60 @@ export type ReviewStatus = 'idle' | 'pending' | 'reviewed' | 'error';
 
 export type AiActionType = 'review' | 'generate' | 'skip' | null;
 
+/** Allowed sources for an AI-generated finding's evidence. */
+export type AiCommentEvidenceSource =
+  | 'challenge_content'
+  | 'industry_pack'
+  | 'geography_pack'
+  | 'framework_library'
+  | 'context_digest'
+  | 'attachment'
+  | 'inference'
+  | 'unknown';
+
+/** Severity / nature of an AI comment. */
+export type AiCommentType = 'error' | 'warning' | 'suggestion' | 'info' | 'inferred';
+
+/**
+ * Structured AI comment produced by Pass 1 (Analyse).
+ * Principal-grade fields (quantification, framework_applied, evidence_source,
+ * cross_reference_verified) are nullable to remain backward-compatible with
+ * older review payloads stored before the schema upgrade.
+ */
+export interface AiComment {
+  /** Human-readable finding text. */
+  text: string;
+  /** Severity / nature classification. */
+  type?: AiCommentType;
+  /** Specific field this comment targets (when applicable). */
+  field?: string | null;
+  /** Why the AI flagged this (chain-of-thought summary). */
+  reasoning?: string | null;
+  /** AI confidence 0..1. */
+  confidence?: number | null;
+  /** Snippet or quote anchoring the finding. */
+  evidence_basis?: string | null;
+  /** Numbers, percentages, units quoted to ground the finding. */
+  quantification?: string | null;
+  /** Named methodology applied (e.g. SCQA, MoSCoW, RACI). */
+  framework_applied?: string | null;
+  /** Where the evidence came from. */
+  evidence_source?: AiCommentEvidenceSource | null;
+  /** Other section keys the AI cross-checked. */
+  cross_reference_verified?: string[] | null;
+  /** Origin of the comment ('pass1', 'consistency', 'ambiguity', etc.). */
+  source?: string | null;
+}
+
 export interface SectionStoreEntry {
   /** Section data — shape varies by section type */
   data: Record<string, unknown> | string | string[] | null;
-  /** AI review comments — null means no review or cleared after accept */
-  aiComments: string[] | null;
+  /**
+   * AI review comments — null means no review or cleared after accept.
+   * Accepts legacy `string[]` payloads for backward compatibility; new
+   * code should produce `AiComment[]`. Consumers must narrow before use.
+   */
+  aiComments: AiComment[] | string[] | null;
   /** AI-suggested replacement data — null means no suggestion pending */
   aiSuggestion: Record<string, unknown> | string | string[] | null;
   /** Current review lifecycle status */
