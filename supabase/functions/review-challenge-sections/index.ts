@@ -179,6 +179,7 @@ serve(async (req) => {
   }
 
   try {
+    const reviewStartTime = Date.now();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -1084,6 +1085,32 @@ GROUNDING RULE (CRITICAL):
 
       if (updateError) {
         console.error("Failed to persist AI reviews:", updateError);
+      }
+
+      // ── Telemetry: write quality metrics row (non-blocking) ──
+      try {
+        const reviewDurationSeconds = Math.round((Date.now() - reviewStartTime) / 1000);
+        const consistencySection = allNewSections.find((s: any) => s.section_key === '_consistency_check');
+        const ambiguitySection = allNewSections.find((s: any) => s.section_key === '_ambiguity_check');
+        const consistencyFindingsCount = consistencySection?.findings_count ?? 0;
+        const ambiguityFindingsCount = ambiguitySection?.findings_count ?? 0;
+        const sectionsReviewed = allNewSections.filter((s: any) => !s.section_key.startsWith('_')).length;
+
+        await adminClient.from('challenge_quality_telemetry').insert({
+          challenge_id,
+          sections_reviewed: sectionsReviewed,
+          pass1_tokens: 0,
+          pass2_tokens: 0,
+          consistency_findings_count: consistencyFindingsCount,
+          ambiguity_findings_count: ambiguityFindingsCount,
+          total_corrections: 0,
+          avg_edit_magnitude: 0,
+          model_used: globalConfig?.default_model || 'google/gemini-3-flash-preview',
+          review_duration_seconds: reviewDurationSeconds,
+          is_baseline: false,
+        });
+      } catch (telemetryErr) {
+        console.error('Telemetry insert failed (non-blocking):', telemetryErr);
       }
     }
 
