@@ -233,11 +233,14 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
       sections: challengeData,
     };
 
+    const correctionsBlock = enrichedContext?._correctionsBlock || undefined;
+
     pass2SystemPrompt = pass2Configs.length > 0
-      ? buildPass2SystemPrompt(pass2Configs, enrichedContext, masterDataOptions)
-      : buildPass2SystemPrompt([], enrichedContext, masterDataOptions);
+      ? buildPass2SystemPrompt(pass2Configs, enrichedContext, masterDataOptions, correctionsBlock)
+      : buildPass2SystemPrompt([], enrichedContext, masterDataOptions, correctionsBlock);
   } else {
-    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext, masterDataOptions);
+    const correctionsBlock = clientContext?._correctionsBlock || undefined;
+    pass2SystemPrompt = buildPass2SystemPrompt([], clientContext, masterDataOptions, correctionsBlock);
   }
 
   const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
