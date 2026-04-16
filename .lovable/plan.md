@@ -18,7 +18,12 @@
 - `buildConfiguredBatchPrompt` kept as deprecated stub in `promptBuilders.ts` (safe removal later)
 - Edge function deployed successfully, no errors in logs
 
-## 🔲 Prompt 2 — UI Cleanup: Diagnostics Panels
+## ✅ Prompt 2 — UI Cleanup: Diagnostics Panels (COMPLETE)
+- `useDiagnosticsData`: Now fetches `ai_review_level` per section alongside `importance_level`
+- `DiagnosticsReviewPanel`: Column renamed to "AI Review Level", displays `ai_review_level` (principal/senior/standard)
+- `DiagnosticsSuggestionsPanel`: Same column rename and data source update
+- `DiagnosticsSheet` + `CurationDiagnosticsPage`: Pass `reviewLevels` prop to both panels
+- Old `IMPORTANCE_TO_LEVEL` mapping no longer used in diagnostics (kept in waveConfig for other consumers)
 ## 🔲 Prompt 3 — Principal Forcing Functions (Pass 1 Tool Schema)
 ## 🔲 Prompt 4 — Principal Forcing Functions (Pass 2 + Reasoning Effort + Exemplars)
 ## 🔲 Prompt 5 — Cross-Section Consistency Pass

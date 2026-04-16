@@ -9,13 +9,14 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, CheckCircle2, XCircle, SkipForward, Clock, AlertTriangle, Info } from 'lucide-react';
-import { EXECUTION_WAVES, SECTION_LABELS, IMPORTANCE_TO_LEVEL } from '@/lib/cogniblend/waveConfig';
+import { EXECUTION_WAVES, SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 
 interface Props {
   sections: Partial<Record<SectionKey, SectionStoreEntry>>;
   importanceLevels: Partial<Record<SectionKey, string>>;
+  reviewLevels: Partial<Record<SectionKey, string>>;
   executionRecord?: ExecutionRecord | null;
   analyseRecord?: ExecutionRecord | null;
 }
@@ -48,7 +49,7 @@ function StatusIcon({ status }: { status: string }) {
   }
 }
 
-export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, executionRecord, analyseRecord }: Props) {
+export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, reviewLevels, executionRecord, analyseRecord }: Props) {
   const hasRecord = !!executionRecord && executionRecord.waves.length > 0;
   const aiDraftedSections = React.useMemo(() => buildAiDraftedSet(analyseRecord), [analyseRecord]);
 
@@ -129,13 +130,13 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, execut
                     <TableHead>Status</TableHead>
                     <TableHead>Action</TableHead>
                     <TableHead>Suggestions</TableHead>
-                    <TableHead>Suggestion Level</TableHead>
+                    <TableHead>AI Review Level</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {wSections.map(({ id, execSection }) => {
                     const imp = importanceLevels[id] ?? 'medium';
-                    const level = IMPORTANCE_TO_LEVEL[imp.toLowerCase()] ?? 'Consultant';
+                    const level = reviewLevels[id] ?? 'principal';
 
                     // Only use execution record — no store fallback
                     const sectionStatus = execSection?.status ?? 'skipped';
@@ -170,7 +171,7 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, execut
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell><span className="text-xs">{level}</span></TableCell>
+                        <TableCell><span className="text-xs capitalize">{level}</span></TableCell>
                       </TableRow>
                     );
                   })}

@@ -44,6 +44,8 @@ export interface DiagnosticsData {
   attachmentStats: AttachmentStats;
   digest: DigestInfo;
   importanceLevels: Partial<Record<SectionKey, string>>;
+  /** ai_review_level per section (principal / senior / standard) */
+  reviewLevels: Partial<Record<SectionKey, string>>;
   isLoading: boolean;
   isError: boolean;
 }
@@ -88,15 +90,17 @@ export function useDiagnosticsData(challengeId: string | undefined): Diagnostics
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ai_review_section_config')
-        .select('section_key, importance_level')
+        .select('section_key, importance_level, ai_review_level')
         .eq('role_context', 'curation')
         .eq('is_active', true);
       if (error) { handleQueryError(error, { operation: 'fetch_diagnostic_config' }); throw error; }
-      const map: Partial<Record<SectionKey, string>> = {};
+      const importanceMap: Partial<Record<SectionKey, string>> = {};
+      const reviewLevelMap: Partial<Record<SectionKey, string>> = {};
       for (const row of data ?? []) {
-        map[row.section_key as SectionKey] = row.importance_level;
+        importanceMap[row.section_key as SectionKey] = row.importance_level;
+        reviewLevelMap[row.section_key as SectionKey] = row.ai_review_level;
       }
-      return map;
+      return { importanceMap, reviewLevelMap };
     },
     staleTime: 15 * 60_000,
   });
@@ -160,7 +164,8 @@ export function useDiagnosticsData(challengeId: string | undefined): Diagnostics
   return {
     attachmentStats: stats,
     digest,
-    importanceLevels: configQuery.data ?? {},
+    importanceLevels: configQuery.data?.importanceMap ?? {},
+    reviewLevels: configQuery.data?.reviewLevelMap ?? {},
     isLoading: attachmentsQuery.isLoading || digestQuery.isLoading || configQuery.isLoading,
     isError: attachmentsQuery.isError || digestQuery.isError || configQuery.isError,
   };
