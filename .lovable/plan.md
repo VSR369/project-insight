@@ -1,41 +1,68 @@
 
 
-# Fix: Pass 2 Must Process AI-Drafted Sections + Correct Status Labels
+# Implement: Acceptance Tracking Panel + Preview Refresh
 
-## Problem
+## Three deliverables
 
-In Pass 2, sections where Pass 1 generated content (because the creator left them empty) are currently treated correctly at the execution level — `determineSectionAction` sees the stored content and returns `'review'`, so the edge function runs with `wave_action: 'review'`.
+### 1. Acceptance Record Persistence (`waveExecutionHistory.ts`)
+Add new types and helpers for tracking "Accept All" outcomes per section:
 
-However, the **diagnostics label** shows "Suggestion Generated" for these sections, which is misleading. The user wants to clearly distinguish sections where the original content was AI-drafted (Pass 1) from sections where the creator provided content.
+```typescript
+interface AcceptanceSectionResult {
+  sectionId: SectionKey;
+  status: 'updated' | 'failed';
+  errorMessage?: string;
+}
 
-The fix is purely in the diagnostics panel label logic — Pass 2 execution already processes these sections correctly.
+interface AcceptanceRecord {
+  challengeId: string;
+  overallStatus: 'completed' | 'partial' | 'failed';
+  sections: AcceptanceSectionResult[];
+  acceptedAt: string;
+  totalUpdated: number;
+  totalFailed: number;
+}
+```
 
-## Approach
+Functions: `saveAcceptanceRecord`, `loadAcceptanceRecord` — localStorage keyed as `wave-accept-${challengeId}`.
 
-Cross-reference the Pass 1 execution record to determine which sections had `action === 'generate'` (meaning AI drafted the content). In Pass 2's diagnostics panel, use that to show:
+### 2. Track per-section success/failure during bulk accept (`useCurationPageOrchestrator.ts`)
 
-- **"AI Drafted & Suggestions Generated"** — section was empty, Pass 1 generated content, Pass 2 then reviewed it and produced suggestions
-- **"Suggestion Generated"** — section had creator content, Pass 2 reviewed and produced suggestions
+Wrap each section save in try/catch to track individual outcomes instead of failing the entire batch:
 
-## Changes
+- For each regular section: try `handleAcceptRefinement` → record "updated" or "failed"
+- For extended brief batch: if the batch write succeeds, mark all as "updated"; if it fails, mark all as "failed"
+- After the loop, persist an `AcceptanceRecord` via `saveAcceptanceRecord`
+- **Also invalidate `['challenge-preview', challengeId]`** before navigating to preview — this is the preview staleness fix
+
+### 3. New Diagnostics Panel (`DiagnosticsAcceptancePanel.tsx`)
+
+A collapsible panel showing per-section acceptance status:
+
+| Section | Status |
+|---------|--------|
+| Problem Statement | ✓ Updated |
+| Scope | ✗ Failed |
+| Expected Outcomes | ✓ Updated |
+
+- Header: "Acceptance Status" with badge (completed/partial/failed)
+- Timestamp of when acceptance ran
+- Summary counts: `{n} Updated · {n} Failed`
+- When no acceptance record exists: "Accept All has not been run yet."
+
+Integrate into `DiagnosticsSheet.tsx` and `CurationDiagnosticsPage.tsx` as a fourth panel after Pass 2.
+
+## Files
 
 | File | Change |
 |------|--------|
-| `DiagnosticsSuggestionsPanel.tsx` | Accept `analyseRecord` as an additional prop. For each section with `status === 'success'`, check if the Pass 1 record shows `action === 'generate'` for that section. If yes → label "AI Drafted & Suggestions Generated". If no → label "Suggestion Generated". |
-| `DiagnosticsSheet.tsx` | Pass `analyseRecord` to `DiagnosticsSuggestionsPanel` |
-| `CurationDiagnosticsPage.tsx` | Pass `analyseRecord` to `DiagnosticsSuggestionsPanel` |
+| `src/services/cogniblend/waveExecutionHistory.ts` | Add `AcceptanceRecord` type, `saveAcceptanceRecord`, `loadAcceptanceRecord` |
+| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | Track per-section outcomes, persist record, invalidate `challenge-preview` query |
+| `src/components/cogniblend/diagnostics/DiagnosticsAcceptancePanel.tsx` | **New** — Collapsible panel rendering acceptance results |
+| `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx` | Load acceptance record, render new panel |
+| `src/pages/cogniblend/CurationDiagnosticsPage.tsx` | Load acceptance record, render new panel |
 
-## Updated Pass 2 Status Labels
+## No database changes
 
-| Scenario | Label |
-|----------|-------|
-| Success, section was AI-drafted in Pass 1 | **"AI Drafted & Suggestions Generated"** |
-| Success, section had creator content | **"Suggestion Generated"** |
-| Error | "Error" |
-| Skipped | "Skipped" |
-| Not executed | "Not Run" |
-
-## Technical Detail
-
-The `DiagnosticsSuggestionsPanel` will receive both `executionRecord` (Pass 2) and `analyseRecord` (Pass 1). For each section, it builds a lookup set of section IDs where Pass 1 action was `'generate'`, then uses that set in the label logic. No changes to execution flow or edge functions — this is a display-only fix.
+All persistence via localStorage. Preview refresh via React Query cache invalidation.
 
