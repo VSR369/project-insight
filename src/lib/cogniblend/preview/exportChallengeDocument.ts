@@ -49,12 +49,15 @@ export async function exportAsPdf(html: string, baseFilename: string): Promise<v
   }
 }
 
-/** Convert the HTML to a DOCX blob via html-docx-js and download it. */
+/** Convert the HTML to a DOCX blob via html-docx-js-typescript and download it. */
 export async function exportAsDocx(html: string, baseFilename: string): Promise<void> {
-  // html-docx-js is a CommonJS module; dynamic import keeps it out of the main bundle
-  const mod = await import('html-docx-js/dist/html-docx');
+  const mod = await import('html-docx-js-typescript');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const htmlDocx = (mod as any).default ?? mod;
-  const blob: Blob = htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 720, right: 720, bottom: 720, left: 720 } });
+  const asBlob = (mod as any).asBlob ?? (mod as any).default?.asBlob;
+  const result = await asBlob(html, {
+    orientation: 'portrait',
+    margins: { top: 720, right: 720, bottom: 720, left: 720 },
+  });
+  const blob: Blob = result instanceof Blob ? result : new Blob([result], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   triggerBlobDownload(blob, `${sanitizeFilename(baseFilename)}.docx`);
 }
