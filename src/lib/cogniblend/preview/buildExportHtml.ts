@@ -79,19 +79,33 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
       return renderRichText((direct as string | undefined) ?? fromBrief ?? '');
     }
     case 'deliverables': {
-      const items = getDeliverableObjects(ch);
+      const items = getDeliverableObjects(ch) as Array<Record<string, unknown>>;
       if (!items.length) return emptyState();
-      return items.map((d, i) => renderCard(`D${i + 1}. ${d.title || d.deliverable_name || 'Deliverable'}`, renderRichText(d.description ?? d.deliverable_description ?? ''), d.format)).join('');
+      return items.map((d, i) => {
+        const name = (d.name ?? d.title ?? d.deliverable_name ?? `Deliverable ${i + 1}`) as string;
+        const desc = (d.description ?? d.deliverable_description ?? '') as string;
+        const ac = d.acceptance_criteria as string | undefined;
+        const body = renderRichText(desc) + (ac ? `<p class="export-card-meta"><strong>Acceptance:</strong> ${escapeHtml(ac)}</p>` : '');
+        return renderCard(`D${i + 1}. ${name}`, body);
+      }).join('');
     }
     case 'submission_guidelines': {
-      const items = getSubmissionGuidelineObjects(ch);
+      const items = getSubmissionGuidelineObjects(ch) as Array<Record<string, unknown>>;
       if (!items.length) return renderRichText(ch.description);
-      return items.map((d, i) => renderCard(`S${i + 1}. ${d.title || 'Guideline'}`, renderRichText(d.description ?? ''))).join('');
+      return items.map((d, i) => {
+        const name = (d.name ?? d.title ?? `Guideline ${i + 1}`) as string;
+        const desc = (d.description ?? '') as string;
+        return renderCard(`S${i + 1}. ${name}`, renderRichText(desc));
+      }).join('');
     }
     case 'expected_outcomes': {
-      const items = getExpectedOutcomeObjects(ch);
+      const items = getExpectedOutcomeObjects(ch) as Array<Record<string, unknown>>;
       if (!items.length) return emptyState();
-      return items.map((d, i) => renderCard(`O${i + 1}. ${d.title || 'Outcome'}`, renderRichText(d.description ?? ''))).join('');
+      return items.map((d, i) => {
+        const name = (d.name ?? d.title ?? `Outcome ${i + 1}`) as string;
+        const desc = (d.description ?? '') as string;
+        return renderCard(`O${i + 1}. ${name}`, renderRichText(desc));
+      }).join('');
     }
     case 'maturity_level': {
       if (!ch.maturity_level) return emptyState();
@@ -170,7 +184,7 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
     }
     case 'success_metrics_kpis':
     case 'data_resources_provided': {
-      const raw = parseJson<unknown>((ch as unknown as Record<string, unknown>)[key]);
+      const raw = parseJson<unknown>((ch as unknown as Record<string, import('@/integrations/supabase/types').Json>)[key] ?? null);
       if (!raw) return emptyState();
       if (Array.isArray(raw)) {
         return `<ul>${(raw as unknown[]).map((v) => `<li>${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</li>`).join('')}</ul>`;
