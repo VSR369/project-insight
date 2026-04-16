@@ -79,13 +79,6 @@ export const SECTION_LABELS: Record<SectionKey, string> = {
   escrow_funding: 'Escrow & Funding',
 } as Record<SectionKey, string>;
 
-/** Maps importance_level from ai_review_section_config to consultant grade */
-export const IMPORTANCE_TO_LEVEL: Record<string, string> = {
-  critical: 'Principal Consultant',
-  high: 'Senior Consultant',
-  medium: 'Consultant',
-  low: 'Junior',
-};
 
 const LOCKED_SECTIONS: SectionKey[] = [];
 
