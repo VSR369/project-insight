@@ -31,6 +31,7 @@ import { buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstr
 import { fetchMasterDataOptions, MASTER_DATA_SECTION_TABLES, STATIC_MASTER_DATA } from "./masterData.ts";
 import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutput, SECTION_FIELD_ALIASES, SECTION_DEPENDENCIES, DEPENDENCY_REASONING } from "./aiCalls.ts";
 import { callConsistencyPass, mergeConsistencyFindings } from "./aiConsistencyPass.ts";
+import { callAmbiguityPass, mergeAmbiguityFindings } from "./aiAmbiguityPass.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
 
 const corsHeaders = {
@@ -937,21 +938,52 @@ GROUNDING RULE (CRITICAL):
     // Wait for complexity to finish
     await complexityPromise;
 
-    // ═══ CROSS-SECTION CONSISTENCY PASS ═══
+    // ═══ CROSS-SECTION CONSISTENCY PASS + AMBIGUITY DETECTION PASS ═══
     // Only run for multi-section reviews (not single-section re-reviews) and not pass1_only
     if (!section_key && !pass1_only && allNewSections.length >= 2) {
-      try {
-        const consistencyModel = globalConfig?.default_model || defaultModel;
-        const consistencyResult = await callConsistencyPass(
-          LOVABLE_API_KEY,
-          consistencyModel,
-          allNewSections,
-          challengeData,
-          reasoningEffort,
-        );
+      const postBatchModel = globalConfig?.default_model || defaultModel;
+
+      // Run consistency and ambiguity passes in parallel
+      const consistencyPromisePass = callConsistencyPass(
+        LOVABLE_API_KEY,
+        postBatchModel,
+        allNewSections,
+        challengeData,
+        reasoningEffort,
+      ).catch((err: Error) => {
+        if (err.message === 'RATE_LIMIT' || err.message === 'PAYMENT_REQUIRED') {
+          console.warn('Consistency pass skipped due to rate limit/payment');
+        } else {
+          console.error('Consistency pass failed (non-blocking):', err);
+        }
+        return null;
+      });
+
+      const ambiguityPromisePass = callAmbiguityPass(
+        LOVABLE_API_KEY,
+        postBatchModel,
+        allNewSections,
+        challengeData,
+        context?.sections || {},
+        reasoningEffort,
+      ).catch((err: Error) => {
+        if (err.message === 'RATE_LIMIT' || err.message === 'PAYMENT_REQUIRED') {
+          console.warn('Ambiguity pass skipped due to rate limit/payment');
+        } else {
+          console.error('Ambiguity pass failed (non-blocking):', err);
+        }
+        return null;
+      });
+
+      const [consistencyResult, ambiguityResult] = await Promise.all([
+        consistencyPromisePass,
+        ambiguityPromisePass,
+      ]);
+
+      // Merge consistency findings
+      if (consistencyResult) {
         mergeConsistencyFindings(allNewSections, consistencyResult);
 
-        // Store consistency metadata on a synthetic entry for UI consumption
         allNewSections.push({
           section_key: '_consistency_check',
           status: consistencyResult.overall_coherence_score >= 70 ? 'pass' : 'warning',
@@ -972,13 +1004,32 @@ GROUNDING RULE (CRITICAL):
           reviewed_at: new Date().toISOString(),
           prompt_source: 'consistency_pass',
         });
-      } catch (err: any) {
-        if (err.message === 'RATE_LIMIT' || err.message === 'PAYMENT_REQUIRED') {
-          // Don't fail the whole review for consistency pass rate limits
-          console.warn('Consistency pass skipped due to rate limit/payment');
-        } else {
-          console.error('Consistency pass failed (non-blocking):', err);
-        }
+      }
+
+      // Merge ambiguity findings
+      if (ambiguityResult) {
+        mergeAmbiguityFindings(allNewSections, ambiguityResult);
+
+        allNewSections.push({
+          section_key: '_ambiguity_check',
+          status: ambiguityResult.overall_clarity_score >= 70 ? 'pass' : 'warning',
+          comments: [
+            ...(ambiguityResult.top_solver_questions || []).map((q: string) => ({
+              text: `[SOLVER QUESTION] ${q}`,
+              type: 'warning' as const,
+              field: null,
+              reasoning: null,
+              confidence: 'high',
+              evidence_basis: 'Ambiguity analysis — predicted solver question',
+              source: 'ambiguity_pass',
+            })),
+          ],
+          overall_clarity_score: ambiguityResult.overall_clarity_score,
+          findings_count: ambiguityResult.findings.length,
+          top_solver_questions: ambiguityResult.top_solver_questions,
+          reviewed_at: new Date().toISOString(),
+          prompt_source: 'ambiguity_pass',
+        });
       }
     }
 
