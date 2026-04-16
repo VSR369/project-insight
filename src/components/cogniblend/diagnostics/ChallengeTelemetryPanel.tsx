@@ -144,8 +144,8 @@ function MetricTile({ label, value, delta, invertDelta, icon }: MetricTileProps)
           className={cn(
             'inline-flex items-center gap-0.5 text-[10px] font-medium',
             !showDelta && 'text-muted-foreground',
-            showDelta && isGood && 'text-emerald-600 dark:text-emerald-400',
-            showDelta && !isGood && 'text-amber-600 dark:text-amber-400',
+            showDelta && isGood && 'text-primary',
+            showDelta && !isGood && 'text-destructive',
           )}
         >
           <DeltaIcon className="h-2.5 w-2.5" />
