@@ -558,6 +558,11 @@ serve(async (req) => {
       masterDataOptions = md;
       corpusExamples = examples;
       corpusCorrections = hardCorr;
+
+      // Attach corrections block to clientContext for Pass 2 injection
+      if (clientContext && corpusCorrections.length > 0) {
+        clientContext._correctionsBlock = formatCorrectionsForPrompt(corpusCorrections);
+      }
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────
