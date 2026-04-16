@@ -11,8 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DiagnosticsReviewPanel } from '@/components/cogniblend/diagnostics/DiagnosticsReviewPanel';
 import { DiagnosticsSuggestionsPanel } from '@/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel';
 import { DiagnosticsDiscoveryPanel } from '@/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel';
+import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/DiagnosticsAcceptancePanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
-import { loadExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
+import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
 /**
@@ -41,6 +42,7 @@ export default function CurationDiagnosticsPage() {
 
   const analyseRecord = useMemo(() => challengeId ? loadExecutionRecord(challengeId, 'analyse') : null, [challengeId]);
   const generateRecord = useMemo(() => challengeId ? loadExecutionRecord(challengeId, 'generate') : null, [challengeId]);
+  const acceptanceRecord = useMemo(() => challengeId ? loadAcceptanceRecord(challengeId) : null, [challengeId]);
 
   if (!challengeId) return null;
 
@@ -71,6 +73,7 @@ export default function CurationDiagnosticsPage() {
           <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} executionRecord={analyseRecord} />
           <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
           <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
+          <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
         </div>
       )}
     </div>

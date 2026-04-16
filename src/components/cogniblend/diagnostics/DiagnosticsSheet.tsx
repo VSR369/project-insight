@@ -15,8 +15,9 @@ import {
 import { DiagnosticsReviewPanel } from '@/components/cogniblend/diagnostics/DiagnosticsReviewPanel';
 import { DiagnosticsSuggestionsPanel } from '@/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel';
 import { DiagnosticsDiscoveryPanel } from '@/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel';
+import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/DiagnosticsAcceptancePanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
-import { loadExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
+import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
@@ -32,6 +33,7 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
 
   const analyseRecord = open ? loadExecutionRecord(challengeId, 'analyse') : null;
   const generateRecord = open ? loadExecutionRecord(challengeId, 'generate') : null;
+  const acceptanceRecord = open ? loadAcceptanceRecord(challengeId) : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -64,6 +66,7 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
                 analyseRecord={analyseRecord}
               />
               <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
+              <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
             </>
           )}
         </div>
