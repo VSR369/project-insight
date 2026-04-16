@@ -146,7 +146,7 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, execut
                       if (!hasRecord) return 'Not Run';
                       if (!execSection) return 'Not Run';
                       if (execSection.status === 'success') {
-                        if (execSection.action === 'generate') return 'AI Content Drafted';
+                        if (execSection.action === 'generate') return 'AI Content Drafted & Suggestions Generated';
                         // Cross-reference Pass 1: was this section AI-drafted?
                         if (aiDraftedSections.has(id)) return 'AI Drafted & Suggestions Generated';
                         return 'Suggestion Generated';
