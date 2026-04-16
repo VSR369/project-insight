@@ -3,7 +3,7 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -80,10 +80,13 @@ export interface CurationRightRailProps {
   creatorApprovalRequired?: boolean | null;
   communityCreationAllowed?: boolean;
   isAnonymous?: boolean;
+  diagnosticsOpen: boolean;
+  setDiagnosticsOpen: (v: boolean) => void;
+  onReReviewSection?: (sectionId: string) => void;
 }
 
 export function CurationRightRail(props: CurationRightRailProps) {
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const { diagnosticsOpen, setDiagnosticsOpen } = props;
 
   const {
     challengeId, challengeCurrencyCode, phaseStatus, operatingModel, isReadOnly,
@@ -167,6 +170,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
         onOpenChange={setDiagnosticsOpen}
         challengeId={challengeId}
         sections={diagSections}
+        onReReviewSection={props.onReReviewSection}
       />
       {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
       {props.onAnalyse && props.onGenerateSuggestions ? (
