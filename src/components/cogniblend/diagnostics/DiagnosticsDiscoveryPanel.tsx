@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { ChevronDown, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { ChevronDown, CheckCircle2, XCircle, AlertTriangle, Info } from 'lucide-react';
 import type { DigestInfo } from '@/hooks/cogniblend/useDiagnosticsData';
 
 interface AttachmentStats {
@@ -19,6 +19,10 @@ interface AttachmentStats {
   partialText: number;
   keyDataExtracted: number;
   noKeyData: number;
+  extractionNotReady: number;
+  lowQualityFiltered: number;
+  insufficientContent: number;
+  usableForDigest: number;
 }
 
 interface Props {
@@ -43,8 +47,10 @@ function StepRow({ label, children }: { label: string; children: React.ReactNode
 
 export function DiagnosticsDiscoveryPanel({ stats, digest }: Props) {
   const hasAnySources = stats.totalSources > 0;
+  const totalAccepted = stats.acceptedLinks + stats.acceptedDocs;
   const allTextExtracted = stats.fullTextExtracted > 0 && stats.partialText === 0;
   const consolidated = !!digest.rawContextBlock;
+  const hasFilterGap = totalAccepted > 0 && stats.usableForDigest < totalAccepted;
 
   const digestStatus = digest.exists
     ? (digest.sourceCount > 0 ? 'success' : 'partial')
@@ -91,6 +97,33 @@ export function DiagnosticsDiscoveryPanel({ stats, digest }: Props) {
           {/* Step 3: Consolidation */}
           <div className="p-3 space-y-1">
             <span className="text-xs font-semibold block mb-2">Step 3: Consolidation</span>
+            <StepRow label="Total Accepted">
+              <span className="text-xs font-medium">{totalAccepted}</span>
+            </StepRow>
+            <StepRow label="Usable for Digest">
+              <span className="text-xs font-medium">{stats.usableForDigest}</span>
+            </StepRow>
+            {hasFilterGap && (
+              <div className="ml-[140px] mt-1 space-y-1">
+                <div className="flex items-start gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                  <span className="text-[10px] text-muted-foreground">
+                    {totalAccepted - stats.usableForDigest} source(s) filtered before digest:
+                  </span>
+                </div>
+                <ul className="text-[10px] text-muted-foreground list-disc ml-5 space-y-0.5">
+                  {stats.extractionNotReady > 0 && (
+                    <li>{stats.extractionNotReady} — extraction pending/failed</li>
+                  )}
+                  {stats.lowQualityFiltered > 0 && (
+                    <li>{stats.lowQualityFiltered} — low/seed quality</li>
+                  )}
+                  {stats.insufficientContent > 0 && (
+                    <li>{stats.insufficientContent} — insufficient content (&lt;200 chars text, &lt;50 chars summary)</li>
+                  )}
+                </ul>
+              </div>
+            )}
             <StepRow label="Source Text Consolidated">
               <StatusBadge ok={consolidated} label={consolidated ? 'Yes' : 'No'} />
             </StepRow>
