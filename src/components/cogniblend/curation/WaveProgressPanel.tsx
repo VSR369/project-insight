@@ -40,20 +40,22 @@ interface WaveProgressPanelProps {
   suggestionCounts?: Partial<Record<SectionKey, number>>;
 }
 
-function WaveStatusIcon({ status }: { status: string }) {
-  switch (status) {
-    case 'completed':
-      return <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />;
-    case 'running':
-      return <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />;
-    case 'error':
-      return <XCircle className="h-4 w-4 text-destructive shrink-0" />;
-    case 'cancelled':
-      return <Ban className="h-4 w-4 text-muted-foreground shrink-0" />;
-    default:
-      return <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />;
+const WaveStatusIcon = React.forwardRef<HTMLElement, { status: string }>(
+  function WaveStatusIcon({ status }, _ref) {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />;
+      case 'running':
+        return <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-destructive shrink-0" />;
+      case 'cancelled':
+        return <Ban className="h-4 w-4 text-muted-foreground shrink-0" />;
+      default:
+        return <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />;
+    }
   }
-}
+);
 
 function SectionStatusIcon({ status, action }: { status: string; action: string }) {
   if (status === 'error') return <XCircle className="h-3 w-3 text-destructive shrink-0" />;

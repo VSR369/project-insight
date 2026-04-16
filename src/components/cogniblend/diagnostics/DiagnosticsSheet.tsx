@@ -37,6 +37,21 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
     if (open) setRefreshKey((k) => k + 1);
   }, [open]);
 
+  // Auto-refresh when localStorage is updated (covers sheet-open-during-execution)
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: StorageEvent) => {
+      if (
+        e.key?.startsWith(`wave-exec-${challengeId}`) ||
+        e.key === `wave-accept-${challengeId}`
+      ) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [open, challengeId]);
+
   const analyseRecord = useMemo(
     () => (open ? loadExecutionRecord(challengeId, 'analyse') : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
