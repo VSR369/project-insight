@@ -47,6 +47,43 @@ export interface ExecutionResult {
   failedSections: SectionKey[];
 }
 
+/* ── Acceptance tracking (Pass 3) ── */
+
+export interface AcceptanceSectionResult {
+  sectionId: SectionKey;
+  status: 'updated' | 'failed';
+  errorMessage?: string;
+}
+
+export interface AcceptanceRecord {
+  challengeId: string;
+  overallStatus: 'completed' | 'partial' | 'failed';
+  sections: AcceptanceSectionResult[];
+  acceptedAt: string;
+  totalUpdated: number;
+  totalFailed: number;
+}
+
+function acceptanceKey(challengeId: string): string {
+  return `wave-accept-${challengeId}`;
+}
+
+export function loadAcceptanceRecord(challengeId: string): AcceptanceRecord | null {
+  try {
+    const raw = localStorage.getItem(acceptanceKey(challengeId));
+    if (!raw) return null;
+    return JSON.parse(raw) as AcceptanceRecord;
+  } catch {
+    return null;
+  }
+}
+
+export function saveAcceptanceRecord(record: AcceptanceRecord): void {
+  try {
+    localStorage.setItem(acceptanceKey(record.challengeId), JSON.stringify(record));
+  } catch { /* localStorage unavailable */ }
+}
+
 function storageKey(challengeId: string, passType: PassType): string {
   return `wave-exec-${challengeId}-${passType}`;
 }
