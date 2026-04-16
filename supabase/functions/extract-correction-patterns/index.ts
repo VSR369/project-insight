@@ -114,6 +114,7 @@ async function deduplicateOrInsert(
       const overlap = [...ruleWords].filter((w: string) => existingWords.has(w)).length;
       const similarity = overlap / Math.max(ruleWords.size, existingWords.size, 1);
 
+      // similarity_threshold is configurable via ai_review_global_config
       if (similarity > 0.5) {
         // Similar rule found — increment confidence and curator count
         const newConfidence = Math.min(

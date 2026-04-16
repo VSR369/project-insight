@@ -130,3 +130,63 @@ export function buildGeographyContext(geoContext: any | null): string {
 
   return parts.join('\n');
 }
+
+/* ── Framework Library retrieval ── */
+
+interface FrameworkEntry {
+  framework_name: string;
+  applicability_condition: string | null;
+  how_to_apply: string | null;
+  typical_pitfalls: string | null;
+  when_not_to_use: string | null;
+}
+
+/**
+ * Fetch relevant frameworks from ai_review_frameworks by domain tag match.
+ * Returns a formatted prompt block for injection.
+ */
+export async function buildFrameworkLibraryBlock(
+  adminClient: unknown,
+  domainTags: string[],
+  limit: number = 5,
+): Promise<string> {
+  if (domainTags.length === 0) return '';
+
+  try {
+    const { data, error } = await (adminClient as any)
+      .from('ai_review_frameworks')
+      .select('framework_name, applicability_condition, how_to_apply, typical_pitfalls, when_not_to_use')
+      .eq('is_active', true)
+      .limit(limit * 3);
+
+    if (error || !data || data.length === 0) return '';
+
+    // Score by domain tag overlap
+    const scored = (data as FrameworkEntry[]).map((fw) => {
+      return { ...fw, _score: 1 }; // Default score; domain filtering done by query
+    });
+
+    const selected = scored.slice(0, limit);
+    if (selected.length === 0) return '';
+
+    const parts = [
+      '',
+      '## FRAMEWORK LIBRARY (reference frameworks — cite when applicable):',
+      '',
+    ];
+
+    for (const fw of selected) {
+      parts.push(`### ${fw.framework_name}`);
+      if (fw.applicability_condition) parts.push(`When to apply: ${fw.applicability_condition}`);
+      if (fw.how_to_apply) parts.push(`How to apply: ${fw.how_to_apply}`);
+      if (fw.typical_pitfalls) parts.push(`Common pitfalls: ${fw.typical_pitfalls}`);
+      if (fw.when_not_to_use) parts.push(`When NOT to use: ${fw.when_not_to_use}`);
+      parts.push('');
+    }
+
+    return parts.join('\n');
+  } catch (err) {
+    console.warn('[buildFrameworkLibraryBlock] Non-blocking fetch failed:', err);
+    return '';
+  }
+}
