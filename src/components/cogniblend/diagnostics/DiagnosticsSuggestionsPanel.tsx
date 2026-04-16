@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, CheckCircle2, XCircle, SkipForward, Clock, AlertTriangle, Info } from 'lucide-react';
 import { EXECUTION_WAVES, SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
+import { WaveTimingTable } from '@/components/cogniblend/diagnostics/WaveTimingTable';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 
@@ -188,6 +189,7 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
             </div>
           );
         })}
+        {hasRecord && <WaveTimingTable record={executionRecord} />}
       </CollapsibleContent>
     </Collapsible>
   );
