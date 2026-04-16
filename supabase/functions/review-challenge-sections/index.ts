@@ -937,6 +937,51 @@ GROUNDING RULE (CRITICAL):
     // Wait for complexity to finish
     await complexityPromise;
 
+    // ═══ CROSS-SECTION CONSISTENCY PASS ═══
+    // Only run for multi-section reviews (not single-section re-reviews) and not pass1_only
+    if (!section_key && !pass1_only && allNewSections.length >= 2) {
+      try {
+        const consistencyModel = globalConfig?.default_model || defaultModel;
+        const consistencyResult = await callConsistencyPass(
+          LOVABLE_API_KEY,
+          consistencyModel,
+          allNewSections,
+          challengeData,
+          reasoningEffort,
+        );
+        mergeConsistencyFindings(allNewSections, consistencyResult);
+
+        // Store consistency metadata on a synthetic entry for UI consumption
+        allNewSections.push({
+          section_key: '_consistency_check',
+          status: consistencyResult.overall_coherence_score >= 70 ? 'pass' : 'warning',
+          comments: [
+            ...(consistencyResult.narrative_gaps || []).map((gap: string) => ({
+              text: `[NARRATIVE GAP] ${gap}`,
+              type: 'warning' as const,
+              field: null,
+              reasoning: null,
+              confidence: 'high',
+              evidence_basis: 'Cross-section narrative analysis',
+              source: 'consistency_pass',
+            })),
+          ],
+          solver_readiness: consistencyResult.solver_readiness,
+          overall_coherence_score: consistencyResult.overall_coherence_score,
+          findings_count: consistencyResult.findings.length,
+          reviewed_at: new Date().toISOString(),
+          prompt_source: 'consistency_pass',
+        });
+      } catch (err: any) {
+        if (err.message === 'RATE_LIMIT' || err.message === 'PAYMENT_REQUIRED') {
+          // Don't fail the whole review for consistency pass rate limits
+          console.warn('Consistency pass skipped due to rate limit/payment');
+        } else {
+          console.error('Consistency pass failed (non-blocking):', err);
+        }
+      }
+    }
+
     // Merge with existing reviews and persist (skip in preview mode)
     let merged = allNewSections;
     if (!isPreviewMode) {
