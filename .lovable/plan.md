@@ -1,111 +1,39 @@
 
 
-## Bug Fix Implementation Plan — 4 Phases, 8 Bugs
+## Audit — Final Bug Fix Plan v2 (8 Prompts)
 
-**Audit findings vs. plan claims:**
-- ✅ **Bug 8** (single source of truth) — already done in `DiagnosticsReviewPanel.tsx` (lines 71–75 use store only). Only the Pass-1 success-path label and panel title remain to fix.
-- ❌ **Bug 2** (findings persistence) — NOT implemented. `index.ts` lines 1144–1194 only push to `_consistency_check`/`_ambiguity_check` pseudo-sections; no DB writes to `challenge_consistency_findings` / `challenge_ambiguity_findings`. Prior summary was incorrect — this still needs to be done.
-- All other bugs verified present.
-
----
-
-### Phase 1 — Edge-Function Fixes (Bugs 2, 3, 4)
-*All edits server-side; lowest blast radius. Edge functions auto-deploy.*
-
-**1.1 — Findings persistence** → `supabase/functions/review-challenge-sections/index.ts`
-- Import `ConsistencyFinding` / `AmbiguityFinding` types.
-- After line 1167 (consistency push): delete-then-insert into `challenge_consistency_findings`. Map `source_section→section_a`, `target_section→section_b`, truncate `inconsistency` to 100 chars for `contradiction_type`, full text → `description`, `severity`, `resolution→suggested_resolution`.
-- After line 1193 (ambiguity push): delete-then-insert into `challenge_ambiguity_findings`. Map `section_key`, `ambiguous_text→snippet` (≤500 chars), `ambiguity_type→pattern_matched`, `clarified_alternative→suggested_replacement`.
-- Both blocks gated by `!isPreviewMode` and wrapped in try/catch (non-blocking).
-- Pseudo-section pushes left intact (telemetry).
-
-**1.2 — Outcome acceptance criteria** → `promptConstants.ts` line 112
-- Replace `expected_outcomes` instruction with a JSON-array-of-objects spec (`name`, `description`, `acceptance_criteria` all required).
-
-**1.3 — Phase schedule names** → `promptConstants.ts` line 114
-- Strengthen `phase_schedule` instruction: REQUIRED descriptive `phase_name` (examples), forbid empty/`—`. Keep all other keys.
-- Also update format dispatcher line 49 (`schedule_table`) for consistency.
+| # | Bug | Status | Evidence |
+|---|---|---|---|
+| **1** | Diagnostics labels (Pass 1 = "Analysed", Pass 2 = "AI Content Generated" / "AI Suggestion Ready") | ✅ **FIXED** | `DiagnosticsReviewPanel.tsx` line 116 returns `'Analysed'`; line 44 title is `Pass 1 — Analysis`. `DiagnosticsSuggestionsPanel.tsx` lines 155–157 emit `'AI Content Generated'` / `'AI Suggestion Ready'`. |
+| **2** | Persist consistency + ambiguity findings to dedicated tables | ✅ **FIXED** | `index.ts` lines 228–264 contain helper functions; lines 1150–1167 (consistency) and 1206–1222 (ambiguity) execute delete-then-insert into `challenge_consistency_findings` / `challenge_ambiguity_findings` via `adminClient`, wrapped in try/catch (non-blocking). |
+| **3** | Outcomes acceptance criteria — prompt + UI flag | ✅ **FIXED** | `promptConstants.ts` line 112: `expected_outcomes` requires `[{name, description, acceptance_criteria}]` with explicit "REQUIRED — never leave empty". `SuggestionVersionDisplay.tsx` line 196: `hideAcceptanceCriteria={badgePrefix === "S"}` (only Submission Guidelines hide; Outcomes show). `renderProblemSections.tsx` (Outcomes, line 108): `badgePrefix="O"` with no `hideAcceptanceCriteria` → criteria visible after acceptance. |
+| **4** | Phase schedule — descriptive `phase_name`, never empty | ✅ **FIXED** | `promptConstants.ts` line 49 (`schedule_table` dispatcher) + line 114 (`phase_schedule` field): both REQUIRE non-empty descriptive name with examples (`Registration`, `Submission Window`…) and explicitly forbid `—`/`TBD`/generic `Phase 1`. |
+| **5** | Accept-All failure visibility — auto-open diagnostics + per-row Retry | ✅ **FIXED** | `useCurationPageOrchestrator.ts` lines 51 (state lift) + 336 (`setDiagnosticsOpen(true)` on `totalFailed > 0`) + 404 (exposed via return). `CurationRightRail.tsx` lines 83–89 receive props. `CurationReviewPage.tsx` lines 362–367 wire `onReReviewSection` → `handleNavigateToSection`. `DiagnosticsAcceptancePanel.tsx` lines 104–116 render the `Retry` button on failed rows. |
+| **6** | Empty placeholder cleanup in line-item view mode | ⚠️ **PARTIALLY FIXED** | `LineItemsSectionRenderer.tsx`: structured branch (lines 76–87) and string branch (lines 89–95) both filter empties — covers `current_deficiencies`, `root_causes`, `expected_outcomes`. **Not implemented:** the optional "expand all / show 5→10 more" toggle. The plan called this out as a polish-only enhancement and the core empty-placeholder bug is closed. |
+| **7** | Reward tier toggle consistency (no "Enabled $0") | ✅ **FIXED** (different strategy than plan) | `normalizeAIContent.ts` lines 69–78: instead of force-enabling tiers, drops zero-amount tiers entirely so `applyAIReviewResult` only sees tiers with `amount > 0`. Net effect identical — every displayed tier is enabled and has an amount. Code comment documents the choice. |
+| **8** | Diagnostics counts from store (not execution snapshot) | ✅ **FIXED** | `DiagnosticsReviewPanel.tsx` lines 71–75: counts derive purely from `entry.reviewStatus`. Lines 107–108: per-row `sectionStatus` / `sectionAction` read store, no execution fallback. Execution record retained only for wave-level badge (line 78) and timestamps (lines 57–62). `DiagnosticsSuggestionsPanel.tsx` correctly keeps Pass 2 status driven by execution record (Pass 2 hasn't been re-keyed by curator), with live overlays for "Accepted by Curator" / "Discarded by Curator". |
 
 ---
 
-### Phase 2 — UI Display Fixes (Bugs 1, 3-UI, 6, 7)
-*Component-only changes. No data-layer impact.*
+## Net Result
 
-**2.1 — Diagnostics labels (Bug 1)**
-- `DiagnosticsReviewPanel.tsx` lines 116–118: replace generate/review label with single `'Analysed'`. Title (line 44) → `Pass 1 — Analysis`.
-- `DiagnosticsSuggestionsPanel.tsx` line 155: change `'AI Content Drafted & Suggestions Generated'` → `'AI Content Generated'` and line 157 → `'AI Suggestion Ready'`. Removes the "Drafted" leakage from Pass 1 vocabulary.
+**7 of 8 prompts fully implemented; 1 partially (cosmetic only).**
 
-**2.2 — Outcome acceptance criteria UI (Bug 3)**
-- `SuggestionVersionDisplay.tsx` line 196: change `hideAcceptanceCriteria={badgePrefix === "O" || badgePrefix === "S"}` → `hideAcceptanceCriteria={badgePrefix === "S"}`.
-- `renderProblemSections.tsx` line 109 (`expected_outcomes` view): remove `hideAcceptanceCriteria` so accepted outcomes display the criteria. Keep line 82 (`submission_guidelines`) untouched.
-- Update `getExpectedOutcomeObjects` if it strips `acceptance_criteria` — verify in Phase 4 QA.
+### What is NOT fixed (single open item)
 
-**2.3 — Empty placeholder cleanup (Bug 6)**
-- `LineItemsSectionRenderer.tsx` view-mode block (lines 81–94): filter empties before rendering — drop nulls, blank strings, and structured items with empty `name`/`text`/`description`.
-- No edit-mode change (Add Item must remain functional).
-- The "+N more" truncation isn't in this renderer — defer the 5→10 expand toggle to a later polish prompt unless we find it during QA.
+- **Prompt 6 — "+N more" expand toggle (5→10 visible items, "Show N more" button).** Empty-item filtering IS done; the row-count expansion polish was deferred. Plan language permits this ("defer unless found during QA").
 
-**2.4 — Reward tier auto-enable (Bug 7)**
-- `normalizeAIContent.ts` `normalizeRewardStructure`: after the `tierRecord` build (line 67), add a sync step that ensures any tier with `amount > 0` is treated as enabled. Since the current shape is `{ tiers: { platinum: 75000, ... } }` (numeric record, not objects with `enabled`), the fix is to ensure the downstream `applyAIReviewResult` call receives the full populated record so the display component's "enabled" derivation matches the breakdown table. Add a defensive log if a previously-disabled tier has a positive amount.
+### Verifications recommended
 
----
+| Bug | Manual check |
+|---|---|
+| 2 | After a fresh review: `select count(*) from challenge_consistency_findings where challenge_id='25ca71a0-…'` should be > 0 if the AI flagged any. QualityScoreSummary chip should show non-zero. |
+| 3 | Re-run review on Outcomes → suggestion preview shows acceptance_criteria block; accept → cards display the criteria in view mode. |
+| 4 | Re-run review on Phase Schedule → every row has a descriptive name, none `—`. |
+| 5 | Force a section failure → toast appears + diagnostics auto-opens to Pass 3 panel + Retry button navigates to that section. |
+| 7 | Accept a reward suggestion that includes Platinum/Gold/Silver — all three appear "Enabled" with non-zero amounts; no "Enabled $0" rows. |
 
-### Phase 3 — Acceptance Failure Visibility (Bug 5)
-*Cross-component wiring; needs state lift.*
+### Optional follow-up (single small prompt)
 
-**3.1 — Lift `diagnosticsOpen` state**
-- Move `useState` from `CurationRightRail.tsx` line 86 up to `useCurationPageOrchestrator` (return both setter and value via the orchestrator's existing return).
-- `CurationReviewPage` passes the state into `CurationRightRail` as a prop.
-
-**3.2 — Auto-open diagnostics on Accept-All failure**
-- `useCurationPageOrchestrator.ts` line 328: when `totalFailed > 0`, call the lifted `setDiagnosticsOpen(true)` and update toast text to "…Opening diagnostics for details" (5s duration).
-- Skip `navigate()` to preview when there are failures — the curator stays on the review page so the auto-opened diagnostics remains visible.
-
-**3.3 — Per-row Retry button**
-- `DiagnosticsAcceptancePanel.tsx`: add optional `onReReviewSection?: (sectionId: string) => void` prop. For rows where `s.status === 'failed'`, render a small ghost "Retry" button.
-- Wire from `DiagnosticsSheet` → `useCurationAIActions` (existing single-section review path).
-- Files stay <250 lines (current sizes: 111 / 408 / 192 — Phase 3 keeps orchestrator under limit since net add is ~6 lines).
-
----
-
-### Phase 4 — Verification & QA
-
-| Bug | Verification |
-|----|----|
-| 1 | Diagnostics shows "Analysed" / "AI Content Generated" / "AI Suggestion Ready" |
-| 2 | `select count(*) from challenge_consistency_findings/challenge_ambiguity_findings where challenge_id=…` > 0; QualityScoreSummary shows non-zero |
-| 3 | Re-run review → outcome cards show acceptance_criteria |
-| 4 | Re-run review → phase_schedule has descriptive names, never `—` |
-| 5 | Force-fail one section → diagnostics auto-opens, Retry button works |
-| 6 | View challenge with empty trailing `current_deficiencies` item → not rendered |
-| 7 | Reward suggestion with all 3 tiers → all show "Enabled" |
-| 8 | Already verified — counts derive from store; accept one suggestion → diagnostics count updates |
-
----
-
-## Files Touched (Summary)
-
-| File | Phase | Lines Changed |
-|---|---|---|
-| `supabase/functions/review-challenge-sections/index.ts` | 1.1 | +~50 |
-| `supabase/functions/review-challenge-sections/promptConstants.ts` | 1.2, 1.3 | ~6 |
-| `src/components/cogniblend/diagnostics/DiagnosticsReviewPanel.tsx` | 2.1 | ~6 |
-| `src/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel.tsx` | 2.1 | ~3 |
-| `src/components/cogniblend/curation/ai-review/SuggestionVersionDisplay.tsx` | 2.2 | 1 |
-| `src/components/cogniblend/curation/renderers/renderProblemSections.tsx` | 2.2 | 1 |
-| `src/components/cogniblend/curation/renderers/LineItemsSectionRenderer.tsx` | 2.3 | ~12 |
-| `src/lib/cogniblend/normalizeAIContent.ts` | 2.4 | ~10 |
-| `src/hooks/cogniblend/useCurationPageOrchestrator.ts` | 3.1, 3.2 | ~10 |
-| `src/components/cogniblend/curation/CurationRightRail.tsx` | 3.1 | ~3 |
-| `src/pages/cogniblend/CurationReviewPage.tsx` | 3.1 | ~2 prop wires |
-| `src/components/cogniblend/diagnostics/DiagnosticsAcceptancePanel.tsx` | 3.3 | ~10 |
-| `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx` | 3.3 | ~4 |
-
-**Constraints honored:** No new files, no schema changes, no architecture changes, every touched component remains <250 lines (largest is `useCurationPageOrchestrator` at 408 — already a hook, not a component, exempt from R1's component limit but kept compact).
-
-**Ripple-effect notes:** 
-1. Bug 3 prompt change produces structured outcome objects — `getExpectedOutcomeObjects` in `curationHelpers.ts` already handles object form (used by deliverables) so existing UI is forward-compatible, but Phase 4 includes explicit verification of the parser.
-2. Bug 1 label changes are pure text — no logic depends on the old strings.
-3. Bug 5 state lift slightly grows the orchestrator return shape; only `CurationReviewPage` consumes it.
-4. Findings DB writes (Bug 2) use admin client (already in scope) and are non-blocking — no impact on existing review pipeline.
+If you want the "+N more" expand toggle from Prompt 6 closed too, I can add a `visibleLimit` (default 10) + "Show N more" button to `LineItemsSectionRenderer` view-mode (~10 lines, no behavior change in edit mode, file stays well under 250 lines).
 
