@@ -87,10 +87,39 @@ export function ReviewCommentList({
               {comment.applies_to && (
                 <blockquote className="border-l-2 border-primary/40 pl-2.5 text-[11px] text-muted-foreground italic">{comment.applies_to}</blockquote>
               )}
+              <PrincipalEvidenceFooter comment={comment} />
             </div>
           </label>
         );
       })}
+    </div>
+  );
+}
+
+/* ── Principal-grade evidence footer ──────────────────────── */
+
+function PrincipalEvidenceFooter({ comment }: { comment: ReviewComment }) {
+  const items: Array<{ label: string; value: string }> = [];
+  if (comment.quantification) items.push({ label: "Quant", value: comment.quantification });
+  if (comment.framework_applied) items.push({ label: "Framework", value: comment.framework_applied });
+  if (comment.evidence_source) items.push({ label: "Source", value: comment.evidence_source });
+  if (comment.cross_reference_verified && comment.cross_reference_verified.length > 0) {
+    items.push({ label: "Cross-refs", value: comment.cross_reference_verified.join(", ") });
+  }
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/60 flex flex-wrap gap-1.5">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+          title={`${item.label}: ${item.value}`}
+        >
+          <span className="uppercase tracking-wide opacity-70">{item.label}</span>
+          <span className="text-foreground font-normal truncate max-w-[200px]">{item.value}</span>
+        </span>
+      ))}
     </div>
   );
 }
