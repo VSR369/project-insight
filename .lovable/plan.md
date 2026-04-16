@@ -61,7 +61,18 @@
   - Stores `_consistency_check` synthetic section with coherence score, narrative gaps, solver readiness
 - `promptTemplate.ts`: Barrel exports for `callConsistencyPass`, `mergeConsistencyFindings`, types
 - Uses full dependency matrix from `SECTION_DEPENDENCIES` + `DEPENDENCY_REASONING` for targeted checks
-## 🔲 Prompt 6 — Ambiguity Detection Pass
+## ✅ Prompt 6 — Ambiguity Detection Pass (COMPLETE)
+- Created `aiAmbiguityPass.ts`: Dedicated post-batch AI pass that scans for solver-facing ambiguity
+  - `callAmbiguityPass`: Single AI call with all section content, uses `detect_ambiguity` tool schema
+  - Returns `AmbiguityPassResult` with findings, clarity score, top solver questions
+  - 6 ambiguity types: vague_term, undefined_acronym, unmeasurable_criterion, unclear_scope, implicit_assumption, missing_definition
+  - `mergeAmbiguityFindings`: Injects findings as `[AMBIGUITY]` comments with clarified alternatives
+  - Escalates passing sections to 'warning' if error-level ambiguity found
+  - Token usage logging with `ambiguity_pass` event
+- `index.ts`: Ambiguity pass runs IN PARALLEL with consistency pass after all batches complete
+  - Non-blocking: rate limit or failure doesn't fail the overall review
+  - Stores `_ambiguity_check` synthetic section with clarity score, solver questions
+- `promptTemplate.ts`: Barrel exports for `callAmbiguityPass`, `mergeAmbiguityFindings`, types
 ## 🔲 Prompt 7 — Curator Learning Corpus: Database Schema (with pgvector)
 ## 🔲 Prompt 8 — Curator Learning Corpus: Edit Capture Hook
 ## 🔲 Prompt 9 — Correction Extraction + Embedding Generation

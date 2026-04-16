@@ -57,3 +57,10 @@ export {
   type ConsistencyFinding,
   type ConsistencyPassResult,
 } from './aiConsistencyPass.ts';
+
+export {
+  callAmbiguityPass,
+  mergeAmbiguityFindings,
+  type AmbiguityFinding,
+  type AmbiguityPassResult,
+} from './aiAmbiguityPass.ts';
