@@ -86,7 +86,13 @@
   - Flush + persist runs after acceptance record save (non-blocking)
   - `editTracking` exposed on orchestrator return for future per-section use
 - Zero build errors, backward compatible
-## 🔲 Prompt 9 — Correction Extraction + Embedding Generation
+## ✅ Prompt 9 — Correction Extraction + Embedding Generation (COMPLETE)
+- Created `embed-curator-corrections` edge function — processes unembedded `curator_corrections` rows, generates text-embedding-3-small vectors via AI gateway, writes back to `embedding` column. Batch size 50.
+- Created `extract-correction-patterns` edge function — analyzes `rejected_rewritten` corrections with AI to extract learning patterns, harvests curator versions as `excellent` examples into `section_example_library` with `learning_rule` annotations.
+- DB: Added `pattern_extracted` boolean to `curator_corrections` with partial index on NULL values
+- DB: Added `learning_rule` text and `source_type` text to `section_example_library`
+- Both functions use `service_role` key (server-only), idempotent, non-blocking errors
+- Edge functions deployed successfully, zero client build errors
 ## 🔲 Prompt 10 — Corpus Injection with Semantic Retrieval
 ## 🔲 Prompt 11 — Supervisor Learning Admin Page
 ## 🔲 Prompt 12 — Quality Telemetry Dashboard
