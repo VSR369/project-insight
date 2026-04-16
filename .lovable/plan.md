@@ -1,43 +1,78 @@
 
 
-## 5-Why Analysis
+## Plan: Export Challenge Preview as Professional PDF & Word
 
-1. **Why does the preview fail?** PostgREST returns "more than one relationship was found for 'challenges' and 'seeker_organizations'".
-2. **Why is the relationship ambiguous?** The `challenges` table has TWO foreign keys to `seeker_organizations`: `challenges_organization_id_fkey` (organization_id) and `challenges_tenant_id_fkey` (tenant_id).
-3. **Why didn't PostgREST pick one?** The query in `usePreviewData.ts` uses `seeker_organizations!inner(...)` without specifying which FK to embed through. PostgREST refuses to guess.
-4. **Why is `tenant_id` a FK to seeker_organizations?** Multi-tenancy convention — every business table's `tenant_id` references the owning org. This is correct and must stay.
-5. **Why is this the only hook that breaks?** Every other hook in the codebase already uses the explicit hint `seeker_organizations!challenges_organization_id_fkey(...)`. `usePreviewData.ts` is the only file using the implicit `!inner` form — this is the lone divergence from the established pattern.
+### Goal
+Add **Download PDF** and **Download Word** buttons to the Preview page top bar that produce a top-tier consulting-firm-grade document with proper structure, typography, numbered headings, styled tables, bullet indentation, page breaks, header/footer, and cover page.
 
-**Root cause:** Single inconsistent embed in `src/components/cogniblend/preview/usePreviewData.ts` line 65.
+### Approach (client-side, fast, no backend)
 
-## Permanent Fix
+Generate documents directly in the browser by building a clean, print-ready HTML representation of the challenge document using a dedicated stylesheet, then:
 
-**One-line change** in `src/components/cogniblend/preview/usePreviewData.ts`:
+- **PDF**: render via `html2pdf.js` (already installed) — produces multi-page PDF with proper page breaks
+- **Word**: convert the same HTML using a lightweight `html-docx-js` blob converter (new dep) — Word opens HTML-as-DOCX natively, preserving headings/tables/lists
 
-Replace:
-```ts
-seeker_organizations!inner(
-```
-with:
-```ts
-seeker_organizations!challenges_organization_id_fkey(
-```
+This avoids server roundtrips, keeps the source-of-truth in one HTML builder, and gives a unified visual style across both formats.
 
-This matches the canonical pattern used by `useCurationPageData`, `usePublicChallenge`, `useBrowseChallenges`, and `useSolutionRequests`.
+### Visual design (consulting-firm grade)
 
-## Why This Is "Permanent"
+- **Cover page**: Org logo placeholder, challenge title (large), hook/tagline, governance mode + status badges, "Prepared by [Org]", date, document classification footer
+- **Table of Contents**: Auto-generated from numbered sections (1, 1.1, 1.2 …)
+- **Typography**: Serif body (Georgia, similar to existing `legal-document.css`), sans-serif headings (system stack), proper hierarchy (H1 24pt, H2 18pt, H3 14pt, body 11pt, line-height 1.6)
+- **Numbered sections**: Auto-numbered chapter/section/sub-section (CSS counters for PDF, manual prefixes for Word)
+- **Bullets & nested lists**: Indented with proper marker styles (•, ◦, ▪)
+- **Tables**: Header row with subtle background, zebra striping, thin borders, column padding, captions
+- **Callouts/blockquotes**: Left-bordered styled blocks
+- **Page header**: Challenge title (left) · page number (right)
+- **Page footer**: "Confidential — [Org Name]" · generation date
+- **Color palette**: Deep navy primary `#1a3a5c`, slate text `#1f2937`, light divider `#e5e7eb` (works in both PDF & Word; avoids CSS variables)
 
-- Aligns the preview hook with the existing project-wide convention — no special casing.
-- The `!inner` join semantic is preserved implicitly because `organization_id` is NOT NULL on challenges in practice (and the preview only loads after Phase 1 where org is set). If we want to keep strict inner-join semantics, we can keep `!inner` plus the hint: `seeker_organizations!challenges_organization_id_fkey!inner(...)` — but a review of the other hooks shows none use `!inner`, so we'll match the project standard (plain hint, no `!inner`).
-- No migration, no schema change, no RLS change. Single-file edit.
+### Files to create
 
-## Verification After Fix
+1. **`src/lib/cogniblend/preview/buildExportHtml.ts`** (≤200 lines)
+   Pure function `buildChallengeExportHtml({ challenge, orgData, legalDetails, escrowRecord, digest, attachments, extendedBrief })` returning a complete `<html>…</html>` string. Walks the same `SECTIONS`/`GROUPS` order as `PreviewDocument`. Strips icons/emojis where inappropriate for print. Handles all section formats (rich text, lists, tables, checkboxes) by reusing existing renderers' output where safe and falling back to formatted plain text otherwise.
 
-1. Reload `/cogni/curation/:id/preview` — the alert should disappear and the document renders.
-2. Confirm `data.orgData` populates (organization name shown in preview header/sections).
-3. Quick grep to ensure no other file still uses the implicit embed against `seeker_organizations` without an FK hint.
+2. **`src/styles/export-document.css`** (≤180 lines)
+   Self-contained print stylesheet (no Tailwind, no CSS vars) with @page rules, cover-page layout, numbered headings via CSS counters, table styling, list indentation, page-break rules (`page-break-inside: avoid` for tables/sections, `page-break-before: always` for groups).
 
-## Files Changed
+3. **`src/lib/cogniblend/preview/exportChallengeDocument.ts`** (≤120 lines)
+   Two functions:
+   - `exportAsPdf(html, filename)` — uses `html2pdf.js` with A4, 15mm margins, image quality 0.98, page-break mode `['css','legacy']`
+   - `exportAsDocx(html, filename)` — uses `html-docx-js` to convert HTML → DOCX blob, triggers download via FileSaver pattern
 
-- `src/components/cogniblend/preview/usePreviewData.ts` (1 line)
+4. **`src/components/cogniblend/preview/PreviewExportMenu.tsx`** (≤120 lines)
+   Dropdown button "Export ▾" with two items: "Download PDF" and "Download Word". Shows loading spinner while generating. Uses toast for success/error.
+
+5. **`src/components/cogniblend/preview/PreviewTopBar.tsx`** (edit, +5 lines)
+   Insert `<PreviewExportMenu …/>` next to existing badges, passing all required preview data.
+
+6. **`src/pages/cogniblend/ChallengePreviewPage.tsx`** (edit, +1 prop)
+   Pass `data` (challenge + org + legal + escrow + digest + attachments) into `PreviewTopBar` so the export menu has everything it needs.
+
+### Dependency to add
+- `html-docx-js` (~30KB, MIT, zero deps) — only new package; `html2pdf.js` already present
+
+### Page-break & print quality details
+- Each numbered section group (`PREVIEW_GROUPS`) starts on a new page in PDF (CSS `page-break-before: always`)
+- Tables and signature blocks marked `page-break-inside: avoid`
+- Headings get `page-break-after: avoid` so they never orphan
+- Long rich-text sections allowed to flow across pages naturally
+- Cover page is its own dedicated page
+
+### Out of scope
+- Server-side high-fidelity rendering (Puppeteer) — not needed for v1
+- Brand logo upload (uses org name text on cover for now; can be added later)
+- Localization of generated date/labels
+- Saving generated files to Supabase Storage
+
+### Verification after build
+1. Open `/cogni/curation/:id/preview`, click Export → Download PDF — confirm cover page, TOC, numbered sections, styled tables, page header/footer
+2. Click Export → Download Word — open in Word/Google Docs, confirm headings/lists/tables retain formatting
+3. Verify long sections wrap across pages without clipping
+4. Verify the export menu does not appear in print view (already excluded via top bar's print:hidden if needed)
+
+### Files summary
+- **NEW**: `buildExportHtml.ts`, `export-document.css`, `exportChallengeDocument.ts`, `PreviewExportMenu.tsx`
+- **EDITED**: `PreviewTopBar.tsx`, `ChallengePreviewPage.tsx`
+- **DEP**: `html-docx-js`
 
