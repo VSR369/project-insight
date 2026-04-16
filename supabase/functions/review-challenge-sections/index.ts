@@ -633,8 +633,8 @@ ${'═'.repeat(60)}\n`;
 
     const allNewSections: any[] = [];
 
-    // Change 2: Keep default model for complexity; compute per-batch model inside loop
     const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
+    const reasoningEffort = globalConfig?.reasoning_effort || 'high';
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
