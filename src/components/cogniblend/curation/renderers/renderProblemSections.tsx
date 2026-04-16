@@ -103,10 +103,9 @@ export function renderProblemSection(args: RenderSectionContentArgs, editButton:
           itemLabel="Outcome"
           structuredItems={structuredOutcomes}
           onSaveStructured={(items) => {
-            saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description }) => ({ name, description })) } });
+            saveSectionMutation.mutate({ field: "expected_outcomes", value: { items: items.map(({ name, description, acceptance_criteria }) => ({ name, description, acceptance_criteria })) } });
           }}
           badgePrefix="O"
-          hideAcceptanceCriteria
           autoSaveStatus={autoSaveStatus}
         />
       );

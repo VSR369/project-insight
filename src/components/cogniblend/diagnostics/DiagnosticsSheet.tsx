@@ -30,9 +30,10 @@ interface DiagnosticsSheetProps {
   onOpenChange: (open: boolean) => void;
   challengeId: string;
   sections: Partial<Record<SectionKey, SectionStoreEntry>>;
+  onReReviewSection?: (sectionId: string) => void;
 }
 
-export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: DiagnosticsSheetProps) {
+export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, onReReviewSection }: DiagnosticsSheetProps) {
   const { attachmentStats, digest, importanceLevels, reviewLevels, isLoading } = useDiagnosticsData(challengeId);
   const { data: consistencyFindings } = useConsistencyFindings(open ? challengeId : undefined);
   const { data: ambiguityFindings } = useAmbiguityFindings(open ? challengeId : undefined);
@@ -115,7 +116,7 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
               <AmbiguityFindingsPanel challengeId={challengeId} />
               <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
               <div>
-                <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+                <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} onReReviewSection={onReReviewSection} />
               </div>
             </>
           )}

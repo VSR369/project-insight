@@ -1145,6 +1145,36 @@ GROUNDING RULE (CRITICAL):
       if (consistencyResult) {
         mergeConsistencyFindings(allNewSections, consistencyResult);
 
+        // Persist consistency findings to dedicated table (non-blocking)
+        if (!isPreviewMode && Array.isArray(consistencyResult.findings) && consistencyResult.findings.length > 0) {
+          try {
+            await adminClient
+              .from('challenge_consistency_findings')
+              .delete()
+              .eq('challenge_id', challengeId);
+
+            const rows = consistencyResult.findings.map((f) => ({
+              challenge_id: challengeId,
+              section_a: String(f.source_section ?? '').slice(0, 100),
+              section_b: String(f.target_section ?? '').slice(0, 100),
+              contradiction_type: String(f.inconsistency ?? '').slice(0, 100),
+              description: String(f.inconsistency ?? ''),
+              severity: f.severity === 'error' ? 'error' : 'warning',
+              suggested_resolution: f.resolution ? String(f.resolution) : null,
+            }));
+            const { error: insErr } = await adminClient
+              .from('challenge_consistency_findings')
+              .insert(rows);
+            if (insErr) {
+              console.error('[findings] consistency insert failed:', insErr.message);
+            } else {
+              console.log(`[findings] persisted ${rows.length} consistency findings`);
+            }
+          } catch (err) {
+            console.error('[findings] consistency persistence threw:', err);
+          }
+        }
+
         allNewSections.push({
           section_key: '_consistency_check',
           status: consistencyResult.overall_coherence_score >= 70 ? 'pass' : 'warning',
@@ -1170,6 +1200,34 @@ GROUNDING RULE (CRITICAL):
       // Merge ambiguity findings
       if (ambiguityResult) {
         mergeAmbiguityFindings(allNewSections, ambiguityResult);
+
+        // Persist ambiguity findings to dedicated table (non-blocking)
+        if (!isPreviewMode && Array.isArray(ambiguityResult.findings) && ambiguityResult.findings.length > 0) {
+          try {
+            await adminClient
+              .from('challenge_ambiguity_findings')
+              .delete()
+              .eq('challenge_id', challengeId);
+
+            const rows = ambiguityResult.findings.map((f) => ({
+              challenge_id: challengeId,
+              section_key: String(f.section_key ?? '').slice(0, 100),
+              snippet: String(f.ambiguous_text ?? '').slice(0, 500),
+              pattern_matched: String(f.ambiguity_type ?? '').slice(0, 100),
+              suggested_replacement: f.clarified_alternative ? String(f.clarified_alternative) : null,
+            }));
+            const { error: insErr } = await adminClient
+              .from('challenge_ambiguity_findings')
+              .insert(rows);
+            if (insErr) {
+              console.error('[findings] ambiguity insert failed:', insErr.message);
+            } else {
+              console.log(`[findings] persisted ${rows.length} ambiguity findings`);
+            }
+          } catch (err) {
+            console.error('[findings] ambiguity persistence threw:', err);
+          }
+        }
 
         allNewSections.push({
           section_key: '_ambiguity_check',

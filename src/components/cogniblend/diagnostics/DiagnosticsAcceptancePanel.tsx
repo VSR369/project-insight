@@ -7,12 +7,14 @@ import React from 'react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, CheckCircle2, XCircle, Info, RotateCw } from 'lucide-react';
 import { SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
 import type { AcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
 
 interface Props {
   acceptanceRecord: AcceptanceRecord | null;
+  onReReviewSection?: (sectionId: string) => void;
 }
 
 const STATUS_BADGE: Record<string, { variant: 'secondary' | 'destructive' | 'outline'; label: string }> = {
@@ -21,7 +23,7 @@ const STATUS_BADGE: Record<string, { variant: 'secondary' | 'destructive' | 'out
   failed: { variant: 'destructive', label: 'Failed' },
 };
 
-export function DiagnosticsAcceptancePanel({ acceptanceRecord }: Props) {
+export function DiagnosticsAcceptancePanel({ acceptanceRecord, onReReviewSection }: Props) {
   const hasRecord = !!acceptanceRecord;
   const badge = hasRecord ? STATUS_BADGE[acceptanceRecord.overallStatus] ?? STATUS_BADGE.completed : null;
 
@@ -75,6 +77,7 @@ export function DiagnosticsAcceptancePanel({ acceptanceRecord }: Props) {
                     <TableHead>Section</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Detail</TableHead>
+                    <TableHead className="w-20" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -97,6 +100,19 @@ export function DiagnosticsAcceptancePanel({ acceptanceRecord }: Props) {
                         <span className="text-xs text-muted-foreground">
                           {s.errorMessage ?? '—'}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {s.status === 'failed' && onReReviewSection && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[10px]"
+                            onClick={() => onReReviewSection(s.sectionId)}
+                          >
+                            <RotateCw className="h-3 w-3 mr-1" />
+                            Retry
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

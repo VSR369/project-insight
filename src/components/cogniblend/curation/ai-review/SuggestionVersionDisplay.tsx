@@ -193,7 +193,7 @@ export function SuggestionVersionDisplay(props: SuggestionVersionDisplayProps) {
         </div>
       ) : hasDeliverableCards ? (
         <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
-          <DeliverableCardRenderer items={deliverableItems!} badgePrefix={badgePrefix} hideAcceptanceCriteria={badgePrefix === "O" || badgePrefix === "S"} />
+          <DeliverableCardRenderer items={deliverableItems!} badgePrefix={badgePrefix} hideAcceptanceCriteria={badgePrefix === "S"} />
         </div>
       ) : scheduleRows ? (
         <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm overflow-y-auto">

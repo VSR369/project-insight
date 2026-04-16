@@ -73,19 +73,30 @@ export function LineItemsSectionRenderer({
     );
   }
 
-  // View mode — structured cards
+  // View mode — structured cards (filter empties)
   if (useStructured) {
-    return <DeliverableCardRenderer items={structuredItems} badgePrefix={badgePrefix} hideAcceptanceCriteria={hideAcceptanceCriteria} />;
+    const cleaned = structuredItems.filter((item) => {
+      const name = (item?.name ?? "").toString().trim();
+      const desc = (item?.description ?? "").toString().trim();
+      return name.length > 0 || desc.length > 0;
+    });
+    if (cleaned.length === 0) {
+      return <p className="text-sm text-muted-foreground">None defined.</p>;
+    }
+    return <DeliverableCardRenderer items={cleaned} badgePrefix={badgePrefix} hideAcceptanceCriteria={hideAcceptanceCriteria} />;
   }
 
-  // View mode — plain text fallback
-  if (!items || items.length === 0) {
+  // View mode — plain text fallback (filter empties)
+  const cleanedItems = (items ?? []).filter(
+    (item) => typeof item === "string" && item.trim().length > 0,
+  );
+  if (cleanedItems.length === 0) {
     return <p className="text-sm text-muted-foreground">None defined.</p>;
   }
 
   return (
     <div className="space-y-2">
-      {items.map((item, i) => (
+      {cleanedItems.map((item, i) => (
         <div key={i} className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
           <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
           {item}

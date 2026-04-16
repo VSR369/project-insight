@@ -47,6 +47,9 @@ export function useCurationPageOrchestrator() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // Diagnostics drawer state — lifted here so we can auto-open from Accept-All on failure
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+
   // ── External queries ──
   const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
   const { data: complexityParams = [] } = useComplexityParams();
@@ -326,11 +329,16 @@ export function useCurationPageOrchestrator() {
       await queryClient.invalidateQueries({ queryKey: ['challenge-preview', challengeId] });
 
       if (totalFailed > 0) {
-        toast.warning(`Accepted ${totalUpdated} section(s), ${totalFailed} failed. Check diagnostics for details.`);
+        toast.warning(
+          `Accepted ${totalUpdated} section(s), ${totalFailed} failed. Opening diagnostics for details…`,
+          { duration: 5000 },
+        );
+        setDiagnosticsOpen(true);
+        // Stay on review page so the curator can act on failed sections inline
       } else {
         toast.success(`Accepted AI suggestions for ${totalUpdated} section${totalUpdated !== 1 ? 's' : ''}`);
+        navigate(`/cogni/curation/${challengeId}/preview`);
       }
-      navigate(`/cogni/curation/${challengeId}/preview`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast.error(`Bulk accept failed: ${message}`);
@@ -393,6 +401,7 @@ export function useCurationPageOrchestrator() {
     contextLibraryReviewed, handleContextLibraryConfirm,
     aiQuality, aiQualityLoading,
     lockedSendState, setLockedSendState, expandVersion, staleSections, curationStore, sectionActions,
+    diagnosticsOpen, setDiagnosticsOpen,
     ...computedValues,
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
