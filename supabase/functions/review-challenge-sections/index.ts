@@ -33,6 +33,7 @@ import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutp
 import { callConsistencyPass, mergeConsistencyFindings } from "./aiConsistencyPass.ts";
 import { callAmbiguityPass, mergeAmbiguityFindings } from "./aiAmbiguityPass.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
+import { fetchExamplesForBatch, formatExamplesForPrompt } from "./fetchExamples.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -531,10 +532,28 @@ serve(async (req) => {
       : resolvedContext === "evaluation" ? "evaluation setup"
       : "challenge";
 
-    // ── Fetch master data for prompt injection ────────────────
+    // ── Fetch master data + corpus examples for prompt injection ────────────────
     let masterDataOptions: Record<string, { code: string; label: string }[]> = {};
+    let corpusExamples: Record<string, any[]> = {};
     if (resolvedContext === "curation") {
-      masterDataOptions = await fetchMasterDataOptions(adminClient);
+      const allSectionKeys = sectionsToReview.map(s => s.key);
+      const domainTags = Array.isArray(challengeData?.domain_tags)
+        ? challengeData.domain_tags
+        : typeof challengeData?.domain_tags === 'string'
+          ? [challengeData.domain_tags]
+          : [];
+
+      const [md, examples] = await Promise.all([
+        fetchMasterDataOptions(adminClient),
+        fetchExamplesForBatch(adminClient, {
+          sectionKeys: allSectionKeys,
+          maturityLevel: challengeData?.maturity_level,
+          domainTags,
+          limit: 2,
+        }),
+      ]);
+      masterDataOptions = md;
+      corpusExamples = examples;
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────
@@ -859,7 +878,19 @@ GROUNDING RULE (CRITICAL):
         }
       }
 
-      // Get batch-specific configs for Pass 2 enrichment
+      // ── Inject corpus examples into system prompt ──
+      if (Object.keys(corpusExamples).length > 0) {
+        const batchKeySet = new Set(batch.map(b => b.key));
+        const batchExamples: Record<string, any[]> = {};
+        for (const [sk, exs] of Object.entries(corpusExamples)) {
+          if (batchKeySet.has(sk)) batchExamples[sk] = exs;
+        }
+        const examplesBlock = formatExamplesForPrompt(batchExamples);
+        if (examplesBlock) {
+          systemPrompt += '\n' + examplesBlock;
+        }
+      }
+
       const batchSectionConfigs = useDbConfig && dbConfigMap
         ? batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean)
         : [];
