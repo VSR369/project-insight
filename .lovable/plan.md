@@ -35,7 +35,19 @@
 - `promptBuilders.ts`: Updated OUTPUT FORMAT instructions with detailed guidance for all new fields, scoring rubric, and anti-vagueness rules
 - Backward compatible: new fields have safe defaults in normalization; existing consumers unaffected
 - Edge function deployed successfully
-## 🔲 Prompt 4 — Principal Forcing Functions (Pass 2 + Reasoning Effort + Exemplars)
+## ✅ Prompt 4 — Principal Forcing Functions (Pass 2 + Reasoning Effort + Exemplars) (COMPLETE)
+- `aiPass2.ts`: Enhanced `suggest_content` tool schema with 4 new self-validation fields:
+  - `issues_addressed` — numbered issue indices the rewrite resolves (traceability)
+  - `changes_summary` — what changed and why (audit trail)
+  - `confidence_score` — 0-100 self-assessed rewrite quality
+  - `preserved_strengths` — what good content was kept intact
+- `aiPass2.ts`: Now accepts and passes `reasoningEffort` parameter; includes Pass 1 `missing_elements` and `quality_score` in Pass 2 prompts
+- `aiPass1.ts`: Now accepts `reasoningEffort` parameter, passes to AI gateway
+- `aiCalls.ts`: Updated `callAIBatchTwoPass` signature to pass `reasoningEffort` through
+- `index.ts`: Reads `reasoning_effort` from `ai_review_global_config` and passes to both pass functions
+- `promptConstants.ts`: Added 3 new exemplars (problem_statement, deliverables, expected_outcomes) with before/after quality patterns
+- Self-validation metadata logged for observability (`pass2_self_validation` event)
+- Edge function deployed successfully
 ## 🔲 Prompt 5 — Cross-Section Consistency Pass
 ## 🔲 Prompt 6 — Ambiguity Detection Pass
 ## 🔲 Prompt 7 — Curator Learning Corpus: Database Schema (with pgvector)

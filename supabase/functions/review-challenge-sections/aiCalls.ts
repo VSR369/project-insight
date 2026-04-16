@@ -167,6 +167,7 @@ export async function callAIBatchTwoPass(
   attachmentsBySection?: Record<string, { name: string; sourceType: string; sourceUrl?: string; content: string; summary?: string; keyData?: Record<string, unknown>; resourceType?: string; sharedWithSolver: boolean }[]>,
   contextDigestText?: string,
   useContextIntelligence?: boolean,
+  reasoningEffort?: string,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; suggestion?: string | null; cross_section_issues?: any[]; guidelines?: string[] }[]> {
 
   let pass1Results: any[];
@@ -175,12 +176,12 @@ export async function callAIBatchTwoPass(
     pass1Results = providedComments;
     console.log(`Skip-analysis mode: using ${providedComments.length} provided comment(s) for Pass 2 only`);
   } else {
-    pass1Results = await callAIPass1Analyze(apiKey, model, systemPrompt, userPrompt, sectionKeys);
+    pass1Results = await callAIPass1Analyze(apiKey, model, systemPrompt, userPrompt, sectionKeys, reasoningEffort);
   }
 
   let suggestionMap: Map<string, string>;
   try {
-    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection, contextDigestText, useContextIntelligence);
+    suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection, contextDigestText, useContextIntelligence, reasoningEffort);
   } catch (err: any) {
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
     console.error("Pass 2 failed, continuing with Pass 1 results:", err);
