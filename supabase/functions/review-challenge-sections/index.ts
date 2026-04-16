@@ -536,6 +536,7 @@ serve(async (req) => {
     // ── Fetch master data + corpus examples for prompt injection ────────────────
     let masterDataOptions: Record<string, { code: string; label: string }[]> = {};
     let corpusExamples: Record<string, any[]> = {};
+    let corpusCorrections: { id: string; section_key: string; learning_rule: string; correction_class: string | null; activation_confidence: number }[] = [];
     if (resolvedContext === "curation") {
       const allSectionKeys = sectionsToReview.map(s => s.key);
       const domainTags = Array.isArray(challengeData?.domain_tags)
