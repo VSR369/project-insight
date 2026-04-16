@@ -41,6 +41,7 @@ export {
   countryToRegion,
   buildIndustryIntelligence,
   buildGeographyContext,
+  buildFrameworkLibraryBlock,
 } from './industryGeoPrompt.ts';
 
 export { buildPass2SystemPrompt } from './pass2Prompt.ts';
