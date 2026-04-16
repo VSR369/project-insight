@@ -32,6 +32,8 @@ import { EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormat
 import { parseJson } from '@/lib/cogniblend/curationHelpers';
 import { toast } from 'sonner';
 import type { SectionKey } from '@/types/sections';
+import type { AcceptanceSectionResult } from '@/services/cogniblend/waveExecutionHistory';
+import { saveAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
 import type { ChallengeData } from '@/lib/cogniblend/curationTypes';
 import type { RewardStructureDisplayHandle } from '@/components/cogniblend/curation/RewardStructureDisplay';
 import type { ComplexityModuleHandle } from '@/components/cogniblend/curation/ComplexityAssessmentModule';
@@ -212,87 +214,105 @@ export function useCurationPageOrchestrator() {
     if (totalCount === 0) { toast.info('No pending AI suggestions to accept.'); return; }
 
     setIsBulkAccepting(true);
-    pauseSync(); // Prevent debounced auto-sync from racing with explicit writes
+    pauseSync();
+
+    const results: AcceptanceSectionResult[] = [];
 
     try {
-      // 1. Regular sections — sequential awaited writes (no fire-and-forget)
+      // 1. Regular sections — sequential awaited writes with per-section tracking
       for (const item of partition.regular) {
-        await sectionActionsHook.handleAcceptRefinement(item.key, item.suggestion);
+        try {
+          await sectionActionsHook.handleAcceptRefinement(item.key, item.suggestion);
+          results.push({ sectionId: item.key, status: 'updated' });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          results.push({ sectionId: item.key, status: 'failed', errorMessage: msg });
+        }
       }
 
       // 2. Extended brief subsections — ONE atomic batched write
       if (partition.extendedBrief.length > 0) {
-        // Read current extended_brief from DB ONCE
-        const { data: currentRow } = await supabase
-          .from('challenges')
-          .select('extended_brief')
-          .eq('id', challengeId)
-          .single();
+        try {
+          const { data: currentRow } = await supabase
+            .from('challenges')
+            .select('extended_brief')
+            .eq('id', challengeId)
+            .single();
 
-        const currentBrief = parseJson<Record<string, unknown>>(currentRow?.extended_brief ?? null) ?? {};
+          const currentBrief = parseJson<Record<string, unknown>>(currentRow?.extended_brief ?? null) ?? {};
 
-        // Merge ALL subsection suggestions in memory
-        for (const item of partition.extendedBrief) {
-          const jsonbField = EXTENDED_BRIEF_FIELD_MAP[item.key];
-          if (!jsonbField) continue;
-
-          let valueToSave: unknown = item.suggestion;
-          // Try parsing structured data
-          try {
-            const parsed = JSON.parse(item.suggestion);
-            valueToSave = parsed;
-          } catch {
-            // Keep as string if not JSON
+          for (const item of partition.extendedBrief) {
+            const jsonbField = EXTENDED_BRIEF_FIELD_MAP[item.key];
+            if (!jsonbField) continue;
+            let valueToSave: unknown = item.suggestion;
+            try { valueToSave = JSON.parse(item.suggestion); } catch { /* keep string */ }
+            currentBrief[jsonbField] = valueToSave;
           }
 
-          currentBrief[jsonbField] = valueToSave;
-        }
+          const { error } = await supabase
+            .from('challenges')
+            .update({
+              extended_brief: currentBrief as Record<string, unknown>,
+              updated_at: new Date().toISOString(),
+            } as Record<string, unknown>)
+            .eq('id', challengeId);
 
-        // ONE write to DB
-        const { error } = await supabase
-          .from('challenges')
-          .update({
-            extended_brief: currentBrief as Record<string, unknown>,
-            updated_at: new Date().toISOString(),
-          } as Record<string, unknown>)
-          .eq('id', challengeId);
+          if (error) throw new Error(`Extended brief save failed: ${error.message}`);
 
-        if (error) throw new Error(`Extended brief save failed: ${error.message}`);
-
-        // Sync store for each subsection
-        for (const item of partition.extendedBrief) {
-          syncSectionToStore(item.key, currentBrief[EXTENDED_BRIEF_FIELD_MAP[item.key]] as Record<string, unknown>);
+          for (const item of partition.extendedBrief) {
+            syncSectionToStore(item.key, currentBrief[EXTENDED_BRIEF_FIELD_MAP[item.key]] as Record<string, unknown>);
+            results.push({ sectionId: item.key, status: 'updated' });
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          for (const item of partition.extendedBrief) {
+            results.push({ sectionId: item.key, status: 'failed', errorMessage: msg });
+          }
         }
       }
 
-      // 3. Mark all as addressed in store
-      const allKeys = [
-        ...partition.regular.map(i => i.key),
-        ...partition.extendedBrief.map(i => i.key),
-      ];
-      for (const key of allKeys) {
+      // 3. Mark all successful as addressed in store
+      const successKeys = results.filter(r => r.status === 'updated').map(r => r.sectionId);
+      for (const key of successKeys) {
         curationStore.getState().setAddressedOnly(key);
       }
 
       // 4. Update aiReviews React state so panels collapse
       setAiReviews((prev) =>
         prev.map((r) =>
-          allKeys.includes(r.section_key as SectionKey)
+          successKeys.includes(r.section_key as SectionKey)
             ? { ...r, addressed: true }
             : r
         )
       );
 
-      // 5. Invalidate queries to ensure fresh data
-      await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      // 5. Persist acceptance record
+      const totalUpdated = results.filter(r => r.status === 'updated').length;
+      const totalFailed = results.filter(r => r.status === 'failed').length;
+      saveAcceptanceRecord({
+        challengeId,
+        overallStatus: totalFailed === 0 ? 'completed' : totalUpdated === 0 ? 'failed' : 'partial',
+        sections: results,
+        acceptedAt: new Date().toISOString(),
+        totalUpdated,
+        totalFailed,
+      });
 
-      toast.success(`Accepted AI suggestions for ${totalCount} section${totalCount !== 1 ? 's' : ''}`);
+      // 6. Invalidate queries to ensure fresh data (including preview)
+      await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+      await queryClient.invalidateQueries({ queryKey: ['challenge-preview', challengeId] });
+
+      if (totalFailed > 0) {
+        toast.warning(`Accepted ${totalUpdated} section(s), ${totalFailed} failed. Check diagnostics for details.`);
+      } else {
+        toast.success(`Accepted AI suggestions for ${totalUpdated} section${totalUpdated !== 1 ? 's' : ''}`);
+      }
       navigate(`/cogni/curation/${challengeId}/preview`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast.error(`Bulk accept failed: ${message}`);
     } finally {
-      resumeSync(); // Re-enable auto-sync
+      resumeSync();
       setIsBulkAccepting(false);
     }
   }, [curationStore, challenge, challengeId, sectionActionsHook, setAiReviews, queryClient, syncSectionToStore]);
