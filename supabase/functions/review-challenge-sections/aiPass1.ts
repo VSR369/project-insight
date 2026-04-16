@@ -186,7 +186,14 @@ export async function callAIPass1Analyze(
     // Normalize comments
     const rawComments = Array.isArray(s.comments) ? s.comments : [];
     const comments = rawComments.map((c: any) => {
-      if (typeof c === 'string') return { text: c, type: 'warning' as const, field: null, reasoning: null, confidence: 'medium', evidence_basis: null };
+      if (typeof c === 'string') {
+        return {
+          text: c, type: 'warning' as const, field: null, reasoning: null,
+          confidence: 'medium', evidence_basis: null,
+          quantification: null, framework_applied: null,
+          evidence_source: 'general_knowledge', cross_reference_verified: [],
+        };
+      }
       return {
         text: c.text || c.comment || String(c),
         type: c.type || (c.severity === 'error' ? 'error' : c.severity === 'suggestion' ? 'suggestion' : 'warning'),
@@ -194,6 +201,10 @@ export async function callAIPass1Analyze(
         reasoning: c.reasoning || null,
         confidence: c.confidence || 'medium',
         evidence_basis: c.evidence_basis || null,
+        quantification: typeof c.quantification === 'string' && c.quantification.trim() ? c.quantification.trim() : null,
+        framework_applied: typeof c.framework_applied === 'string' && c.framework_applied.trim() ? c.framework_applied.trim() : null,
+        evidence_source: typeof c.evidence_source === 'string' ? c.evidence_source : null,
+        cross_reference_verified: Array.isArray(c.cross_reference_verified) ? c.cross_reference_verified.filter((x: unknown) => typeof x === 'string') : [],
       };
     });
 
@@ -222,7 +233,13 @@ export async function callAIPass1Analyze(
       sections.push({
         section_key: key,
         status: "warning",
-        comments: [{ text: "Review could not be completed for this section. Please re-review individually.", type: "warning", field: null, reasoning: null, confidence: 'low', evidence_basis: 'Section was not returned by AI model' }],
+        comments: [{
+          text: "Review could not be completed for this section. Please re-review individually.",
+          type: "warning", field: null, reasoning: null,
+          confidence: 'low', evidence_basis: 'Section was not returned by AI model',
+          quantification: null, framework_applied: null,
+          evidence_source: 'general_knowledge', cross_reference_verified: [],
+        }],
         guidelines: [],
         cross_section_issues: [],
         solver_impact: null,
@@ -233,6 +250,31 @@ export async function callAIPass1Analyze(
       });
     }
   }
+
+  /* ── Principal-grade artifact coverage telemetry ── */
+  const allComments = sections.flatMap((s: any) => Array.isArray(s.comments) ? s.comments : []);
+  const total = allComments.length;
+  const withQuantification = allComments.filter((c: any) => !!c.quantification).length;
+  const withFramework = allComments.filter((c: any) => !!c.framework_applied).length;
+  const withEvidenceSource = allComments.filter((c: any) => typeof c.evidence_source === 'string' && c.evidence_source && c.evidence_source !== 'general_knowledge').length;
+  const withCrossRef = allComments.filter((c: any) => Array.isArray(c.cross_reference_verified) && c.cross_reference_verified.length > 0).length;
+  console.log(JSON.stringify({
+    event: 'ai_principal_artifact_coverage',
+    pass: 'pass1_analyze',
+    sectionKeys,
+    total_comments: total,
+    with_quantification: withQuantification,
+    with_framework: withFramework,
+    with_evidence_source: withEvidenceSource,
+    with_cross_reference: withCrossRef,
+    coverage_pct: total > 0 ? {
+      quantification: Math.round((withQuantification / total) * 100),
+      framework: Math.round((withFramework / total) * 100),
+      evidence_source: Math.round((withEvidenceSource / total) * 100),
+      cross_reference: Math.round((withCrossRef / total) * 100),
+    } : null,
+    timestamp: new Date().toISOString(),
+  }));
 
   return sections;
 }
