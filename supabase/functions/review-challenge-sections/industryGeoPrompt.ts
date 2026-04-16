@@ -139,34 +139,48 @@ interface FrameworkEntry {
   how_to_apply: string | null;
   typical_pitfalls: string | null;
   when_not_to_use: string | null;
+  domain_tags: unknown;
 }
 
 /**
- * Fetch relevant frameworks from ai_review_frameworks by domain tag match.
- * Returns a formatted prompt block for injection.
+ * Fetch relevant frameworks from ai_review_frameworks, ranked by domain-tag overlap
+ * with the challenge's domain_tags. Returns a formatted prompt block for injection.
  */
 export async function buildFrameworkLibraryBlock(
   adminClient: unknown,
   domainTags: string[],
   limit: number = 5,
 ): Promise<string> {
-  if (domainTags.length === 0) return '';
+  if (!Array.isArray(domainTags) || domainTags.length === 0) return '';
 
   try {
+    const normalizedTags = domainTags
+      .filter((t): t is string => typeof t === 'string' && t.length > 0)
+      .map((t) => t.toLowerCase());
+    if (normalizedTags.length === 0) return '';
+
+    // Pull a wider candidate set; rank in-memory by overlap.
     const { data, error } = await (adminClient as any)
       .from('ai_review_frameworks')
-      .select('framework_name, applicability_condition, how_to_apply, typical_pitfalls, when_not_to_use')
+      .select('framework_name, applicability_condition, how_to_apply, typical_pitfalls, when_not_to_use, domain_tags')
       .eq('is_active', true)
-      .limit(limit * 3);
+      .limit(150);
 
     if (error || !data || data.length === 0) return '';
 
-    // Score by domain tag overlap
     const scored = (data as FrameworkEntry[]).map((fw) => {
-      return { ...fw, _score: 1 }; // Default score; domain filtering done by query
+      const tags = Array.isArray(fw.domain_tags)
+        ? (fw.domain_tags as unknown[]).filter((x): x is string => typeof x === 'string').map((x) => x.toLowerCase())
+        : [];
+      const overlap = tags.filter((t) => normalizedTags.includes(t)).length;
+      return { ...fw, _score: overlap };
     });
 
-    const selected = scored.slice(0, limit);
+    // Keep only frameworks with at least one tag overlap; sort by score desc.
+    const filtered = scored.filter((fw) => fw._score > 0);
+    filtered.sort((a, b) => b._score - a._score);
+
+    const selected = filtered.slice(0, limit);
     if (selected.length === 0) return '';
 
     const parts = [
