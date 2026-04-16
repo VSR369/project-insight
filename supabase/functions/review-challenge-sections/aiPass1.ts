@@ -70,10 +70,28 @@ export async function callAIPass1Analyze(
                             type: "string",
                             description: "What specific data, content, or absence supports this finding. E.g., 'The deliverables section lists 5 items but evaluation_criteria only covers 3' or 'No timeline mentioned despite Pilot maturity level'",
                           },
+                          quantification: {
+                            type: "string",
+                            description: "PRINCIPAL FORCING FUNCTION. Concrete number, range, percentage, or unit grounding the finding. E.g., '5 deliverables vs 3 criteria — 40% gap', '$25K reward vs L4 complexity — 60% below market', '6-week schedule vs typical 12-16 for Pilot'. Use null if a number is genuinely not applicable.",
+                          },
+                          framework_applied: {
+                            type: "string",
+                            description: "PRINCIPAL FORCING FUNCTION. Named framework, methodology, or industry standard invoked (e.g., 'SCQA', 'Pyramid Principle', 'MoSCoW', 'Kano Model', 'ISO 27001', 'OECD AI Principles', 'NIST CSF'). Use null if no formal framework applies.",
+                          },
+                          evidence_source: {
+                            type: "string",
+                            enum: ["challenge_content", "context_digest", "industry_pack", "geo_pack", "framework_library", "cross_section_inference", "general_knowledge"],
+                            description: "PRINCIPAL FORCING FUNCTION. Where the evidence comes from. 'general_knowledge' is allowed but should be the LAST resort — prefer retrieved sources.",
+                          },
+                          cross_reference_verified: {
+                            type: "array",
+                            items: { type: "string" },
+                            description: "PRINCIPAL FORCING FUNCTION. Other section_keys cross-checked when forming this finding. Empty array if the finding is purely intra-section.",
+                          },
                         },
                         required: ["text", "type", "confidence", "evidence_basis"],
                       },
-                      description: "Multi-tier feedback with evidence. Every comment must have confidence level and evidence basis. For 'pass' sections, include 1-2 strength comments.",
+                      description: "Multi-tier feedback with evidence. Every comment must have confidence level and evidence basis. For 'pass' sections, include 1-2 strength comments. Quantification, framework_applied, evidence_source, cross_reference_verified are STRONGLY recommended for principal-grade output.",
                     },
                     guidelines: {
                       type: "array",
