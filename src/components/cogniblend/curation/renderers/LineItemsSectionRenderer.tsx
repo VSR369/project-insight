@@ -45,6 +45,7 @@ export function LineItemsSectionRenderer({
   hideAcceptanceCriteria,
   autoSaveStatus,
 }: LineItemsSectionRendererProps) {
+  const [expanded, setExpanded] = useState(false);
   const useStructured = structuredItems && structuredItems.length > 0 && onSaveStructured;
 
   // Edit mode
