@@ -27,6 +27,7 @@ export async function callAIPass1Analyze(
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
+    ],
     tools: [
       {
         type: "function",
