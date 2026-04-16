@@ -118,6 +118,11 @@ CHALLENGE CONTEXT:
     prompt += buildGeographyContext(challengeContext._geoContext);
   }
 
+  // Phase 11b: Framework library (domain-tag matched, pre-fetched in index.ts)
+  if (challengeContext?._frameworkBlock && typeof challengeContext._frameworkBlock === 'string') {
+    prompt += `\n${challengeContext._frameworkBlock}\n`;
+  }
+
   // Per-section enrichment
   for (const config of sectionConfigs) {
     if (!config) continue;
