@@ -29,7 +29,7 @@ interface DiagnosticsSheetProps {
 }
 
 export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: DiagnosticsSheetProps) {
-  const { attachmentStats, digest, importanceLevels, isLoading } = useDiagnosticsData(challengeId);
+  const { attachmentStats, digest, importanceLevels, reviewLevels, isLoading } = useDiagnosticsData(challengeId);
 
   // refreshKey increments every time the sheet opens so localStorage is re-read
   const [refreshKey, setRefreshKey] = useState(0);
@@ -90,11 +90,13 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
               <DiagnosticsReviewPanel
                 sections={sections}
                 importanceLevels={importanceLevels}
+                reviewLevels={reviewLevels}
                 executionRecord={analyseRecord}
               />
               <DiagnosticsSuggestionsPanel
                 sections={sections}
                 importanceLevels={importanceLevels}
+                reviewLevels={reviewLevels}
                 executionRecord={generateRecord}
                 analyseRecord={analyseRecord}
               />

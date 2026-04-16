@@ -29,7 +29,7 @@ function loadSectionsFromStorage(challengeId: string): Partial<Record<SectionKey
 
 export default function CurationDiagnosticsPage() {
   const { id: challengeId } = useParams<{ id: string }>();
-  const { attachmentStats, digest, importanceLevels, isLoading } = useDiagnosticsData(challengeId);
+  const { attachmentStats, digest, importanceLevels, reviewLevels, isLoading } = useDiagnosticsData(challengeId);
 
   // Manual refresh counter so user can re-read localStorage
   const [refreshKey, setRefreshKey] = useState(0);
@@ -82,8 +82,8 @@ export default function CurationDiagnosticsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} executionRecord={analyseRecord} />
-          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
+          <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
+          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
           <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
           <div>
             <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
