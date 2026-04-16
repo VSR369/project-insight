@@ -66,19 +66,15 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
             ? executionRecord.waves.find(w => w.waveNumber === wave.waveNumber)
             : null;
 
-          const wSections = wave.sectionIds.map(id => {
-            const execSection = execWave?.sections.find(s => s.sectionId === id);
-            return { id, entry: sections[id], execSection };
-          });
+          const wSections = wave.sectionIds.map(id => ({ id, entry: sections[id] }));
 
-          const ready = execWave
-            ? execWave.sections.filter(s => s.status === 'success').length
-            : wSections.filter(s => s.entry?.reviewStatus === 'reviewed').length;
-          const errors = execWave
-            ? execWave.sections.filter(s => s.status === 'error').length
-            : wSections.filter(s => s.entry?.reviewStatus === 'error').length;
-          const skipped = wSections.length - ready - errors;
+          // Store is the single source of truth — counts always reflect curator edits
+          const ready = wSections.filter(s => s.entry?.reviewStatus === 'reviewed').length;
+          const errors = wSections.filter(s => s.entry?.reviewStatus === 'error').length;
+          const pending = wSections.filter(s => s.entry?.reviewStatus === 'pending').length;
+          const skipped = wSections.length - ready - errors - pending;
 
+          // Wave-level badge still derives from execution record (lifecycle marker only)
           const waveStatus = execWave?.status ?? 'pending';
 
           return (
@@ -91,6 +87,7 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                 <div className="flex gap-2">
                   <Badge variant="secondary" className="text-[10px]">{ready} ready</Badge>
                   {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} errors</Badge>}
+                  {pending > 0 && <Badge variant="outline" className="text-[10px]">{pending} pending</Badge>}
                   {skipped > 0 && <Badge variant="outline" className="text-[10px]">{skipped} skipped</Badge>}
                 </div>
               </div>
@@ -106,25 +103,16 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {wSections.map(({ id, entry, execSection }) => {
-                    const sectionStatus = execSection?.status ?? (entry?.reviewStatus ?? 'idle');
-                    const sectionAction = execSection?.action ?? entry?.aiAction ?? '—';
+                  {wSections.map(({ id, entry }) => {
+                    const sectionStatus = entry?.reviewStatus ?? 'idle';
+                    const sectionAction = entry?.aiAction ?? '—';
                     const commentCount = entry?.aiComments?.length ?? 0;
-                    const imp = importanceLevels[id] ?? 'medium';
                     const level = reviewLevels[id] ?? 'principal';
 
                     const statusLabel = (() => {
-                      if (execSection) {
-                        if (execSection.status === 'success') {
-                          return execSection.action === 'generate'
-                            ? 'Drafted & Suggestion Ready'
-                            : 'Suggestion Ready';
-                        }
-                        if (execSection.status === 'error') return 'Error';
-                        return 'Skipped';
-                      }
                       if (!entry) return 'Not Run';
                       if (entry.reviewStatus === 'reviewed') {
+                        if (entry.addressed) return 'Addressed';
                         return entry.aiAction === 'generate'
                           ? 'Drafted & Suggestion Ready'
                           : 'Suggestion Ready';
