@@ -19,15 +19,15 @@ export async function callAIPass1Analyze(
   systemPrompt: string,
   userPrompt: string,
   sectionKeys: string[],
+  reasoningEffort?: string,
 ): Promise<{ section_key: string; status: string; comments: any[]; reviewed_at: string; guidelines: string[]; cross_section_issues: any[]; solver_impact?: string; publication_blocker?: boolean; quality_score?: number; missing_elements?: string[] }[]> {
-  const response = await fetch(AI_GATEWAY_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
+  const requestBody: Record<string, unknown> = {
+    model,
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
       temperature: 0.2,
       messages: [
         { role: "system", content: systemPrompt },
