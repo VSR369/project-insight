@@ -152,9 +152,9 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                         // Live store overlay: curator already actioned this suggestion
                         if (wasAddressed && !hasLiveSuggestion) return 'Accepted by Curator';
                         if (!hasLiveSuggestion && entry?.reviewStatus === 'idle') return 'Discarded by Curator';
-                        if (execSection.action === 'generate') return 'AI Content Drafted & Suggestions Generated';
-                        if (aiDraftedSections.has(id)) return 'AI Drafted & Suggestions Generated';
-                        return 'Suggestion Generated';
+                        if (execSection.action === 'generate') return 'AI Content Generated';
+                        if (aiDraftedSections.has(id)) return 'AI Content Generated';
+                        return 'AI Suggestion Ready';
                       }
                       if (execSection.status === 'error') return 'Error';
                       return 'Skipped';

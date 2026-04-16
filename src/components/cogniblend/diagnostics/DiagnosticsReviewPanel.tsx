@@ -41,7 +41,7 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
     <Collapsible defaultOpen>
       <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm">Pass 1 — AI Review (Analyse)</span>
+          <span className="font-semibold text-sm">Pass 1 — Analysis</span>
           {hasRecord && executionRecord.overallStatus !== 'idle' && (
             <Badge
               variant={executionRecord.overallStatus === 'completed' ? 'secondary' : 'destructive'}
@@ -113,9 +113,7 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                       if (!entry) return 'Not Run';
                       if (entry.reviewStatus === 'reviewed') {
                         if (entry.addressed) return 'Addressed';
-                        return entry.aiAction === 'generate'
-                          ? 'Drafted & Suggestion Ready'
-                          : 'Suggestion Ready';
+                        return 'Analysed';
                       }
                       if (entry.reviewStatus === 'error') return 'Error';
                       if (entry.reviewStatus === 'pending') return 'Pending';
