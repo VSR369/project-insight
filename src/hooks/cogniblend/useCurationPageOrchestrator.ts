@@ -291,7 +291,21 @@ export function useCurationPageOrchestrator() {
         )
       );
 
-      // 5. Persist acceptance record
+      // 5. Record curator edits for learning corpus
+      const aiContentMap = new Map<string, string | null>();
+      const curatorContentMap = new Map<string, string | null>();
+      for (const item of [...partition.regular, ...partition.extendedBrief]) {
+        const wasAccepted = results.find(r => r.sectionId === item.key && r.status === 'updated');
+        if (!wasAccepted) continue;
+        // AI suggestion is the raw string; curator content is what's now in store
+        aiContentMap.set(item.key, item.suggestion ?? null);
+        const storeEntry = curationStore?.getState().getSectionEntry(item.key as SectionKey);
+        const curatorVal = storeEntry?.data;
+        curatorContentMap.set(item.key, typeof curatorVal === 'string' ? curatorVal : JSON.stringify(curatorVal ?? null));
+        editTracking.recordEdit(item.key, item.suggestion, typeof curatorVal === 'string' ? curatorVal : JSON.stringify(curatorVal ?? null));
+      }
+
+      // 5b. Persist acceptance record
       const totalUpdated = results.filter(r => r.status === 'updated').length;
       const totalFailed = results.filter(r => r.status === 'failed').length;
       saveAcceptanceRecord({
@@ -302,6 +316,10 @@ export function useCurationPageOrchestrator() {
         totalUpdated,
         totalFailed,
       });
+
+      // 5c. Flush edit records to DB (non-blocking)
+      const editRecords = editTracking.flush();
+      persistCuratorCorrections({ challengeId, records: editRecords, aiContentMap, curatorContentMap });
 
       // 6. Invalidate queries to ensure fresh data (including preview)
       await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
