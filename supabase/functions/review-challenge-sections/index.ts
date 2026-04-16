@@ -33,7 +33,7 @@ import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutp
 import { callConsistencyPass, mergeConsistencyFindings } from "./aiConsistencyPass.ts";
 import { callAmbiguityPass, mergeAmbiguityFindings } from "./aiAmbiguityPass.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
-import { fetchExamplesForBatch, formatExamplesForPrompt } from "./fetchExamples.ts";
+import { fetchExamplesForBatch, formatExamplesForPrompt, fetchHardCorrections, formatCorrectionsForPrompt } from "./fetchExamples.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -536,6 +536,7 @@ serve(async (req) => {
     // ── Fetch master data + corpus examples for prompt injection ────────────────
     let masterDataOptions: Record<string, { code: string; label: string }[]> = {};
     let corpusExamples: Record<string, any[]> = {};
+    let corpusCorrections: { id: string; section_key: string; learning_rule: string; correction_class: string | null; activation_confidence: number }[] = [];
     if (resolvedContext === "curation") {
       const allSectionKeys = sectionsToReview.map(s => s.key);
       const domainTags = Array.isArray(challengeData?.domain_tags)
@@ -544,7 +545,7 @@ serve(async (req) => {
           ? [challengeData.domain_tags]
           : [];
 
-      const [md, examples] = await Promise.all([
+      const [md, examples, hardCorr] = await Promise.all([
         fetchMasterDataOptions(adminClient),
         fetchExamplesForBatch(adminClient, {
           sectionKeys: allSectionKeys,
@@ -552,9 +553,16 @@ serve(async (req) => {
           domainTags,
           limit: 2,
         }),
+        fetchHardCorrections(adminClient, allSectionKeys),
       ]);
       masterDataOptions = md;
       corpusExamples = examples;
+      corpusCorrections = hardCorr;
+
+      // Attach corrections block to clientContext for Pass 2 injection
+      if (clientContext && corpusCorrections.length > 0) {
+        clientContext._correctionsBlock = formatCorrectionsForPrompt(corpusCorrections);
+      }
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────
@@ -876,6 +884,16 @@ GROUNDING RULE (CRITICAL):
         }
         if (contextLines.length > 1) {
           systemPrompt += contextLines.join("\n");
+        }
+      }
+
+      // ── Inject hard corrections (BEFORE examples — corrections are constraints) ──
+      if (corpusCorrections.length > 0) {
+        const batchKeySet = new Set(batch.map(b => b.key));
+        const batchCorrections = corpusCorrections.filter(c => batchKeySet.has(c.section_key));
+        const correctionsBlock = formatCorrectionsForPrompt(batchCorrections);
+        if (correctionsBlock) {
+          systemPrompt += '\n' + correctionsBlock;
         }
       }
 

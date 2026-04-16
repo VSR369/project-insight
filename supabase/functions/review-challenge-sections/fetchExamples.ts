@@ -1,13 +1,15 @@
 /**
  * fetchExamples.ts — Server-side retrieval of dynamic few-shot examples
- * from section_example_library for prompt injection.
+ * and hard corrections from section_example_library for prompt injection.
  *
- * Two retrieval strategies:
- * 1. Keyword: match section_key + score by quality_tier, maturity, domain overlap
- * 2. Semantic: (future) vector similarity via pgvector when embeddings are populated
- *
- * Returns formatted prompt blocks ready for injection into system prompts.
+ * Prompt 13 enhancements:
+ * - fetchHardCorrections: retrieves active, high-confidence learned rules as hard constraints
+ * - formatCorrectionsForPrompt: formats corrections as a "NEVER repeat" block
+ * - Token budgeting: caps total corpus injection at TOKEN_BUDGET_CHARS
  */
+
+/** Approx 6K tokens — 30% of a ~20K token corpus budget */
+const TOKEN_BUDGET_CHARS = 24000;
 
 interface DynamicExample {
   content: string;
@@ -15,6 +17,14 @@ interface DynamicExample {
   annotation: string | null;
   maturity_level: string | null;
   learning_rule: string | null;
+}
+
+interface HardCorrection {
+  id: string;
+  section_key: string;
+  learning_rule: string;
+  correction_class: string | null;
+  activation_confidence: number;
 }
 
 interface FetchExamplesOptions {
@@ -29,7 +39,7 @@ interface FetchExamplesOptions {
  * Returns a map of sectionKey → examples[].
  */
 export async function fetchExamplesForBatch(
-  adminClient: any,
+  adminClient: ReturnType<typeof Object>,
   options: FetchExamplesOptions,
 ): Promise<Record<string, DynamicExample[]>> {
   const { sectionKeys, maturityLevel, domainTags, limit = 2 } = options;
@@ -38,9 +48,9 @@ export async function fetchExamplesForBatch(
   if (sectionKeys.length === 0) return result;
 
   try {
-    const { data, error } = await adminClient
+    const { data, error } = await (adminClient as any)
       .from('section_example_library')
-      .select('id, section_key, content, quality_tier, annotation, maturity_level, domain_tags, learning_rule, usage_count')
+      .select('id, section_key, content, quality_tier, annotation, maturity_level, domain_tags, learning_rule, usage_count, activation_confidence')
       .in('section_key', sectionKeys)
       .eq('is_active', true)
       .in('quality_tier', ['excellent', 'good'])
@@ -62,7 +72,7 @@ export async function fetchExamplesForBatch(
       const scored = examples.map((ex: any) => {
         let score = 0;
         if (ex.quality_tier === 'excellent') score += 10;
-        if (ex.learning_rule) score += 3; // Prefer examples with learning rules
+        if (ex.learning_rule) score += 3;
         if (maturityLevel && ex.maturity_level === maturityLevel) score += 5;
         if (domainTags && Array.isArray(ex.domain_tags)) {
           const overlap = domainTags.filter((t: string) =>
@@ -87,7 +97,7 @@ export async function fetchExamplesForBatch(
       // Fire-and-forget: increment usage_count
       for (const sel of selected) {
         if (sel.id) {
-          adminClient
+          (adminClient as any)
             .from('section_example_library')
             .update({ usage_count: (sel.usage_count ?? 0) + 1 })
             .eq('id', sel.id)
@@ -104,11 +114,92 @@ export async function fetchExamplesForBatch(
 }
 
 /**
+ * Fetch active hard corrections (learned rules) for injection as constraints.
+ * Only returns rules that have passed activation thresholds.
+ */
+export async function fetchHardCorrections(
+  adminClient: any,
+  sectionKeys: string[],
+): Promise<HardCorrection[]> {
+  if (sectionKeys.length === 0) return [];
+
+  try {
+    const { data, error } = await adminClient
+      .from('section_example_library')
+      .select('id, section_key, learning_rule, correction_class, activation_confidence')
+      .in('section_key', sectionKeys)
+      .eq('is_active', true)
+      .not('learning_rule', 'is', null)
+      .gte('activation_confidence', 0.7)
+      .order('activation_confidence', { ascending: false })
+      .limit(30);
+
+    if (error || !data) return [];
+
+    return (data as any[]).map((row) => ({
+      id: row.id,
+      section_key: row.section_key,
+      learning_rule: row.learning_rule,
+      correction_class: row.correction_class,
+      activation_confidence: row.activation_confidence,
+    }));
+  } catch (err) {
+    console.warn('[fetchHardCorrections] Non-blocking fetch failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Format hard corrections into a prompt block for injection.
+ * These are "NEVER repeat" rules — hard constraints from curator learning.
+ */
+export function formatCorrectionsForPrompt(
+  corrections: HardCorrection[],
+  charBudget: number = TOKEN_BUDGET_CHARS / 2,
+): string {
+  if (corrections.length === 0) return '';
+
+  // Sort by confidence descending so we keep highest-confidence when truncating
+  const sorted = [...corrections].sort((a, b) => b.activation_confidence - a.activation_confidence);
+
+  const parts: string[] = [
+    '',
+    '## CURATOR-LEARNED CORRECTIONS (hard rules — these have been corrected before, DO NOT repeat):',
+    'The following rules were extracted from real curator corrections. Each has been validated by multiple curators.',
+    'Violating any of these rules means your output needs correction. Apply them strictly.',
+    '',
+  ];
+
+  let charCount = parts.join('\n').length;
+  let ruleNum = 0;
+
+  for (const correction of sorted) {
+    const classLabel = correction.correction_class
+      ? ` [${correction.correction_class.toUpperCase()}]`
+      : '';
+    const line = `${++ruleNum}. ${correction.learning_rule}${classLabel} (section: ${correction.section_key}, confidence: ${correction.activation_confidence.toFixed(2)})`;
+
+    if (charCount + line.length + 1 > charBudget) {
+      console.log(`[formatCorrectionsForPrompt] Token budget reached after ${ruleNum - 1} rules, ${corrections.length - ruleNum + 1} dropped`);
+      break;
+    }
+
+    parts.push(line);
+    charCount += line.length + 1;
+  }
+
+  parts.push('');
+  return parts.join('\n');
+}
+
+/**
  * Format examples into a prompt block for injection into a system prompt.
  * Returns empty string if no examples are available.
+ * Applies token budgeting to prevent context overflow.
  */
 export function formatExamplesForPrompt(
   examplesBySection: Record<string, DynamicExample[]>,
+  charBudget: number = TOKEN_BUDGET_CHARS / 2,
 ): string {
   const sectionKeys = Object.keys(examplesBySection);
   if (sectionKeys.length === 0) return '';
@@ -121,18 +212,35 @@ export function formatExamplesForPrompt(
     '',
   ];
 
+  let charCount = parts.join('\n').length;
+
   for (const sectionKey of sectionKeys) {
     const examples = examplesBySection[sectionKey];
     if (!examples || examples.length === 0) continue;
 
-    parts.push(`### Examples for "${sectionKey}":`);
+    const header = `### Examples for "${sectionKey}":`;
+    charCount += header.length + 1;
+    if (charCount > charBudget) {
+      console.log(`[formatExamplesForPrompt] Token budget reached, skipping remaining sections`);
+      break;
+    }
+    parts.push(header);
+
     for (const ex of examples) {
       const tierLabel = ex.quality_tier === 'excellent' ? '✅ EXCELLENT' : '✅ GOOD';
-      parts.push(`${tierLabel}:`);
-      parts.push(ex.content);
-      if (ex.annotation) parts.push(`Annotation: ${ex.annotation}`);
-      if (ex.learning_rule) parts.push(`Learning Rule: ${ex.learning_rule}`);
-      parts.push('');
+      const contentStr = typeof ex.content === 'string' ? ex.content : JSON.stringify(ex.content);
+      let block = `${tierLabel}:\n${contentStr}`;
+      if (ex.annotation) block += `\nAnnotation: ${ex.annotation}`;
+      if (ex.learning_rule) block += `\nLearning Rule: ${ex.learning_rule}`;
+      block += '\n';
+
+      if (charCount + block.length > charBudget) {
+        console.log(`[formatExamplesForPrompt] Token budget reached mid-section, truncating`);
+        break;
+      }
+
+      parts.push(block);
+      charCount += block.length;
     }
   }
 

@@ -21,6 +21,7 @@ export function buildPass2SystemPrompt(
   sectionConfigs: SectionConfig[],
   challengeContext: any,
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
+  correctionsBlock?: string,
 ): string {
   let prompt = `${DEFAULT_PLATFORM_PREAMBLE}
 
@@ -197,6 +198,11 @@ Do NOT output markdown tables or prose for table-format sections. Only valid JSO
         }
       }
     }
+  }
+
+  // Prompt 13: Inject hard corrections block if provided
+  if (correctionsBlock) {
+    prompt += '\n' + correctionsBlock;
   }
 
   return prompt;

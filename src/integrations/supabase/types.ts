@@ -12638,10 +12638,13 @@ export type Database = {
       }
       section_example_library: {
         Row: {
+          activation_confidence: number
           annotation: string | null
           content: Json
+          correction_class: string | null
           created_at: string
           created_by: string | null
+          distinct_curator_count: number
           domain_tags: Json | null
           embedding: string | null
           id: string
@@ -12657,10 +12660,13 @@ export type Database = {
           usage_count: number
         }
         Insert: {
+          activation_confidence?: number
           annotation?: string | null
           content: Json
+          correction_class?: string | null
           created_at?: string
           created_by?: string | null
+          distinct_curator_count?: number
           domain_tags?: Json | null
           embedding?: string | null
           id?: string
@@ -12676,10 +12682,13 @@ export type Database = {
           usage_count?: number
         }
         Update: {
+          activation_confidence?: number
           annotation?: string | null
           content?: Json
+          correction_class?: string | null
           created_at?: string
           created_by?: string | null
+          distinct_curator_count?: number
           domain_tags?: Json | null
           embedding?: string | null
           id?: string

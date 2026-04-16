@@ -1,6 +1,8 @@
 /**
  * promptBuilders.ts — Batch prompt builders (Pass 1 analysis)
  * extracted from promptTemplate.ts.
+ *
+ * Prompt 13: Added PRINCIPAL-LEVEL SELF-CRITIQUE block, removed legacy buildConfiguredBatchPrompt.
  */
 
 import type { SectionConfig } from './promptConstants.ts';
@@ -17,6 +19,20 @@ import {
 } from './promptConstants.ts';
 import { INTELLIGENCE_DIRECTIVE, detectDomainFrameworks, SECTION_WAVE_CONTEXT } from './contextIntelligence.ts';
 import { buildIndustryIntelligence, buildGeographyContext } from './industryGeoPrompt.ts';
+
+/** Self-critique block appended to Pass 1 system prompts */
+const PRINCIPAL_SELF_CRITIQUE = `
+
+## PRINCIPAL-LEVEL SELF-CRITIQUE
+Before returning each comment, re-read it. If a junior analyst could have written it (no named benchmark, no named framework, no specific number, no cross-reference), rewrite it. Generic observations are disqualifying. Claims tagged with low confidence must be genuinely unavoidable — prefer retrieval from industry packs, geo packs, and context digest.
+
+Ask yourself for EACH comment:
+1. Does it cite a specific framework, benchmark, or data point?
+2. Does it reference evidence from THIS challenge's content?
+3. Would it help a curator make a concrete improvement?
+4. Is it something only a principal consultant with 200+ engagements would notice?
+
+If any answer is "no", elevate the comment or remove it.`;
 
 /* ── Structured batch prompt (Phase 6) — Pass 1: Analysis Only ── */
 
@@ -293,93 +309,12 @@ After reviewing each section individually, step back and assess the challenge AS
 4. **PUBLICATION READINESS**: Could this challenge be published TODAY and attract quality submissions? Or are there blockers? Rate overall readiness as a final cross_section_issue: { "related_section": "overall", "issue": "Publication readiness assessment: [READY/NEEDS_WORK/NOT_READY] — [specific reasoning]", "suggested_resolution": "..." }
 `);
 
+  // Prompt 13: Principal-level self-critique
+  parts.push(PRINCIPAL_SELF_CRITIQUE);
+
   parts.push('Every comment MUST use the {text, type} object format. Each distinct issue MUST be a separate comment.');
   parts.push('For "pass" sections: include 1-2 "strength" type comments — never return empty comments. Curators need confirmation the AI reviewed the section.');
   parts.push('For master-data-backed sections, your comments MUST reference specific allowed codes when suggesting changes.');
-  return parts.join('\n');
-}
-
-/* ── Legacy batch prompt (backward compatible) — Pass 1: Analysis Only ── */
-
-export function buildConfiguredBatchPrompt(
-  configs: SectionConfig[],
-  roleContext: string,
-  masterDataOptions?: Record<string, { code: string; label: string }[]>,
-): string {
-  const contextLabel = ROLE_CONTEXT_LABELS[roleContext] || 'challenge section';
-
-  const parts: string[] = [];
-  parts.push(`You are reviewing a ${contextLabel}.`);
-  parts.push('');
-
-  parts.push(INTELLIGENCE_DIRECTIVE);
-  parts.push('');
-
-  parts.push(`For each section below, provide ANALYSIS ONLY:
-- status: "pass" (good — include 1-2 "strength" comments), "warning" (improvable), or "needs_revision" (errors found)
-- comments: array of objects with "text" (string) and "type" (one of: "error", "warning", "suggestion", "best_practice", "strength"). For pass sections, include strength comments.
-- guidelines: 1-3 domain-specific guidelines for this section
-
-Do NOT include a "suggestion" field. Focus entirely on thorough, specific analysis. Improved content will be generated separately based on your comments.`);
-  parts.push('');
-
-  configs.forEach((config, i) => {
-    const fmt = SECTION_FORMAT_MAP[config.section_key] || 'rich_text';
-    const fmtInstr = FORMAT_INSTRUCTIONS[fmt] || '';
-    const ebInstr = EXTENDED_BRIEF_FORMAT_INSTRUCTIONS[config.section_key] || '';
-
-    parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
-    parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
-
-    const waveCtx = SECTION_WAVE_CONTEXT[config.section_key];
-    if (waveCtx) {
-      parts.push(`POSITION: Wave ${waveCtx.wave} (${waveCtx.waveName}). STRATEGIC ROLE: ${waveCtx.strategicRole}`);
-    }
-
-    const criteria = getEffectiveQualityCriteria(config);
-    if (criteria.length > 0) {
-      parts.push('Quality criteria:');
-      for (const c of criteria as any[]) {
-        let line = `- **${c.name}** (${c.severity}): ${c.description}`;
-        if (c.crossReferences?.length > 0) {
-          line += ` Cross-check: ${c.crossReferences.map((k: string) => getSectionName(k)).join(', ')}.`;
-        }
-        parts.push(line);
-      }
-    }
-
-    const opts = masterDataOptions?.[config.section_key];
-    if (opts?.length) {
-      parts.push(`Allowed values: [${opts.map(o => `"${o.code}" (${o.label})`).join(', ')}]`);
-      parts.push(`You MUST only suggest values from this allowed list. Do not invent new codes.`);
-    }
-
-    if (config.section_key === 'ip_model') {
-      parts.push(`IP MODEL SELECTION GUIDELINES — your comments MUST provide reasoning for the recommended model:`);
-      parts.push(`- "IP-EA" (Exclusive Assignment): Recommend when deliverables include proprietary IP (algorithms, designs, patents) and the seeker will commercialize exclusively.`);
-      parts.push(`- "IP-NEL" (Non-Exclusive License): Recommend when the solution methodology has broad applicability and the seeker only needs usage rights (consulting frameworks, analytical models).`);
-      parts.push(`- "IP-EL" (Exclusive License): Recommend when the seeker needs exclusive usage but the solver retains underlying ownership (specialized software, patentable inventions).`);
-      parts.push(`- "IP-JO" (Joint Ownership): Recommend for collaborative R&D where both parties contribute significant IP (co-developed technology, joint research).`);
-      parts.push(`- "IP-NONE" (No IP Transfer): Recommend for advisory/consulting challenges producing recommendations or assessments — no tangible IP is created.`);
-      parts.push(`Analyze the challenge deliverables, maturity level, and reward structure to justify your recommendation. Comments should explain WHY a specific IP model fits this challenge.`);
-    }
-
-    if (config.section_description) parts.push(`Description: ${config.section_description}`);
-    if (config.review_instructions) parts.push(`Instructions: ${config.review_instructions}`);
-    if (config.dos) parts.push(`Do: ${config.dos}`);
-    if (config.donts) parts.push(`Don't: ${config.donts}`);
-    parts.push(`Tone: ${config.tone} | Words: ${config.min_words}–${config.max_words}`);
-    if (config.required_elements.length > 0) {
-      parts.push(`Required: ${config.required_elements.join(', ')}`);
-    }
-    if (config.example_good) parts.push(`Good: ${config.example_good}`);
-    if (config.example_poor) parts.push(`Poor: ${config.example_poor}`);
-    parts.push('');
-  });
-
-  parts.push('Every comment MUST use the {text, type} object format. Each distinct issue MUST be a separate comment.');
-  parts.push('For "pass" sections: include 1-2 "strength" type comments confirming what works well.');
-  parts.push('For master-data-backed sections (eligibility, visibility, ip_model, maturity_level, complexity), your comments MUST reference specific allowed codes when suggesting changes.');
   return parts.join('\n');
 }
 
