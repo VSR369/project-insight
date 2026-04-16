@@ -27,12 +27,19 @@ const PRINCIPAL_SELF_CRITIQUE = `
 Before returning each comment, re-read it. If a junior analyst could have written it (no named benchmark, no named framework, no specific number, no cross-reference), rewrite it. Generic observations are disqualifying. Claims tagged with low confidence must be genuinely unavoidable — prefer retrieval from industry packs, geo packs, and context digest.
 
 Ask yourself for EACH comment:
-1. Does it cite a specific framework, benchmark, or data point?
-2. Does it reference evidence from THIS challenge's content?
+1. Does it cite a specific framework, benchmark, or data point? → populate \`framework_applied\` AND \`quantification\`
+2. Does it reference evidence from THIS challenge's content? → set \`evidence_source\` to \`challenge_content\` and list the verified sections in \`cross_reference_verified\`
 3. Would it help a curator make a concrete improvement?
 4. Is it something only a principal consultant with 200+ engagements would notice?
 
-If any answer is "no", elevate the comment or remove it.`;
+REQUIRED structured artifacts on every comment (use null only when genuinely inapplicable):
+- \`quantification\`: a number, percentage, range, or unit (e.g., "5 vs 3 — 40% gap", "$25K vs $75K market median")
+- \`framework_applied\`: a named framework when one applies (e.g., "MoSCoW", "Pyramid Principle", "ISO 27001")
+- \`evidence_source\`: one of \`challenge_content | context_digest | industry_pack | geo_pack | framework_library | cross_section_inference | general_knowledge\` — \`general_knowledge\` is a LAST resort
+- \`cross_reference_verified\`: array of other section_keys you cross-checked
+
+If any answer is "no" or these artifacts are blank without justification, elevate the comment or remove it.`;
+
 
 /* ── Structured batch prompt (Phase 6) — Pass 1: Analysis Only ── */
 
@@ -114,9 +121,13 @@ For each section, return a JSON object via the review_sections function with:
      - "medium" = reasonable inference from available context
      - "low" = possible issue requiring human judgment
    - "evidence_basis" (REQUIRED): What specific data, text, or absence supports this finding?
-     - GOOD: "The deliverables list 5 items but evaluation_criteria only covers 3 (missing: API docs, test suite)"
-     - GOOD: "Phase schedule totals 6 weeks but complexity is L4, which typically requires 12-20 weeks per industry benchmarks"
-     - BAD: "Could be better" (too vague — cite the specific evidence)
+      - GOOD: "The deliverables list 5 items but evaluation_criteria only covers 3 (missing: API docs, test suite)"
+      - GOOD: "Phase schedule totals 6 weeks but complexity is L4, which typically requires 12-20 weeks per industry benchmarks"
+      - BAD: "Could be better" (too vague — cite the specific evidence)
+   - "quantification" (PRINCIPAL FORCING FUNCTION): A number, percentage, range, or unit grounding the finding. Use null only if genuinely not applicable.
+   - "framework_applied" (PRINCIPAL FORCING FUNCTION): A named framework, methodology, or industry standard (e.g., "MoSCoW", "Pyramid Principle", "Kano Model", "NIST CSF"). Use null when no formal framework applies.
+   - "evidence_source" (PRINCIPAL FORCING FUNCTION): one of challenge_content | context_digest | industry_pack | geo_pack | framework_library | cross_section_inference | general_knowledge. general_knowledge should be a LAST resort.
+   - "cross_reference_verified" (PRINCIPAL FORCING FUNCTION): Array of other section_keys you cross-checked while forming this finding. Empty array if intra-section.
 
 3. **guidelines**: 1-3 domain-specific guidelines for this section.
    - MUST reference THIS challenge's domain, maturity, and solution type.

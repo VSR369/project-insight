@@ -70,10 +70,28 @@ export async function callAIPass1Analyze(
                             type: "string",
                             description: "What specific data, content, or absence supports this finding. E.g., 'The deliverables section lists 5 items but evaluation_criteria only covers 3' or 'No timeline mentioned despite Pilot maturity level'",
                           },
+                          quantification: {
+                            type: "string",
+                            description: "PRINCIPAL FORCING FUNCTION. Concrete number, range, percentage, or unit grounding the finding. E.g., '5 deliverables vs 3 criteria — 40% gap', '$25K reward vs L4 complexity — 60% below market', '6-week schedule vs typical 12-16 for Pilot'. Use null if a number is genuinely not applicable.",
+                          },
+                          framework_applied: {
+                            type: "string",
+                            description: "PRINCIPAL FORCING FUNCTION. Named framework, methodology, or industry standard invoked (e.g., 'SCQA', 'Pyramid Principle', 'MoSCoW', 'Kano Model', 'ISO 27001', 'OECD AI Principles', 'NIST CSF'). Use null if no formal framework applies.",
+                          },
+                          evidence_source: {
+                            type: "string",
+                            enum: ["challenge_content", "context_digest", "industry_pack", "geo_pack", "framework_library", "cross_section_inference", "general_knowledge"],
+                            description: "PRINCIPAL FORCING FUNCTION. Where the evidence comes from. 'general_knowledge' is allowed but should be the LAST resort — prefer retrieved sources.",
+                          },
+                          cross_reference_verified: {
+                            type: "array",
+                            items: { type: "string" },
+                            description: "PRINCIPAL FORCING FUNCTION. Other section_keys cross-checked when forming this finding. Empty array if the finding is purely intra-section.",
+                          },
                         },
                         required: ["text", "type", "confidence", "evidence_basis"],
                       },
-                      description: "Multi-tier feedback with evidence. Every comment must have confidence level and evidence basis. For 'pass' sections, include 1-2 strength comments.",
+                      description: "Multi-tier feedback with evidence. Every comment must have confidence level and evidence basis. For 'pass' sections, include 1-2 strength comments. Quantification, framework_applied, evidence_source, cross_reference_verified are STRONGLY recommended for principal-grade output.",
                     },
                     guidelines: {
                       type: "array",
@@ -168,7 +186,14 @@ export async function callAIPass1Analyze(
     // Normalize comments
     const rawComments = Array.isArray(s.comments) ? s.comments : [];
     const comments = rawComments.map((c: any) => {
-      if (typeof c === 'string') return { text: c, type: 'warning' as const, field: null, reasoning: null, confidence: 'medium', evidence_basis: null };
+      if (typeof c === 'string') {
+        return {
+          text: c, type: 'warning' as const, field: null, reasoning: null,
+          confidence: 'medium', evidence_basis: null,
+          quantification: null, framework_applied: null,
+          evidence_source: 'general_knowledge', cross_reference_verified: [],
+        };
+      }
       return {
         text: c.text || c.comment || String(c),
         type: c.type || (c.severity === 'error' ? 'error' : c.severity === 'suggestion' ? 'suggestion' : 'warning'),
@@ -176,6 +201,10 @@ export async function callAIPass1Analyze(
         reasoning: c.reasoning || null,
         confidence: c.confidence || 'medium',
         evidence_basis: c.evidence_basis || null,
+        quantification: typeof c.quantification === 'string' && c.quantification.trim() ? c.quantification.trim() : null,
+        framework_applied: typeof c.framework_applied === 'string' && c.framework_applied.trim() ? c.framework_applied.trim() : null,
+        evidence_source: typeof c.evidence_source === 'string' ? c.evidence_source : null,
+        cross_reference_verified: Array.isArray(c.cross_reference_verified) ? c.cross_reference_verified.filter((x: unknown) => typeof x === 'string') : [],
       };
     });
 
@@ -204,7 +233,13 @@ export async function callAIPass1Analyze(
       sections.push({
         section_key: key,
         status: "warning",
-        comments: [{ text: "Review could not be completed for this section. Please re-review individually.", type: "warning", field: null, reasoning: null, confidence: 'low', evidence_basis: 'Section was not returned by AI model' }],
+        comments: [{
+          text: "Review could not be completed for this section. Please re-review individually.",
+          type: "warning", field: null, reasoning: null,
+          confidence: 'low', evidence_basis: 'Section was not returned by AI model',
+          quantification: null, framework_applied: null,
+          evidence_source: 'general_knowledge', cross_reference_verified: [],
+        }],
         guidelines: [],
         cross_section_issues: [],
         solver_impact: null,
@@ -215,6 +250,31 @@ export async function callAIPass1Analyze(
       });
     }
   }
+
+  /* ── Principal-grade artifact coverage telemetry ── */
+  const allComments = sections.flatMap((s: any) => Array.isArray(s.comments) ? s.comments : []);
+  const total = allComments.length;
+  const withQuantification = allComments.filter((c: any) => !!c.quantification).length;
+  const withFramework = allComments.filter((c: any) => !!c.framework_applied).length;
+  const withEvidenceSource = allComments.filter((c: any) => typeof c.evidence_source === 'string' && c.evidence_source && c.evidence_source !== 'general_knowledge').length;
+  const withCrossRef = allComments.filter((c: any) => Array.isArray(c.cross_reference_verified) && c.cross_reference_verified.length > 0).length;
+  console.log(JSON.stringify({
+    event: 'ai_principal_artifact_coverage',
+    pass: 'pass1_analyze',
+    sectionKeys,
+    total_comments: total,
+    with_quantification: withQuantification,
+    with_framework: withFramework,
+    with_evidence_source: withEvidenceSource,
+    with_cross_reference: withCrossRef,
+    coverage_pct: total > 0 ? {
+      quantification: Math.round((withQuantification / total) * 100),
+      framework: Math.round((withFramework / total) * 100),
+      evidence_source: Math.round((withEvidenceSource / total) * 100),
+      cross_reference: Math.round((withCrossRef / total) * 100),
+    } : null,
+    timestamp: new Date().toISOString(),
+  }));
 
   return sections;
 }
