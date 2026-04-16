@@ -1,52 +1,76 @@
 
 
-# Prompt 13 — Curator Learning Loop Hardening & Self-Critique
+# Corrected Gap Analysis & Implementation Plan
 
-## Goal
-Close highest-priority gaps in the curator learning system: hard-constraint injection, activation thresholds, correction classification, token budgeting, self-critique block, and legacy builder cleanup.
+## Claude's Feedback is Factually Incorrect
 
-## What was implemented
+Every "NOT DONE" claim in the feedback is **wrong**. I verified each against the actual codebase:
 
-### 1. Database schema — `section_example_library` columns
-- `correction_class TEXT` — classifies corrections (factual/style/structural/terminology/quantification/framework/omission)
-- `activation_confidence NUMERIC DEFAULT 0.5` — tracks confidence for activation gating
-- `distinct_curator_count INTEGER DEFAULT 1` — tracks distinct curator contributions
-- Partial index on `(is_active, activation_confidence) WHERE learning_rule IS NOT NULL AND activation_confidence >= 0.7`
+- **Phase 0**: DONE. `DEFAULT_PLATFORM_PREAMBLE` says "Principal Consultant at a Big 4 firm". `ai_review_level` column exists (migration `20260416091831`). `buildConfiguredBatchPrompt` deleted. Pass 2 imports `DEFAULT_PLATFORM_PREAMBLE`.
+- **Phase 1**: DONE. `reasoning_effort` column added and wired. `confidence`/`evidence_basis` in Pass 1 schema. Self-critique block (`PRINCIPAL_SELF_CRITIQUE`) appended.
+- **Phase 2**: DONE. `aiConsistencyPass.ts` and `aiAmbiguityPass.ts` exist and are called from `index.ts`.
+- **Phase 3**: DONE. `curator_corrections` table, `embed-curator-corrections`, `extract-correction-patterns` (with activation gating, dedup, correction_class), `fetchHardCorrections`, `SupervisorLearningPage` — all exist.
+- **Phase 5**: DONE. `challenge_quality_telemetry` table, telemetry insert in `index.ts`, `QualityTelemetryPage` with dashboard — all exist.
 
-### 2. `extract-correction-patterns` edge function
-- Added correction_class to AI extraction prompt with class definitions
-- Semantic deduplication: before inserting, checks existing rules with substring similarity (>50% word overlap)
-- When similar rule found: increments activation_confidence by 0.15, tracks distinct curators
-- Auto-activates when confidence ≥ 0.7 AND distinct_curator_count ≥ 2
-- New examples start dormant (is_active = false) until activation threshold met
+**No action needed for Prompts 1-13. They are implemented.**
 
-### 3. `fetchExamples.ts` — hard corrections + token budgeting
-- `fetchHardCorrections(adminClient, sectionKeys)`: queries active, high-confidence learned rules
-- `formatCorrectionsForPrompt(corrections, charBudget)`: formats as `CURATOR-LEARNED CORRECTIONS` block
-- `formatExamplesForPrompt()` now has token budgeting (TOKEN_BUDGET_CHARS = 24000, split 50/50 between corrections and examples)
-- Logs when truncation occurs
+---
 
-### 4. System prompt injection
-- Hard corrections injected BEFORE dynamic examples in Pass 1 system prompt
-- Hard corrections passed through to Pass 2 via `buildPass2SystemPrompt` (new `correctionsBlock` parameter)
-- Corrections flow through `clientContext._correctionsBlock` to avoid changing multiple function signatures
+## Genuine Remaining Gaps (not covered by any prompt yet)
 
-### 5. Self-critique block
-- `PRINCIPAL_SELF_CRITIQUE` constant appended to `buildStructuredBatchPrompt` after the Strategic Coherence Check
-- Asks 4 questions of each comment before returning
+These are the items from the master plan that have NOT been implemented:
 
-### 6. Legacy cleanup
-- `buildConfiguredBatchPrompt` deleted from `promptBuilders.ts`
-- Export removed from `promptTemplate.ts`
+### Gap 1: Dedicated Consistency/Ambiguity Findings Tables + UI Panels
+- Consistency/ambiguity passes run inline and merge findings into section comments
+- Missing: `challenge_consistency_findings` and `challenge_ambiguity_findings` tables
+- Missing: `ConsistencyFindingsPanel` and `AmbiguityFindingsPanel` with accept/dismiss buttons
+- Missing: "Quality Score" summary at top of diagnostics
 
-## Files modified
-| File | Change |
-|---|---|
-| Migration | Added correction_class, activation_confidence, distinct_curator_count to section_example_library |
-| `supabase/functions/extract-correction-patterns/index.ts` | Full rewrite — classification, dedup, activation logic |
-| `supabase/functions/review-challenge-sections/fetchExamples.ts` | Added fetchHardCorrections, formatCorrectionsForPrompt, token budgeting |
-| `supabase/functions/review-challenge-sections/promptBuilders.ts` | Added self-critique, deleted buildConfiguredBatchPrompt |
-| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Removed buildConfiguredBatchPrompt export |
-| `supabase/functions/review-challenge-sections/index.ts` | Wired fetchHardCorrections + formatCorrectionsForPrompt injection |
-| `supabase/functions/review-challenge-sections/pass2Prompt.ts` | Added correctionsBlock parameter |
-| `supabase/functions/review-challenge-sections/aiPass2.ts` | Passes correctionsBlock to buildPass2SystemPrompt |
+### Gap 2: PII Scanning & Redaction
+- No PII regex scanning before corpus storage
+- No symmetric redaction with `[REDACTED_EMAIL]`/`[REDACTED_PHONE]` placeholders
+
+### Gap 3: Supervisor Rule Management Enhancements
+- Current UI is read-only (stats + table + pipeline triggers)
+- Missing: inline rule text editing, merge-duplicates, manual confidence promote/override
+- Missing: correction rate trend chart
+
+### Gap 4: Framework Library (Phase 4)
+- No `ai_review_frameworks` table
+- No `buildFrameworkLibraryBlock` retrieval function
+- No framework seed data (80-120 entries)
+
+### Gap 5: Watch-Items Not Yet Addressed
+- `IMPORTANCE_TO_LEVEL` usage audit not performed
+- No tunable `similarity_threshold` in global config
+- No dynamic model context budget (hardcoded 24K chars)
+- No baseline measurement captured
+
+---
+
+## Recommended Implementation Order
+
+### Prompt 14 — Supervisor Learning UI Enhancements (~1 day)
+- Add inline rule editing (edit `learning_rule` text)
+- Add manual confidence promote button (supervisor override for sub-threshold rules)
+- Add merge-duplicate rules function
+- Add correction rate trend chart (weekly edit magnitude trend)
+
+### Prompt 15 — Consistency/Ambiguity Findings Tables + UI (~2 days)
+- Create `challenge_consistency_findings` and `challenge_ambiguity_findings` tables
+- Wire existing inline passes to persist findings to these tables
+- Build `ConsistencyFindingsPanel` and `AmbiguityFindingsPanel` with accept/dismiss
+- Add "Quality Score" summary to diagnostics header
+
+### Prompt 16 — PII Scanning & Corpus Hygiene (~1 day)
+- Add deterministic PII regex in `persistCuratorCorrections` (emails, phones)
+- Symmetric redaction in both `ai_content` and `curator_content`
+- Add `similarity_threshold` config to `ai_review_global_config`
+
+### Prompt 17 — Framework Library Infrastructure (~2-3 days engineering + content)
+- Create `ai_review_frameworks` table with pgvector embedding column
+- Build `buildFrameworkLibraryBlock` in `industryGeoPrompt.ts`
+- Seed framework entries (content to be provided separately)
+
+**Which of these prompts (14-17) should I implement first?**
+
