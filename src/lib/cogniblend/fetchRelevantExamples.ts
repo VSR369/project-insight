@@ -29,7 +29,7 @@ export async function fetchRelevantExamples(
     // Fetch active excellent/good examples for this section
     let query = supabase
       .from('section_example_library' as any)
-      .select('content, quality_tier, annotation, maturity_level, domain_tags')
+      .select('content, quality_tier, annotation, maturity_level, domain_tags, learning_rule')
       .eq('section_key', sectionKey)
       .eq('is_active', true)
       .in('quality_tier', ['excellent', 'good'])
@@ -80,6 +80,7 @@ export async function fetchRelevantExamples(
       quality_tier: ex.quality_tier,
       annotation: ex.annotation,
       maturity_level: ex.maturity_level,
+      learning_rule: ex.learning_rule ?? null,
     }));
   } catch {
     // Non-blocking: if fetch fails, return empty
