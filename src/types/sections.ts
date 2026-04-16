@@ -25,10 +25,13 @@ export type AiCommentEvidenceSource =
   | 'challenge_content'
   | 'industry_pack'
   | 'geography_pack'
+  | 'geo_pack'
   | 'framework_library'
   | 'context_digest'
   | 'attachment'
   | 'inference'
+  | 'general_knowledge'
+  | 'domain_expertise'
   | 'unknown';
 
 /** Severity / nature of an AI comment. */
@@ -49,8 +52,8 @@ export interface AiComment {
   field?: string | null;
   /** Why the AI flagged this (chain-of-thought summary). */
   reasoning?: string | null;
-  /** AI confidence 0..1. */
-  confidence?: number | null;
+  /** AI confidence — numeric 0..1 OR qualitative ('high'|'medium'|'low'). */
+  confidence?: number | 'high' | 'medium' | 'low' | null;
   /** Snippet or quote anchoring the finding. */
   evidence_basis?: string | null;
   /** Numbers, percentages, units quoted to ground the finding. */
