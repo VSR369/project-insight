@@ -4,6 +4,8 @@
  */
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useCuratorEditTracking } from '@/hooks/cogniblend/useCuratorEditTracking';
+import { persistCuratorCorrections } from '@/services/cogniblend/persistCuratorCorrections';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -195,6 +197,9 @@ export function useCurationPageOrchestrator() {
   // ── Bulk accept all AI suggestions ──
   const [isBulkAccepting, setIsBulkAccepting] = useState(false);
 
+  // ── Curator edit tracking ──
+  const editTracking = useCuratorEditTracking();
+
   // Use a reactive selector from the store for suggestionsCount
   const suggestionsFingerprint = curationStore
     ? curationStore((s) => Object.entries(s.sections)
@@ -286,7 +291,21 @@ export function useCurationPageOrchestrator() {
         )
       );
 
-      // 5. Persist acceptance record
+      // 5. Record curator edits for learning corpus
+      const aiContentMap = new Map<string, string | null>();
+      const curatorContentMap = new Map<string, string | null>();
+      for (const item of [...partition.regular, ...partition.extendedBrief]) {
+        const wasAccepted = results.find(r => r.sectionId === item.key && r.status === 'updated');
+        if (!wasAccepted) continue;
+        // AI suggestion is the raw string; curator content is what's now in store
+        aiContentMap.set(item.key, item.suggestion ?? null);
+        const storeEntry = curationStore?.getState().getSectionEntry(item.key as SectionKey);
+        const curatorVal = storeEntry?.data;
+        curatorContentMap.set(item.key, typeof curatorVal === 'string' ? curatorVal : JSON.stringify(curatorVal ?? null));
+        editTracking.recordEdit(item.key, item.suggestion, typeof curatorVal === 'string' ? curatorVal : JSON.stringify(curatorVal ?? null));
+      }
+
+      // 5b. Persist acceptance record
       const totalUpdated = results.filter(r => r.status === 'updated').length;
       const totalFailed = results.filter(r => r.status === 'failed').length;
       saveAcceptanceRecord({
@@ -297,6 +316,10 @@ export function useCurationPageOrchestrator() {
         totalUpdated,
         totalFailed,
       });
+
+      // 5c. Flush edit records to DB (non-blocking)
+      const editRecords = editTracking.flush();
+      persistCuratorCorrections({ challengeId, records: editRecords, aiContentMap, curatorContentMap });
 
       // 6. Invalidate queries to ensure fresh data (including preview)
       await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
@@ -315,7 +338,7 @@ export function useCurationPageOrchestrator() {
       resumeSync();
       setIsBulkAccepting(false);
     }
-  }, [curationStore, challenge, challengeId, sectionActionsHook, setAiReviews, queryClient, syncSectionToStore]);
+  }, [curationStore, challenge, challengeId, sectionActionsHook, setAiReviews, queryClient, syncSectionToStore, editTracking]);
 
   // ── Computed values ──
   const computedValues = useCurationComputedValues({
@@ -374,7 +397,7 @@ export function useCurationPageOrchestrator() {
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
     ...sectionActionsHook, ...aiActionsHook,
-    handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting,
+    handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting, editTracking,
     ...waveSetup, runAnalyseFlow: aiActionsHook.runAnalyseFlow,
     ...callbacks, handleExpandCollapseAll, handleApproveLockedSection, handleUndoApproval,
     getSectionActions: getSectionActionsForKey,

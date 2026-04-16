@@ -79,7 +79,13 @@
 - DB: pgvector extension enabled in `extensions` schema
 - DB: RLS on both tables — platform admins can read all; authenticated users can insert corrections and read active examples
 - DB: Indexes on challenge_id, section_key, curator_action, quality_tier, domain_tags (GIN)
-## 🔲 Prompt 8 — Curator Learning Corpus: Edit Capture Hook
+## ✅ Prompt 8 — Curator Learning Corpus: Edit Capture Hook (COMPLETE)
+- Created `persistCuratorCorrections` service — inserts `SectionEditRecord[]` into `curator_corrections` with AI/curator content, non-blocking error handling
+- Wired `useCuratorEditTracking` into `useCurationPageOrchestrator`:
+  - Bulk accept flow records each section's edit (AI vs curator content, edit distance)
+  - Flush + persist runs after acceptance record save (non-blocking)
+  - `editTracking` exposed on orchestrator return for future per-section use
+- Zero build errors, backward compatible
 ## 🔲 Prompt 9 — Correction Extraction + Embedding Generation
 ## 🔲 Prompt 10 — Corpus Injection with Semantic Retrieval
 ## 🔲 Prompt 11 — Supervisor Learning Admin Page
