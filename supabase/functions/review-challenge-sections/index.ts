@@ -882,6 +882,16 @@ GROUNDING RULE (CRITICAL):
         }
       }
 
+      // ── Inject hard corrections (BEFORE examples — corrections are constraints) ──
+      if (corpusCorrections.length > 0) {
+        const batchKeySet = new Set(batch.map(b => b.key));
+        const batchCorrections = corpusCorrections.filter(c => batchKeySet.has(c.section_key));
+        const correctionsBlock = formatCorrectionsForPrompt(batchCorrections);
+        if (correctionsBlock) {
+          systemPrompt += '\n' + correctionsBlock;
+        }
+      }
+
       // ── Inject corpus examples into system prompt ──
       if (Object.keys(corpusExamples).length > 0) {
         const batchKeySet = new Set(batch.map(b => b.key));
