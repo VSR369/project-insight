@@ -397,7 +397,7 @@ export function useCurationPageOrchestrator() {
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
     ...sectionActionsHook, ...aiActionsHook,
-    handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting,
+    handleAcceptAllSuggestions, suggestionsCount, isBulkAccepting, editTracking,
     ...waveSetup, runAnalyseFlow: aiActionsHook.runAnalyseFlow,
     ...callbacks, handleExpandCollapseAll, handleApproveLockedSection, handleUndoApproval,
     getSectionActions: getSectionActionsForKey,
