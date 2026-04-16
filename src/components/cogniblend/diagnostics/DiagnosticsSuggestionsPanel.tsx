@@ -17,6 +17,21 @@ interface Props {
   sections: Partial<Record<SectionKey, SectionStoreEntry>>;
   importanceLevels: Partial<Record<SectionKey, string>>;
   executionRecord?: ExecutionRecord | null;
+  analyseRecord?: ExecutionRecord | null;
+}
+
+/** Build a set of section IDs where Pass 1 action was 'generate' (AI-drafted content) */
+function buildAiDraftedSet(analyseRecord: ExecutionRecord | null | undefined): Set<SectionKey> {
+  const set = new Set<SectionKey>();
+  if (!analyseRecord) return set;
+  for (const wave of analyseRecord.waves) {
+    for (const s of wave.sections) {
+      if (s.action === 'generate' && s.status === 'success') {
+        set.add(s.sectionId);
+      }
+    }
+  }
+  return set;
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -33,8 +48,9 @@ function StatusIcon({ status }: { status: string }) {
   }
 }
 
-export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, executionRecord }: Props) {
+export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, executionRecord, analyseRecord }: Props) {
   const hasRecord = !!executionRecord && executionRecord.waves.length > 0;
+  const aiDraftedSections = React.useMemo(() => buildAiDraftedSet(analyseRecord), [analyseRecord]);
 
   return (
     <Collapsible defaultOpen>
@@ -130,7 +146,10 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, execut
                       if (!hasRecord) return 'Not Run';
                       if (!execSection) return 'Not Run';
                       if (execSection.status === 'success') {
-                        return execSection.action === 'generate' ? 'Content Drafted' : 'Suggestion Generated';
+                        if (execSection.action === 'generate') return 'Content Drafted';
+                        // Cross-reference Pass 1: was this section AI-drafted?
+                        if (aiDraftedSections.has(id)) return 'AI Drafted & Suggestions Generated';
+                        return 'Suggestion Generated';
                       }
                       if (execSection.status === 'error') return 'Error';
                       return 'Skipped';

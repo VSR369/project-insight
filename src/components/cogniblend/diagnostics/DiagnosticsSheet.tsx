@@ -61,6 +61,7 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
                 sections={sections}
                 importanceLevels={importanceLevels}
                 executionRecord={generateRecord}
+                analyseRecord={analyseRecord}
               />
               <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
             </>
