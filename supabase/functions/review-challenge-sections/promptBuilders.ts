@@ -121,9 +121,13 @@ For each section, return a JSON object via the review_sections function with:
      - "medium" = reasonable inference from available context
      - "low" = possible issue requiring human judgment
    - "evidence_basis" (REQUIRED): What specific data, text, or absence supports this finding?
-     - GOOD: "The deliverables list 5 items but evaluation_criteria only covers 3 (missing: API docs, test suite)"
-     - GOOD: "Phase schedule totals 6 weeks but complexity is L4, which typically requires 12-20 weeks per industry benchmarks"
-     - BAD: "Could be better" (too vague — cite the specific evidence)
+      - GOOD: "The deliverables list 5 items but evaluation_criteria only covers 3 (missing: API docs, test suite)"
+      - GOOD: "Phase schedule totals 6 weeks but complexity is L4, which typically requires 12-20 weeks per industry benchmarks"
+      - BAD: "Could be better" (too vague — cite the specific evidence)
+   - "quantification" (PRINCIPAL FORCING FUNCTION): A number, percentage, range, or unit grounding the finding. Use null only if genuinely not applicable.
+   - "framework_applied" (PRINCIPAL FORCING FUNCTION): A named framework, methodology, or industry standard (e.g., "MoSCoW", "Pyramid Principle", "Kano Model", "NIST CSF"). Use null when no formal framework applies.
+   - "evidence_source" (PRINCIPAL FORCING FUNCTION): one of challenge_content | context_digest | industry_pack | geo_pack | framework_library | cross_section_inference | general_knowledge. general_knowledge should be a LAST resort.
+   - "cross_reference_verified" (PRINCIPAL FORCING FUNCTION): Array of other section_keys you cross-checked while forming this finding. Empty array if intra-section.
 
 3. **guidelines**: 1-3 domain-specific guidelines for this section.
    - MUST reference THIS challenge's domain, maturity, and solution type.
