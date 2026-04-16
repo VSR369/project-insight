@@ -1,110 +1,61 @@
-# Principal-Grade AI Review — Implementation Progress
 
-## ✅ Prompt 0 — Baseline Measurement (COMPLETE)
-- Created `challenge_quality_telemetry` table with RLS, indexes
-- Ready for baseline data capture
 
-## ✅ Prompt 1 — Persona Unification & ai_review_level Column (COMPLETE)
-- DB: Added `ai_review_level` column (defaults to 'principal') to `ai_review_section_config`
-- DB: Added `reasoning_effort` column (defaults to 'high') to `ai_review_global_config`
-- DB: All 33 curation sections set to `ai_review_level = 'principal'`
-- `promptConstants.ts`: Upgraded `DEFAULT_PLATFORM_PREAMBLE` to unified Principal Consultant persona (Big 4, 15+ years, 200+ engagements, named frameworks, quantified benchmarks)
-- `promptConstants.ts`: Added `ai_review_level` to `SectionConfig` interface
-- `pass2Prompt.ts`: Removed hardcoded persona, now imports and uses `DEFAULT_PLATFORM_PREAMBLE`
-- `aiPass2.ts`: Moved `contextIntel` to AFTER persona (persona is now first thing model reads)
-- `promptBuilders.ts`: Section headers now use `[PRINCIPAL]` tag from `ai_review_level`
-- `promptBuilders.ts`: `buildSmartBatchPrompt` always uses `buildStructuredBatchPrompt` (no legacy fallback)
-- `index.ts`: Removed unused `buildConfiguredBatchPrompt` import
-- `buildConfiguredBatchPrompt` kept as deprecated stub in `promptBuilders.ts` (safe removal later)
-- Edge function deployed successfully, no errors in logs
+# Prompt 12 — Quality Telemetry Dashboard
 
-## ✅ Prompt 2 — UI Cleanup: Diagnostics Panels (COMPLETE)
-- `useDiagnosticsData`: Now fetches `ai_review_level` per section alongside `importance_level`
-- `DiagnosticsReviewPanel`: Column renamed to "AI Review Level", displays `ai_review_level` (principal/senior/standard)
-- `DiagnosticsSuggestionsPanel`: Same column rename and data source update
-- `DiagnosticsSheet` + `CurationDiagnosticsPage`: Pass `reviewLevels` prop to both panels
-- Old `IMPORTANCE_TO_LEVEL` mapping no longer used in diagnostics (kept in waveConfig for other consumers)
-## ✅ Prompt 3 — Principal Forcing Functions (Pass 1 Tool Schema) (COMPLETE)
-- `aiPass1.ts`: Enhanced tool schema with 6 new forcing fields:
-  - `confidence` (high/medium/low) per comment — forces AI to assess certainty
-  - `evidence_basis` per comment — forces AI to cite specific evidence for every finding
-  - `solver_impact` per section — one-sentence solver decision impact assessment
-  - `publication_blocker` per section — boolean hard-stop gate
-  - `quality_score` per section — 0-100 quality rating with consistency rules
-  - `missing_elements` per section — specific absent items enumeration
-- `promptBuilders.ts`: Updated OUTPUT FORMAT instructions with detailed guidance for all new fields, scoring rubric, and anti-vagueness rules
-- Backward compatible: new fields have safe defaults in normalization; existing consumers unaffected
-- Edge function deployed successfully
-## ✅ Prompt 4 — Principal Forcing Functions (Pass 2 + Reasoning Effort + Exemplars) (COMPLETE)
-- `aiPass2.ts`: Enhanced `suggest_content` tool schema with 4 new self-validation fields:
-  - `issues_addressed` — numbered issue indices the rewrite resolves (traceability)
-  - `changes_summary` — what changed and why (audit trail)
-  - `confidence_score` — 0-100 self-assessed rewrite quality
-  - `preserved_strengths` — what good content was kept intact
-- `aiPass2.ts`: Now accepts and passes `reasoningEffort` parameter; includes Pass 1 `missing_elements` and `quality_score` in Pass 2 prompts
-- `aiPass1.ts`: Now accepts `reasoningEffort` parameter, passes to AI gateway
-- `aiCalls.ts`: Updated `callAIBatchTwoPass` signature to pass `reasoningEffort` through
-- `index.ts`: Reads `reasoning_effort` from `ai_review_global_config` and passes to both pass functions
-- `promptConstants.ts`: Added 3 new exemplars (problem_statement, deliverables, expected_outcomes) with before/after quality patterns
-- Self-validation metadata logged for observability (`pass2_self_validation` event)
-- Edge function deployed successfully
-## ✅ Prompt 5 — Cross-Section Consistency Pass (COMPLETE)
-- Created `aiConsistencyPass.ts`: Dedicated post-batch AI pass that checks cross-section consistency
-  - `callConsistencyPass`: Single AI call with all section results, uses `check_consistency` tool schema
-  - Returns `ConsistencyPassResult` with findings, coherence score, narrative gaps, solver readiness
-  - `mergeConsistencyFindings`: Injects findings back as `cross_section_issues` + `[CONSISTENCY]` comments
-  - Escalates passing sections to 'warning' if error-level consistency findings detected
-  - Token usage logging with `consistency_pass` event
-- `index.ts`: Consistency pass runs after all batches + complexity complete
-  - Only for multi-section reviews (≥2 sections), not single-section re-reviews or pass1_only
-  - Non-blocking: rate limit or failure doesn't fail the overall review
-  - Stores `_consistency_check` synthetic section with coherence score, narrative gaps, solver readiness
-- `promptTemplate.ts`: Barrel exports for `callConsistencyPass`, `mergeConsistencyFindings`, types
-- Uses full dependency matrix from `SECTION_DEPENDENCIES` + `DEPENDENCY_REASONING` for targeted checks
-## ✅ Prompt 6 — Ambiguity Detection Pass (COMPLETE)
-- Created `aiAmbiguityPass.ts`: Dedicated post-batch AI pass that scans for solver-facing ambiguity
-  - `callAmbiguityPass`: Single AI call with all section content, uses `detect_ambiguity` tool schema
-  - Returns `AmbiguityPassResult` with findings, clarity score, top solver questions
-  - 6 ambiguity types: vague_term, undefined_acronym, unmeasurable_criterion, unclear_scope, implicit_assumption, missing_definition
-  - `mergeAmbiguityFindings`: Injects findings as `[AMBIGUITY]` comments with clarified alternatives
-  - Escalates passing sections to 'warning' if error-level ambiguity found
-  - Token usage logging with `ambiguity_pass` event
-- `index.ts`: Ambiguity pass runs IN PARALLEL with consistency pass after all batches complete
-  - Non-blocking: rate limit or failure doesn't fail the overall review
-  - Stores `_ambiguity_check` synthetic section with clarity score, solver questions
-- `promptTemplate.ts`: Barrel exports for `callAmbiguityPass`, `mergeAmbiguityFindings`, types
-## ✅ Prompt 7 — Curator Learning Corpus: Database Schema (with pgvector) (COMPLETE)
-- DB: Created `curator_corrections` table — per-section edit records with AI/curator content, edit distance, time spent, confidence, vector embedding
-- DB: Enhanced existing `section_example_library` with `embedding` column (vector(1536)), GIN indexes on domain_tags, performance indexes
-- DB: pgvector extension enabled in `extensions` schema
-- DB: RLS on both tables — platform admins can read all; authenticated users can insert corrections and read active examples
-- DB: Indexes on challenge_id, section_key, curator_action, quality_tier, domain_tags (GIN)
-## ✅ Prompt 8 — Curator Learning Corpus: Edit Capture Hook (COMPLETE)
-- Created `persistCuratorCorrections` service — inserts `SectionEditRecord[]` into `curator_corrections` with AI/curator content, non-blocking error handling
-- Wired `useCuratorEditTracking` into `useCurationPageOrchestrator`:
-  - Bulk accept flow records each section's edit (AI vs curator content, edit distance)
-  - Flush + persist runs after acceptance record save (non-blocking)
-  - `editTracking` exposed on orchestrator return for future per-section use
-- Zero build errors, backward compatible
-## ✅ Prompt 9 — Correction Extraction + Embedding Generation (COMPLETE)
-- Created `embed-curator-corrections` edge function — processes unembedded `curator_corrections` rows, generates text-embedding-3-small vectors via AI gateway, writes back to `embedding` column. Batch size 50.
-- Created `extract-correction-patterns` edge function — analyzes `rejected_rewritten` corrections with AI to extract learning patterns, harvests curator versions as `excellent` examples into `section_example_library` with `learning_rule` annotations.
-- DB: Added `pattern_extracted` boolean to `curator_corrections` with partial index on NULL values
-- DB: Added `learning_rule` text and `source_type` text to `section_example_library`
-- Both functions use `service_role` key (server-only), idempotent, non-blocking errors
-- Edge functions deployed successfully, zero client build errors
-## ✅ Prompt 10 — Corpus Injection with Semantic Retrieval (COMPLETE)
-- Created `fetchExamples.ts` in edge function — server-side retrieval from `section_example_library` with scoring by quality_tier, maturity match, domain overlap, and learning_rule presence
-- `index.ts`: Fetches examples in parallel with master data options during curation reviews; filters per-batch and injects formatted examples into system prompts
-- `formatExamplesForPrompt`: Renders examples as structured prompt blocks with tier labels, annotations, and learning rules
-- Client-side `fetchRelevantExamples.ts`: Added `learning_rule` to `DynamicExample` interface and select query
-- Edge function deployed, zero build errors
-## ✅ Prompt 11 — Supervisor Learning Admin Page (COMPLETE)
-- Created `SupervisorLearningPage` at `/admin/seeker-config/ai-quality/learning` (supervisor-only)
-- Created `useCuratorCorrections` query hook — fetches corrections with filters, computes corpus stats (totals, by-action breakdown, embedding coverage, pattern extraction count, avg edit distance/time)
-- Created `LearningCorpusStats` — 4 summary cards: total corrections, avg edit distance, embeddings coverage, patterns extracted
-- Created `CorrectionsTable` — filterable table (action, section) showing all correction metadata
-- Created `PipelineActions` — trigger buttons for `embed-curator-corrections` and `extract-correction-patterns` edge functions
-- Route wired in App.tsx with `PermissionGuard` (supervisor.configure_system)
-## 🔲 Prompt 12 — Quality Telemetry Dashboard
-## 🔲 Prompt 13 — Framework Library Seed + Remaining Exemplars
+## Goal
+Capture AI review quality metrics into `challenge_quality_telemetry` after each review run, and build a supervisor dashboard to visualize trends.
+
+## What exists
+- **Table**: `challenge_quality_telemetry` with columns: `challenge_id`, `sections_reviewed`, `pass1_tokens`, `pass2_tokens`, `consistency_findings_count`, `ambiguity_findings_count`, `total_corrections`, `avg_edit_magnitude`, `model_used`, `review_duration_seconds`, `is_baseline`, `created_at`
+- **Edge function**: `review-challenge-sections/index.ts` logs token usage to console but does NOT write to the telemetry table
+- **Route pattern**: `/admin/seeker-config/ai-quality/...` with `supervisor.configure_system` permission guard
+
+## Changes
+
+### 1. Edge function: Write telemetry row after review completion
+**File**: `supabase/functions/review-challenge-sections/index.ts`
+
+After the final persist of `ai_section_reviews` (line ~1088), insert a row into `challenge_quality_telemetry`:
+- Accumulate `pass1_tokens` and `pass2_tokens` from batch results (track totals across batches)
+- Count `consistency_findings_count` and `ambiguity_findings_count` from the post-batch passes
+- `sections_reviewed` = number of sections processed
+- `model_used` = primary model from config
+- `review_duration_seconds` = `Date.now() - startTime` (add `startTime` at top of handler)
+- `total_corrections` and `avg_edit_magnitude` default to 0 (populated later by curator edits)
+- Skip telemetry insert in preview mode
+- Non-blocking: catch and log errors without failing the review
+
+### 2. Query hook: `useQualityTelemetry`
+**File**: `src/hooks/queries/useQualityTelemetry.ts`
+
+- Fetch from `challenge_quality_telemetry` ordered by `created_at DESC`, limit 200
+- Compute summary stats: avg tokens per review, avg duration, total reviews, avg findings counts
+- Support date range filter (optional)
+
+### 3. Dashboard page: `QualityTelemetryPage`
+**File**: `src/pages/admin/QualityTelemetryPage.tsx`
+
+Following the `SupervisorLearningPage` pattern:
+- **Stats cards** (4): Total reviews, avg duration, avg tokens (pass1+pass2), avg findings (consistency + ambiguity)
+- **Telemetry table**: Date, challenge ID (truncated), sections reviewed, pass1/pass2 tokens, consistency/ambiguity findings, duration, model
+
+### 4. Stats component
+**File**: `src/components/admin/telemetry/TelemetryStats.tsx`
+
+4 summary cards mirroring `LearningCorpusStats` pattern.
+
+### 5. Table component
+**File**: `src/components/admin/telemetry/TelemetryTable.tsx`
+
+Sortable table with the telemetry columns.
+
+### 6. Route wiring
+**File**: `src/App.tsx`
+
+Add route at `ai-quality/telemetry` with `supervisor.configure_system` guard.
+
+## Technical notes
+- Token tracking requires accumulating usage across batch iterations in `index.ts` — will add counter variables at the batch loop level
+- All new UI files under 250 lines
+- No database migration needed — table already exists
+
