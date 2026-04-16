@@ -74,6 +74,12 @@ export default function ChallengePreviewPage() {
         title={data.challenge.title}
         isReadOnly={isGlobalReadOnly}
         governanceMode={data.governanceMode}
+        challenge={data.challenge}
+        orgData={data.orgData}
+        legalDetails={data.legalDetails}
+        escrowRecord={data.escrowRecord}
+        digest={data.digest}
+        attachments={data.attachments}
       />
 
       <div className="flex-1 flex gap-8 px-6 py-6">
