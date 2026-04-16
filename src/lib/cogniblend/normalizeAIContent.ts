@@ -66,6 +66,16 @@ export function normalizeRewardStructure(
     });
     v = { ...v, monetary: { ...v.monetary, tiers: tierRecord } };
   }
+  // Defensive: drop zero-amount tiers so display does not show "Enabled $0"
+  // applyAIReviewResult sets enabled:true for every key it receives — so only pass keys with amount > 0
+  if (v?.monetary?.tiers && typeof v.monetary.tiers === 'object' && !Array.isArray(v.monetary.tiers)) {
+    const filtered: Record<string, number> = {};
+    for (const [k, amt] of Object.entries(v.monetary.tiers as Record<string, unknown>)) {
+      const n = Number(amt) || 0;
+      if (n > 0) filtered[k] = n;
+    }
+    v = { ...v, monetary: { ...v.monetary, tiers: filtered } };
+  }
   rewardStructureRef.current?.applyAIReviewResult(v);
   return null;
 }
