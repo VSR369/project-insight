@@ -25,7 +25,11 @@ interface CurationFormState {
   setChallengeId: (id: string) => void;
   getSectionEntry: (key: SectionKey) => SectionStoreEntry;
   setSectionData: (key: SectionKey, data: SectionStoreEntry['data']) => void;
-  setAiReview: (key: SectionKey, comments: AiComment[] | string[], suggestion?: Record<string, unknown> | string | string[] | null) => void;
+  setAiReview: (
+    key: SectionKey,
+    comments: ReadonlyArray<AiComment | string | { text: string; [k: string]: unknown }>,
+    suggestion?: Record<string, unknown> | string | string[] | null,
+  ) => void;
   setReviewStatus: (key: SectionKey, status: ReviewStatus) => void;
   acceptAiSuggestion: (key: SectionKey) => void;
   rejectAiSuggestion: (key: SectionKey) => void;

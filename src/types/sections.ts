@@ -70,10 +70,11 @@ export interface SectionStoreEntry {
   data: Record<string, unknown> | string | string[] | null;
   /**
    * AI review comments — null means no review or cleared after accept.
-   * Accepts legacy `string[]` payloads for backward compatibility; new
-   * code should produce `AiComment[]`. Consumers must narrow before use.
+   * Accepts legacy `string[]` payloads and lightly-typed `{text,...}` objects
+   * for backward compatibility; new code should produce `AiComment[]`.
+   * Consumers must narrow before reading nested fields.
    */
-  aiComments: AiComment[] | string[] | null;
+  aiComments: ReadonlyArray<AiComment | string | { text: string; [k: string]: unknown }> | null;
   /** AI-suggested replacement data — null means no suggestion pending */
   aiSuggestion: Record<string, unknown> | string | string[] | null;
   /** Current review lifecycle status */
