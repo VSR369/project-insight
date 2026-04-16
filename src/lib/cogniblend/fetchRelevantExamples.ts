@@ -12,6 +12,7 @@ export interface DynamicExample {
   quality_tier: string;
   annotation: string | null;
   maturity_level: string | null;
+  learning_rule: string | null;
 }
 
 /**
