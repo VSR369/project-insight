@@ -99,6 +99,12 @@
 - `formatExamplesForPrompt`: Renders examples as structured prompt blocks with tier labels, annotations, and learning rules
 - Client-side `fetchRelevantExamples.ts`: Added `learning_rule` to `DynamicExample` interface and select query
 - Edge function deployed, zero build errors
-## 🔲 Prompt 11 — Supervisor Learning Admin Page
+## ✅ Prompt 11 — Supervisor Learning Admin Page (COMPLETE)
+- Created `SupervisorLearningPage` at `/admin/seeker-config/ai-quality/learning` (supervisor-only)
+- Created `useCuratorCorrections` query hook — fetches corrections with filters, computes corpus stats (totals, by-action breakdown, embedding coverage, pattern extraction count, avg edit distance/time)
+- Created `LearningCorpusStats` — 4 summary cards: total corrections, avg edit distance, embeddings coverage, patterns extracted
+- Created `CorrectionsTable` — filterable table (action, section) showing all correction metadata
+- Created `PipelineActions` — trigger buttons for `embed-curator-corrections` and `extract-correction-patterns` edge functions
+- Route wired in App.tsx with `PermissionGuard` (supervisor.configure_system)
 ## 🔲 Prompt 12 — Quality Telemetry Dashboard
 ## 🔲 Prompt 13 — Framework Library Seed + Remaining Exemplars
