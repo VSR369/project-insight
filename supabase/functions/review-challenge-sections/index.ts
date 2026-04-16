@@ -769,6 +769,8 @@ ${'═'.repeat(60)}\n`;
     }
 
     const allNewSections: any[] = [];
+    // Collected per Pass 1 batch — averaged into telemetry row at the end.
+    const batchPrincipalCompliancePcts: number[] = [];
 
     const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
     const reasoningEffort = globalConfig?.reasoning_effort || 'high';
@@ -1297,6 +1299,10 @@ GROUNDING RULE (CRITICAL):
         const ambiguityFindingsCount = ambiguitySection?.findings_count ?? 0;
         const sectionsReviewed = allNewSections.filter((s: any) => !s.section_key.startsWith('_')).length;
 
+        const principalCompliancePct = batchPrincipalCompliancePcts.length > 0
+          ? Math.round(batchPrincipalCompliancePcts.reduce((a, b) => a + b, 0) / batchPrincipalCompliancePcts.length)
+          : null;
+
         await adminClient.from('challenge_quality_telemetry').insert({
           challenge_id,
           sections_reviewed: sectionsReviewed,
@@ -1309,6 +1315,7 @@ GROUNDING RULE (CRITICAL):
           model_used: globalConfig?.default_model || 'google/gemini-3-flash-preview',
           review_duration_seconds: reviewDurationSeconds,
           is_baseline: false,
+          principal_compliance_pct: principalCompliancePct,
         });
       } catch (telemetryErr) {
         console.error('Telemetry insert failed (non-blocking):', telemetryErr);
