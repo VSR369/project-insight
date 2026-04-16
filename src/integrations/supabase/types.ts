@@ -409,6 +409,54 @@ export type Database = {
           },
         ]
       }
+      ai_review_frameworks: {
+        Row: {
+          applicability_condition: string | null
+          created_at: string
+          created_by: string | null
+          domain_tags: Json | null
+          embedding: string | null
+          framework_name: string
+          how_to_apply: string | null
+          id: string
+          is_active: boolean
+          typical_pitfalls: string | null
+          updated_at: string | null
+          updated_by: string | null
+          when_not_to_use: string | null
+        }
+        Insert: {
+          applicability_condition?: string | null
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          embedding?: string | null
+          framework_name: string
+          how_to_apply?: string | null
+          id?: string
+          is_active?: boolean
+          typical_pitfalls?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          when_not_to_use?: string | null
+        }
+        Update: {
+          applicability_condition?: string | null
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          embedding?: string | null
+          framework_name?: string
+          how_to_apply?: string | null
+          id?: string
+          is_active?: boolean
+          typical_pitfalls?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          when_not_to_use?: string | null
+        }
+        Relationships: []
+      }
       ai_review_global_config: {
         Row: {
           batch_split_threshold: number
@@ -417,6 +465,7 @@ export type Database = {
           fallback_model: string | null
           id: number
           reasoning_effort: string
+          similarity_threshold: number
           updated_at: string
           updated_by: string | null
           use_context_intelligence: boolean
@@ -428,6 +477,7 @@ export type Database = {
           fallback_model?: string | null
           id?: number
           reasoning_effort?: string
+          similarity_threshold?: number
           updated_at?: string
           updated_by?: string | null
           use_context_intelligence?: boolean
@@ -439,6 +489,7 @@ export type Database = {
           fallback_model?: string | null
           id?: number
           reasoning_effort?: string
+          similarity_threshold?: number
           updated_at?: string
           updated_by?: string | null
           use_context_intelligence?: boolean
@@ -1010,6 +1061,54 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_ambiguity_findings: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          curator_accepted: boolean | null
+          id: string
+          pattern_matched: string
+          section_key: string
+          snippet: string
+          suggested_replacement: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          curator_accepted?: boolean | null
+          id?: string
+          pattern_matched: string
+          section_key: string
+          snippet: string
+          suggested_replacement?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          curator_accepted?: boolean | null
+          id?: string
+          pattern_matched?: string
+          section_key?: string
+          snippet?: string
+          suggested_replacement?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_ambiguity_findings_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_ambiguity_findings_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
       challenge_attachments: {
         Row: {
           access_status: string | null
@@ -1120,6 +1219,60 @@ export type Database = {
           },
           {
             foreignKeyName: "challenge_attachments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
+      challenge_consistency_findings: {
+        Row: {
+          challenge_id: string
+          contradiction_type: string
+          created_at: string
+          curator_accepted: boolean | null
+          description: string
+          id: string
+          section_a: string
+          section_b: string
+          severity: string
+          suggested_resolution: string | null
+        }
+        Insert: {
+          challenge_id: string
+          contradiction_type: string
+          created_at?: string
+          curator_accepted?: boolean | null
+          description: string
+          id?: string
+          section_a: string
+          section_b: string
+          severity: string
+          suggested_resolution?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          contradiction_type?: string
+          created_at?: string
+          curator_accepted?: boolean | null
+          description?: string
+          id?: string
+          section_a?: string
+          section_b?: string
+          severity?: string
+          suggested_resolution?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_consistency_findings_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_consistency_findings_challenge_id_fkey"
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "v_challenge_match"
