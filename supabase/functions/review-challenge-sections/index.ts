@@ -1201,6 +1201,34 @@ GROUNDING RULE (CRITICAL):
       if (ambiguityResult) {
         mergeAmbiguityFindings(allNewSections, ambiguityResult);
 
+        // Persist ambiguity findings to dedicated table (non-blocking)
+        if (!isPreviewMode && Array.isArray(ambiguityResult.findings) && ambiguityResult.findings.length > 0) {
+          try {
+            await adminClient
+              .from('challenge_ambiguity_findings')
+              .delete()
+              .eq('challenge_id', challengeId);
+
+            const rows = ambiguityResult.findings.map((f) => ({
+              challenge_id: challengeId,
+              section_key: String(f.section_key ?? '').slice(0, 100),
+              snippet: String(f.ambiguous_text ?? '').slice(0, 500),
+              pattern_matched: String(f.ambiguity_type ?? '').slice(0, 100),
+              suggested_replacement: f.clarified_alternative ? String(f.clarified_alternative) : null,
+            }));
+            const { error: insErr } = await adminClient
+              .from('challenge_ambiguity_findings')
+              .insert(rows);
+            if (insErr) {
+              console.error('[findings] ambiguity insert failed:', insErr.message);
+            } else {
+              console.log(`[findings] persisted ${rows.length} ambiguity findings`);
+            }
+          } catch (err) {
+            console.error('[findings] ambiguity persistence threw:', err);
+          }
+        }
+
         allNewSections.push({
           section_key: '_ambiguity_check',
           status: ambiguityResult.overall_clarity_score >= 70 ? 'pass' : 'warning',
