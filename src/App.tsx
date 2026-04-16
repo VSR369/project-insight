@@ -275,6 +275,7 @@ const ChallengeDetailPublicPage = lazy(() => import("@/pages/public/ChallengeDet
 const AIQualityDashboardPage = lazy(() => import("@/pages/admin/AIQualityDashboardPage"));
 const ExampleLibraryManagerPage = lazy(() => import("@/pages/admin/ExampleLibraryManagerPage"));
 const SupervisorLearningPage = lazy(() => import("@/pages/admin/SupervisorLearningPage"));
+const QualityTelemetryPage = lazy(() => import("@/pages/admin/QualityTelemetryPage"));
 
 // Phase 11: Industry + Geography Intelligence
 const IndustryPacksPage = lazy(() => import("@/pages/admin/industry-packs/IndustryPacksPage"));
@@ -853,6 +854,7 @@ const App = () => (
               <Route path="ai-quality" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIQualityDashboardPage /></PermissionGuard>} />
               <Route path="ai-quality/examples" element={<PermissionGuard permissionKey="supervisor.configure_system"><ExampleLibraryManagerPage /></PermissionGuard>} />
               <Route path="ai-quality/learning" element={<PermissionGuard permissionKey="supervisor.configure_system"><SupervisorLearningPage /></PermissionGuard>} />
+              <Route path="ai-quality/telemetry" element={<PermissionGuard permissionKey="supervisor.configure_system"><QualityTelemetryPage /></PermissionGuard>} />
               {/* Phase 11: Industry + Geography Intelligence — supervisor only */}
               <Route path="industry-packs" element={<PermissionGuard permissionKey="supervisor.configure_system"><IndustryPacksPage /></PermissionGuard>} />
               <Route path="geography-context" element={<PermissionGuard permissionKey="supervisor.configure_system"><GeographyContextPage /></PermissionGuard>} />
