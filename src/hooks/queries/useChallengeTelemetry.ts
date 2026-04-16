@@ -52,7 +52,7 @@ export function useChallengeTelemetry(challengeId: string | undefined, limit = 1
       const { data, error } = await supabase
         .from('challenge_quality_telemetry')
         .select(
-          'id, challenge_id, sections_reviewed, pass1_tokens, pass2_tokens, consistency_findings_count, ambiguity_findings_count, total_corrections, avg_edit_magnitude, model_used, review_duration_seconds, is_baseline, created_at',
+          'id, challenge_id, sections_reviewed, pass1_tokens, pass2_tokens, consistency_findings_count, ambiguity_findings_count, total_corrections, avg_edit_magnitude, model_used, review_duration_seconds, is_baseline, principal_compliance_pct, created_at',
         )
         .eq('challenge_id', challengeId)
         .order('created_at', { ascending: false })
