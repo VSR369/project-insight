@@ -1,61 +1,52 @@
 
 
-# Prompt 12 — Quality Telemetry Dashboard
+# Prompt 13 — Curator Learning Loop Hardening & Self-Critique
 
 ## Goal
-Capture AI review quality metrics into `challenge_quality_telemetry` after each review run, and build a supervisor dashboard to visualize trends.
+Close highest-priority gaps in the curator learning system: hard-constraint injection, activation thresholds, correction classification, token budgeting, self-critique block, and legacy builder cleanup.
 
-## What exists
-- **Table**: `challenge_quality_telemetry` with columns: `challenge_id`, `sections_reviewed`, `pass1_tokens`, `pass2_tokens`, `consistency_findings_count`, `ambiguity_findings_count`, `total_corrections`, `avg_edit_magnitude`, `model_used`, `review_duration_seconds`, `is_baseline`, `created_at`
-- **Edge function**: `review-challenge-sections/index.ts` logs token usage to console but does NOT write to the telemetry table
-- **Route pattern**: `/admin/seeker-config/ai-quality/...` with `supervisor.configure_system` permission guard
+## What was implemented
 
-## Changes
+### 1. Database schema — `section_example_library` columns
+- `correction_class TEXT` — classifies corrections (factual/style/structural/terminology/quantification/framework/omission)
+- `activation_confidence NUMERIC DEFAULT 0.5` — tracks confidence for activation gating
+- `distinct_curator_count INTEGER DEFAULT 1` — tracks distinct curator contributions
+- Partial index on `(is_active, activation_confidence) WHERE learning_rule IS NOT NULL AND activation_confidence >= 0.7`
 
-### 1. Edge function: Write telemetry row after review completion
-**File**: `supabase/functions/review-challenge-sections/index.ts`
+### 2. `extract-correction-patterns` edge function
+- Added correction_class to AI extraction prompt with class definitions
+- Semantic deduplication: before inserting, checks existing rules with substring similarity (>50% word overlap)
+- When similar rule found: increments activation_confidence by 0.15, tracks distinct curators
+- Auto-activates when confidence ≥ 0.7 AND distinct_curator_count ≥ 2
+- New examples start dormant (is_active = false) until activation threshold met
 
-After the final persist of `ai_section_reviews` (line ~1088), insert a row into `challenge_quality_telemetry`:
-- Accumulate `pass1_tokens` and `pass2_tokens` from batch results (track totals across batches)
-- Count `consistency_findings_count` and `ambiguity_findings_count` from the post-batch passes
-- `sections_reviewed` = number of sections processed
-- `model_used` = primary model from config
-- `review_duration_seconds` = `Date.now() - startTime` (add `startTime` at top of handler)
-- `total_corrections` and `avg_edit_magnitude` default to 0 (populated later by curator edits)
-- Skip telemetry insert in preview mode
-- Non-blocking: catch and log errors without failing the review
+### 3. `fetchExamples.ts` — hard corrections + token budgeting
+- `fetchHardCorrections(adminClient, sectionKeys)`: queries active, high-confidence learned rules
+- `formatCorrectionsForPrompt(corrections, charBudget)`: formats as `CURATOR-LEARNED CORRECTIONS` block
+- `formatExamplesForPrompt()` now has token budgeting (TOKEN_BUDGET_CHARS = 24000, split 50/50 between corrections and examples)
+- Logs when truncation occurs
 
-### 2. Query hook: `useQualityTelemetry`
-**File**: `src/hooks/queries/useQualityTelemetry.ts`
+### 4. System prompt injection
+- Hard corrections injected BEFORE dynamic examples in Pass 1 system prompt
+- Hard corrections passed through to Pass 2 via `buildPass2SystemPrompt` (new `correctionsBlock` parameter)
+- Corrections flow through `clientContext._correctionsBlock` to avoid changing multiple function signatures
 
-- Fetch from `challenge_quality_telemetry` ordered by `created_at DESC`, limit 200
-- Compute summary stats: avg tokens per review, avg duration, total reviews, avg findings counts
-- Support date range filter (optional)
+### 5. Self-critique block
+- `PRINCIPAL_SELF_CRITIQUE` constant appended to `buildStructuredBatchPrompt` after the Strategic Coherence Check
+- Asks 4 questions of each comment before returning
 
-### 3. Dashboard page: `QualityTelemetryPage`
-**File**: `src/pages/admin/QualityTelemetryPage.tsx`
+### 6. Legacy cleanup
+- `buildConfiguredBatchPrompt` deleted from `promptBuilders.ts`
+- Export removed from `promptTemplate.ts`
 
-Following the `SupervisorLearningPage` pattern:
-- **Stats cards** (4): Total reviews, avg duration, avg tokens (pass1+pass2), avg findings (consistency + ambiguity)
-- **Telemetry table**: Date, challenge ID (truncated), sections reviewed, pass1/pass2 tokens, consistency/ambiguity findings, duration, model
-
-### 4. Stats component
-**File**: `src/components/admin/telemetry/TelemetryStats.tsx`
-
-4 summary cards mirroring `LearningCorpusStats` pattern.
-
-### 5. Table component
-**File**: `src/components/admin/telemetry/TelemetryTable.tsx`
-
-Sortable table with the telemetry columns.
-
-### 6. Route wiring
-**File**: `src/App.tsx`
-
-Add route at `ai-quality/telemetry` with `supervisor.configure_system` guard.
-
-## Technical notes
-- Token tracking requires accumulating usage across batch iterations in `index.ts` — will add counter variables at the batch loop level
-- All new UI files under 250 lines
-- No database migration needed — table already exists
-
+## Files modified
+| File | Change |
+|---|---|
+| Migration | Added correction_class, activation_confidence, distinct_curator_count to section_example_library |
+| `supabase/functions/extract-correction-patterns/index.ts` | Full rewrite — classification, dedup, activation logic |
+| `supabase/functions/review-challenge-sections/fetchExamples.ts` | Added fetchHardCorrections, formatCorrectionsForPrompt, token budgeting |
+| `supabase/functions/review-challenge-sections/promptBuilders.ts` | Added self-critique, deleted buildConfiguredBatchPrompt |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Removed buildConfiguredBatchPrompt export |
+| `supabase/functions/review-challenge-sections/index.ts` | Wired fetchHardCorrections + formatCorrectionsForPrompt injection |
+| `supabase/functions/review-challenge-sections/pass2Prompt.ts` | Added correctionsBlock parameter |
+| `supabase/functions/review-challenge-sections/aiPass2.ts` | Passes correctionsBlock to buildPass2SystemPrompt |
