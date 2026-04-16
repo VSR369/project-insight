@@ -1,61 +1,96 @@
 
 
-# Prompt 12 — Quality Telemetry Dashboard
+# Prompt 13 — Curator Learning Loop Hardening & Self-Critique
 
-## Goal
-Capture AI review quality metrics into `challenge_quality_telemetry` after each review run, and build a supervisor dashboard to visualize trends.
+## Summary
+Close the highest-priority gaps in the curator learning system: add hard-constraint injection, activation thresholds, correction classification, token budgeting, self-critique block, and delete the legacy prompt builder. All changes are additive or refinement-only — no structural changes to existing navigation, wave execution, routing, or curator UX.
 
-## What exists
-- **Table**: `challenge_quality_telemetry` with columns: `challenge_id`, `sections_reviewed`, `pass1_tokens`, `pass2_tokens`, `consistency_findings_count`, `ambiguity_findings_count`, `total_corrections`, `avg_edit_magnitude`, `model_used`, `review_duration_seconds`, `is_baseline`, `created_at`
-- **Edge function**: `review-challenge-sections/index.ts` logs token usage to console but does NOT write to the telemetry table
-- **Route pattern**: `/admin/seeker-config/ai-quality/...` with `supervisor.configure_system` permission guard
+## ALERT: No Breaking Changes
+All changes below are backward-compatible:
+- No route changes, no navigation changes, no new pages
+- No changes to wave execution flow or diagnostics state machine
+- No curator UX workflow changes
+- `buildConfiguredBatchPrompt` deletion is safe — `buildSmartBatchPrompt` already routes 100% to `buildStructuredBatchPrompt` (line 396). The legacy function is dead code.
+
+---
 
 ## Changes
 
-### 1. Edge function: Write telemetry row after review completion
+### 1. Add `correction_class` column to `section_example_library`
+**Migration**: Add `correction_class TEXT` column (nullable) to `section_example_library`. Values: `factual`, `style`, `structural`, `terminology`, `quantification`, `framework`, `omission`. No CHECK constraint (per project rules — would use lookup table for evolving sets, but nullable TEXT is fine here since it's metadata).
+
+Also add `activation_confidence NUMERIC DEFAULT 0.5` and `distinct_curator_count INTEGER DEFAULT 1` columns to track activation readiness.
+
+### 2. Update `extract-correction-patterns` edge function
+**File**: `supabase/functions/extract-correction-patterns/index.ts`
+
+- Add `correction_class` to the AI extraction prompt (ask AI to classify the correction)
+- Store `correction_class` on the `section_example_library` insert
+- Before inserting, query existing active examples for same `section_key` + similar `learning_rule` text (substring match). If found, increment `activation_confidence` by 0.15 and `distinct_curator_count` if different curator, instead of creating a duplicate
+- Set new examples to `is_active = false` by default (dormant until activation threshold met)
+- Auto-activate when `activation_confidence >= 0.7 AND distinct_curator_count >= 2`
+
+### 3. Add `CURATOR-LEARNED CORRECTIONS` hard-constraint block to prompts
+**File**: `supabase/functions/review-challenge-sections/fetchExamples.ts`
+
+Add a new function `fetchHardCorrections(adminClient, sectionKeys)` that:
+- Queries `section_example_library` WHERE `is_active = true AND learning_rule IS NOT NULL AND activation_confidence >= 0.7`
+- Returns formatted block: `## CURATOR-LEARNED CORRECTIONS (hard rules — these have been corrected before, DO NOT repeat):\n` + numbered rules
+
+Add `formatCorrectionsForPrompt(corrections)` to produce the prompt block.
+
 **File**: `supabase/functions/review-challenge-sections/index.ts`
 
-After the final persist of `ai_section_reviews` (line ~1088), insert a row into `challenge_quality_telemetry`:
-- Accumulate `pass1_tokens` and `pass2_tokens` from batch results (track totals across batches)
-- Count `consistency_findings_count` and `ambiguity_findings_count` from the post-batch passes
-- `sections_reviewed` = number of sections processed
-- `model_used` = primary model from config
-- `review_duration_seconds` = `Date.now() - startTime` (add `startTime` at top of handler)
-- `total_corrections` and `avg_edit_magnitude` default to 0 (populated later by curator edits)
-- Skip telemetry insert in preview mode
-- Non-blocking: catch and log errors without failing the review
+- Call `fetchHardCorrections` alongside `fetchExamplesForBatch`
+- Inject the corrections block into the system prompt BEFORE the dynamic examples block (corrections = hard rules, examples = soft guidance)
+- Inject into Pass 2 prompt as well via `buildPass2SystemPrompt`
 
-### 2. Query hook: `useQualityTelemetry`
-**File**: `src/hooks/queries/useQualityTelemetry.ts`
+### 4. Token budgeting for corpus injection
+**File**: `supabase/functions/review-challenge-sections/fetchExamples.ts`
 
-- Fetch from `challenge_quality_telemetry` ordered by `created_at DESC`, limit 200
-- Compute summary stats: avg tokens per review, avg duration, total reviews, avg findings counts
-- Support date range filter (optional)
+Add a `TOKEN_BUDGET_CHARS = 24000` constant (approx 6K tokens, ~30% of a 20K token budget for corpus). In both `formatExamplesForPrompt` and `formatCorrectionsForPrompt`:
+- Count accumulated characters
+- Drop lowest-confidence entries first when over budget
+- Log when truncation occurs
 
-### 3. Dashboard page: `QualityTelemetryPage`
-**File**: `src/pages/admin/QualityTelemetryPage.tsx`
+### 5. Append self-critique block to system prompts
+**File**: `supabase/functions/review-challenge-sections/promptBuilders.ts`
 
-Following the `SupervisorLearningPage` pattern:
-- **Stats cards** (4): Total reviews, avg duration, avg tokens (pass1+pass2), avg findings (consistency + ambiguity)
-- **Telemetry table**: Date, challenge ID (truncated), sections reviewed, pass1/pass2 tokens, consistency/ambiguity findings, duration, model
+At the end of `buildStructuredBatchPrompt` (before the final return), append:
 
-### 4. Stats component
-**File**: `src/components/admin/telemetry/TelemetryStats.tsx`
+```
+PRINCIPAL-LEVEL SELF-CRITIQUE — before returning each comment, re-read it. If a junior analyst could have written it (no named benchmark, no named framework, no specific number, no cross-reference), rewrite it. Generic observations are disqualifying. Claims tagged with low confidence must be genuinely unavoidable — prefer retrieval from industry packs, geo packs, and context digest.
+```
 
-4 summary cards mirroring `LearningCorpusStats` pattern.
+### 6. Delete `buildConfiguredBatchPrompt`
+**File**: `supabase/functions/review-challenge-sections/promptBuilders.ts`
+- Remove `buildConfiguredBatchPrompt` function (lines 302-384) — confirmed dead code, `buildSmartBatchPrompt` already bypasses it entirely
 
-### 5. Table component
-**File**: `src/components/admin/telemetry/TelemetryTable.tsx`
+**File**: `supabase/functions/review-challenge-sections/promptTemplate.ts`
+- Remove `buildConfiguredBatchPrompt` from exports
 
-Sortable table with the telemetry columns.
+### 7. Redeploy edge functions
+- Deploy `review-challenge-sections` and `extract-correction-patterns`
 
-### 6. Route wiring
-**File**: `src/App.tsx`
+---
 
-Add route at `ai-quality/telemetry` with `supervisor.configure_system` guard.
+## Files Modified
 
-## Technical notes
-- Token tracking requires accumulating usage across batch iterations in `index.ts` — will add counter variables at the batch loop level
-- All new UI files under 250 lines
-- No database migration needed — table already exists
+| File | Change Type |
+|---|---|
+| `supabase/functions/extract-correction-patterns/index.ts` | Edit — add classification, dedup, activation logic |
+| `supabase/functions/review-challenge-sections/fetchExamples.ts` | Edit — add hard corrections fetch + token budgeting |
+| `supabase/functions/review-challenge-sections/index.ts` | Edit — inject corrections block into prompts |
+| `supabase/functions/review-challenge-sections/promptBuilders.ts` | Edit — add self-critique, delete legacy function |
+| `supabase/functions/review-challenge-sections/promptTemplate.ts` | Edit — remove legacy export |
+| `supabase/functions/review-challenge-sections/pass2Prompt.ts` | Edit — accept + inject corrections block |
+| Migration SQL | New — add columns to `section_example_library` |
+
+## What This Does NOT Change
+- No UI changes (no new pages, no component edits)
+- No route changes
+- No wave execution flow changes
+- No diagnostics panel changes
+- No curator workflow changes
+- Existing `section_example_library` data remains valid (new columns are nullable/defaulted)
 
