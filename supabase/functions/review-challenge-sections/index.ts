@@ -1097,6 +1097,10 @@ GROUNDING RULE (CRITICAL):
 
     // ═══ CROSS-SECTION CONSISTENCY PASS + AMBIGUITY DETECTION PASS ═══
     // Only run for multi-section reviews (not single-section re-reviews) and not pass1_only
+    // Hoisted out of the if-block so the persistence step (below) can read them.
+    let consistencyResult: Awaited<ReturnType<typeof callConsistencyPass>> | null = null;
+    let ambiguityResult: Awaited<ReturnType<typeof callAmbiguityPass>> | null = null;
+
     if (!section_key && !pass1_only && allNewSections.length >= 2) {
       const postBatchModel = globalConfig?.default_model || defaultModel;
 
@@ -1132,7 +1136,7 @@ GROUNDING RULE (CRITICAL):
         return null;
       });
 
-      const [consistencyResult, ambiguityResult] = await Promise.all([
+      [consistencyResult, ambiguityResult] = await Promise.all([
         consistencyPromisePass,
         ambiguityPromisePass,
       ]);
