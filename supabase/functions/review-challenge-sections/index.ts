@@ -532,10 +532,28 @@ serve(async (req) => {
       : resolvedContext === "evaluation" ? "evaluation setup"
       : "challenge";
 
-    // ── Fetch master data for prompt injection ────────────────
+    // ── Fetch master data + corpus examples for prompt injection ────────────────
     let masterDataOptions: Record<string, { code: string; label: string }[]> = {};
+    let corpusExamples: Record<string, any[]> = {};
     if (resolvedContext === "curation") {
-      masterDataOptions = await fetchMasterDataOptions(adminClient);
+      const allSectionKeys = sectionsToReview.map(s => s.key);
+      const domainTags = Array.isArray(challengeData?.domain_tags)
+        ? challengeData.domain_tags
+        : typeof challengeData?.domain_tags === 'string'
+          ? [challengeData.domain_tags]
+          : [];
+
+      const [md, examples] = await Promise.all([
+        fetchMasterDataOptions(adminClient),
+        fetchExamplesForBatch(adminClient, {
+          sectionKeys: allSectionKeys,
+          maturityLevel: challengeData?.maturity_level,
+          domainTags,
+          limit: 2,
+        }),
+      ]);
+      masterDataOptions = md;
+      corpusExamples = examples;
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────
