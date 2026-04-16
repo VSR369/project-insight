@@ -878,7 +878,19 @@ GROUNDING RULE (CRITICAL):
         }
       }
 
-      // Get batch-specific configs for Pass 2 enrichment
+      // ── Inject corpus examples into system prompt ──
+      if (Object.keys(corpusExamples).length > 0) {
+        const batchKeySet = new Set(batch.map(b => b.key));
+        const batchExamples: Record<string, any[]> = {};
+        for (const [sk, exs] of Object.entries(corpusExamples)) {
+          if (batchKeySet.has(sk)) batchExamples[sk] = exs;
+        }
+        const examplesBlock = formatExamplesForPrompt(batchExamples);
+        if (examplesBlock) {
+          systemPrompt += '\n' + examplesBlock;
+        }
+      }
+
       const batchSectionConfigs = useDbConfig && dbConfigMap
         ? batch.map(b => dbConfigMap!.get(b.key)!).filter(Boolean)
         : [];
