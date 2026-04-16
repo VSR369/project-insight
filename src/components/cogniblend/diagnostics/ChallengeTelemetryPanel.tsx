@@ -102,7 +102,7 @@ export function ChallengeTelemetryPanel({ challengeId }: ChallengeTelemetryPanel
             className={cn(
               'text-xs px-3 py-2 rounded-md border',
               isImproving
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+                ? 'bg-primary/10 border-primary/30 text-primary'
                 : 'bg-muted border-border text-muted-foreground',
             )}
           >
