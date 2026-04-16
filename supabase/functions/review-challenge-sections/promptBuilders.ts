@@ -69,7 +69,7 @@ export function buildStructuredBatchPrompt(
     if (geoBlock) parts.push(geoBlock);
   }
 
-  parts.push(`## OUTPUT FORMAT (PASS 1 — ANALYSIS ONLY)
+  parts.push(`## OUTPUT FORMAT (PASS 1 — PRINCIPAL-GRADE ANALYSIS)
 For each section, return a JSON object via the review_sections function with:
 
 1. **status**: "pass" | "warning" | "needs_revision" | "generated"
@@ -88,6 +88,14 @@ For each section, return a JSON object via the review_sections function with:
      - "strength" — What is already good. Positive reinforcement with specific praise. REQUIRED for "pass" sections.
    - "field" (optional): Specific field this comment applies to
    - "reasoning" (optional): Why this matters, referencing other sections
+   - "confidence" (REQUIRED): "high" | "medium" | "low" — how certain are you about this finding?
+     - "high" = clear evidence in the content or cross-section data
+     - "medium" = reasonable inference from available context
+     - "low" = possible issue requiring human judgment
+   - "evidence_basis" (REQUIRED): What specific data, text, or absence supports this finding?
+     - GOOD: "The deliverables list 5 items but evaluation_criteria only covers 3 (missing: API docs, test suite)"
+     - GOOD: "Phase schedule totals 6 weeks but complexity is L4, which typically requires 12-20 weeks per industry benchmarks"
+     - BAD: "Could be better" (too vague — cite the specific evidence)
 
 3. **guidelines**: 1-3 domain-specific guidelines for this section.
    - MUST reference THIS challenge's domain, maturity, and solution type.
@@ -97,7 +105,25 @@ For each section, return a JSON object via the review_sections function with:
    - Only include genuine conflicts.
    - Each must specify the related_section, the issue, and a suggested_resolution.
 
-5. **solver_perspective_issues**: For each section, consider: "If I am a globally distributed solver seeing this challenge for the first time, with NO internal context about the seeker organization..."
+5. **solver_impact** (REQUIRED): One sentence assessing how this section affects a top solver's decision to participate.
+   - GOOD: "A solver would skip this challenge because deliverables lack acceptance criteria, making effort estimation impossible."
+   - GOOD: "Strong — specific KPIs with baselines give solvers clear targets to benchmark against."
+   - BAD: "Needs improvement" (too vague — state the solver consequence)
+
+6. **publication_blocker** (REQUIRED): true if this section has issues that MUST be resolved before publishing. false if issues are improvements only.
+
+7. **quality_score** (REQUIRED): 0-100 overall quality rating for this section.
+   - 90-100 = Principal-grade, publication-ready with minor polish at most
+   - 70-89 = Good foundation, needs targeted improvements
+   - 50-69 = Significant gaps, requires substantial revision
+   - 0-49 = Fundamental issues, needs rewrite or generation
+   Score MUST be consistent with status: "pass" sections ≥ 70, "needs_revision" < 60.
+
+8. **missing_elements**: Array of specific elements absent from this section.
+   - E.g., "acceptance criteria for deliverable #3", "baseline metric for KPI comparison", "out-of-scope exclusions"
+   - Empty array if nothing is missing.
+
+9. **solver_perspective_issues**: For each section, consider: "If I am a globally distributed solver seeing this challenge for the first time, with NO internal context about the seeker organization..."
    - What information is missing that I would need to decide whether to participate?
    - What terms or references are unclear or assume insider knowledge?
    - What is the risk/reward ratio from the solver's perspective — is this worth my time?
@@ -105,8 +131,8 @@ For each section, return a JSON object via the review_sections function with:
    
    Express these as comments with type "warning" and prefix the text with "[SOLVER VIEW]". These are among the most valuable comments — they catch problems that insiders are blind to.
 
-IMPORTANT: Do NOT include a "suggestion" field. Your ONLY job in this pass is to provide thorough, specific analysis. Improved content will be generated in a separate step based on your comments.
-Focus 100% of your attention on producing the most accurate, specific, and actionable analysis possible.
+IMPORTANT: Do NOT include a "suggestion" field. Your ONLY job in this pass is to provide thorough, specific, EVIDENCE-BASED analysis. Improved content will be generated in a separate step based on your comments.
+Every finding MUST have confidence + evidence. Vague comments without evidence are worse than no comment.
 `);
   parts.push('');
 
