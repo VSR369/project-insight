@@ -8,6 +8,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentUserId } from '@/lib/auditFields';
+import { redactCorpusPair } from '@/lib/piiRedactor';
 import { logWarning, logInfo } from '@/lib/errorHandler';
 import type { SectionEditRecord } from '@/hooks/cogniblend/useCuratorEditTracking';
 
@@ -31,18 +32,32 @@ export async function persistCuratorCorrections({
   try {
     const userId = await getCurrentUserId();
 
-    const rows = records.map((r) => ({
-      challenge_id: challengeId,
-      section_key: r.sectionKey,
-      ai_suggestion_hash: r.aiSuggestionHash,
-      curator_action: r.curatorAction,
-      edit_distance_percent: r.editDistancePercent,
-      time_spent_seconds: r.timeSpentSeconds,
-      confidence_score: r.confidenceScore,
-      ai_content: aiContentMap?.get(r.sectionKey) ?? null,
-      curator_content: curatorContentMap?.get(r.sectionKey) ?? null,
-      created_by: userId,
-    }));
+    const rows = records.map((r) => {
+      const rawAi = aiContentMap?.get(r.sectionKey) ?? null;
+      const rawCurator = curatorContentMap?.get(r.sectionKey) ?? null;
+      const { aiContent: redactedAi, curatorContent: redactedCurator, totalRedactions } = redactCorpusPair(rawAi, rawCurator);
+
+      if (totalRedactions > 0) {
+        logInfo('[persistCuratorCorrections] PII redacted', {
+          operation: 'pii_redaction',
+          component: 'persistCuratorCorrections',
+          additionalData: { sectionKey: r.sectionKey, redactions: totalRedactions },
+        });
+      }
+
+      return {
+        challenge_id: challengeId,
+        section_key: r.sectionKey,
+        ai_suggestion_hash: r.aiSuggestionHash,
+        curator_action: r.curatorAction,
+        edit_distance_percent: r.editDistancePercent,
+        time_spent_seconds: r.timeSpentSeconds,
+        confidence_score: r.confidenceScore,
+        ai_content: redactedAi,
+        curator_content: redactedCurator,
+        created_by: userId,
+      };
+    });
 
     const { error } = await supabase
       .from('curator_corrections')
