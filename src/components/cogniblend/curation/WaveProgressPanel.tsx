@@ -254,7 +254,7 @@ export function WaveProgressPanel({
 
         <Progress value={isFinished ? 100 : overallPct} className="h-2" />
         <p className="text-[10px] text-muted-foreground">
-          {completedWaves}/{progress.totalWaves} waves · {overallPct}%
+          {sectionsDone}/{totalSections} sections · {completedWaves}/{progress.totalWaves} waves · {overallPct}%
         </p>
 
         <div className="space-y-1.5">
