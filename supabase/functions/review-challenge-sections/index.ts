@@ -874,6 +874,7 @@ GROUNDING RULE (CRITICAL):
             systemPrompt,
             userPrompt,
             batch.map(s => s.key),
+            reasoningEffort,
           );
           for (const r of batchResults) {
             (r as any).phase = 'analysis';
@@ -897,6 +898,7 @@ GROUNDING RULE (CRITICAL):
             attachmentsBySection,
             contextDigestText,
             useContextIntelligence,
+            reasoningEffort,
           );
         }
         // Tag each result with prompt source
