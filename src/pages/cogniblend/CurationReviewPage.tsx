@@ -359,6 +359,12 @@ export default function CurationReviewPage() {
               return eb?.is_anonymous === true;
             } catch { return false; }
           })()}
+          diagnosticsOpen={o.diagnosticsOpen}
+          setDiagnosticsOpen={o.setDiagnosticsOpen}
+          onReReviewSection={(sectionId) => {
+            o.setDiagnosticsOpen(false);
+            o.handleNavigateToSection(sectionId);
+          }}
         />
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}
