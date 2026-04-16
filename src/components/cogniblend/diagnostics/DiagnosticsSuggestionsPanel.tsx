@@ -98,14 +98,16 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
             return { id, entry: sections[id], execSection };
           });
 
-          // When no record exists, everything is 0 — all "Not Run"
-          const generated = execWave
-            ? execWave.sections.filter(s => s.status === 'success').length
-            : 0;
+          // Counts derive from the section store (single source of truth).
+          // A section is "generated" if it has a live AI suggestion OR the curator already addressed it.
+          // Errors still come from the execution record (store has no error state for Pass 2).
+          const generated = wSections.filter(
+            ({ entry }) => !!entry?.aiSuggestion || entry?.addressed === true,
+          ).length;
           const errors = execWave
             ? execWave.sections.filter(s => s.status === 'error').length
             : 0;
-          const notRun = wSections.length - generated - errors;
+          const notRun = Math.max(0, wSections.length - generated - errors);
 
           const waveStatus = execWave?.status ?? 'skipped';
 
