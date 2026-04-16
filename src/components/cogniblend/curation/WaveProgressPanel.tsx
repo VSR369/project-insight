@@ -196,10 +196,21 @@ export function WaveProgressPanel({
   const completedWaves = progress.waves.filter(
     (w) => w.status === 'completed',
   ).length;
-  const overallPct =
-    progress.totalWaves > 0
-      ? Math.round((completedWaves / progress.totalWaves) * 100)
-      : 0;
+
+  // Per-section progress: count any section that has a recorded outcome
+  // (success/error/skipped). This updates live as each section finishes
+  // inside a running wave, instead of jumping only when the whole wave ends.
+  const totalSections = progress.waves.reduce((sum, w) => {
+    // Pending waves expose a placeholder section list; count its length as the wave size.
+    return sum + w.sections.length;
+  }, 0);
+  const sectionsDone = progress.waves.reduce((sum, w) => {
+    if (w.status === 'pending') return sum;
+    return sum + w.sections.filter((s) => s.status !== undefined).length;
+  }, 0);
+  const overallPct = totalSections > 0
+    ? Math.round((sectionsDone / totalSections) * 100)
+    : 0;
 
   const isRunning = progress.overallStatus === 'running';
   const isFinished =
@@ -243,7 +254,7 @@ export function WaveProgressPanel({
 
         <Progress value={isFinished ? 100 : overallPct} className="h-2" />
         <p className="text-[10px] text-muted-foreground">
-          {completedWaves}/{progress.totalWaves} waves · {overallPct}%
+          {sectionsDone}/{totalSections} sections · {completedWaves}/{progress.totalWaves} waves · {overallPct}%
         </p>
 
         <div className="space-y-1.5">
