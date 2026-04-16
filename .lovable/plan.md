@@ -1,85 +1,51 @@
 
 
-## Analysis: Principal-Grade Comment Enforcement — Is It Required?
+## Plan: Per-Wave Pass 1 / Pass 2 Timing Report
 
-### Short answer
+The user wants timing data for the most recent run on challenge `25ca71a0-3880-4338-99b3-e157f2b88b3b` — per wave, per pass, plus totals.
 
-**Conditionally yes — but not exactly as proposed.** The diagnosis is correct (4 forcing fields are optional → schema doesn't force), the conditional-by-type logic is sound, but the implementation as written has architectural issues that conflict with our codebase. With three modifications it becomes a clean fit.
+### Data sources
 
----
+The authoritative record is the persisted `ExecutionRecord` in `localStorage` (`wave-exec-{challengeId}-analyse` and `wave-exec-{challengeId}-generate`). Each `WaveRunRecord` carries `startedAt` and `completedAt` timestamps. That's exactly what we need.
 
-### Verifying the diagnosis
+But localStorage is browser-side — I cannot read it from this sandbox. So the practical sources are:
 
-I need to confirm the claim before evaluating the fix. Reading:
+1. **Edge-function logs** (`supabase--analytics_query` on `function_edge_logs` + `supabase--edge_function_logs`) — every section call to `review-challenge-sections` has `started`/`completed` events with `wave`, `passType`, `sectionKey`, `duration_ms`. These give the most accurate per-section timings, which I can roll up per wave.
+2. **`challenge_quality_telemetry` table** — has `review_duration_seconds` for the whole Pass 1 run, but not per-wave breakdown.
 
-1. The actual Pass 1 tool schema in the edge function
-2. The `AiComment` type in `src/types/sections.ts` (already shown above — confirms the 4 Principal fields are optional/nullable)
-3. Where comments are normalised after parsing
-4. The `ReviewCommentList` UI to see if a `_principal_grade` badge would even surface
+Edge-function logs are the right source — they give per-wave granularity and cover both passes.
 
-**What I already know from context:**
-- `src/types/sections.ts` line 76+ defines `quantification`, `framework_applied`, `evidence_source`, `cross_reference_verified` as **nullable, backward-compatible**. So the schema-level optionality matches the type contract.
-- `ReviewCommentList.tsx` already renders a `PrincipalEvidenceFooter` (line 113+) that shows pills for whichever Principal fields are present and renders nothing when none are. So the UI is already type-aware.
-- Memory `mem://cogniblend/ai/curator-review-methodology-refinement` is the governing rule: Pass 1 = Analyse only. Adding telemetry-only enforcement does NOT violate it.
+### Approach (read-only — fits this mode)
 
----
+1. Query `function_edge_logs` for `review-challenge-sections` calls in the last 2 hours, filtered to this challenge.
+2. Pair each `started` event with its `completed` event by `(wave, passType, sectionKey)` to get per-section duration.
+3. Aggregate per `(passType, wave)`: sum durations, count sections, capture wall-clock span (max(completedAt) − min(startedAt)) — wall-clock matters because waves run sequentially but sections within a wave may run with small gaps.
+4. Render two tables (Pass 1, Pass 2) and a totals row.
 
-### Architectural fit assessment
+### What I'll deliver
 
-| Aspect | Proposal | Verdict |
-|---|---|---|
-| Diagnosis (optional fields don't force) | ✅ Correct | Required gap |
-| Conditional-by-type (skip strength/best_practice) | ✅ Correct logic | Aligns with how `COMMENT_TYPE_CONFIG` already classifies |
-| `_principal_grade` flag on each comment | ⚠️ Underscore-prefix field | Violates our `AiComment` type — needs to be a typed field, not a magic key |
-| Telemetry-only (no retry/block) | ✅ Correct phasing | Matches our "ship telemetry first" pattern (e.g. `challenge_quality_telemetry`) |
-| `console.log` for telemetry | ❌ Violates R9 (no `console.*`) | Must use `logInfo` or persist to `challenge_quality_telemetry` |
-| Frontend badge | ⚠️ Speculative | Not needed in this phase — telemetry first |
+A markdown report with:
 
-### Business need check
+```
+Pass 1 — Analyse
+Wave  Name                                      Sections  Sum(s)  Wall-clock(s)
+1     Foundation — Problem & Context            5         …       …
+2     Analysis — Root Causes & Stakeholders     5         …       …
+…
+TOTAL                                           31        …       …
 
-**Yes — there is a real business need.** Three signals from project memory:
+Pass 2 — Generate (same shape)
 
-1. `mem://cogniblend/ai/intelligence-and-quality-framework` — the AI Intelligence layer exists specifically to ground reviews; if half the substantive comments cite no framework or evidence, that grounding is invisible.
-2. `mem://cogniblend/ai/curator-review-methodology-refinement` — Pass 1 is "Analyse" with strict separation. A Junior-grade comment masquerading as Principal undermines the curator's trust in Pass 1 output.
-3. We just built `challenge_quality_telemetry` and `useChallengeTelemetry` to track quality trends. A `principal_compliance_pct` column slots in naturally.
+Grand totals: Pass 1 = X s, Pass 2 = Y s, Combined = Z s
+```
 
-### What I'd change vs. the proposal
+If Pass 2 hasn't been run yet for this challenge in the visible log window, I'll say so explicitly rather than fabricating numbers.
 
-1. **Replace `_principal_grade` magic key with a typed optional field** on `AiComment`: `principal_grade?: 'principal' | 'junior' | null`. Backward compatible (null/undefined = unknown, like the existing fields).
-2. **Replace `console.log` with `logInfo`** (R9 rule — zero `console.*` allowed) AND persist `principal_compliance_pct` to `challenge_quality_telemetry` so it's queryable, not just log-grep-able.
-3. **Keep the schema as-is** (do NOT add to `required`) — proposal already says this and it's correct.
-4. **Defer the frontend badge** — current `PrincipalEvidenceFooter` already implicitly shows grade (more pills = higher grade). Add an explicit badge later only if curators ask for it.
+### Why no code changes
 
----
-
-### Phased plan (4 phases, all surgical)
-
-| Phase | File | Change | Lines |
-|---|---|---|---|
-| **0 — Read & confirm** (this approval covers it) | `aiPass1.ts`, the comment-mapping site, `challenge_quality_telemetry` schema | Confirm exact insertion point and column availability | 0 |
-| **1 — Type + enforcement** | `src/types/sections.ts` | Add `principal_grade?: 'principal' \| 'junior' \| null` to `AiComment` | +1 |
-| **2 — Edge-function enforcement** | `supabase/functions/review-challenge-sections/aiPass1.ts` (or wherever sections are assembled post-parse) | Add the conditional check; set `principal_grade` per comment; compute `principal_compliance_pct` | +25 |
-| **3 — Telemetry persistence** | Same edge function, plus optional migration | Persist `principal_compliance_pct` either as a new column on `challenge_quality_telemetry` (preferred — needs migration) OR in a JSON `metrics` field if one exists | +5 (no migration if JSON) / +10 (with migration) |
-
-### Open questions
-
-Before approving, one clarification:
-
-**Q:** Do you want this telemetry persisted to the database (queryable trend in `useChallengeTelemetry`) or is structured logging via `logInfo` sufficient for now?
-
-- **DB column** (preferred): adds `principal_compliance_pct INTEGER` to `challenge_quality_telemetry` — needs a migration but lights up the existing telemetry dashboard.
-- **Logs only**: zero schema change, faster to ship, but invisible in the admin Quality Telemetry page.
-
-If you skip this question and approve as-is, I'll go with **DB column** (richer, fits the existing telemetry pattern).
+This is a one-off diagnostic answer, not a feature. No file edits, no migrations. If you later want this surfaced in the UI (e.g. a "Wave timing" tab in the Diagnostics drawer), that's a separate ~30-line addition reading from the `ExecutionRecord` already in localStorage — happy to plan that as a follow-up.
 
 ### Risk
 
-- **Zero behavioural change** for users — comments still render exactly as today; the `principal_grade` field is metadata only.
-- **Zero change to the schema sent to the model** — required array stays the same, so no impact on completion rates or token cost.
-- **Backward compatible** — old reviews without `principal_grade` simply read as `undefined`.
-- **No edge-function bundle bloat** — ~25 lines, no new imports.
-
-### Recommendation
-
-**Proceed with the modified version.** It addresses a real quality-measurement gap, fits our telemetry pattern, respects R9 (no `console.*`), and stays type-safe. Skip the speculative frontend badge and the per-comment retry — both can be layered on later if telemetry shows compliance < 70%.
+Zero — read-only log queries.
 
