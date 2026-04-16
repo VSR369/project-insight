@@ -15,6 +15,11 @@ export interface ReviewComment {
   applies_to?: string;
   field?: string | null;
   reasoning?: string | null;
+  /* ── Principal-grade evidence fields (Pass 1 schema v2) ── */
+  quantification?: string | null;
+  framework_applied?: string | null;
+  evidence_source?: string | null;
+  cross_reference_verified?: string[] | null;
 }
 
 export interface CrossSectionIssue {
@@ -25,7 +30,18 @@ export interface CrossSectionIssue {
 
 export interface AIReviewResult {
   status: "pass" | "warning" | "needs_revision" | "inferred" | "generated";
-  comments: (string | { text: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string })[];
+  comments: (string | {
+    text: string;
+    type?: string;
+    severity?: string;
+    field?: string;
+    comment?: string;
+    reasoning?: string;
+    quantification?: string | null;
+    framework_applied?: string | null;
+    evidence_source?: string | null;
+    cross_reference_verified?: string[] | null;
+  })[];
   summary?: string;
   suggested_version?: string;
   guidelines?: string[];
@@ -132,7 +148,18 @@ export function inferSeverity(comment: string): ReviewComment["severity"] {
   return "warning";
 }
 
-export function parseComment(raw: string | { text?: string; type?: string; severity?: string; field?: string; comment?: string; reasoning?: string }): ReviewComment {
+export function parseComment(raw: string | {
+  text?: string;
+  type?: string;
+  severity?: string;
+  field?: string;
+  comment?: string;
+  reasoning?: string;
+  quantification?: string | null;
+  framework_applied?: string | null;
+  evidence_source?: string | null;
+  cross_reference_verified?: string[] | null;
+}): ReviewComment {
   if (typeof raw === 'object' && raw !== null) {
     const rawText = raw.text || raw.comment || '';
     const text = typeof rawText === 'string' ? rawText : JSON.stringify(rawText);
@@ -142,7 +169,17 @@ export function parseComment(raw: string | { text?: string; type?: string; sever
       : inferSeverity(text);
     const rawReasoning = raw.reasoning || null;
     const reasoning = rawReasoning && typeof rawReasoning !== 'string' ? JSON.stringify(rawReasoning) : rawReasoning;
-    return { text, type, severity, field: typeof raw.field === 'string' ? raw.field : (raw.field ? JSON.stringify(raw.field) : null), reasoning };
+    return {
+      text,
+      type,
+      severity,
+      field: typeof raw.field === 'string' ? raw.field : (raw.field ? JSON.stringify(raw.field) : null),
+      reasoning,
+      quantification: raw.quantification ?? null,
+      framework_applied: raw.framework_applied ?? null,
+      evidence_source: raw.evidence_source ?? null,
+      cross_reference_verified: Array.isArray(raw.cross_reference_verified) ? raw.cross_reference_verified : null,
+    };
   }
 
   let text = raw as string;

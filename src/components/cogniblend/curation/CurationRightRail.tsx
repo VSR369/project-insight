@@ -110,7 +110,7 @@ export function CurationRightRail(props: CurationRightRailProps) {
     const counts: Partial<Record<SectionKey, number>> = {};
     const sections = store.getState?.()?.sections ?? store.sections ?? {};
     for (const [key, entry] of Object.entries(sections)) {
-      const e = entry as { aiComments?: unknown[] | null } | undefined;
+      const e = entry as SectionStoreEntry | undefined;
       if (e?.aiComments && Array.isArray(e.aiComments)) {
         counts[key as SectionKey] = e.aiComments.length;
       }
