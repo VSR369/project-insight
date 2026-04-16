@@ -1530,6 +1530,69 @@ export type Database = {
           },
         ]
       }
+      challenge_quality_telemetry: {
+        Row: {
+          ambiguity_findings_count: number
+          avg_edit_magnitude: number | null
+          challenge_id: string
+          consistency_findings_count: number
+          created_at: string
+          id: string
+          is_baseline: boolean
+          model_used: string | null
+          pass1_tokens: number | null
+          pass2_tokens: number | null
+          review_duration_seconds: number | null
+          sections_reviewed: number | null
+          total_corrections: number
+        }
+        Insert: {
+          ambiguity_findings_count?: number
+          avg_edit_magnitude?: number | null
+          challenge_id: string
+          consistency_findings_count?: number
+          created_at?: string
+          id?: string
+          is_baseline?: boolean
+          model_used?: string | null
+          pass1_tokens?: number | null
+          pass2_tokens?: number | null
+          review_duration_seconds?: number | null
+          sections_reviewed?: number | null
+          total_corrections?: number
+        }
+        Update: {
+          ambiguity_findings_count?: number
+          avg_edit_magnitude?: number | null
+          challenge_id?: string
+          consistency_findings_count?: number
+          created_at?: string
+          id?: string
+          is_baseline?: boolean
+          model_used?: string | null
+          pass1_tokens?: number | null
+          pass2_tokens?: number | null
+          review_duration_seconds?: number | null
+          sections_reviewed?: number | null
+          total_corrections?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_quality_telemetry_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_quality_telemetry_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
       challenge_role_assignments: {
         Row: {
           assigned_at: string
