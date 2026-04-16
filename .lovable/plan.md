@@ -48,7 +48,19 @@
 - `promptConstants.ts`: Added 3 new exemplars (problem_statement, deliverables, expected_outcomes) with before/after quality patterns
 - Self-validation metadata logged for observability (`pass2_self_validation` event)
 - Edge function deployed successfully
-## 🔲 Prompt 5 — Cross-Section Consistency Pass
+## ✅ Prompt 5 — Cross-Section Consistency Pass (COMPLETE)
+- Created `aiConsistencyPass.ts`: Dedicated post-batch AI pass that checks cross-section consistency
+  - `callConsistencyPass`: Single AI call with all section results, uses `check_consistency` tool schema
+  - Returns `ConsistencyPassResult` with findings, coherence score, narrative gaps, solver readiness
+  - `mergeConsistencyFindings`: Injects findings back as `cross_section_issues` + `[CONSISTENCY]` comments
+  - Escalates passing sections to 'warning' if error-level consistency findings detected
+  - Token usage logging with `consistency_pass` event
+- `index.ts`: Consistency pass runs after all batches + complexity complete
+  - Only for multi-section reviews (≥2 sections), not single-section re-reviews or pass1_only
+  - Non-blocking: rate limit or failure doesn't fail the overall review
+  - Stores `_consistency_check` synthetic section with coherence score, narrative gaps, solver readiness
+- `promptTemplate.ts`: Barrel exports for `callConsistencyPass`, `mergeConsistencyFindings`, types
+- Uses full dependency matrix from `SECTION_DEPENDENCIES` + `DEPENDENCY_REASONING` for targeted checks
 ## 🔲 Prompt 6 — Ambiguity Detection Pass
 ## 🔲 Prompt 7 — Curator Learning Corpus: Database Schema (with pgvector)
 ## 🔲 Prompt 8 — Curator Learning Corpus: Edit Capture Hook

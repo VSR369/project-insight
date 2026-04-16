@@ -50,3 +50,10 @@ export {
   buildConfiguredBatchPrompt,
   buildSmartBatchPrompt,
 } from './promptBuilders.ts';
+
+export {
+  callConsistencyPass,
+  mergeConsistencyFindings,
+  type ConsistencyFinding,
+  type ConsistencyPassResult,
+} from './aiConsistencyPass.ts';
