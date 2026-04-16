@@ -46,7 +46,7 @@ export const FORMAT_INSTRUCTIONS: Record<string, string> = {
   rich_text: 'Output: formatted markdown with headings and bullet lists. No tables. No JSON.',
   line_items: 'Output: a JSON array of strings. Each string is one discrete item. Max 20 items. No prose.',
   table: 'Output: a JSON array of row objects. Use exact column keys from the section definition.',
-  schedule_table: 'Output: a JSON array of phase objects with keys: phase_name (string), duration_days (number), start_date (ISO date YYYY-MM-DD or null), end_date (ISO date YYYY-MM-DD or null). Propose realistic dates based on challenge scope and complexity.',
+  schedule_table: 'Output: a JSON array of phase objects with keys: phase_name (REQUIRED non-empty descriptive string — examples: "Registration", "Submission Window", "Evaluation", "Winner Announcement"), duration_days (number), start_date (ISO date YYYY-MM-DD or null), end_date (ISO date YYYY-MM-DD or null). NEVER leave phase_name blank or use placeholders like "—", "TBD", "Phase 1". Propose realistic dates based on challenge scope and complexity.',
   checkbox_multi: 'Output: a JSON array of selected option codes from the allowed values list ONLY. Do NOT invent new codes.',
   checkbox_single: 'Output: a JSON object: { "selected_id": "...", "rationale": "one sentence" }. The selected_id MUST be from the allowed values list.',
   structured_fields: 'Output: { "status": "complete"|"incomplete", "missing_fields": [...], "comments": "..." }.',
