@@ -85,6 +85,11 @@ export function buildStructuredBatchPrompt(
     if (geoBlock) parts.push(geoBlock);
   }
 
+  // Phase 11b: Framework library (domain-tag matched, pre-fetched in index.ts)
+  if (clientContext?._frameworkBlock && typeof clientContext._frameworkBlock === 'string') {
+    parts.push(clientContext._frameworkBlock);
+  }
+
   parts.push(`## OUTPUT FORMAT (PASS 1 — PRINCIPAL-GRADE ANALYSIS)
 For each section, return a JSON object via the review_sections function with:
 
