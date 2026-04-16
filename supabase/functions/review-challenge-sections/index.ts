@@ -33,6 +33,7 @@ import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutp
 import { callConsistencyPass, mergeConsistencyFindings } from "./aiConsistencyPass.ts";
 import { callAmbiguityPass, mergeAmbiguityFindings } from "./aiAmbiguityPass.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
+import { fetchExamplesForBatch, formatExamplesForPrompt } from "./fetchExamples.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
