@@ -1060,6 +1060,12 @@ GROUNDING RULE (CRITICAL):
             reasoningEffort,
           );
         }
+        // Capture per-batch principal compliance pct (set by callAIPass1Analyze
+        // via non-enumerable `__principalCompliancePct` on the returned array).
+        const batchCompliance = (batchResults as any).__principalCompliancePct;
+        if (typeof batchCompliance === 'number') {
+          batchPrincipalCompliancePcts.push(batchCompliance);
+        }
         // Tag each result with prompt source
         for (const r of batchResults) {
           (r as any).prompt_source = promptSource;
