@@ -79,7 +79,7 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
       return renderRichText((direct as string | undefined) ?? fromBrief ?? '');
     }
     case 'deliverables': {
-      const items = getDeliverableObjects(ch) as Array<Record<string, unknown>>;
+      const items = getDeliverableObjects(ch) as unknown as Array<Record<string, unknown>>;
       if (!items.length) return emptyState();
       return items.map((d, i) => {
         const name = (d.name ?? d.title ?? d.deliverable_name ?? `Deliverable ${i + 1}`) as string;
@@ -90,7 +90,7 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
       }).join('');
     }
     case 'submission_guidelines': {
-      const items = getSubmissionGuidelineObjects(ch) as Array<Record<string, unknown>>;
+      const items = getSubmissionGuidelineObjects(ch) as unknown as Array<Record<string, unknown>>;
       if (!items.length) return renderRichText(ch.description);
       return items.map((d, i) => {
         const name = (d.name ?? d.title ?? `Guideline ${i + 1}`) as string;
@@ -99,7 +99,7 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
       }).join('');
     }
     case 'expected_outcomes': {
-      const items = getExpectedOutcomeObjects(ch) as Array<Record<string, unknown>>;
+      const items = getExpectedOutcomeObjects(ch) as unknown as Array<Record<string, unknown>>;
       if (!items.length) return emptyState();
       return items.map((d, i) => {
         const name = (d.name ?? d.title ?? `Outcome ${i + 1}`) as string;
