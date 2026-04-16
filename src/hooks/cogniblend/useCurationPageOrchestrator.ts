@@ -401,6 +401,7 @@ export function useCurationPageOrchestrator() {
     contextLibraryReviewed, handleContextLibraryConfirm,
     aiQuality, aiQualityLoading,
     lockedSendState, setLockedSendState, expandVersion, staleSections, curationStore, sectionActions,
+    diagnosticsOpen, setDiagnosticsOpen,
     ...computedValues,
     legalEscrowBlocked, blockingReason, phaseDescription,
     saveSectionMutation, rewardStructureRef, complexityModuleRef,
