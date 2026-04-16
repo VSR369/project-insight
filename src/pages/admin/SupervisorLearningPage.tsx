@@ -1,6 +1,6 @@
 /**
  * SupervisorLearningPage — Admin dashboard for the Curator Learning Corpus.
- * Shows correction stats, pipeline actions, and a filterable corrections table.
+ * Shows correction stats, pipeline actions, rules management, and trend chart.
  */
 
 import { useState } from 'react';
@@ -10,6 +10,8 @@ import { useCuratorCorrections } from '@/hooks/queries/useCuratorCorrections';
 import { LearningCorpusStats } from '@/components/admin/learning/LearningCorpusStats';
 import { CorrectionsTable } from '@/components/admin/learning/CorrectionsTable';
 import { PipelineActions } from '@/components/admin/learning/PipelineActions';
+import { RulesManagementTable } from '@/components/admin/learning/RulesManagementTable';
+import { CorrectionRateTrend } from '@/components/admin/learning/CorrectionRateTrend';
 
 export default function SupervisorLearningPage() {
   const [filterAction, setFilterAction] = useState('all');
@@ -41,12 +43,14 @@ export default function SupervisorLearningPage() {
           <GraduationCap className="h-6 w-6" /> Curator Learning Corpus
         </h1>
         <p className="text-sm text-muted-foreground">
-          Monitor how curators interact with AI suggestions. Trigger embedding generation and pattern extraction.
+          Monitor how curators interact with AI suggestions. Manage learning rules, trigger pipelines, and track improvement trends.
         </p>
       </div>
 
       <LearningCorpusStats stats={stats} />
+      <CorrectionRateTrend corrections={corrections} />
       <PipelineActions />
+      <RulesManagementTable />
       <CorrectionsTable
         corrections={corrections}
         filterAction={filterAction}

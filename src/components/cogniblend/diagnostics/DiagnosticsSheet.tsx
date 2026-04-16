@@ -16,7 +16,11 @@ import { DiagnosticsReviewPanel } from '@/components/cogniblend/diagnostics/Diag
 import { DiagnosticsSuggestionsPanel } from '@/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel';
 import { DiagnosticsDiscoveryPanel } from '@/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel';
 import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/DiagnosticsAcceptancePanel';
+import { ConsistencyFindingsPanel } from '@/components/cogniblend/diagnostics/ConsistencyFindingsPanel';
+import { AmbiguityFindingsPanel } from '@/components/cogniblend/diagnostics/AmbiguityFindingsPanel';
+import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/QualityScoreSummary';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
+import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
 import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
@@ -30,6 +34,8 @@ interface DiagnosticsSheetProps {
 
 export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: DiagnosticsSheetProps) {
   const { attachmentStats, digest, importanceLevels, reviewLevels, isLoading } = useDiagnosticsData(challengeId);
+  const { data: consistencyFindings } = useConsistencyFindings(open ? challengeId : undefined);
+  const { data: ambiguityFindings } = useAmbiguityFindings(open ? challengeId : undefined);
 
   // refreshKey increments every time the sheet opens so localStorage is re-read
   const [refreshKey, setRefreshKey] = useState(0);
@@ -87,6 +93,11 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
             </div>
           ) : (
             <>
+              <QualityScoreSummary
+                consistencyCount={consistencyFindings?.length ?? 0}
+                consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
+                ambiguityCount={ambiguityFindings?.length ?? 0}
+              />
               <DiagnosticsReviewPanel
                 sections={sections}
                 importanceLevels={importanceLevels}
@@ -100,6 +111,8 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
                 executionRecord={generateRecord}
                 analyseRecord={analyseRecord}
               />
+              <ConsistencyFindingsPanel challengeId={challengeId} />
+              <AmbiguityFindingsPanel challengeId={challengeId} />
               <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
               <div>
                 <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />

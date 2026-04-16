@@ -1,6 +1,6 @@
 /**
  * CurationDiagnosticsPage — AI pipeline diagnostic dashboard.
- * Read-only view of Pass 1, Pass 2, and Context Discovery results.
+ * Read-only view of Pass 1, Pass 2, Quality findings, and Context Discovery results.
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
@@ -12,7 +12,11 @@ import { DiagnosticsReviewPanel } from '@/components/cogniblend/diagnostics/Diag
 import { DiagnosticsSuggestionsPanel } from '@/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel';
 import { DiagnosticsDiscoveryPanel } from '@/components/cogniblend/diagnostics/DiagnosticsDiscoveryPanel';
 import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/DiagnosticsAcceptancePanel';
+import { ConsistencyFindingsPanel } from '@/components/cogniblend/diagnostics/ConsistencyFindingsPanel';
+import { AmbiguityFindingsPanel } from '@/components/cogniblend/diagnostics/AmbiguityFindingsPanel';
+import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/QualityScoreSummary';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
+import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
 import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
@@ -30,6 +34,8 @@ function loadSectionsFromStorage(challengeId: string): Partial<Record<SectionKey
 export default function CurationDiagnosticsPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const { attachmentStats, digest, importanceLevels, reviewLevels, isLoading } = useDiagnosticsData(challengeId);
+  const { data: consistencyFindings } = useConsistencyFindings(challengeId);
+  const { data: ambiguityFindings } = useAmbiguityFindings(challengeId);
 
   // Manual refresh counter so user can re-read localStorage
   const [refreshKey, setRefreshKey] = useState(0);
@@ -82,8 +88,15 @@ export default function CurationDiagnosticsPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          <QualityScoreSummary
+            consistencyCount={consistencyFindings?.length ?? 0}
+            consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
+            ambiguityCount={ambiguityFindings?.length ?? 0}
+          />
           <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
           <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
+          <ConsistencyFindingsPanel challengeId={challengeId} />
+          <AmbiguityFindingsPanel challengeId={challengeId} />
           <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
           <div>
             <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
