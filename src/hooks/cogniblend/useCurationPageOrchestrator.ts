@@ -338,7 +338,7 @@ export function useCurationPageOrchestrator() {
       resumeSync();
       setIsBulkAccepting(false);
     }
-  }, [curationStore, challenge, challengeId, sectionActionsHook, setAiReviews, queryClient, syncSectionToStore]);
+  }, [curationStore, challenge, challengeId, sectionActionsHook, setAiReviews, queryClient, syncSectionToStore, editTracking]);
 
   // ── Computed values ──
   const computedValues = useCurationComputedValues({
