@@ -62,7 +62,7 @@ export function usePreviewData(challengeId: string | undefined) {
           eligibility, solution_types, data_resources_provided,
           success_metrics_kpis, master_status, submission_guidelines,
           lc_compliance_complete, fc_compliance_complete,
-          seeker_organizations!inner(
+          seeker_organizations!challenges_organization_id_fkey(
             organization_name, organization_type_id, website_url,
             linkedin_url, twitter_url, organization_description, tagline,
             organization_types(name)
