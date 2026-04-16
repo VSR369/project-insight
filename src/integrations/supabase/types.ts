@@ -2782,6 +2782,7 @@ export type Database = {
           edit_distance_percent: number
           embedding: string | null
           id: string
+          pattern_extracted: boolean | null
           section_key: string
           time_spent_seconds: number
         }
@@ -2797,6 +2798,7 @@ export type Database = {
           edit_distance_percent?: number
           embedding?: string | null
           id?: string
+          pattern_extracted?: boolean | null
           section_key: string
           time_spent_seconds?: number
         }
@@ -2812,6 +2814,7 @@ export type Database = {
           edit_distance_percent?: number
           embedding?: string | null
           id?: string
+          pattern_extracted?: boolean | null
           section_key?: string
           time_spent_seconds?: number
         }
@@ -12643,6 +12646,7 @@ export type Database = {
           embedding: string | null
           id: string
           is_active: boolean
+          learning_rule: string | null
           maturity_level: string | null
           quality_tier: string
           section_key: string
@@ -12661,6 +12665,7 @@ export type Database = {
           embedding?: string | null
           id?: string
           is_active?: boolean
+          learning_rule?: string | null
           maturity_level?: string | null
           quality_tier: string
           section_key: string
@@ -12679,6 +12684,7 @@ export type Database = {
           embedding?: string | null
           id?: string
           is_active?: boolean
+          learning_rule?: string | null
           maturity_level?: string | null
           quality_tier?: string
           section_key?: string
