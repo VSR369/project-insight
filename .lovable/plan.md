@@ -1,51 +1,53 @@
 
 
-## Plan: Per-Wave Pass 1 / Pass 2 Timing Report
+## Plan: Per-wave timing in the Diagnostics drawer
 
-The user wants timing data for the most recent run on challenge `25ca71a0-3880-4338-99b3-e157f2b88b3b` — per wave, per pass, plus totals.
+### What to add
 
-### Data sources
+A small **"Wave Timing"** subsection inside `DiagnosticsReviewPanel` (Pass 1) and `DiagnosticsSuggestionsPanel` (Pass 2) showing one row per wave with duration, plus a totals row.
 
-The authoritative record is the persisted `ExecutionRecord` in `localStorage` (`wave-exec-{challengeId}-analyse` and `wave-exec-{challengeId}-generate`). Each `WaveRunRecord` carries `startedAt` and `completedAt` timestamps. That's exactly what we need.
+The data is already there — `WaveRunRecord` in `waveExecutionHistory.ts` carries `startedAt` and `completedAt` for every wave. No backend, no schema, no edge-function changes needed.
 
-But localStorage is browser-side — I cannot read it from this sandbox. So the practical sources are:
-
-1. **Edge-function logs** (`supabase--analytics_query` on `function_edge_logs` + `supabase--edge_function_logs`) — every section call to `review-challenge-sections` has `started`/`completed` events with `wave`, `passType`, `sectionKey`, `duration_ms`. These give the most accurate per-section timings, which I can roll up per wave.
-2. **`challenge_quality_telemetry` table** — has `review_duration_seconds` for the whole Pass 1 run, but not per-wave breakdown.
-
-Edge-function logs are the right source — they give per-wave granularity and cover both passes.
-
-### Approach (read-only — fits this mode)
-
-1. Query `function_edge_logs` for `review-challenge-sections` calls in the last 2 hours, filtered to this challenge.
-2. Pair each `started` event with its `completed` event by `(wave, passType, sectionKey)` to get per-section duration.
-3. Aggregate per `(passType, wave)`: sum durations, count sections, capture wall-clock span (max(completedAt) − min(startedAt)) — wall-clock matters because waves run sequentially but sections within a wave may run with small gaps.
-4. Render two tables (Pass 1, Pass 2) and a totals row.
-
-### What I'll deliver
-
-A markdown report with:
+### Where it renders
 
 ```
-Pass 1 — Analyse
-Wave  Name                                      Sections  Sum(s)  Wall-clock(s)
-1     Foundation — Problem & Context            5         …       …
-2     Analysis — Root Causes & Stakeholders     5         …       …
-…
-TOTAL                                           31        …       …
-
-Pass 2 — Generate (same shape)
-
-Grand totals: Pass 1 = X s, Pass 2 = Y s, Combined = Z s
+Pass 1 — AI Review (Analyse)
+  [existing summary chips]
+  [existing per-section list]
+  ─── Wave Timing ───
+  Wave 1  Foundation — Problem & Context        5/5 sections    32s
+  Wave 2  Analysis — Root Causes                5/5 sections    1m 14s
+  Wave 3  …                                                     …
+  ─────────────────────────────────────────────
+  Total                                         31 sections     6m 42s
 ```
 
-If Pass 2 hasn't been run yet for this challenge in the visible log window, I'll say so explicitly rather than fabricating numbers.
+Same shape inside the Pass 2 panel using the `generate` execution record.
 
-### Why no code changes
+### Files
 
-This is a one-off diagnostic answer, not a feature. No file edits, no migrations. If you later want this surfaced in the UI (e.g. a "Wave timing" tab in the Diagnostics drawer), that's a separate ~30-line addition reading from the `ExecutionRecord` already in localStorage — happy to plan that as a follow-up.
+| Phase | File | Change | Lines |
+|---|---|---|---|
+| 1 | `src/lib/cogniblend/waveTimingFormat.ts` (new) | `formatDuration(ms)` + `computeWaveDurations(record)` helpers — pure functions, fully unit-testable | ~40 |
+| 2 | `src/components/cogniblend/diagnostics/WaveTimingTable.tsx` (new) | Presentational table component, props = `{ record: ExecutionRecord \| null }` | ~70 |
+| 3 | `src/components/cogniblend/diagnostics/DiagnosticsReviewPanel.tsx` | Render `<WaveTimingTable record={executionRecord} />` below existing content | +2 |
+| 4 | `src/components/cogniblend/diagnostics/DiagnosticsSuggestionsPanel.tsx` | Same — render `<WaveTimingTable record={executionRecord} />` | +2 |
+
+All four files stay well under the 250-line cap.
+
+### Edge cases
+
+- **Wave still running** → show "running…" with elapsed time from `startedAt` to `now`.
+- **Wave pending** → show em-dash.
+- **Wave errored / cancelled** → show duration up to `completedAt` if present, else `—`, with status badge.
+- **No record** (`null`) → render nothing (panel already shows fallback copy elsewhere).
+- **Sub-second waves** → format as `Xs` (e.g. `0.4s`); ≥60s → `Xm Ys`; ≥1h → `Xh Ym`.
+
+### Why no DB / edge-function work
+
+The `ExecutionRecord` is already persisted to localStorage by `useWaveExecutor` and read by both panels. The hard work was done in the previous progress-bar fix when wave start/complete timestamps got wired in. This is purely a display addition.
 
 ### Risk
 
-Zero — read-only log queries.
+Zero. Read-only display from data already in the panel's props. No new queries, no new state, no new effects.
 
