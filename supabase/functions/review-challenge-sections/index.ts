@@ -33,7 +33,7 @@ import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutp
 import { callConsistencyPass, mergeConsistencyFindings } from "./aiConsistencyPass.ts";
 import { callAmbiguityPass, mergeAmbiguityFindings } from "./aiAmbiguityPass.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
-import { fetchExamplesForBatch, formatExamplesForPrompt } from "./fetchExamples.ts";
+import { fetchExamplesForBatch, formatExamplesForPrompt, fetchHardCorrections, formatCorrectionsForPrompt } from "./fetchExamples.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -544,7 +544,7 @@ serve(async (req) => {
           ? [challengeData.domain_tags]
           : [];
 
-      const [md, examples] = await Promise.all([
+      const [md, examples, hardCorr] = await Promise.all([
         fetchMasterDataOptions(adminClient),
         fetchExamplesForBatch(adminClient, {
           sectionKeys: allSectionKeys,
@@ -552,9 +552,11 @@ serve(async (req) => {
           domainTags,
           limit: 2,
         }),
+        fetchHardCorrections(adminClient, allSectionKeys),
       ]);
       masterDataOptions = md;
       corpusExamples = examples;
+      corpusCorrections = hardCorr;
     }
 
     // ── Fetch extracted attachment content (files + URLs) ────────────────

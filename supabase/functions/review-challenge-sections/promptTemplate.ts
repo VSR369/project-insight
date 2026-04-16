@@ -47,7 +47,6 @@ export { buildPass2SystemPrompt } from './pass2Prompt.ts';
 
 export {
   buildStructuredBatchPrompt,
-  buildConfiguredBatchPrompt,
   buildSmartBatchPrompt,
 } from './promptBuilders.ts';
 
