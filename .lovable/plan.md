@@ -1,41 +1,37 @@
 
 
-# Verification Results — All 7 Previously Unverified Items
+## Plan: Upgrade 26 Section Exemplars to Principal-Grade (Gap B)
 
-Every item Claude flagged as "need manual check" is now confirmed present and correctly implemented.
+### Scope
+One data migration with UPDATE statements writing Principal-grade `example_good` content to all 26 remaining sections in `ai_review_section_config` (role_context = 'curation'). This closes the final content gap. No engineering changes, no schema changes, no code changes.
 
-## Verified Items
+### Approach
+Mirror the quality bar set by the 5 completed exemplars (problem_statement, scope, deliverables, evaluation_criteria, reward_structure):
+- Concrete numbers, named tools/protocols, and cited benchmarks (e.g., Gartner, ISO, IEEE)
+- Cross-references to other sections (e.g., "consistent with deliverables D2")
+- Explicit assumptions, boundary conditions, and failure modes
+- Industry framework references where natural (TOGAF, DMAIC, FAIR, etc.)
+- Length/density appropriate to the section's `importance_level` (Critical = denser, Low = tight)
 
-| # | Item | Status | Evidence |
-|---|---|---|---|
-| 1 | Activation threshold (0.7 confidence + 2 curators) | DONE | `ACTIVATION_CONFIDENCE_THRESHOLD = 0.7`, `ACTIVATION_CURATOR_THRESHOLD = 2` in `extract-correction-patterns/index.ts` lines 27-28. Gating logic at lines 128-129. |
-| 2 | PII scanning | DONE | `piiRedactor.ts` with `[REDACTED_EMAIL]`/`[REDACTED_PHONE]` tokens. Symmetric redaction via `redactCorpusPair`. Integrated into `persistCuratorCorrections.ts` line 38. |
-| 3 | SupervisorLearningPage | DONE | Full admin page at `src/pages/admin/SupervisorLearningPage.tsx` with stats, trend chart, pipeline actions, rules management table, and corrections table. |
-| 4 | Quality Telemetry | DONE | `QualityTelemetryPage.tsx` exists with `useQualityTelemetry` hook, `TelemetryStats`, `TelemetryTable`. |
-| 5 | IMPORTANCE_TO_LEVEL usage | SAFE | Defined in `waveConfig.ts` but zero references from any `.tsx` component. Not used in diagnostics panels — no UI impact. |
-| 6 | Async edit capture (non-blocking) | DONE | Line 322 of `useCurationPageOrchestrator.ts`: `persistCuratorCorrections(...)` called without `await` — fire-and-forget. Comment confirms "non-blocking". The function itself catches all errors internally, never throws. |
-| 7 | 5 key section exemplar rewrites | NOT VERIFIED | These would be DB data updates to `example_good` fields. Cannot verify from code alone — requires DB query. This is a content gap, not an engineering gap. |
+Use the same anchoring narrative used in the existing 5 exemplars (the GlobalTech / SAP EWM logistics challenge) so the corpus reads as a single coherent gold-standard brief — this is what makes calibration tight.
 
-## Remaining Gaps (Prompts 14-17 scope)
+### Sections covered (26 total, grouped by current state)
 
-All are already implemented per the last session's work:
+**6 sections currently NULL** — write fresh exemplars:
+creator_legal_instructions, creator_references, evaluation_config, organization_context, reference_urls, solver_audience
 
-- **Prompt 14 (Supervisor UI):** `RulesManagementTable.tsx` with inline editing + confidence promote + merge. `CorrectionRateTrend.tsx` with weekly trend chart. Both integrated into `SupervisorLearningPage`.
-- **Prompt 15 (Findings UI):** `challenge_consistency_findings` and `challenge_ambiguity_findings` tables exist. `ConsistencyFindingsPanel`, `AmbiguityFindingsPanel`, `QualityScoreSummary` components created and wired into diagnostics.
-- **Prompt 16 (PII):** `piiRedactor.ts` with deterministic regex, symmetric redaction, integrated into persist flow. `similarity_threshold` column added to `ai_review_global_config`.
-- **Prompt 17 (Frameworks):** `ai_review_frameworks` table with `vector(1536)` column created. `buildFrameworkLibraryBlock` added to `industryGeoPrompt.ts`.
+**20 sections with junior-grade exemplars** — rewrite to Principal level:
+affected_stakeholders, approaches_not_of_interest, complexity, context_and_background, current_deficiencies, data_resources_provided, domain_tags, eligibility, escrow_funding, expected_outcomes, hook, ip_model, legal_docs, maturity_level, phase_schedule, preferred_approach, root_causes, solution_type, solver_expertise, submission_guidelines, success_metrics_kpis, visibility
 
-## Only True Remaining Gap
+### Deliverable
+A single migration file `supabase/migrations/<timestamp>_principal_exemplars_remaining_sections.sql` containing 26 `UPDATE ai_review_section_config SET example_good = '...', updated_at = now() WHERE role_context = 'curation' AND section_key = '...';` statements.
 
-**Framework seed data (80-120 entries):** The `ai_review_frameworks` table exists but has no content. This is a content-writing task, not engineering. Options:
-1. AI-draft 80-120 framework entries from a template, you review
-2. You provide source material, we structure and insert
+### Safety
+- Additive content-only change. No schema, no RLS, no code.
+- Does not touch the 5 already-upgraded sections.
+- Does not touch `importance_level`, `ai_review_level`, or any other column.
+- Existing AI review pipeline picks up the new exemplars automatically on next prompt assembly via `useExtendedSectionConfigs` (5-min staleTime).
 
-**Section exemplar rewrites (5 key sections):** May or may not exist as DB data. Needs a DB query to confirm.
-
-## Recommended Next Step
-
-Query the DB to check (a) whether `ai_review_frameworks` has any rows and (b) whether `example_good` was updated for the 5 key sections. If both are empty, the only remaining work is content seeding — no more engineering needed.
-
-No plan changes required. The implementation matches the master plan across all phases.
+### Post-migration verification
+A read query confirming all 31 active curation sections have non-null `example_good` of length ≥ 200 chars.
 
