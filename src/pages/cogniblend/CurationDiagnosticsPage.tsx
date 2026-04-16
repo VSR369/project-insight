@@ -15,6 +15,7 @@ import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/
 import { ConsistencyFindingsPanel } from '@/components/cogniblend/diagnostics/ConsistencyFindingsPanel';
 import { AmbiguityFindingsPanel } from '@/components/cogniblend/diagnostics/AmbiguityFindingsPanel';
 import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/QualityScoreSummary';
+import { ChallengeTelemetryPanel } from '@/components/cogniblend/diagnostics/ChallengeTelemetryPanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
 import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
 import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
@@ -93,6 +94,7 @@ export default function CurationDiagnosticsPage() {
             consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
             ambiguityCount={ambiguityFindings?.length ?? 0}
           />
+          <ChallengeTelemetryPanel challengeId={challengeId} />
           <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
           <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
           <ConsistencyFindingsPanel challengeId={challengeId} />
