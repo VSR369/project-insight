@@ -52,7 +52,7 @@ export async function persistCuratorCorrections({
       logWarning('[persistCuratorCorrections] Insert failed', {
         operation: 'persist_corrections',
         component: 'persistCuratorCorrections',
-        detail: error.message,
+        additionalData: { detail: error.message },
       });
       return 0;
     }
@@ -60,7 +60,7 @@ export async function persistCuratorCorrections({
     logInfo('[persistCuratorCorrections] Persisted corrections', {
       operation: 'persist_corrections',
       component: 'persistCuratorCorrections',
-      detail: `${rows.length} records for challenge ${challengeId}`,
+      additionalData: { count: rows.length, challengeId },
     });
 
     return rows.length;
@@ -69,7 +69,7 @@ export async function persistCuratorCorrections({
     logWarning('[persistCuratorCorrections] Unexpected error', {
       operation: 'persist_corrections',
       component: 'persistCuratorCorrections',
-      detail: message,
+      additionalData: { detail: message },
     });
     return 0;
   }
