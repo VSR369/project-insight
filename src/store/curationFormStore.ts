@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { deepMerge, ensureArrayItemIds } from '@/lib/deepMerge';
 import { getTransitiveDependents } from '@/lib/cogniblend/sectionDependencies';
-import type { SectionKey, SectionStoreEntry, ReviewStatus, AiActionType } from '@/types/sections';
+import type { SectionKey, SectionStoreEntry, ReviewStatus, AiActionType, AiComment } from '@/types/sections';
 import type { ValidationResult } from '@/lib/cogniblend/postLlmValidation';
 import { createEmptySectionEntry } from '@/types/sections';
 
@@ -25,7 +25,11 @@ interface CurationFormState {
   setChallengeId: (id: string) => void;
   getSectionEntry: (key: SectionKey) => SectionStoreEntry;
   setSectionData: (key: SectionKey, data: SectionStoreEntry['data']) => void;
-  setAiReview: (key: SectionKey, comments: any[], suggestion?: Record<string, unknown> | string | string[] | null) => void;
+  setAiReview: (
+    key: SectionKey,
+    comments: ReadonlyArray<AiComment | string | { text: string; [k: string]: unknown }>,
+    suggestion?: Record<string, unknown> | string | string[] | null,
+  ) => void;
   setReviewStatus: (key: SectionKey, status: ReviewStatus) => void;
   acceptAiSuggestion: (key: SectionKey) => void;
   rejectAiSuggestion: (key: SectionKey) => void;
