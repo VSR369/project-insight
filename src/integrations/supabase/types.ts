@@ -416,6 +416,7 @@ export type Database = {
           default_model: string
           fallback_model: string | null
           id: number
+          reasoning_effort: string
           updated_at: string
           updated_by: string | null
           use_context_intelligence: boolean
@@ -426,6 +427,7 @@ export type Database = {
           default_model?: string
           fallback_model?: string | null
           id?: number
+          reasoning_effort?: string
           updated_at?: string
           updated_by?: string | null
           use_context_intelligence?: boolean
@@ -436,6 +438,7 @@ export type Database = {
           default_model?: string
           fallback_model?: string | null
           id?: number
+          reasoning_effort?: string
           updated_at?: string
           updated_by?: string | null
           use_context_intelligence?: boolean
@@ -444,6 +447,7 @@ export type Database = {
       }
       ai_review_section_config: {
         Row: {
+          ai_review_level: string
           analyst_sources: Json | null
           computation_rules: Json | null
           content_templates: Json | null
@@ -477,6 +481,7 @@ export type Database = {
           web_search_queries: Json | null
         }
         Insert: {
+          ai_review_level?: string
           analyst_sources?: Json | null
           computation_rules?: Json | null
           content_templates?: Json | null
@@ -510,6 +515,7 @@ export type Database = {
           web_search_queries?: Json | null
         }
         Update: {
+          ai_review_level?: string
           analyst_sources?: Json | null
           computation_rules?: Json | null
           content_templates?: Json | null

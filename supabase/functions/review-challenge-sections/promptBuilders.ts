@@ -116,7 +116,7 @@ Focus 100% of your attention on producing the most accurate, specific, and actio
     const fmtInstr = FORMAT_INSTRUCTIONS[fmt] || '';
     const ebInstr = EXTENDED_BRIEF_FORMAT_INSTRUCTIONS[config.section_key] || '';
 
-    parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${config.importance_level}]`);
+    parts.push(`### ${i + 1}. ${config.section_key} — ${config.section_label} [${(config.ai_review_level || 'principal').toUpperCase()}]`);
     parts.push(`Format: ${fmt}. ${ebInstr || fmtInstr}`);
 
     // Wave context injection
@@ -366,11 +366,6 @@ export function buildSmartBatchPrompt(
   clientContext?: any,
   challengeSections?: Record<string, any>,
 ): string {
-  const anyStructured = configs.some(c => hasStructuredData(c));
-
-  if (anyStructured) {
-    return buildStructuredBatchPrompt(configs, roleContext, masterDataOptions, clientContext, challengeSections);
-  }
-
-  return buildConfiguredBatchPrompt(configs, roleContext, masterDataOptions);
+  // Always use structured batch prompt for Principal-grade reviews
+  return buildStructuredBatchPrompt(configs, roleContext, masterDataOptions, clientContext, challengeSections);
 }

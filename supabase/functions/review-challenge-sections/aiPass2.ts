@@ -222,7 +222,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   }
 
   const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
-  pass2SystemPrompt = contextIntel + (contextDigestText || '') + '\n\n' + pass2SystemPrompt;
+  pass2SystemPrompt = pass2SystemPrompt + '\n\n' + contextIntel + (contextDigestText || '');
 
   const response = await fetch(AI_GATEWAY_URL, {
     method: "POST",
