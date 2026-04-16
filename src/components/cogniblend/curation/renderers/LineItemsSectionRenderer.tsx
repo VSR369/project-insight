@@ -89,7 +89,18 @@ export function LineItemsSectionRenderer({
     if (cleaned.length === 0) {
       return <p className="text-sm text-muted-foreground">None defined.</p>;
     }
-    return <DeliverableCardRenderer items={cleaned} badgePrefix={badgePrefix} hideAcceptanceCriteria={hideAcceptanceCriteria} />;
+    const visible = expanded ? cleaned : cleaned.slice(0, DEFAULT_VISIBLE);
+    const hidden = cleaned.length - visible.length;
+    return (
+      <div className="space-y-2">
+        <DeliverableCardRenderer items={visible} badgePrefix={badgePrefix} hideAcceptanceCriteria={hideAcceptanceCriteria} />
+        {(hidden > 0 || expanded) && cleaned.length > DEFAULT_VISIBLE && (
+          <Button type="button" variant="ghost" size="sm" className="text-xs gap-1 h-7" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</> : <><ChevronDown className="h-3.5 w-3.5" /> Show {hidden} more</>}
+          </Button>
+        )}
+      </div>
+    );
   }
 
   // View mode — plain text fallback (filter empties)
@@ -99,15 +110,22 @@ export function LineItemsSectionRenderer({
   if (cleanedItems.length === 0) {
     return <p className="text-sm text-muted-foreground">None defined.</p>;
   }
+  const visibleItems = expanded ? cleanedItems : cleanedItems.slice(0, DEFAULT_VISIBLE);
+  const hiddenItems = cleanedItems.length - visibleItems.length;
 
   return (
     <div className="space-y-2">
-      {cleanedItems.map((item, i) => (
+      {visibleItems.map((item, i) => (
         <div key={i} className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-foreground">
           <span className="font-medium text-muted-foreground mr-2">{i + 1}.</span>
           {item}
         </div>
       ))}
+      {cleanedItems.length > DEFAULT_VISIBLE && (
+        <Button type="button" variant="ghost" size="sm" className="text-xs gap-1 h-7" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</> : <><ChevronDown className="h-3.5 w-3.5" /> Show {hiddenItems} more</>}
+        </Button>
+      )}
     </div>
   );
 }
