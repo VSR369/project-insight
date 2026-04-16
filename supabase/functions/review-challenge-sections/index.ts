@@ -170,7 +170,102 @@ ${sectionList}
 Every comment MUST be phrased as an actionable improvement instruction.`;
 }
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Findings persistence — Prompt 1                                            */
+/* Map AI pass results to dedicated findings tables for diagnostics panels.   */
+/* ────────────────────────────────────────────────────────────────────────── */
 
+interface ConsistencyFindingShape {
+  source_section?: string;
+  target_section?: string;
+  inconsistency?: string;
+  severity?: string;
+  resolution?: string;
+  evidence?: string;
+}
+
+interface AmbiguityFindingShape {
+  section_key?: string;
+  ambiguous_text?: string;
+  ambiguity_type?: string;
+  severity?: string;
+  solver_confusion_risk?: string;
+  clarified_alternative?: string;
+}
+
+function mapConsistencyRows(challengeId: string, findings: ConsistencyFindingShape[]) {
+  return findings
+    .filter((f) => f && f.source_section && f.target_section && f.inconsistency)
+    .map((f) => ({
+      challenge_id: challengeId,
+      section_a: String(f.source_section),
+      section_b: String(f.target_section),
+      contradiction_type: String(f.severity ?? 'warning'),
+      description: String(f.inconsistency),
+      severity: f.severity === 'error' ? 'error' : 'warning',
+      suggested_resolution: f.resolution ? String(f.resolution) : null,
+    }));
+}
+
+function mapAmbiguityRows(challengeId: string, findings: AmbiguityFindingShape[]) {
+  return findings
+    .filter((f) => f && f.section_key && f.ambiguous_text)
+    .map((f) => ({
+      challenge_id: challengeId,
+      section_key: String(f.section_key),
+      snippet: String(f.ambiguous_text).slice(0, 1000),
+      pattern_matched: String(f.ambiguity_type ?? 'unspecified'),
+      suggested_replacement: f.clarified_alternative ? String(f.clarified_alternative) : null,
+    }));
+}
+
+async function persistConsistencyFindings(
+  // deno-lint-ignore no-explicit-any
+  client: any,
+  challengeId: string,
+  findings: ConsistencyFindingShape[],
+): Promise<void> {
+  try {
+    const { error: delErr } = await client
+      .from('challenge_consistency_findings')
+      .delete()
+      .eq('challenge_id', challengeId);
+    if (delErr) console.error('[findings] consistency delete failed:', delErr.message);
+
+    const rows = mapConsistencyRows(challengeId, findings);
+    if (rows.length === 0) return;
+
+    const { error: insErr } = await client.from('challenge_consistency_findings').insert(rows);
+    if (insErr) console.error('[findings] consistency insert failed:', insErr.message);
+    else console.log(`[findings] persisted ${rows.length} consistency findings`);
+  } catch (e) {
+    console.error('[findings] consistency persistence threw:', e instanceof Error ? e.message : e);
+  }
+}
+
+async function persistAmbiguityFindings(
+  // deno-lint-ignore no-explicit-any
+  client: any,
+  challengeId: string,
+  findings: AmbiguityFindingShape[],
+): Promise<void> {
+  try {
+    const { error: delErr } = await client
+      .from('challenge_ambiguity_findings')
+      .delete()
+      .eq('challenge_id', challengeId);
+    if (delErr) console.error('[findings] ambiguity delete failed:', delErr.message);
+
+    const rows = mapAmbiguityRows(challengeId, findings);
+    if (rows.length === 0) return;
+
+    const { error: insErr } = await client.from('challenge_ambiguity_findings').insert(rows);
+    if (insErr) console.error('[findings] ambiguity insert failed:', insErr.message);
+    else console.log(`[findings] persisted ${rows.length} ambiguity findings`);
+  } catch (e) {
+    console.error('[findings] ambiguity persistence threw:', e instanceof Error ? e.message : e);
+  }
+}
 
 
 serve(async (req) => {
@@ -1002,6 +1097,10 @@ GROUNDING RULE (CRITICAL):
 
     // ═══ CROSS-SECTION CONSISTENCY PASS + AMBIGUITY DETECTION PASS ═══
     // Only run for multi-section reviews (not single-section re-reviews) and not pass1_only
+    // Hoisted out of the if-block so the persistence step (below) can read them.
+    let consistencyResult: Awaited<ReturnType<typeof callConsistencyPass>> | null = null;
+    let ambiguityResult: Awaited<ReturnType<typeof callAmbiguityPass>> | null = null;
+
     if (!section_key && !pass1_only && allNewSections.length >= 2) {
       const postBatchModel = globalConfig?.default_model || defaultModel;
 
@@ -1037,7 +1136,7 @@ GROUNDING RULE (CRITICAL):
         return null;
       });
 
-      const [consistencyResult, ambiguityResult] = await Promise.all([
+      [consistencyResult, ambiguityResult] = await Promise.all([
         consistencyPromisePass,
         ambiguityPromisePass,
       ]);
@@ -1115,6 +1214,14 @@ GROUNDING RULE (CRITICAL):
 
       if (updateError) {
         console.error("Failed to persist AI reviews:", updateError);
+      }
+
+      // ── Prompt 1: persist findings to dedicated tables (non-blocking) ──
+      if (consistencyResult) {
+        await persistConsistencyFindings(adminClient, challenge_id, consistencyResult.findings ?? []);
+      }
+      if (ambiguityResult) {
+        await persistAmbiguityFindings(adminClient, challenge_id, ambiguityResult.findings ?? []);
       }
 
       // ── Telemetry: write quality metrics row (non-blocking) ──
