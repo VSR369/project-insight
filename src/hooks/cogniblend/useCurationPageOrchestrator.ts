@@ -197,6 +197,9 @@ export function useCurationPageOrchestrator() {
   // ── Bulk accept all AI suggestions ──
   const [isBulkAccepting, setIsBulkAccepting] = useState(false);
 
+  // ── Curator edit tracking ──
+  const editTracking = useCuratorEditTracking();
+
   // Use a reactive selector from the store for suggestionsCount
   const suggestionsFingerprint = curationStore
     ? curationStore((s) => Object.entries(s.sections)
