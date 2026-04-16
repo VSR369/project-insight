@@ -18,6 +18,8 @@ export interface TelemetryRow {
   model_used: string | null;
   review_duration_seconds: number | null;
   is_baseline: boolean;
+  /** % of substantive Pass 1 comments meeting principal-grade bar (≥2 of 4 forcing fields). null = no substantive comments. */
+  principal_compliance_pct: number | null;
   created_at: string;
 }
 
@@ -57,7 +59,7 @@ export function useQualityTelemetry(limit = 200) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenge_quality_telemetry')
-        .select('id, challenge_id, sections_reviewed, pass1_tokens, pass2_tokens, consistency_findings_count, ambiguity_findings_count, total_corrections, avg_edit_magnitude, model_used, review_duration_seconds, is_baseline, created_at')
+        .select('id, challenge_id, sections_reviewed, pass1_tokens, pass2_tokens, consistency_findings_count, ambiguity_findings_count, total_corrections, avg_edit_magnitude, model_used, review_duration_seconds, is_baseline, principal_compliance_pct, created_at')
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw new Error(error.message);

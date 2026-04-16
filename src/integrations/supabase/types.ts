@@ -1701,6 +1701,7 @@ export type Database = {
           model_used: string | null
           pass1_tokens: number | null
           pass2_tokens: number | null
+          principal_compliance_pct: number | null
           review_duration_seconds: number | null
           sections_reviewed: number | null
           total_corrections: number
@@ -1716,6 +1717,7 @@ export type Database = {
           model_used?: string | null
           pass1_tokens?: number | null
           pass2_tokens?: number | null
+          principal_compliance_pct?: number | null
           review_duration_seconds?: number | null
           sections_reviewed?: number | null
           total_corrections?: number
@@ -1731,6 +1733,7 @@ export type Database = {
           model_used?: string | null
           pass1_tokens?: number | null
           pass2_tokens?: number | null
+          principal_compliance_pct?: number | null
           review_duration_seconds?: number | null
           sections_reviewed?: number | null
           total_corrections?: number

@@ -258,6 +258,53 @@ export async function callAIPass1Analyze(
   const withFramework = allComments.filter((c: any) => !!c.framework_applied).length;
   const withEvidenceSource = allComments.filter((c: any) => typeof c.evidence_source === 'string' && c.evidence_source && c.evidence_source !== 'general_knowledge').length;
   const withCrossRef = allComments.filter((c: any) => Array.isArray(c.cross_reference_verified) && c.cross_reference_verified.length > 0).length;
+
+  /* ── Principal-grade enforcement (substantive comments only) ──
+   * For error/warning/suggestion comments only, classify as:
+   *   'principal' if ≥2 of 4 forcing fields are present
+   *   'junior'    if 0–1 forcing fields are present
+   * Strength/best_practice comments are NOT classified (forcing fields would
+   * fabricate noise). Result attached as `principal_grade` on each comment
+   * and aggregated as `principal_compliance_pct` for the run.
+   */
+  const SUBSTANTIVE_TYPES = new Set(['error', 'warning', 'suggestion']);
+  let principalCount = 0;
+  let juniorCount = 0;
+  for (const section of sections) {
+    if (!Array.isArray(section.comments)) continue;
+    for (const c of section.comments as any[]) {
+      if (!SUBSTANTIVE_TYPES.has(c.type)) {
+        c.principal_grade = null;
+        continue;
+      }
+      let presentCount = 0;
+      if (c.quantification) presentCount++;
+      if (c.framework_applied) presentCount++;
+      if (c.evidence_source && c.evidence_source !== 'general_knowledge') presentCount++;
+      if (Array.isArray(c.cross_reference_verified) && c.cross_reference_verified.length > 0) presentCount++;
+
+      if (presentCount >= 2) {
+        c.principal_grade = 'principal';
+        principalCount++;
+      } else {
+        c.principal_grade = 'junior';
+        juniorCount++;
+      }
+    }
+  }
+  const totalSubstantive = principalCount + juniorCount;
+  const principalCompliancePct = totalSubstantive > 0
+    ? Math.round((principalCount / totalSubstantive) * 100)
+    : null;
+
+  // Expose compliance pct to caller via non-enumerable side-channel for telemetry insert.
+  // (Plain property — caller reads `(sections as any).__principalCompliancePct`.)
+  Object.defineProperty(sections, '__principalCompliancePct', {
+    value: principalCompliancePct,
+    enumerable: false,
+    writable: false,
+  });
+
   console.log(JSON.stringify({
     event: 'ai_principal_artifact_coverage',
     pass: 'pass1_analyze',
@@ -273,6 +320,12 @@ export async function callAIPass1Analyze(
       evidence_source: Math.round((withEvidenceSource / total) * 100),
       cross_reference: Math.round((withCrossRef / total) * 100),
     } : null,
+    principal_enforcement: {
+      total_substantive: totalSubstantive,
+      principal_count: principalCount,
+      junior_count: juniorCount,
+      compliance_pct: principalCompliancePct,
+    },
     timestamp: new Date().toISOString(),
   }));
 
