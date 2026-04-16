@@ -12,6 +12,7 @@ import {
   EXTENDED_BRIEF_FORMAT_INSTRUCTIONS,
   SECTION_QUALITY_EXEMPLARS,
   getSectionName,
+  DEFAULT_PLATFORM_PREAMBLE,
 } from './promptConstants.ts';
 import { detectDomainFrameworks } from './contextIntelligence.ts';
 import { buildIndustryIntelligence, buildGeographyContext } from './industryGeoPrompt.ts';
@@ -21,7 +22,7 @@ export function buildPass2SystemPrompt(
   challengeContext: any,
   masterDataOptions?: Record<string, { code: string; label: string }[]>,
 ): string {
-  let prompt = `You are a principal consultant at a Big4 firm rewriting challenge content to publication standard. You have 15+ years of experience in this challenge's domain.
+  let prompt = `${DEFAULT_PLATFORM_PREAMBLE}
 
 YOUR REWRITE PHILOSOPHY:
 You are not fixing text. You are CRAFTING a challenge specification that will attract the best solvers in the world to produce excellent solutions. Every sentence must earn its place.
