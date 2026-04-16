@@ -134,21 +134,25 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {wSections.map(({ id, execSection }) => {
-                    const imp = importanceLevels[id] ?? 'medium';
+                  {wSections.map(({ id, entry, execSection }) => {
                     const level = reviewLevels[id] ?? 'principal';
 
-                    // Only use execution record — no store fallback
+                    // Execution record drives base status (was Pass 2 run for this section?)
+                    // Store overlays the live state — once curator accepts/rejects, it shows here.
                     const sectionStatus = execSection?.status ?? 'skipped';
                     const sectionAction = execSection?.action ?? '—';
+                    const hasLiveSuggestion = !!entry?.aiSuggestion;
+                    const wasAddressed = entry?.addressed === true;
                     const hasSuggestion = execSection?.status === 'success';
 
                     const statusLabel = (() => {
                       if (!hasRecord) return 'Not Run';
                       if (!execSection) return 'Not Run';
                       if (execSection.status === 'success') {
+                        // Live store overlay: curator already actioned this suggestion
+                        if (wasAddressed && !hasLiveSuggestion) return 'Accepted by Curator';
+                        if (!hasLiveSuggestion && entry?.reviewStatus === 'idle') return 'Discarded by Curator';
                         if (execSection.action === 'generate') return 'AI Content Drafted & Suggestions Generated';
-                        // Cross-reference Pass 1: was this section AI-drafted?
                         if (aiDraftedSections.has(id)) return 'AI Drafted & Suggestions Generated';
                         return 'Suggestion Generated';
                       }
@@ -165,8 +169,10 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                         <TableCell><span className="text-xs">{statusLabel}</span></TableCell>
                         <TableCell><span className="text-xs capitalize">{sectionAction}</span></TableCell>
                         <TableCell>
-                          {hasSuggestion ? (
-                            <span className="text-xs">✨ 1</span>
+                          {hasSuggestion && hasLiveSuggestion ? (
+                            <span className="text-xs">✨ 1 pending</span>
+                          ) : hasSuggestion && wasAddressed ? (
+                            <span className="text-xs text-muted-foreground">✓ accepted</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
