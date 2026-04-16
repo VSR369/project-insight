@@ -450,11 +450,23 @@ serve(async (req) => {
         console.warn('Industry/geography fetch failed (non-blocking):', e);
       }
 
+      // ── Phase 11b: Framework library retrieval (domain-tag matched) ──
+      let frameworkBlock = '';
+      try {
+        const dt = Array.isArray(challengeData?.domain_tags) ? challengeData.domain_tags : [];
+        if (dt.length > 0) {
+          frameworkBlock = await buildFrameworkLibraryBlock(adminClient, dt as string[], 5);
+        }
+      } catch (e) {
+        console.warn('Framework library fetch failed (non-blocking):', e);
+      }
+
       // Attach to clientContext so prompt builders can access them
       if (clientContext) {
         clientContext._industryPack = industryPack;
         clientContext._geoContext = geoContext;
         clientContext._regionCode = regionCode;
+        clientContext._frameworkBlock = frameworkBlock;
       }
 
       // Extract extended_brief fields for intake/spec
