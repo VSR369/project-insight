@@ -69,7 +69,7 @@ export default function CurationDiagnosticsPage() {
       ) : (
         <div className="space-y-4">
           <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} executionRecord={analyseRecord} />
-          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} executionRecord={generateRecord} />
+          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
           <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
         </div>
       )}
