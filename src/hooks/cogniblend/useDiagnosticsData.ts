@@ -21,6 +21,14 @@ interface AttachmentStats {
   partialText: number;
   keyDataExtracted: number;
   noKeyData: number;
+  /** Sources filtered out before digest: pending/failed extraction */
+  extractionNotReady: number;
+  /** Sources filtered out before digest: low/seed quality */
+  lowQualityFiltered: number;
+  /** Sources with insufficient content (<200 chars text, <50 chars summary) */
+  insufficientContent: number;
+  /** Final count of sources usable for digest generation */
+  usableForDigest: number;
 }
 
 export interface DigestInfo {
@@ -40,6 +48,9 @@ export interface DiagnosticsData {
   isError: boolean;
 }
 
+const MIN_TEXT_LENGTH = 200;
+const MIN_SUMMARY_LENGTH = 50;
+
 export function useDiagnosticsData(challengeId: string | undefined): DiagnosticsData {
   const attachmentsQuery = useQuery({
     queryKey: ['diagnostics-attachments', challengeId],
@@ -47,7 +58,7 @@ export function useDiagnosticsData(challengeId: string | undefined): Diagnostics
       if (!challengeId) return null;
       const { data, error } = await supabase
         .from('challenge_attachments')
-        .select('source_type, discovery_status, extraction_status, extracted_summary, extracted_key_data, extraction_quality')
+        .select('source_type, discovery_status, extraction_status, extracted_summary, extracted_key_data, extraction_quality, extracted_text')
         .eq('challenge_id', challengeId);
       if (error) { handleQueryError(error, { operation: 'fetch_diagnostic_attachments' }); throw error; }
       return data ?? [];
@@ -94,6 +105,31 @@ export function useDiagnosticsData(challengeId: string | undefined): Diagnostics
   const accepted = rows.filter(r => r.discovery_status === 'accepted');
   const excluded = rows.filter(r => r.discovery_status === 'rejected' || r.discovery_status === 'excluded');
 
+  // Filter breakdown matching edge function logic
+  const extractionNotReady = accepted.filter(
+    r => r.extraction_status !== 'completed' && r.extraction_status !== 'partial'
+  ).length;
+
+  const extractionReady = accepted.filter(
+    r => r.extraction_status === 'completed' || r.extraction_status === 'partial'
+  );
+
+  const lowQualityFiltered = extractionReady.filter(
+    r => r.extraction_quality === 'low' || r.extraction_quality === 'seed'
+  ).length;
+
+  const qualityPassed = extractionReady.filter(
+    r => r.extraction_quality !== 'low' && r.extraction_quality !== 'seed'
+  );
+
+  const insufficientContent = qualityPassed.filter(r => {
+    const textLen = (r.extracted_text ?? '').length;
+    const summaryLen = (r.extracted_summary ?? '').length;
+    return textLen < MIN_TEXT_LENGTH && summaryLen < MIN_SUMMARY_LENGTH;
+  }).length;
+
+  const usableForDigest = qualityPassed.length - insufficientContent;
+
   const stats: AttachmentStats = {
     acceptedLinks: accepted.filter(r => r.source_type === 'url').length,
     acceptedDocs: accepted.filter(r => r.source_type === 'file').length,
@@ -105,6 +141,10 @@ export function useDiagnosticsData(challengeId: string | undefined): Diagnostics
     partialText: rows.filter(r => r.extraction_status === 'partial').length,
     keyDataExtracted: rows.filter(r => !!r.extracted_key_data).length,
     noKeyData: rows.filter(r => !r.extracted_key_data).length,
+    extractionNotReady,
+    lowQualityFiltered,
+    insufficientContent,
+    usableForDigest,
   };
 
   const d = digestQuery.data;

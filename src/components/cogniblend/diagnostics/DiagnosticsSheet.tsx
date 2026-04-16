@@ -4,7 +4,7 @@
  * Reads authoritative execution history from localStorage.
  */
 
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -31,9 +31,27 @@ interface DiagnosticsSheetProps {
 export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: DiagnosticsSheetProps) {
   const { attachmentStats, digest, importanceLevels, isLoading } = useDiagnosticsData(challengeId);
 
-  const analyseRecord = open ? loadExecutionRecord(challengeId, 'analyse') : null;
-  const generateRecord = open ? loadExecutionRecord(challengeId, 'generate') : null;
-  const acceptanceRecord = open ? loadAcceptanceRecord(challengeId) : null;
+  // refreshKey increments every time the sheet opens so localStorage is re-read
+  const [refreshKey, setRefreshKey] = useState(0);
+  useEffect(() => {
+    if (open) setRefreshKey((k) => k + 1);
+  }, [open]);
+
+  const analyseRecord = useMemo(
+    () => (open ? loadExecutionRecord(challengeId, 'analyse') : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, challengeId, refreshKey],
+  );
+  const generateRecord = useMemo(
+    () => (open ? loadExecutionRecord(challengeId, 'generate') : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, challengeId, refreshKey],
+  );
+  const acceptanceRecord = useMemo(
+    () => (open ? loadAcceptanceRecord(challengeId) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open, challengeId, refreshKey],
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -66,7 +84,9 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections }: 
                 analyseRecord={analyseRecord}
               />
               <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
-              <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+              <div>
+                <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+              </div>
             </>
           )}
         </div>
