@@ -66,6 +66,13 @@ export interface AiComment {
   cross_reference_verified?: string[] | null;
   /** Origin of the comment ('pass1', 'consistency', 'ambiguity', etc.). */
   source?: string | null;
+  /**
+   * Principal-grade classification (computed server-side, not model-emitted).
+   * 'principal' = substantive comment cites ≥2 forcing fields.
+   * 'junior' = substantive comment with 0–1 forcing fields.
+   * null/undefined = not classified (e.g. strength/best_practice or legacy).
+   */
+  principal_grade?: 'principal' | 'junior' | null;
 }
 
 export interface SectionStoreEntry {
