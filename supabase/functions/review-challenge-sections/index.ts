@@ -27,7 +27,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { buildConfiguredBatchPrompt, buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, buildContextIntelligence, SECTION_WAVE_CONTEXT, resolveIndustryCode, countryToRegion, buildIndustryIntelligence, buildGeographyContext, type SectionConfig } from "./promptTemplate.ts";
+import { buildSmartBatchPrompt, buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, detectDomainFrameworks, buildContextIntelligence, SECTION_WAVE_CONTEXT, resolveIndustryCode, countryToRegion, buildIndustryIntelligence, buildGeographyContext, type SectionConfig } from "./promptTemplate.ts";
 import { fetchMasterDataOptions, MASTER_DATA_SECTION_TABLES, STATIC_MASTER_DATA } from "./masterData.ts";
 import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutput, SECTION_FIELD_ALIASES, SECTION_DEPENDENCIES, DEPENDENCY_REASONING } from "./aiCalls.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
