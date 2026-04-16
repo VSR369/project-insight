@@ -36,6 +36,33 @@ import {
   type WaveSectionResult,
 } from '@/services/cogniblend/waveExecutionHistory';
 import type { SectionKey } from '@/types/sections';
+import { supabase } from '@/integrations/supabase/client';
+
+/**
+ * Best-effort upsert of curation_progress. Errors are swallowed because progress
+ * reporting is non-critical and must never block the actual review work.
+ */
+async function supabaseUpsertProgress(
+  challengeId: string,
+  updates: {
+    current_wave?: number;
+    sections_reviewed?: number;
+    sections_total?: number;
+    status?: string;
+  },
+): Promise<void> {
+  try {
+    await supabase
+      .from('curation_progress' as never)
+      .upsert({
+        challenge_id: challengeId,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      } as never);
+  } catch {
+    /* non-blocking */
+  }
+}
 
 interface WaveProgressCallbacks {
   onWaveStart?: (waveNum: number) => void;
