@@ -3,12 +3,17 @@
  * Used for: deliverables, submission_guidelines (when structured)
  */
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { DeliverablesEditor } from "@/components/cogniblend/curation/CurationSectionEditor";
 import { DeliverableCardRenderer } from "./DeliverableCardRenderer";
 import { DeliverableCardEditor } from "./DeliverableCardEditor";
 import { AutoSaveIndicator } from "@/components/cogniblend/curation/AutoSaveIndicator";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 import type { AutoSaveStatus } from "@/hooks/cogniblend/useAutoSaveSection";
+
+const DEFAULT_VISIBLE = 10;
 
 interface LineItemsSectionRendererProps {
   items: string[];
