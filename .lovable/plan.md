@@ -93,7 +93,12 @@
 - DB: Added `learning_rule` text and `source_type` text to `section_example_library`
 - Both functions use `service_role` key (server-only), idempotent, non-blocking errors
 - Edge functions deployed successfully, zero client build errors
-## 🔲 Prompt 10 — Corpus Injection with Semantic Retrieval
+## ✅ Prompt 10 — Corpus Injection with Semantic Retrieval (COMPLETE)
+- Created `fetchExamples.ts` in edge function — server-side retrieval from `section_example_library` with scoring by quality_tier, maturity match, domain overlap, and learning_rule presence
+- `index.ts`: Fetches examples in parallel with master data options during curation reviews; filters per-batch and injects formatted examples into system prompts
+- `formatExamplesForPrompt`: Renders examples as structured prompt blocks with tier labels, annotations, and learning rules
+- Client-side `fetchRelevantExamples.ts`: Added `learning_rule` to `DynamicExample` interface and select query
+- Edge function deployed, zero build errors
 ## 🔲 Prompt 11 — Supervisor Learning Admin Page
 ## 🔲 Prompt 12 — Quality Telemetry Dashboard
 ## 🔲 Prompt 13 — Framework Library Seed + Remaining Exemplars
