@@ -1,37 +1,43 @@
 
 
-## Plan: Upgrade 26 Section Exemplars to Principal-Grade (Gap B)
+## 5-Why Analysis
 
-### Scope
-One data migration with UPDATE statements writing Principal-grade `example_good` content to all 26 remaining sections in `ai_review_section_config` (role_context = 'curation'). This closes the final content gap. No engineering changes, no schema changes, no code changes.
+1. **Why does the preview fail?** PostgREST returns "more than one relationship was found for 'challenges' and 'seeker_organizations'".
+2. **Why is the relationship ambiguous?** The `challenges` table has TWO foreign keys to `seeker_organizations`: `challenges_organization_id_fkey` (organization_id) and `challenges_tenant_id_fkey` (tenant_id).
+3. **Why didn't PostgREST pick one?** The query in `usePreviewData.ts` uses `seeker_organizations!inner(...)` without specifying which FK to embed through. PostgREST refuses to guess.
+4. **Why is `tenant_id` a FK to seeker_organizations?** Multi-tenancy convention — every business table's `tenant_id` references the owning org. This is correct and must stay.
+5. **Why is this the only hook that breaks?** Every other hook in the codebase already uses the explicit hint `seeker_organizations!challenges_organization_id_fkey(...)`. `usePreviewData.ts` is the only file using the implicit `!inner` form — this is the lone divergence from the established pattern.
 
-### Approach
-Mirror the quality bar set by the 5 completed exemplars (problem_statement, scope, deliverables, evaluation_criteria, reward_structure):
-- Concrete numbers, named tools/protocols, and cited benchmarks (e.g., Gartner, ISO, IEEE)
-- Cross-references to other sections (e.g., "consistent with deliverables D2")
-- Explicit assumptions, boundary conditions, and failure modes
-- Industry framework references where natural (TOGAF, DMAIC, FAIR, etc.)
-- Length/density appropriate to the section's `importance_level` (Critical = denser, Low = tight)
+**Root cause:** Single inconsistent embed in `src/components/cogniblend/preview/usePreviewData.ts` line 65.
 
-Use the same anchoring narrative used in the existing 5 exemplars (the GlobalTech / SAP EWM logistics challenge) so the corpus reads as a single coherent gold-standard brief — this is what makes calibration tight.
+## Permanent Fix
 
-### Sections covered (26 total, grouped by current state)
+**One-line change** in `src/components/cogniblend/preview/usePreviewData.ts`:
 
-**6 sections currently NULL** — write fresh exemplars:
-creator_legal_instructions, creator_references, evaluation_config, organization_context, reference_urls, solver_audience
+Replace:
+```ts
+seeker_organizations!inner(
+```
+with:
+```ts
+seeker_organizations!challenges_organization_id_fkey(
+```
 
-**20 sections with junior-grade exemplars** — rewrite to Principal level:
-affected_stakeholders, approaches_not_of_interest, complexity, context_and_background, current_deficiencies, data_resources_provided, domain_tags, eligibility, escrow_funding, expected_outcomes, hook, ip_model, legal_docs, maturity_level, phase_schedule, preferred_approach, root_causes, solution_type, solver_expertise, submission_guidelines, success_metrics_kpis, visibility
+This matches the canonical pattern used by `useCurationPageData`, `usePublicChallenge`, `useBrowseChallenges`, and `useSolutionRequests`.
 
-### Deliverable
-A single migration file `supabase/migrations/<timestamp>_principal_exemplars_remaining_sections.sql` containing 26 `UPDATE ai_review_section_config SET example_good = '...', updated_at = now() WHERE role_context = 'curation' AND section_key = '...';` statements.
+## Why This Is "Permanent"
 
-### Safety
-- Additive content-only change. No schema, no RLS, no code.
-- Does not touch the 5 already-upgraded sections.
-- Does not touch `importance_level`, `ai_review_level`, or any other column.
-- Existing AI review pipeline picks up the new exemplars automatically on next prompt assembly via `useExtendedSectionConfigs` (5-min staleTime).
+- Aligns the preview hook with the existing project-wide convention — no special casing.
+- The `!inner` join semantic is preserved implicitly because `organization_id` is NOT NULL on challenges in practice (and the preview only loads after Phase 1 where org is set). If we want to keep strict inner-join semantics, we can keep `!inner` plus the hint: `seeker_organizations!challenges_organization_id_fkey!inner(...)` — but a review of the other hooks shows none use `!inner`, so we'll match the project standard (plain hint, no `!inner`).
+- No migration, no schema change, no RLS change. Single-file edit.
 
-### Post-migration verification
-A read query confirming all 31 active curation sections have non-null `example_good` of length ≥ 200 chars.
+## Verification After Fix
+
+1. Reload `/cogni/curation/:id/preview` — the alert should disappear and the document renders.
+2. Confirm `data.orgData` populates (organization name shown in preview header/sections).
+3. Quick grep to ensure no other file still uses the implicit embed against `seeker_organizations` without an FK hint.
+
+## Files Changed
+
+- `src/components/cogniblend/preview/usePreviewData.ts` (1 line)
 
