@@ -1,44 +1,82 @@
 
-Current behavior in your screenshot is not the intended design. On Re-analyse, Diagnostics should clear stale Pass 1, Pass 2, Acceptance, and temporary QA/Discovery outputs first, then refill live from the new run. Only the historical telemetry trend should remain.
 
-Why it is still showing old data
-1. `CurationRightRail.tsx` passes Diagnostics a frozen section snapshot (`store.getState()` inside `useMemo`). That snapshot does not update when Re-analyse clears and rebuilds section review state, so old “Analysed / comments / principal” rows stay visible.
-2. `DiagnosticsSheet.tsx` refreshes localStorage records only on open or browser `storage` events. Same-tab `localStorage.setItem/removeItem` does not fire `storage`, so Pass 1 / Pass 2 / Acceptance records do not refresh live while the drawer is already open.
-3. DB-backed diagnostics panels (quality findings, discovery summary) are not gated during a fresh run, so cached prior-run data can remain visible until later waves finish.
+## Plan: Two surgical fixes — batch-exclude non-DB sections + same-tab Diagnostics refresh
 
-Implementation plan
-1. Make Diagnostics read live section state
-- Replace the one-time `diagSections` snapshot with a subscribed store selector/helper so the drawer re-renders immediately when review status, comments, suggestions, and addressed flags are cleared or repopulated.
-- Apply the same fix to the standalone diagnostics page if it is still used.
+Both fixes are low-risk, additive, and align with existing architecture. No DB changes, no new tables, no RLS work.
 
-2. Make execution history refresh in the same tab
-- Add a shared custom event in `waveExecutionHistory.ts`.
-- Dispatch it from `saveExecutionRecord`, `saveAcceptanceRecord`, `clearAllExecutionRecords`, and `clearPass2ExecutionRecord`.
-- Update `DiagnosticsSheet.tsx` and `CurationDiagnosticsPage.tsx` to listen to that event and bump `refreshKey` immediately, alongside the existing `storage` listener.
+---
 
-3. Blank stale “other data” during the new run
-- Pass current wave/run status into Diagnostics.
-- While a fresh Analyse run is active:
-  - blank Pass 2 + Acceptance until new records exist
-  - blank Discovery until the discovery wave completes
-  - blank QA summary / consistency / ambiguity until the QA wave completes
-- Show explicit waiting states like “Waiting for current run…” instead of prior cached data.
-- Keep `ChallengeTelemetryPanel` unchanged because that history is intentionally preserved.
+### Fix 1 — Exclude non-DB-column sections from AI batch calls
 
-4. Keep the already-shipped fix
-- `AICurationQualityPanel` reset is already wired via `cogni-quality-reset`; that is not the blocker shown in your attachment.
+**Problem.** Sections without backing columns on `challenges` (`creator_references`, `reference_urls`, `legal_docs`, `escrow_funding`, `creator_legal_instructions`, `evaluation_config`, `organization_context`) get sent to the edge function with empty/missing content. The model returns malformed JSON for them, and the surrounding sub-batch (real DB-backed sections like `current_deficiencies`, `solution_type`) dies in the parser.
 
-Files likely touched
-- `src/components/cogniblend/curation/CurationRightRail.tsx`
-- `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx`
-- `src/pages/cogniblend/CurationDiagnosticsPage.tsx`
-- `src/services/cogniblend/waveExecutionHistory.ts`
-- small shared helper/hook if needed to keep file sizes under control
+**Why prior `NO_DRAFT_SECTIONS` didn't cover this.** That list only blocks Pass 2 (`generate`). `ATTACHMENT_SECTIONS` re-enables Pass 1 (`review`) for `creator_references` + `reference_urls`. And `legal_docs`, `escrow_funding`, `evaluation_config`, `creator_legal_instructions`, `organization_context` aren't in either list.
 
-Verification
-1. Keep Diagnostics open.
-2. Click Re-analyse.
-3. Confirm Pass 1 / Pass 2 / Acceptance old rows disappear immediately.
-4. Confirm Pass 1 repopulates live wave-by-wave without closing the drawer.
-5. Confirm Discovery and QA panels stay blank until their new-wave data is ready.
-6. Confirm Telemetry still shows historical trend.
+**Implementation.**
+
+1. `src/lib/cogniblend/waveConfig.ts` — add a single new constant:
+   ```ts
+   export const BATCH_EXCLUDE_SECTIONS: readonly SectionKey[] = [
+     'creator_references', 'reference_urls',
+     'legal_docs', 'escrow_funding',
+     'creator_legal_instructions', 'evaluation_config',
+     'organization_context',
+   ];
+   ```
+   No changes to `NO_DRAFT_SECTIONS`, `ATTACHMENT_SECTIONS`, `SOLO_SECTIONS`, or wave membership. These sections still appear in waves and still display in the UI — they're just not sent to the LLM batch.
+
+2. `src/services/cogniblend/waveBatchInvoker.ts` — partition `sectionActions` before the invoke:
+   - Reviewable = `action !== 'skip' && !BATCH_EXCLUDE_SECTIONS.includes(sectionId)`
+   - Excluded = `BATCH_EXCLUDE_SECTIONS.includes(sectionId)` → emit per-section outcome `{ status: 'skipped', reason: 'no_db_column' }` and DO NOT include in the edge function payload.
+   - If `reviewable.length === 0`, short-circuit: skip the network call entirely and return only the skipped outcomes (prevents an empty-batch invocation).
+
+3. `src/hooks/useWaveExecutor.ts` — when writing per-section results into the curation store and `wave-exec-*` localStorage record, treat `'skipped'` outcomes as a clean terminal status (not `error`, not `pending`). They show as "Skipped (no draft)" in Diagnostics.
+
+**What stays unchanged.** Wave config, executor flow, principal-grade enforcement, store sync, autosave, telemetry. The edge function itself needs no edit — it just receives a smaller payload.
+
+---
+
+### Fix 2 — Make Diagnostics refresh in the same tab via custom events
+
+**Problem.** `StorageEvent` only fires across tabs. The Diagnostics drawer subscribes to `storage` but `saveExecutionRecord` writes from the same tab, so `refreshKey` never bumps during a live run.
+
+**Status check first.** A previous round already added `WAVE_EXEC_CHANGED_EVENT` dispatch in `waveExecutionHistory.ts` and listeners in `DiagnosticsSheet.tsx` / `CurationDiagnosticsPage.tsx` (per the prior diff). I will:
+
+1. **Verify the event name + payload shape are wired end-to-end.** If the listener filters by `challengeId` but the dispatch detail omits it (or vice-versa), refresh silently no-ops. This is the most likely reason the user is still seeing stale data.
+2. **Standardise the event name** to `wave-execution-updated` (per the user's spec) — alias the existing constant if needed for backward compatibility, or update both sides to one canonical string.
+3. **Confirm dispatch sites cover all four mutation paths**: `saveExecutionRecord`, `saveAcceptanceRecord`, `clearAllExecutionRecords`, `clearPass2ExecutionRecord`. Any missing dispatch = stale panel.
+4. **Confirm listeners always re-attach when `open` toggles** (StrictMode double-mount safe), and don't early-return before subscribing.
+
+No new files. ~5–10 line touch-up in two files at most.
+
+---
+
+### Files touched
+
+| File | Change |
+|---|---|
+| `src/lib/cogniblend/waveConfig.ts` | +1 exported constant |
+| `src/services/cogniblend/waveBatchInvoker.ts` | partition + short-circuit empty batch |
+| `src/hooks/useWaveExecutor.ts` | recognise `'skipped'` outcome (small) |
+| `src/services/cogniblend/waveExecutionHistory.ts` | verify/align event name + ensure all 4 mutators dispatch |
+| `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx` | confirm listener uses canonical event name |
+| `src/pages/cogniblend/CurationDiagnosticsPage.tsx` | same |
+
+No file expected to exceed 250 lines after the edit. No DB migration. No edge function redeploy required for Fix 1 (smaller payload is backward compatible) or Fix 2 (client-only).
+
+---
+
+### Verification
+
+1. Open a draft with attachments + legal docs configured.
+2. Click **Re-analyse**. Confirm waves containing `creator_references`, `legal_docs`, `escrow_funding`, etc. complete cleanly — those sections show "Skipped (no draft)", neighbours like `current_deficiencies`, `solution_type` show "Reviewed".
+3. Keep Diagnostics open during the run. Confirm Pass 1 rows populate live wave-by-wave with no manual refresh.
+4. Trigger Pass 2 and Accept-All. Confirm Suggestions and Acceptance panels also update live in the same tab.
+5. Confirm Telemetry trend still shows historical runs.
+
+### Rejected alternatives
+
+- **Fixing the AI prompt to handle empty sections gracefully** — rejected: still wastes tokens, still risks malformed JSON, doesn't address the root architectural mismatch (these sections have no `challenges.*` column to serialise).
+- **Per-section solo calls for each excluded section** — rejected: adds 7 extra LLM round-trips per wave with no quality gain; their content (attachments / legal / escrow) is reviewed by dedicated panels (Discovery wave, legal compliance UI, escrow UI), not by the section reviewer.
+- **Polling Diagnostics on a timer** — rejected: wasteful re-renders, laggy UX vs event-driven refresh.
+
