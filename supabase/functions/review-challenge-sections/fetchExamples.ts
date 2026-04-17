@@ -8,8 +8,11 @@
  * - Token budgeting: caps total corpus injection at TOKEN_BUDGET_CHARS
  */
 
-/** Approx 6K tokens — 30% of a ~20K token corpus budget */
-const TOKEN_BUDGET_CHARS = 24000;
+/** Approx 3K tokens — halved from 24K (PR3) to cut Pass-1 prompt size ~50%.
+ *  Gate: monitor `principal_compliance_pct` in challenge_quality_telemetry.
+ *  Revert to 24000 if compliance drops > 5% vs baseline.
+ */
+const TOKEN_BUDGET_CHARS = 12000;
 
 interface DynamicExample {
   content: string;
