@@ -42,6 +42,32 @@ export default function CurationDiagnosticsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
+  // Listen for in-tab wave execution / acceptance changes so the standalone
+  // diagnostics page refreshes live without requiring a manual reload.
+  useEffect(() => {
+    if (!challengeId) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ challengeId: string }>).detail;
+      if (!detail || detail.challengeId === challengeId) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
+    const storageHandler = (e: StorageEvent) => {
+      if (
+        e.key?.startsWith(`wave-exec-${challengeId}`) ||
+        e.key === `wave-accept-${challengeId}`
+      ) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
+    window.addEventListener(WAVE_EXEC_CHANGED_EVENT, handler as EventListener);
+    window.addEventListener('storage', storageHandler);
+    return () => {
+      window.removeEventListener(WAVE_EXEC_CHANGED_EVENT, handler as EventListener);
+      window.removeEventListener('storage', storageHandler);
+    };
+  }, [challengeId]);
+
   const sections = useMemo(() => {
     if (!challengeId) return {};
     return loadSectionsFromStorage(challengeId);
