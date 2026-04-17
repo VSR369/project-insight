@@ -15,6 +15,22 @@ import { SECTION_FIELD_ALIASES, SECTION_DEPENDENCIES, DEPENDENCY_REASONING } fro
 
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
+/**
+ * Per-section Pass 2 failure marker. Surfaced to caller so the invoker / UI
+ * can distinguish a TRUNCATED / MALFORMED / MISSING suggestion from a genuine
+ * "no suggestion needed" outcome. Caller reads via the `__failures` side-channel
+ * on the returned Map.
+ */
+export type Pass2FailureCode = 'TRUNCATED' | 'MALFORMED' | 'MISSING';
+export interface Pass2SectionFailure {
+  section_key: string;
+  code: Pass2FailureCode;
+  reason: string;
+}
+
+/** Output token cap for Pass 2 — prevents silent truncation under HIGH reasoning. */
+const PASS2_MAX_TOKENS = 16384;
+
 // Extended brief subsection keys and field map for nested content lookup
 const EXTENDED_BRIEF_KEYS = new Set([
   'context_and_background', 'root_causes', 'affected_stakeholders',
