@@ -24,6 +24,7 @@ export async function callAIPass1Analyze(
   const requestBody: Record<string, unknown> = {
     model,
     temperature: 0.2,
+    max_tokens: 16384,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },

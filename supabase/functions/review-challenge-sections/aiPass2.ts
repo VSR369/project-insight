@@ -15,6 +15,22 @@ import { SECTION_FIELD_ALIASES, SECTION_DEPENDENCIES, DEPENDENCY_REASONING } fro
 
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
+/**
+ * Per-section Pass 2 failure marker. Surfaced to caller so the invoker / UI
+ * can distinguish a TRUNCATED / MALFORMED / MISSING suggestion from a genuine
+ * "no suggestion needed" outcome. Caller reads via the `__failures` side-channel
+ * on the returned Map.
+ */
+export type Pass2FailureCode = 'TRUNCATED' | 'MALFORMED' | 'MISSING';
+export interface Pass2SectionFailure {
+  section_key: string;
+  code: Pass2FailureCode;
+  reason: string;
+}
+
+/** Output token cap for Pass 2 — prevents silent truncation under HIGH reasoning. */
+const PASS2_MAX_TOKENS = 16384;
+
 // Extended brief subsection keys and field map for nested content lookup
 const EXTENDED_BRIEF_KEYS = new Set([
   'context_and_background', 'root_causes', 'affected_stakeholders',
@@ -250,6 +266,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   const requestBody: Record<string, unknown> = {
     model,
     temperature: 0.2,
+    max_tokens: PASS2_MAX_TOKENS,
     messages: [
       { role: "system", content: pass2SystemPrompt },
       { role: "user", content: pass2UserPrompt },
@@ -309,15 +326,79 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     (requestBody as any).reasoning_effort = reasoningEffort;
   }
 
-  const response = await callAIWithFallback(apiKey, requestBody, model);
+  const inputKeys = sectionsNeedingSuggestion.map((s: any) => s.section_key as string);
+  const failures: Pass2SectionFailure[] = [];
+  const suggestionMap = await runPass2Call(
+    apiKey,
+    requestBody,
+    model,
+    inputKeys,
+    sectionsNeedingSuggestion,
+    pass2SystemPrompt,
+    failures,
+    /* allowSplit */ true,
+  );
+
+  // Backfill MISSING markers for any input key the AI silently skipped
+  for (const key of inputKeys) {
+    if (!suggestionMap.has(key) && !failures.some((f) => f.section_key === key)) {
+      failures.push({
+        section_key: key,
+        code: 'MISSING',
+        reason: 'AI did not return a suggestion for this section.',
+      });
+      console.warn(JSON.stringify({
+        event: 'pass2_missing_suggestion',
+        section_key: key,
+        model: model || 'unknown',
+        timestamp: new Date().toISOString(),
+      }));
+    }
+  }
+
+  // Side-channel: expose failures to caller without changing return type.
+  if (failures.length > 0) {
+    Object.defineProperty(suggestionMap, '__failures', {
+      value: failures,
+      enumerable: false,
+      writable: false,
+    });
+  }
+
+  return suggestionMap;
+}
+
+/**
+ * runPass2Call — Issues one Pass 2 request with the given input keys.
+ * On `finish_reason === 'length'` and batch size > 1, recursively splits in
+ * half and retries each half. On single-section truncation or JSON parse
+ * failure, records a per-section failure marker. Always returns a Map of
+ * successfully extracted suggestions; never returns empty for whole-batch
+ * failures unless every retry path failed.
+ */
+async function runPass2Call(
+  apiKey: string,
+  baseRequestBody: Record<string, unknown>,
+  model: string,
+  inputKeys: string[],
+  pass1ResultsForBatch: any[],
+  pass2SystemPrompt: string,
+  failures: Pass2SectionFailure[],
+  allowSplit: boolean,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+
+  const response = await callAIWithFallback(apiKey, baseRequestBody, model);
 
   if (!response.ok) {
     if (response.status === 429) throw new Error("RATE_LIMIT");
     if (response.status === 402) throw new Error("PAYMENT_REQUIRED");
     const errText = await response.text();
     console.error("AI gateway error (Pass 2):", response.status, errText);
-    console.error("Pass 2 failed, returning Pass 1 results without suggestions");
-    return new Map();
+    for (const k of inputKeys) {
+      failures.push({ section_key: k, code: 'MALFORMED', reason: `AI gateway error ${response.status}.` });
+    }
+    return map;
   }
 
   const result = await response.json();
@@ -327,45 +408,90 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   console.log(JSON.stringify({
     event: 'ai_review_tokens',
     pass: 'pass2_rewrite',
-    sectionKeys: sectionsNeedingSuggestion.map((s: any) => s.section_key),
+    sectionKeys: inputKeys,
     model: result.model || model || 'unknown',
     prompt_tokens: tokenUsage.prompt_tokens || 0,
     completion_tokens: tokenUsage.completion_tokens || 0,
     total_tokens: tokenUsage.total_tokens || 0,
-    reasoning_effort: reasoningEffort || 'default',
     timestamp: new Date().toISOString(),
   }));
 
-  // Detect finish_reason: 'length' (output truncation)
   const finishReason = result.choices?.[0]?.finish_reason;
   if (finishReason === 'length') {
     console.warn(JSON.stringify({
       event: 'ai_review_truncated',
       pass: 'pass2_rewrite',
-      sectionKeys: sectionsNeedingSuggestion.map((s: any) => s.section_key),
+      sectionKeys: inputKeys,
+      batch_size: inputKeys.length,
       model: result.model || model,
       timestamp: new Date().toISOString(),
     }));
-    if (sectionsNeedingSuggestion.length > 1) {
-      console.error("Pass 2 output truncated with multiple sections — retry with smaller batches");
-      return new Map();
+    if (inputKeys.length > 1 && allowSplit) {
+      // Split-and-retry: halve the batch and re-issue Pass 2 for each half.
+      const mid = Math.ceil(inputKeys.length / 2);
+      const leftKeys = inputKeys.slice(0, mid);
+      const rightKeys = inputKeys.slice(mid);
+      const leftBatch = pass1ResultsForBatch.filter((r: any) => leftKeys.includes(r.section_key));
+      const rightBatch = pass1ResultsForBatch.filter((r: any) => rightKeys.includes(r.section_key));
+
+      const buildSplitBody = (subset: any[]) => {
+        // Rebuild the user prompt with only the subset of section blocks
+        const subsetBody = { ...baseRequestBody };
+        const messages = (baseRequestBody.messages as any[]).slice();
+        const userMsg = messages[messages.length - 1];
+        const newUserContent = (userMsg?.content as string ?? '').split('SECTIONS TO REWRITE:')[0]
+          + 'SECTIONS TO REWRITE:\n'
+          + subset.map((r: any) => `### Section: ${r.section_key}\n[Pass 2 split-retry — see Pass 1 issues for ${r.section_key}]`).join('\n\n---\n\n');
+        subsetBody.messages = [
+          messages[0],
+          { role: 'user', content: newUserContent },
+        ];
+        return subsetBody;
+      };
+
+      const [leftMap, rightMap] = await Promise.all([
+        runPass2Call(apiKey, buildSplitBody(leftBatch), model, leftKeys, leftBatch, pass2SystemPrompt, failures, /* allowSplit */ false),
+        runPass2Call(apiKey, buildSplitBody(rightBatch), model, rightKeys, rightBatch, pass2SystemPrompt, failures, /* allowSplit */ false),
+      ]);
+      for (const [k, v] of leftMap.entries()) map.set(k, v);
+      for (const [k, v] of rightMap.entries()) map.set(k, v);
+      return map;
     }
+    // Single-section or split exhausted — mark every key as TRUNCATED
+    for (const k of inputKeys) {
+      failures.push({
+        section_key: k,
+        code: 'TRUNCATED',
+        reason: 'AI output was truncated (max_tokens reached). Re-run this section individually with a tighter prompt.',
+      });
+    }
+    return map;
   }
 
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) {
     console.error("Pass 2: AI did not return structured output");
-    return new Map();
+    for (const k of inputKeys) {
+      failures.push({ section_key: k, code: 'MALFORMED', reason: 'AI did not return a tool call.' });
+    }
+    return map;
   }
 
-  const parsed = JSON.parse(toolCall.function.arguments);
-  const suggestionMap = new Map<string, string>();
+  let parsed: any;
+  try {
+    parsed = JSON.parse(toolCall.function.arguments);
+  } catch (err) {
+    console.error("Pass 2: tool_call JSON parse failed:", err);
+    for (const k of inputKeys) {
+      failures.push({ section_key: k, code: 'MALFORMED', reason: `JSON parse failed: ${err instanceof Error ? err.message : String(err)}` });
+    }
+    return map;
+  }
 
   const resultSections = parsed.sections ?? parsed;
   if (Array.isArray(resultSections)) {
     for (const s of resultSections) {
       if (s.section_key && s.suggestion) {
-        // Log self-validation metadata for observability
         if (s.changes_summary || s.confidence_score != null) {
           console.log(JSON.stringify({
             event: 'pass2_self_validation',
@@ -377,17 +503,15 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
             timestamp: new Date().toISOString(),
           }));
         }
-
         const fmt = getSectionFormatType(s.section_key);
         if (fmt === 'table' || fmt === 'schedule_table') {
-          const sanitized = sanitizeTableSuggestion(s.suggestion);
-          suggestionMap.set(s.section_key, sanitized);
+          map.set(s.section_key, sanitizeTableSuggestion(s.suggestion));
         } else {
-          suggestionMap.set(s.section_key, s.suggestion);
+          map.set(s.section_key, s.suggestion);
         }
       }
     }
   }
 
-  return suggestionMap;
+  return map;
 }

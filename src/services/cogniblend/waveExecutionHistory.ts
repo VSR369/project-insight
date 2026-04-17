@@ -16,8 +16,22 @@ export interface WaveSectionResult {
   status: 'success' | 'error' | 'skipped';
   /** Optional human-readable reason when status is 'error'. */
   errorMessage?: string | null;
-  /** Optional machine code when status is 'error' (RATE_LIMIT, PAYMENT_REQUIRED, BATCH_ERROR, MISSING, MALFORMED). */
+  /** Optional machine code when status is 'error' (RATE_LIMIT, PAYMENT_REQUIRED, BATCH_ERROR, MISSING, MALFORMED, TRUNCATED). */
   errorCode?: string | null;
+  /** Optional human-readable reason when status is 'skipped' (e.g. "Excluded — no DB column"). */
+  skippedReason?: string | null;
+  /** True when the failure originated specifically inside Pass 2 (suggestion generation). */
+  isPass2Failure?: boolean;
+}
+
+/** Optional Wave 12 (Harmonization) telemetry persisted on the wave run record. */
+export interface HarmonizeWaveMetrics {
+  crossSectionScore?: number | null;
+  issuesFound?: number | null;
+  issuesFixed?: number | null;
+  appliedCount?: number | null;
+  droppedCount?: number | null;
+  skippedReason?: string | null;
 }
 
 export interface WaveRunRecord {
@@ -29,6 +43,8 @@ export interface WaveRunRecord {
   completedAt: string | null;
   /** Optional human-readable summary when the wave ends with `status: 'error'`. */
   errorMessage?: string | null;
+  /** Wave 12 (Harmonization) telemetry — only populated for HARMONIZE_WAVE_NUMBER. */
+  harmonizeMetrics?: HarmonizeWaveMetrics | null;
 }
 
 export interface ExecutionRecord {
@@ -208,6 +224,20 @@ export function updateWaveComplete(
             errorMessage: errorMessage ?? (hasErrors ? `${sections.filter((s) => s.status === 'error').length} of ${sections.length} sections failed.` : null),
           }
         : w
+    ),
+  };
+}
+
+/** Persist Wave 12 (Harmonization) telemetry on the wave record. */
+export function updateHarmonizeMetrics(
+  record: ExecutionRecord,
+  waveNumber: number,
+  metrics: HarmonizeWaveMetrics,
+): ExecutionRecord {
+  return {
+    ...record,
+    waves: record.waves.map((w) =>
+      w.waveNumber === waveNumber ? { ...w, harmonizeMetrics: metrics } : w
     ),
   };
 }
