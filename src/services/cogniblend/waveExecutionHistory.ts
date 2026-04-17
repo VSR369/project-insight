@@ -157,6 +157,7 @@ export function updateWaveComplete(
   record: ExecutionRecord,
   waveNumber: number,
   sections: WaveSectionResult[],
+  errorMessage?: string,
 ): ExecutionRecord {
   const hasErrors = sections.some((s) => s.status === 'error');
   return {
@@ -166,9 +167,10 @@ export function updateWaveComplete(
       w.waveNumber === waveNumber
         ? {
             ...w,
-            status: hasErrors ? 'error' : 'completed',
+            status: hasErrors || errorMessage ? 'error' : 'completed',
             sections,
             completedAt: new Date().toISOString(),
+            errorMessage: errorMessage ?? (hasErrors ? `${sections.filter((s) => s.status === 'error').length} of ${sections.length} sections failed.` : null),
           }
         : w
     ),
