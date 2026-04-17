@@ -892,6 +892,69 @@ ${'═'.repeat(60)}\n`;
     // Bug 7: Build context intelligence ONCE before the batch loop
     const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
 
+    // PERF FIX (WORKER_RESOURCE_LIMIT): Hoist the static challenge-data section of userPrompt
+    // outside the loop. Previously this ~50K-token block was rebuilt for every batch, causing
+    // memory pressure that triggered 546 WORKER_RESOURCE_LIMIT errors on waves with many sub-batches.
+    // Same pattern as contextIntel hoisting above.
+    const { ai_section_reviews: _air, targeting_filters: _tf, lc_review_required: _lcr, ...relevantDataStatic } = challengeData;
+    const ebStatic = relevantDataStatic.extended_brief && typeof relevantDataStatic.extended_brief === 'object' ? relevantDataStatic.extended_brief : {};
+    const staticChallengeBlock = `CHALLENGE DATA:
+Title: ${relevantDataStatic.title || '(untitled)'}
+Solution Type: ${relevantDataStatic.solution_type || '(not set)'}
+Maturity Level: ${relevantDataStatic.maturity_level || '(not set)'}
+Complexity: ${relevantDataStatic.complexity_level || '(not set)'} (Score: ${relevantDataStatic.complexity_score ?? 'N/A'})
+
+Problem Statement:
+${stripHtml(relevantDataStatic.problem_statement)}
+
+Scope:
+${stripHtml(relevantDataStatic.scope)}
+
+Deliverables:
+${jsonBrief(relevantDataStatic.deliverables)}
+
+Expected Outcomes:
+${jsonBrief(relevantDataStatic.expected_outcomes)}
+
+Evaluation Criteria:
+${jsonBrief(relevantDataStatic.evaluation_criteria)}
+
+Phase Schedule:
+${jsonBrief(relevantDataStatic.phase_schedule)}
+
+Reward Structure:
+${jsonBrief(relevantDataStatic.reward_structure)}
+
+IP Model: ${relevantDataStatic.ip_model || '(not set)'}
+
+Solver Expertise Requirements:
+${jsonBrief(relevantDataStatic.solver_expertise || relevantDataStatic.solver_expertise_requirements)}
+
+Eligibility: ${jsonBrief(relevantDataStatic.eligibility || relevantDataStatic.solver_eligibility_types)}
+Visibility: ${jsonBrief(relevantDataStatic.visibility || relevantDataStatic.solver_visibility_types)}
+
+Success Metrics & KPIs:
+${jsonBrief(relevantDataStatic.success_metrics_kpis)}
+
+Data & Resources:
+${jsonBrief(relevantDataStatic.data_resources_provided)}
+
+Domain Tags: ${jsonBrief(relevantDataStatic.domain_tags)}
+Challenge Hook: ${stripHtml(relevantDataStatic.hook)}
+
+Context & Background:
+${stripHtml(relevantDataStatic.context_and_background || (ebStatic as any).context_background)}
+
+Root Causes: ${jsonBrief(relevantDataStatic.root_causes || (ebStatic as any).root_causes)}
+Affected Stakeholders: ${jsonBrief(relevantDataStatic.affected_stakeholders || (ebStatic as any).affected_stakeholders)}
+Current Deficiencies: ${jsonBrief(relevantDataStatic.current_deficiencies || (ebStatic as any).current_deficiencies)}
+Preferred Approach: ${jsonBrief(relevantDataStatic.preferred_approach || (ebStatic as any).preferred_approach)}
+Approaches NOT of Interest: ${jsonBrief(relevantDataStatic.approaches_not_of_interest || (ebStatic as any).approaches_not_of_interest)}
+Submission Guidelines: ${jsonBrief(relevantDataStatic.submission_guidelines)}
+Solution Type: ${jsonBrief(relevantDataStatic.solution_type)}
+
+${additionalData}`;
+
     for (const batch of batches) {
       // Per-batch model selection: critical sections get premium model
       const batchKeys = batch.map(b => b.key);
