@@ -35,6 +35,8 @@ export interface BatchInvokeOptions {
 export interface BatchSectionOutcome {
   sectionId: SectionKey;
   status: 'success' | 'error' | 'skipped';
+  errorCode?: string | null;
+  errorMessage?: string | null;
 }
 
 /**
