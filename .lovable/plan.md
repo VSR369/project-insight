@@ -1,101 +1,56 @@
 
 
-## Validation of Claude's Review
+## Diagnostic Truthfulness — Final Plan
 
-I verified each claim against the actual code:
-<lov-tool-use id="toolu_vrtx_01BzPpn6YGr97wGd2sDq7edd" name="code--search_files" integration-id="code" data="{\"query\": \"DISCOVERY_WAVE_NUMBER\\\\s*=|QA_WAVE_NUMBER\\\\s*=\", \"include_patterns\": \"*.ts,*.tsx\"}">
-</lov-tool-use>
+### Validation against actual code
 
-<lov-tool-use id="toolu_vrtx_01SKKesZAgtab1RZkmZ486nW" name="code--search_files" integration-id="code" data="{\"query\": \"DISCOVERY_WAVE_NUMBER\\\\s*=|QA_WAVE_NUMBER\\\\s*=\", \"include_patterns\": \"*.ts,*.tsx\"}">
-</lov-tool-use>
+I verified the four claims:
 
-<lov-tool-use id="toolu_vrtx_0197GWnEpwM8VWfJi5mg9Ab2" name="code--view" integration-id="code" data="{\"file_path\": \"src/lib/cogniblend/waveConfig.ts\", \"lines\": \"115-220\"}">
-</lov-tool-use>
-Claude's reviewer is wrong about the facts. The 9-wave restructure IS already shipped (`DISCOVERY_WAVE_NUMBER = 10`, `QA_WAVE_NUMBER = 11`). But the QA-during-Pass-2 redundancy point is a genuine catch worth validating.
-<lov-tool-use id="toolu_vrtx_019zi1nrxGHWAPriRdf7FN2i" name="code--search_files" integration-id="code" data="{\"query\": \"consistency_check|invokeQaWave|wave_action.*consistency\", \"include_patterns\": \"*.ts,*.tsx\"}">
-</lov-tool-use>
+1. **`waveBatchInvoker.ts`** does emit `errorCode`: `MISSING` / `BATCH_ERROR` / `MALFORMED` per section, plus `errorMessage`. Confirmed these already exist on the execution record but are not surfaced in the UI.
+2. **`DiagnosticsReviewPanel.tsx`** does override `entry.reviewStatus` with `execStatus === 'error'`. This is the line that makes backfilled `warning` rows display as `Error`.
+3. **Action label** `'generate'` is set by `determineSectionAction` purely on emptiness — it has nothing to do with Pass 2 having run. Misleading word, real bug.
+4. **`DiagnosticsSheet`** uses `useSyncExternalStore` against an event-driven snapshot. On Re-analyse the store clears synchronously but the sheet's snapshot can lag a tick when the sheet is already open.
 
-<lov-tool-use id="toolu_vrtx_01PxSMoUSYcFAurDHg5NFjkY" name="code--view" integration-id="code" data="{\"file_path\": \"src/hooks/useWaveExecutor.ts\", \"lines\": \"1-100\"}">
-</lov-tool-use>
+All four fixes are valid and aligned with the existing architecture. Adding two safety items below.
 
-<lov-tool-use id="toolu_vrtx_01H32dE28iqwY9xiiiYuTsQa" name="code--view" integration-id="code" data="{\"file_path\": \"src/hooks/useWaveExecutor.ts\", \"lines\": \"100-260\"}">
-</lov-tool-use>
-Now I have all the facts. Let me check what `createInitialWaveProgress` looks like (to confirm QA wave is part of *both* Pass 1 and Pass 2 progress, which is the basis of the redundancy claim):
-<lov-tool-use id="toolu_vrtx_01CPkaPGMQJo14RWuPTSMsqo" name="code--view" integration-id="code" data="{\"file_path\": \"src/lib/cogniblend/waveConfig.ts\", \"lines\": \"240-292\"}">
-</lov-tool-use>
-I have everything needed. Reviewer's facts check:
-
-1. **Issue 1 (numbering):** Reviewer is **WRONG about the facts**. Code already has `DISCOVERY_WAVE_NUMBER = 10`, `QA_WAVE_NUMBER = 11`. The 9-wave restructure shipped 2 turns ago. No PR1 prerequisite needed — we can proceed directly to harmonization. My original "no renumbering" plan is correct.
-
-2. **Issue 2 (cluster sections) & Issue 3 (validation):** My plan already incorporates both — confirmed adopted.
-
-3. **Reviewer's NEW catch (QA-during-Pass-2 redundancy):** **Valid and worth adopting.** Confirmed by code: `executeWaves` iterates `EXECUTION_WAVES` which always includes QA wave, regardless of `pass1Only` / `skipAnalysis`. Pass 2 today re-runs `invokeQaWave` → `consistency_check` against `ai_section_reviews` (Pass 1's data, unchanged during Pass 2). 60s saved.
-
-<lov-plan>
-
-## Pass 2 Suggestion Harmonization — Final Plan (v2)
-
-### Reviewer fact-check
-
-| Reviewer claim | Verdict |
-|---|---|
-| "Actual code has DISCOVERY=7, QA=8, restructure not implemented" | **WRONG.** `waveConfig.ts:128-129` shows `DISCOVERY_WAVE_NUMBER = 10`, `QA_WAVE_NUMBER = 11`. 9-wave restructure shipped. No PR1 prerequisite. |
-| "Send only ~12 cluster sections" | **CORRECT** — already in my v1 plan. |
-| "Validate each correction before writing" | **CORRECT** — already in my v1 plan. |
-| "QA during Pass 2 is redundant — skip it" | **CORRECT and new.** Verified: `executeWaves` (line 163) iterates all `EXECUTION_WAVES` regardless of `skipAnalysis`. Pass 2 re-runs `consistency_check` against `ai_section_reviews` (Pass 1 data, unchanged during Pass 2) — wastes ~60s, produces identical findings. Adopt. |
-
-### Wave routing (no renumbering needed)
-
-```
-Pass 1 (Analyse, pass1Only=true, skipAnalysis=false):
-  Waves 1-9 → Wave 10 Discovery → Wave 11 QA
-
-Pass 2 (Generate, pass1Only=false, skipAnalysis=true):
-  Waves 1-9 → [skip Wave 11 QA] → Wave 12 Harmonization (NEW)
-```
-
-Discovery (10) and QA (11) constants stay put. Harmonization gets `HARMONIZE_WAVE_NUMBER = 12` and runs Pass-2-only.
-
-### Files (4, additive)
+### Files to change (4, additive only)
 
 | File | Change |
 |---|---|
-| `src/lib/cogniblend/waveConfig.ts` | Add `HARMONIZE_WAVE_NUMBER = 12`, `HARMONIZE_CLUSTER_SECTIONS` (deliverables, evaluation_criteria, phase_schedule, success_metrics_kpis, expected_outcomes, reward_structure, complexity, scope, solver_expertise, submission_guidelines). New helper `createInitialWaveProgressForPass2()` that appends Harmonization wave. |
-| `supabase/functions/review-challenge-sections/aiHarmonizationPass.ts` (NEW, ≤250 lines) | Single AI call. Input: cluster suggestions + DB original + dependency matrix excerpt. Tool-schema output `{corrections[], cross_section_score, issues_found, issues_fixed}`. Reasoning HIGH. Per-section format instructions reused from `getSuggestionFormatInstruction`. |
-| `supabase/functions/review-challenge-sections/index.ts` | New early-return branch `wave_action === 'harmonize_suggestions'` mirroring `consistency_check` pattern. Loads minimal challenge fields. |
-| `src/hooks/useWaveExecutor.ts` | Two changes inside the wave loop (line ~194):<br>**(a)** If `wave.waveNumber === QA_WAVE_NUMBER && skipAnalysis` → mark wave `completed`, log `"QA skipped (Pass 2 — already ran in Pass 1)"`, `continue`.<br>**(b)** New branch `wave.waveNumber === HARMONIZE_WAVE_NUMBER && !pass1Only`: collect `aiSuggestion` from `HARMONIZE_CLUSTER_SECTIONS` only, skip wave if <2 suggestions, invoke edge fn, validate each correction via `validateAIOutput`, drop invalid, write valid via `setAiReview`. |
-| `src/services/cogniblend/waveBatchInvoker.ts` | Add `invokeHarmonizationWave(challengeId, suggestions, context)` mirroring `invokeQaWave` shape. |
+| `src/components/cogniblend/diagnostics/DiagnosticsReviewPanel.tsx` | (a) Stop overriding store status with execution-record `error` — store is the single source of truth for section state. (b) Rename Action labels: `generate` → `Empty → Draft`, `skip` → `Skipped`, `review` → `Review`. (c) Render per-section `errorCode` + `errorMessage` chip when present. |
+| `src/components/cogniblend/diagnostics/DiagnosticsSheet.tsx` | Listen to a new `cogni-diagnostics-reset` window event and force `refreshKey++` + clear memoized snapshots. Keeps `useSyncExternalStore` correct even when sheet is already open during Re-analyse. |
+| `src/hooks/cogniblend/useCurationAIActions.ts` | Inside `runAnalyseFlow` (and `runGenerateFlow`), immediately after clearing execution records and before any await, dispatch `window.dispatchEvent(new CustomEvent('cogni-diagnostics-reset'))`. Synchronous — no race. |
+| `src/services/cogniblend/waveBatchInvoker.ts` | (Tiny) — make sure the error object written to the execution record always carries `{ errorCode, errorMessage }` for every failure path (`MISSING`, `BATCH_ERROR`, `MALFORMED`, future `TIMEOUT`). It already does for most; verify `MISSING` path includes a human-readable message. |
 
-### Token-budget guards
-- Cap input at 10 cluster sections (~15-20K tokens).
-- If <2 cluster sections have a suggestion, skip Harmonization wave entirely (mark complete, no AI call).
-- Reasoning HIGH; expected wall-time 60-80s; comfortably under 150s.
+### Two extra safeguards (not in user's plan but needed)
 
-### Validation guard
-Each `corrections[i].corrected_suggestion` runs through `validateAIOutput(section_key, corrected, context)`. If invalid: drop it, log via `logWarning`, leave original `aiSuggestion` intact. Never overwrite a valid suggestion with a broken one.
+1. **Wave header count = current config, not execution record.** The "5 of 5 failed" header comes from counting execution-record entries, which can be stale across wave-config changes. Update the header math in `DiagnosticsReviewPanel` (and the wave-progress widget) to use `EXECUTION_WAVES[waveNumber].sections.length` as the denominator and intersect execution-record statuses by *current* section keys only. Stale section keys are ignored, not counted.
+2. **Action label "Empty → Draft" must not be shown after Pass 2 has populated the section.** Re-derive `sectionAction` from current store data, not from a stale execution-record snapshot. Already largely correct — just confirm the panel reads `entry.data` freshly.
 
-### Explicitly NOT changed
+### What is NOT changed
+
 - ❌ Pass 1 / Pass 2 separation
-- ❌ Waves 1–9 logic, prompts, schemas, batch loop, `SOLO_SECTIONS`, `MAX_BATCH_SIZE`
-- ❌ `DISCOVERY_WAVE_NUMBER`, `QA_WAVE_NUMBER` constants
-- ❌ `SECTION_WAVE_CONTEXT` numbering
-- ❌ Accept All — still reads `aiSuggestion`
-- ❌ Diagnostics row rendering — Harmonization auto-renders as new wave row
-- ❌ Pass 1 QA still runs as today
+- ❌ Wave structure, wave numbering, SOLO_SECTIONS, MAX_BATCH_SIZE
+- ❌ Edge functions (`aiPass1.ts`, `aiPass2.ts`, `index.ts`) — this PR is diagnostics-only
+- ❌ `executeWaves`, harmonization wave, QA wave skip
+- ❌ Store reducers / Zustand contracts
+- ❌ Accept All path
 
 ### Architecture compliance
-- R1: New file ≤250 lines.
-- R2: All DB/edge calls in services/hooks; no Supabase in components.
-- R3: Typed `HarmonizationCorrection` interface; zero `any`.
-- R9: `handleMutationError` for invoke failures; `logWarning` for dropped corrections.
-- Edge function: CORS, JWT-in-code, Zod-validated input, standard `{success,data,error}` shape, correlation IDs.
+
+- R1: each touched file stays under 250 lines.
+- R2: no DB calls added in components; event dispatch is UI-layer only.
+- R3: typed `DiagnosticsResetEvent`, no `any`.
+- R9: errors surfaced via existing `errorCode/errorMessage` fields; no new `console.*`.
+- R6: error chip ensures failure state is communicated, not hidden.
 
 ### Verification
-1. **Pass 1 unchanged**: Discovery 10 + QA 11 fire; Harmonization does NOT.
-2. **Pass 2**: Waves 1-9 run; QA 11 marked skipped instantly with log line; Wave 12 runs in 60-90s.
-3. Diagnostics shows Wave 11 = "Skipped (Pass 2)" and Wave 12 = "Harmonized N sections, M corrections, K dropped".
-4. Sparse Pass 2 (<2 cluster suggestions) → Wave 12 marks complete instantly, no AI call.
-5. Forced corrupt response → invalid corrections dropped, originals preserved.
-6. Accept All applies harmonized suggestions via existing path — zero regression.
-7. Total Pass 2 wall-time: ~9 waves × ~80s + Harmonize ~70s ≈ saved ~60s vs today.
+
+1. Click **Re-analyse** with diagnostics drawer open → all wave rows blank instantly, no stale "X of Y failed" header.
+2. Pass 1 finishes → Action column shows `Empty → Draft` / `Review` / `Skipped` (never the word `Generate`).
+3. A SOLO section (e.g. `evaluation_criteria`) failure → row shows `Error` AND the precise `errorCode` chip (`BATCH_ERROR` / `MISSING` / `MALFORMED`) with the message tooltip.
+4. A backfilled `warning` row (where Pass 1 completed but produced no comments for that section) no longer shows `Error` — shows `Reviewed` (warning).
+5. Wave 5 header shows `0/3` not `5/5`. Stale 6-wave keys are ignored.
+6. Pass 2 panel remains untouched while Pass 1 runs.
+7. No regressions in Accept All, Wave 12 harmonization, or Pass 1 wave execution.
 
