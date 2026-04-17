@@ -117,15 +117,28 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
     for (const sa of reviewable) {
       const result = sectionsByKey.get(sa.sectionId);
       if (!result) {
-        // Missing → truthful error (R9: no console)
         store.getState().setReviewStatus(sa.sectionId, 'error');
-        outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+        outcomes.push({
+          sectionId: sa.sectionId,
+          status: 'error',
+          errorCode: 'MISSING',
+          errorMessage: 'AI did not return a result for this section.',
+        });
         continue;
       }
       // is_batch_failure flag from edge function → error
       if (result.is_batch_failure === true) {
         store.getState().setReviewStatus(sa.sectionId, 'error');
-        outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+        const errorCode = typeof result.error_code === 'string' ? result.error_code : 'BATCH_ERROR';
+        const firstComment = Array.isArray(result.comments) && result.comments.length > 0
+          ? (result.comments[0] as { text?: string }).text
+          : null;
+        outcomes.push({
+          sectionId: sa.sectionId,
+          status: 'error',
+          errorCode,
+          errorMessage: firstComment ?? `Batch failed (${errorCode}).`,
+        });
         continue;
       }
 
@@ -168,16 +181,27 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
         onSectionReviewed(sa.sectionId, { ...normalized, addressed: false });
         outcomes.push({ sectionId: sa.sectionId, status: 'success' });
-      } catch {
+      } catch (parseErr) {
         store.getState().setReviewStatus(sa.sectionId, 'error');
-        outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+        outcomes.push({
+          sectionId: sa.sectionId,
+          status: 'error',
+          errorCode: 'MALFORMED',
+          errorMessage: parseErr instanceof Error ? parseErr.message : 'Could not parse AI response.',
+        });
       }
     }
-  } catch {
-    // Whole-wave failure (network / 5xx after fallback) — mark all as error
+  } catch (waveErr) {
+    // Whole-wave failure (network / 5xx after fallback)
+    const msg = waveErr instanceof Error ? waveErr.message : 'Network error';
     for (const sa of reviewable) {
       store.getState().setReviewStatus(sa.sectionId, 'error');
-      outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+      outcomes.push({
+        sectionId: sa.sectionId,
+        status: 'error',
+        errorCode: 'NETWORK',
+        errorMessage: msg,
+      });
     }
   }
 
