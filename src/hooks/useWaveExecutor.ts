@@ -1,11 +1,12 @@
 /**
  * useWaveExecutor — Core wave-based AI review execution engine.
  *
- * PR1 (batched): Each wave fires ONE edge function call for all its sections
- * (instead of N calls). The QA wave (QA_WAVE_NUMBER = 11) invokes the QA-only
- * branch (consistency + ambiguity). Per-section autosave is preserved via
- * setAiReview inside the batch invoker. reReviewStale still uses per-section
- * calls (unchanged).
+ * Each wave fires ONE edge function call for all its sections. The QA wave
+ * (QA_WAVE_NUMBER = 11) invokes the QA-only branch (consistency + ambiguity).
+ * The Harmonization wave (HARMONIZE_WAVE_NUMBER = 12) runs Pass-2 only and
+ * audits all suggestions for cross-section consistency before Accept All.
+ * During Pass 2, QA is skipped (already executed in Pass 1; underlying data
+ * unchanged). reReviewStale still uses per-section calls (unchanged).
  */
 
 import { useState, useCallback, useRef } from 'react';
