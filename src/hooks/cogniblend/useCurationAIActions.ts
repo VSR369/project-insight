@@ -142,6 +142,9 @@ export function useCurationAIActions({
       sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
       // Clear stored wave exec history + acceptance so diagnostics start blank
       clearAllExecutionRecords(challengeId);
+      // Synchronously force the diagnostics sheet to drop memoized snapshots
+      // BEFORE any await — guarantees no stale "X of Y failed" header lingers.
+      window.dispatchEvent(new CustomEvent('cogni-diagnostics-reset', { detail: { challengeId } }));
       // Signal AI Quality panel to reset its in-component assessment state
       sessionStorage.setItem(`cogni-quality-cleared-${challengeId}`, String(Date.now()));
       window.dispatchEvent(new CustomEvent('cogni-quality-reset', { detail: { challengeId } }));
@@ -255,7 +258,11 @@ export function useCurationAIActions({
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
-    if (challengeId) clearPass2ExecutionRecord(challengeId);
+    if (challengeId) {
+      clearPass2ExecutionRecord(challengeId);
+      // Synchronously refresh the diagnostics sheet so the prior Pass 2 panel blanks immediately.
+      window.dispatchEvent(new CustomEvent('cogni-diagnostics-reset', { detail: { challengeId } }));
+    }
 
     try {
       // Stage 1: Generate context digest

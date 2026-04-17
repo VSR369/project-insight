@@ -49,6 +49,8 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, on
   // Auto-refresh when localStorage is updated (covers sheet-open-during-execution).
   // `storage` event only fires across tabs, so we ALSO listen for the in-tab
   // custom event dispatched by waveExecutionHistory on save/clear.
+  // Additionally listens for `cogni-diagnostics-reset` so Re-analyse forces an
+  // immediate snapshot refresh even when the sheet is already open.
   useEffect(() => {
     if (!open) return;
     const storageHandler = (e: StorageEvent) => {
@@ -65,11 +67,19 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, on
         setRefreshKey((k) => k + 1);
       }
     };
+    const resetHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ challengeId?: string }>).detail;
+      if (!detail || !detail.challengeId || detail.challengeId === challengeId) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
     window.addEventListener('storage', storageHandler);
     window.addEventListener(WAVE_EXEC_CHANGED_EVENT, inTabHandler as EventListener);
+    window.addEventListener('cogni-diagnostics-reset', resetHandler as EventListener);
     return () => {
       window.removeEventListener('storage', storageHandler);
       window.removeEventListener(WAVE_EXEC_CHANGED_EVENT, inTabHandler as EventListener);
+      window.removeEventListener('cogni-diagnostics-reset', resetHandler as EventListener);
     };
   }, [open, challengeId]);
 
