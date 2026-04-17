@@ -156,8 +156,17 @@ export function useCurationAIActions({
         return;
       }
 
-      // ── Discovery: discover-context-resources ──
+      // ── Discovery (Wave 7): discover-context-resources ──
+      pass1SetWaveProgress((prev) => ({
+        ...prev,
+        currentWave: DISCOVERY_WAVE_NUMBER,
+        waves: prev.waves.map((w) =>
+          w.waveNumber === DISCOVERY_WAVE_NUMBER ? { ...w, status: 'running' } : w,
+        ),
+      }));
+
       let autoAcceptedCount = 0;
+      let discoveryStatus: 'completed' | 'error' = 'completed';
       try {
         const { data: discoverResult, error: discoverError } = await supabase.functions.invoke('discover-context-resources', {
           body: { challenge_id: challengeId },
@@ -165,6 +174,7 @@ export function useCurationAIActions({
         if (discoverError || !discoverResult?.success) {
           const reason = discoverResult?.reason ?? discoverResult?.error?.message ?? discoverError?.message ?? 'Unknown';
           toast.warning(`Discovery: ${reason}. Add sources manually.`, { duration: 6000 });
+          discoveryStatus = 'error';
         } else {
           autoAcceptedCount = discoverResult?.auto_accepted ?? 0;
           const totalCount = discoverResult?.count ?? 0;
@@ -181,7 +191,15 @@ export function useCurationAIActions({
       } catch (discErr: unknown) {
         const msg = discErr instanceof Error ? discErr.message : 'Network error';
         toast.warning(`Discovery failed: ${msg}. Add sources manually.`, { duration: 6000 });
+        discoveryStatus = 'error';
       }
+
+      pass1SetWaveProgress((prev) => ({
+        ...prev,
+        waves: prev.waves.map((w) =>
+          w.waveNumber === DISCOVERY_WAVE_NUMBER ? { ...w, status: discoveryStatus } : w,
+        ),
+      }));
 
       setPass1DoneSession(true);
       toast.success('Analysis complete. Review sources in Context Library, then Generate Suggestions.');
