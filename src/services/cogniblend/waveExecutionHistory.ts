@@ -228,6 +228,20 @@ export function updateWaveComplete(
   };
 }
 
+/** Persist Wave 12 (Harmonization) telemetry on the wave record. */
+export function updateHarmonizeMetrics(
+  record: ExecutionRecord,
+  waveNumber: number,
+  metrics: HarmonizeWaveMetrics,
+): ExecutionRecord {
+  return {
+    ...record,
+    waves: record.waves.map((w) =>
+      w.waveNumber === waveNumber ? { ...w, harmonizeMetrics: metrics } : w
+    ),
+  };
+}
+
 export function finalizeRecord(
   record: ExecutionRecord,
   outcome: ExecutionOutcome,
