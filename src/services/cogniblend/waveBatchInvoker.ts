@@ -208,7 +208,24 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
         }
 
         onSectionReviewed(sa.sectionId, { ...normalized, addressed: false });
-        outcomes.push({ sectionId: sa.sectionId, status: 'success' });
+
+        // F3c — Pass 1 succeeded but Pass 2 may have failed silently (truncated/malformed/missing).
+        // The edge function flags this via is_pass2_failure on the per-section result.
+        const isPass2Failure = (result as { is_pass2_failure?: boolean }).is_pass2_failure === true;
+        const pass2ErrorCode = (result as { pass2_error_code?: string }).pass2_error_code;
+        const pass2ErrorMessage = (result as { pass2_error_message?: string }).pass2_error_message;
+
+        if (isPass2Failure && parsedSuggestion == null) {
+          outcomes.push({
+            sectionId: sa.sectionId,
+            status: 'success', // Pass 1 succeeded — keep status truthful
+            isPass2Failure: true,
+            errorCode: pass2ErrorCode ?? 'PASS2_FAILED',
+            errorMessage: pass2ErrorMessage ?? 'Pass 2 did not produce a suggestion for this section.',
+          });
+        } else {
+          outcomes.push({ sectionId: sa.sectionId, status: 'success' });
+        }
       } catch (parseErr) {
         store.getState().setReviewStatus(sa.sectionId, 'error');
         outcomes.push({

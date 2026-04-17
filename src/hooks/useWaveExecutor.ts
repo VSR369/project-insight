@@ -275,6 +275,8 @@ export function useWaveExecutor({
               status: o.status,
               errorCode: o.errorCode ?? null,
               errorMessage: o.errorMessage ?? null,
+              skippedReason: o.skippedReason ?? null,
+              isPass2Failure: o.isPass2Failure ?? false,
             });
             if (o.status === 'error') failedSections.push(o.sectionId);
           }
