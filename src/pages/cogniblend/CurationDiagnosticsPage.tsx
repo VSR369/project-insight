@@ -3,7 +3,7 @@
  * Read-only view of Pass 1, Pass 2, Quality findings, and Context Discovery results.
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
@@ -15,10 +15,12 @@ import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/
 import { ConsistencyFindingsPanel } from '@/components/cogniblend/diagnostics/ConsistencyFindingsPanel';
 import { AmbiguityFindingsPanel } from '@/components/cogniblend/diagnostics/AmbiguityFindingsPanel';
 import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/QualityScoreSummary';
+import { WaitingForRunPlaceholder } from '@/components/cogniblend/diagnostics/WaitingForRunPlaceholder';
 import { ChallengeTelemetryPanel } from '@/components/cogniblend/diagnostics/ChallengeTelemetryPanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
 import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
-import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
+import { loadExecutionRecord, loadAcceptanceRecord, WAVE_EXEC_CHANGED_EVENT } from '@/services/cogniblend/waveExecutionHistory';
+import { DISCOVERY_WAVE_NUMBER, QA_WAVE_NUMBER } from '@/lib/cogniblend/waveConfig';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
 function loadSectionsFromStorage(challengeId: string): Partial<Record<SectionKey, SectionStoreEntry>> {
@@ -41,6 +43,32 @@ export default function CurationDiagnosticsPage() {
   // Manual refresh counter so user can re-read localStorage
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  // Listen for in-tab wave execution / acceptance changes so the standalone
+  // diagnostics page refreshes live without requiring a manual reload.
+  useEffect(() => {
+    if (!challengeId) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ challengeId: string }>).detail;
+      if (!detail || detail.challengeId === challengeId) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
+    const storageHandler = (e: StorageEvent) => {
+      if (
+        e.key?.startsWith(`wave-exec-${challengeId}`) ||
+        e.key === `wave-accept-${challengeId}`
+      ) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
+    window.addEventListener(WAVE_EXEC_CHANGED_EVENT, handler as EventListener);
+    window.addEventListener('storage', storageHandler);
+    return () => {
+      window.removeEventListener(WAVE_EXEC_CHANGED_EVENT, handler as EventListener);
+      window.removeEventListener('storage', storageHandler);
+    };
+  }, [challengeId]);
 
   const sections = useMemo(() => {
     if (!challengeId) return {};
@@ -87,24 +115,55 @@ export default function CurationDiagnosticsPage() {
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-48 w-full" />
         </div>
-      ) : (
-        <div className="space-y-4">
-          <QualityScoreSummary
-            consistencyCount={consistencyFindings?.length ?? 0}
-            consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
-            ambiguityCount={ambiguityFindings?.length ?? 0}
-          />
-          <ChallengeTelemetryPanel challengeId={challengeId} />
-          <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
-          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
-          <ConsistencyFindingsPanel challengeId={challengeId} />
-          <AmbiguityFindingsPanel challengeId={challengeId} />
-          <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
-          <div>
-            <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+      ) : (() => {
+        const analyseRunning = analyseRecord?.overallStatus === 'running';
+        const discoveryWave = analyseRecord?.waves.find((w) => w.waveNumber === DISCOVERY_WAVE_NUMBER);
+        const qaWave = analyseRecord?.waves.find((w) => w.waveNumber === QA_WAVE_NUMBER);
+        const discoveryDone = !analyseRunning || discoveryWave?.status === 'completed' || discoveryWave?.status === 'error';
+        const qaDone = !analyseRunning || qaWave?.status === 'completed' || qaWave?.status === 'error';
+        const downstreamGated = analyseRunning;
+
+        return (
+          <div className="space-y-4">
+            {qaDone ? (
+              <QualityScoreSummary
+                consistencyCount={consistencyFindings?.length ?? 0}
+                consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
+                ambiguityCount={ambiguityFindings?.length ?? 0}
+              />
+            ) : (
+              <WaitingForRunPlaceholder title="Quality Score" detail="Waiting for QA wave to complete." />
+            )}
+            <ChallengeTelemetryPanel challengeId={challengeId} />
+            <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
+            {downstreamGated ? (
+              <WaitingForRunPlaceholder title="Suggestions (Pass 2)" detail="Waiting for the new Analyse run to complete." />
+            ) : (
+              <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
+            )}
+            {qaDone ? (
+              <>
+                <ConsistencyFindingsPanel challengeId={challengeId} />
+                <AmbiguityFindingsPanel challengeId={challengeId} />
+              </>
+            ) : (
+              <WaitingForRunPlaceholder title="Consistency & Ambiguity" detail="Waiting for QA wave to complete." />
+            )}
+            {discoveryDone ? (
+              <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
+            ) : (
+              <WaitingForRunPlaceholder title="Context Discovery" detail="Waiting for Discovery wave to complete." />
+            )}
+            <div>
+              {downstreamGated ? (
+                <WaitingForRunPlaceholder title="Acceptance (Pass 3)" detail="Waiting for the new Analyse run to complete." />
+              ) : (
+                <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

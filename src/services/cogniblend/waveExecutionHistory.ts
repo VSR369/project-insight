@@ -74,6 +74,17 @@ function acceptanceKey(challengeId: string): string {
   return `wave-accept-${challengeId}`;
 }
 
+/** Custom event fired in-tab whenever wave execution / acceptance records change.
+ *  The browser `storage` event does NOT fire for same-tab writes, so listeners that
+ *  need live updates inside the originating tab must subscribe to this event. */
+export const WAVE_EXEC_CHANGED_EVENT = 'cogni-wave-exec-changed';
+
+function dispatchWaveExecChanged(challengeId: string): void {
+  try {
+    window.dispatchEvent(new CustomEvent(WAVE_EXEC_CHANGED_EVENT, { detail: { challengeId } }));
+  } catch { /* SSR / no window */ }
+}
+
 export function loadAcceptanceRecord(challengeId: string): AcceptanceRecord | null {
   try {
     const raw = localStorage.getItem(acceptanceKey(challengeId));
@@ -87,6 +98,7 @@ export function loadAcceptanceRecord(challengeId: string): AcceptanceRecord | nu
 export function saveAcceptanceRecord(record: AcceptanceRecord): void {
   try {
     localStorage.setItem(acceptanceKey(record.challengeId), JSON.stringify(record));
+    dispatchWaveExecChanged(record.challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
@@ -113,6 +125,7 @@ export function saveExecutionRecord(record: ExecutionRecord): void {
       storageKey(record.challengeId, record.passType),
       JSON.stringify(record),
     );
+    dispatchWaveExecChanged(record.challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
@@ -122,6 +135,7 @@ export function clearAllExecutionRecords(challengeId: string): void {
     localStorage.removeItem(storageKey(challengeId, 'analyse'));
     localStorage.removeItem(storageKey(challengeId, 'generate'));
     localStorage.removeItem(acceptanceKey(challengeId));
+    dispatchWaveExecChanged(challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
@@ -129,6 +143,7 @@ export function clearAllExecutionRecords(challengeId: string): void {
 export function clearPass2ExecutionRecord(challengeId: string): void {
   try {
     localStorage.removeItem(storageKey(challengeId, 'generate'));
+    dispatchWaveExecChanged(challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
