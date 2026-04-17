@@ -26,6 +26,7 @@ import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
 import type { Json } from '@/integrations/supabase/types';
 import { DISCOVERY_WAVE_NUMBER, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ExecutionResult } from '@/services/cogniblend/waveExecutionHistory';
+import { clearAllExecutionRecords, clearPass2ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
