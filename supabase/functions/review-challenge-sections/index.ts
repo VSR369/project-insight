@@ -1141,29 +1141,26 @@ GROUNDING RULE (CRITICAL):
         }
         allNewSections.push(...batchResults);
       } catch (err: any) {
-        if (err.message === "RATE_LIMIT") {
-          return new Response(
-            JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        if (err.message === "PAYMENT_REQUIRED") {
-          return new Response(
-            JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        // If a batch fails, mark all its sections as warning
+        // PR1 / Residual 2: Do NOT short-circuit the wave on transient errors.
+        // Mark the batch as failed via is_batch_failure flag; the wave executor
+        // will surface the failure truthfully and the request still returns the
+        // remaining successful sections. RATE_LIMIT/PAYMENT_REQUIRED retries
+        // are handled inside callAIWithFallback (PR2).
         const now = new Date().toISOString();
+        const errMsg = err instanceof Error ? err.message : String(err);
         for (const sec of batch) {
           allNewSections.push({
             section_key: sec.key,
             status: "warning",
-            comments: [{ text: "Review could not be completed. Please re-review individually.", type: "warning", field: null, reasoning: null }],
+            comments: [{ text: `Review could not be completed: ${errMsg}`, type: "warning", field: null, reasoning: null }],
             reviewed_at: now,
+            is_batch_failure: true,
+            error_code: errMsg === "RATE_LIMIT" ? "RATE_LIMIT"
+              : errMsg === "PAYMENT_REQUIRED" ? "PAYMENT_REQUIRED"
+              : "BATCH_ERROR",
           });
         }
-        console.error("Batch AI call failed:", err);
+        console.error("Batch AI call failed:", errMsg);
       }
     }
 
