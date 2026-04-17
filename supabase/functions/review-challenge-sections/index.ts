@@ -1008,9 +1008,17 @@ Use these answers to inform the DEPTH and FOCUS of your section-by-section revie
 
 ${staticChallengeBlock}`;
 
-      // Phase 7: Inject context digest before reference materials
+      // Phase 7: Inject context digest before reference materials.
+      // Memory-fix: full digest only on first sub-batch of the wave; short header on subsequent
+      // sub-batches (system prompt's contextIntel already carries the verified intelligence anchor).
       if (contextDigestText) {
-        userPrompt += contextDigestText;
+        if (!digestInjectedForWave) {
+          userPrompt += contextDigestText;
+          digestInjectedForWave = true;
+        } else {
+          const digestSummary = contextDigestText.slice(0, 1500);
+          userPrompt += `\n\nCONTEXT DIGEST (summary — full digest already established earlier in this wave):\n${digestSummary}${contextDigestText.length > 1500 ? '\n...[digest truncated; full version applied to prior sub-batch]' : ''}\n`;
+        }
       }
 
       // Gap 8: When context intelligence flag is ON, Pass 1 gets digest-only (no per-section attachments).
