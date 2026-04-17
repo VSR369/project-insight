@@ -13,7 +13,7 @@
 import { buildPass2SystemPrompt, getSuggestionFormatInstruction, getSectionFormatType, sanitizeTableSuggestion, buildContextIntelligence, SECTION_WAVE_CONTEXT, type SectionConfig } from "./promptTemplate.ts";
 import { SECTION_FIELD_ALIASES, SECTION_DEPENDENCIES, DEPENDENCY_REASONING } from "./aiCalls.ts";
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 // Extended brief subsection keys and field map for nested content lookup
 const EXTENDED_BRIEF_KEYS = new Set([
