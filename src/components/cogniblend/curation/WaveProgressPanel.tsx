@@ -100,6 +100,7 @@ function WaveDetail({
   const [open, setOpen] = useState(false);
   const isExpandable = wave.status === 'completed' || wave.status === 'error';
   const sectionCount = wave.sections.length;
+  const isQaWave = sectionCount === 0;
   const successCount = wave.sections.filter((s) => s.status === 'success').length;
   const reviewedCount = wave.sections.filter(
     (s) => s.status === 'success' && s.action === 'review',
@@ -113,6 +114,31 @@ function WaveDetail({
     : `${reviewedCount > 0 ? `${reviewedCount} analysed` : ''}${reviewedCount > 0 && generatedCount > 0 ? ', ' : ''}${generatedCount > 0 ? `${generatedCount} drafted` : ''}`;
 
   const counts = passType === 'generate' ? suggestionCounts : commentCounts;
+
+  // QA wave (Wave 8) — render compact, no expandable per-section table
+  if (isQaWave) {
+    return (
+      <div className="flex items-start gap-2">
+        <WaveStatusIcon status={wave.status} />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-foreground leading-tight">
+            Wave {wave.waveNumber}: {wave.name}
+          </p>
+          {wave.status === 'running' && (
+            <p className="text-[10px] text-primary ml-0">running consistency &amp; ambiguity checks…</p>
+          )}
+          {wave.status === 'completed' && (
+            <p className="text-[10px] text-muted-foreground">
+              Cross-section consistency &amp; ambiguity findings persisted.
+            </p>
+          )}
+          {wave.status === 'error' && (
+            <p className="text-[10px] text-destructive">QA pass failed — re-run AI review.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
