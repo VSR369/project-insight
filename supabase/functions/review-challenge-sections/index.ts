@@ -403,32 +403,37 @@ serve(async (req) => {
     const useContextIntelligence = globalConfig?.use_context_intelligence === true;
 
     // Build section list — from DB config or fallback
+    // PR1: Honor section_keys[] (batched mode) in addition to single section_key
+    const sectionKeysFilter: string[] | null = Array.isArray(section_keys) && section_keys.length > 0
+      ? section_keys.map((k: unknown) => String(k))
+      : (section_key ? [String(section_key)] : null);
+
     let sectionsToReview: { key: string; desc: string }[];
     let dbConfigMap: Map<string, SectionConfig> | null = null;
 
     if (useDbConfig) {
       dbConfigMap = new Map(dbConfigs.map(c => [c.section_key, c]));
       const allKeys = dbConfigs.map(c => ({ key: c.section_key, desc: c.section_description || c.section_label }));
-      sectionsToReview = section_key
-        ? allKeys.filter(s => s.key === section_key)
+      sectionsToReview = sectionKeysFilter
+        ? allKeys.filter(s => sectionKeysFilter.includes(s.key))
         : allKeys;
 
-      // Fallback: if a specific section_key was requested but not found in DB config,
+      // Fallback: if a specific section was requested but not found in DB config,
       // check the hardcoded fallback list before returning an error
-      if (section_key && sectionsToReview.length === 0) {
+      if (sectionKeysFilter && sectionsToReview.length === 0) {
         const fallback = getFallbackSections(resolvedContext);
-        sectionsToReview = fallback.filter(s => s.key === section_key);
+        sectionsToReview = fallback.filter(s => sectionKeysFilter.includes(s.key));
       }
     } else {
       const fallback = getFallbackSections(resolvedContext);
-      sectionsToReview = section_key
-        ? fallback.filter(s => s.key === section_key)
+      sectionsToReview = sectionKeysFilter
+        ? fallback.filter(s => sectionKeysFilter.includes(s.key))
         : fallback;
     }
 
-    if (section_key && sectionsToReview.length === 0) {
+    if (sectionKeysFilter && sectionsToReview.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown section_key: ${section_key}` } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown section keys: ${sectionKeysFilter.join(',')}` } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
