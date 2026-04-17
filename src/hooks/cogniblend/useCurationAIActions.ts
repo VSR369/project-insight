@@ -24,7 +24,7 @@ import { normalizeSectionReview } from '@/lib/cogniblend/normalizeSectionReview'
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
 import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
 import type { Json } from '@/integrations/supabase/types';
-import type { WaveProgress } from '@/lib/cogniblend/waveConfig';
+import { DISCOVERY_WAVE_NUMBER, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ExecutionResult } from '@/services/cogniblend/waveExecutionHistory';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
