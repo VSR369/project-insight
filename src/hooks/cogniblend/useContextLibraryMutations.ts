@@ -147,10 +147,12 @@ export function useAcceptMultipleSuggestions(challengeId: string) {
         })
         .in('id', ids);
       if (error) throw new Error(error.message);
-      await Promise.allSettled(
-        ids.map(id => supabase.functions.invoke('extract-attachment-text', { body: { attachment_id: id } }))
+      // Throttle to 2 concurrent extractions — edge function memory cap is per-isolate
+      // and parallel PDFs/large HTMLs trigger WORKER_RESOURCE_LIMIT (memory exceeded).
+      await runWithConcurrency(ids, 2, (id) =>
+        supabase.functions.invoke('extract-attachment-text', { body: { attachment_id: id } })
       );
-      await Promise.allSettled(ids.map(id => waitForExtraction(id)));
+      await runWithConcurrency(ids, 2, (id) => waitForExtraction(id));
     },
     onSuccess: async () => {
       // D7 FIX: Await invalidation
