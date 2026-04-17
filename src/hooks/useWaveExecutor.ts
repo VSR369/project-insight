@@ -305,6 +305,100 @@ export function useWaveExecutor({
         if (i < EXECUTION_WAVES.length - 1) await new Promise((r) => setTimeout(r, 300));
       }
 
+      // ── Wave 12 — Suggestion Harmonization (Pass 2 only) ──
+      // Runs ONCE after all per-section suggestions exist. Audits cluster
+      // sections for cross-section consistency and applies validated corrections.
+      if (skipAnalysis && !cancelRef.current) {
+        const store = getCurationFormStore(challengeId);
+        const sections = store.getState().sections;
+        const suggestions: Record<string, unknown> = {};
+        for (const key of HARMONIZE_CLUSTER_SECTIONS) {
+          const entry = sections[key];
+          if (entry?.aiSuggestion != null) suggestions[key] = entry.aiSuggestion;
+        }
+        const suggestionCount = Object.keys(suggestions).length;
+
+        setWaveProgress((prev) => ({
+          ...prev,
+          currentWave: HARMONIZE_WAVE_NUMBER,
+          waves: prev.waves.map((w) =>
+            w.waveNumber === HARMONIZE_WAVE_NUMBER ? { ...w, status: 'running' } : w
+          ),
+        }));
+
+        if (suggestionCount < HARMONIZE_MIN_SUGGESTIONS) {
+          // Not enough cluster suggestions to harmonize — mark complete, no AI call.
+          setWaveProgress((prev) => ({
+            ...prev,
+            waves: prev.waves.map((w) =>
+              w.waveNumber === HARMONIZE_WAVE_NUMBER
+                ? { ...w, status: 'completed', sections: [] }
+                : w
+            ),
+          }));
+          lastCompletedWave = HARMONIZE_WAVE_NUMBER;
+        } else {
+          const harmonizeOutcome = await invokeHarmonizationWave(challengeId, suggestions);
+          let appliedCount = 0;
+          let droppedCount = 0;
+
+          if (harmonizeOutcome.status === 'success') {
+            const ctx = buildChallengeContext(buildContextOptions());
+            for (const correction of harmonizeOutcome.corrections) {
+              const key = correction.section_key as SectionKey;
+              if (!HARMONIZE_CLUSTER_SECTIONS.includes(key)) {
+                droppedCount += 1;
+                continue;
+              }
+              try {
+                const validation = validateAIOutput(
+                  key,
+                  correction.corrected_suggestion as Record<string, unknown> | null,
+                  ctx,
+                );
+                const hasErrors = validation.corrections.some((c) => c.severity === 'error');
+                if (hasErrors) {
+                  droppedCount += 1;
+                  logWarning('Harmonization correction failed validation — dropped', {
+                    operation: 'harmonize_suggestions',
+                    metadata: { sectionKey: key, reason: correction.reason },
+                  });
+                  continue;
+                }
+                const existing = sections[key];
+                store.getState().setAiReview(
+                  key,
+                  existing?.aiComments ?? [],
+                  correction.corrected_suggestion as Record<string, unknown> | string | string[] | null,
+                );
+                appliedCount += 1;
+              } catch (e) {
+                droppedCount += 1;
+                logWarning('Harmonization correction threw during apply — dropped', {
+                  operation: 'harmonize_suggestions',
+                  metadata: { sectionKey: key, error: e instanceof Error ? e.message : String(e) },
+                });
+              }
+            }
+          }
+
+          const harmonizeStatus = harmonizeOutcome.status === 'error' ? 'error' : 'completed';
+          setWaveProgress((prev) => ({
+            ...prev,
+            waves: prev.waves.map((w) =>
+              w.waveNumber === HARMONIZE_WAVE_NUMBER
+                ? { ...w, status: harmonizeStatus, sections: [] }
+                : w
+            ),
+          }));
+          lastCompletedWave = HARMONIZE_WAVE_NUMBER;
+
+          if (harmonizeOutcome.status === 'success' && (appliedCount > 0 || droppedCount > 0)) {
+            toast.success(`Harmonization: ${appliedCount} correction(s) applied${droppedCount ? `, ${droppedCount} dropped` : ''}.`);
+          }
+        }
+      }
+
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
       execRecord = finalizeRecord(execRecord, 'completed');
       saveExecutionRecord(execRecord);
