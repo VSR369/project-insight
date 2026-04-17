@@ -115,24 +115,55 @@ export default function CurationDiagnosticsPage() {
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-48 w-full" />
         </div>
-      ) : (
-        <div className="space-y-4">
-          <QualityScoreSummary
-            consistencyCount={consistencyFindings?.length ?? 0}
-            consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
-            ambiguityCount={ambiguityFindings?.length ?? 0}
-          />
-          <ChallengeTelemetryPanel challengeId={challengeId} />
-          <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
-          <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
-          <ConsistencyFindingsPanel challengeId={challengeId} />
-          <AmbiguityFindingsPanel challengeId={challengeId} />
-          <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
-          <div>
-            <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+      ) : (() => {
+        const analyseRunning = analyseRecord?.overallStatus === 'running';
+        const discoveryWave = analyseRecord?.waves.find((w) => w.waveNumber === DISCOVERY_WAVE_NUMBER);
+        const qaWave = analyseRecord?.waves.find((w) => w.waveNumber === QA_WAVE_NUMBER);
+        const discoveryDone = !analyseRunning || discoveryWave?.status === 'completed' || discoveryWave?.status === 'error';
+        const qaDone = !analyseRunning || qaWave?.status === 'completed' || qaWave?.status === 'error';
+        const downstreamGated = analyseRunning;
+
+        return (
+          <div className="space-y-4">
+            {qaDone ? (
+              <QualityScoreSummary
+                consistencyCount={consistencyFindings?.length ?? 0}
+                consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
+                ambiguityCount={ambiguityFindings?.length ?? 0}
+              />
+            ) : (
+              <WaitingForRunPlaceholder title="Quality Score" detail="Waiting for QA wave to complete." />
+            )}
+            <ChallengeTelemetryPanel challengeId={challengeId} />
+            <DiagnosticsReviewPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={analyseRecord} />
+            {downstreamGated ? (
+              <WaitingForRunPlaceholder title="Suggestions (Pass 2)" detail="Waiting for the new Analyse run to complete." />
+            ) : (
+              <DiagnosticsSuggestionsPanel sections={sections} importanceLevels={importanceLevels} reviewLevels={reviewLevels} executionRecord={generateRecord} analyseRecord={analyseRecord} />
+            )}
+            {qaDone ? (
+              <>
+                <ConsistencyFindingsPanel challengeId={challengeId} />
+                <AmbiguityFindingsPanel challengeId={challengeId} />
+              </>
+            ) : (
+              <WaitingForRunPlaceholder title="Consistency & Ambiguity" detail="Waiting for QA wave to complete." />
+            )}
+            {discoveryDone ? (
+              <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
+            ) : (
+              <WaitingForRunPlaceholder title="Context Discovery" detail="Waiting for Discovery wave to complete." />
+            )}
+            <div>
+              {downstreamGated ? (
+                <WaitingForRunPlaceholder title="Acceptance (Pass 3)" detail="Waiting for the new Analyse run to complete." />
+              ) : (
+                <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} />
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
