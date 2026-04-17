@@ -120,11 +120,11 @@ function WaveDetail({
   // Special waves (Wave 7 Discovery, Wave 8 QA) — render compact, no expandable per-section table
   if (isSpecialWave) {
     const runningCopy = isDiscoveryWave
-      ? 'searching attachments, references &amp; web sources…'
-      : 'running consistency &amp; ambiguity checks…';
+      ? 'searching attachments, references & web sources…'
+      : 'running consistency & ambiguity checks…';
     const completedCopy = isDiscoveryWave
-      ? 'Contextual sources discovered &amp; queued for review.'
-      : 'Cross-section consistency &amp; ambiguity findings persisted.';
+      ? 'Contextual sources discovered & queued for review.'
+      : 'Cross-section consistency & ambiguity findings persisted.';
     const errorCopy = isDiscoveryWave
       ? 'Discovery failed — add sources manually in the Context Library.'
       : 'QA pass failed — re-run AI review.';
@@ -136,10 +136,10 @@ function WaveDetail({
             Wave {wave.waveNumber}: {wave.name}
           </p>
           {wave.status === 'running' && (
-            <p className="text-[10px] text-primary ml-0" dangerouslySetInnerHTML={{ __html: runningCopy }} />
+            <p className="text-[10px] text-primary">{runningCopy}</p>
           )}
           {wave.status === 'completed' && (
-            <p className="text-[10px] text-muted-foreground" dangerouslySetInnerHTML={{ __html: completedCopy }} />
+            <p className="text-[10px] text-muted-foreground">{completedCopy}</p>
           )}
           {wave.status === 'error' && (
             <p className="text-[10px] text-destructive">{errorCopy}</p>
