@@ -36,6 +36,7 @@ import {
   createFreshRecord,
   updateWaveStart,
   updateWaveComplete,
+  updateHarmonizeMetrics,
   finalizeRecord,
   saveExecutionRecord,
   type ExecutionResult,
@@ -319,6 +320,17 @@ export function useWaveExecutor({
           if (entry?.aiSuggestion != null) suggestions[key] = entry.aiSuggestion;
         }
         const suggestionCount = Object.keys(suggestions).length;
+
+        // F5a — Pre-flight: warn (don't block) when cluster sections had Pass 2 failures.
+        const clusterSet = new Set<SectionKey>(HARMONIZE_CLUSTER_SECTIONS);
+        const failedClusterSections = execRecord.waves
+          .flatMap((w) => w.sections)
+          .filter((s) => clusterSet.has(s.sectionId) && s.isPass2Failure === true);
+        if (failedClusterSections.length > 0) {
+          toast.warning(
+            `Wave 12 running with ${suggestionCount}/${HARMONIZE_CLUSTER_SECTIONS.length} cluster suggestions (${failedClusterSections.length} failed in Pass 2 — re-run those sections first).`,
+          );
+        }
 
         setWaveProgress((prev) => ({
           ...prev,
