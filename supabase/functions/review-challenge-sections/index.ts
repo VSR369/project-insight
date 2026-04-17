@@ -892,6 +892,69 @@ ${'═'.repeat(60)}\n`;
     // Bug 7: Build context intelligence ONCE before the batch loop
     const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
 
+    // PERF FIX (WORKER_RESOURCE_LIMIT): Hoist the static challenge-data section of userPrompt
+    // outside the loop. Previously this ~50K-token block was rebuilt for every batch, causing
+    // memory pressure that triggered 546 WORKER_RESOURCE_LIMIT errors on waves with many sub-batches.
+    // Same pattern as contextIntel hoisting above.
+    const { ai_section_reviews: _air, targeting_filters: _tf, lc_review_required: _lcr, ...relevantDataStatic } = challengeData;
+    const ebStatic = relevantDataStatic.extended_brief && typeof relevantDataStatic.extended_brief === 'object' ? relevantDataStatic.extended_brief : {};
+    const staticChallengeBlock = `CHALLENGE DATA:
+Title: ${relevantDataStatic.title || '(untitled)'}
+Solution Type: ${relevantDataStatic.solution_type || '(not set)'}
+Maturity Level: ${relevantDataStatic.maturity_level || '(not set)'}
+Complexity: ${relevantDataStatic.complexity_level || '(not set)'} (Score: ${relevantDataStatic.complexity_score ?? 'N/A'})
+
+Problem Statement:
+${stripHtml(relevantDataStatic.problem_statement)}
+
+Scope:
+${stripHtml(relevantDataStatic.scope)}
+
+Deliverables:
+${jsonBrief(relevantDataStatic.deliverables)}
+
+Expected Outcomes:
+${jsonBrief(relevantDataStatic.expected_outcomes)}
+
+Evaluation Criteria:
+${jsonBrief(relevantDataStatic.evaluation_criteria)}
+
+Phase Schedule:
+${jsonBrief(relevantDataStatic.phase_schedule)}
+
+Reward Structure:
+${jsonBrief(relevantDataStatic.reward_structure)}
+
+IP Model: ${relevantDataStatic.ip_model || '(not set)'}
+
+Solver Expertise Requirements:
+${jsonBrief(relevantDataStatic.solver_expertise || relevantDataStatic.solver_expertise_requirements)}
+
+Eligibility: ${jsonBrief(relevantDataStatic.eligibility || relevantDataStatic.solver_eligibility_types)}
+Visibility: ${jsonBrief(relevantDataStatic.visibility || relevantDataStatic.solver_visibility_types)}
+
+Success Metrics & KPIs:
+${jsonBrief(relevantDataStatic.success_metrics_kpis)}
+
+Data & Resources:
+${jsonBrief(relevantDataStatic.data_resources_provided)}
+
+Domain Tags: ${jsonBrief(relevantDataStatic.domain_tags)}
+Challenge Hook: ${stripHtml(relevantDataStatic.hook)}
+
+Context & Background:
+${stripHtml(relevantDataStatic.context_and_background || (ebStatic as any).context_background)}
+
+Root Causes: ${jsonBrief(relevantDataStatic.root_causes || (ebStatic as any).root_causes)}
+Affected Stakeholders: ${jsonBrief(relevantDataStatic.affected_stakeholders || (ebStatic as any).affected_stakeholders)}
+Current Deficiencies: ${jsonBrief(relevantDataStatic.current_deficiencies || (ebStatic as any).current_deficiencies)}
+Preferred Approach: ${jsonBrief(relevantDataStatic.preferred_approach || (ebStatic as any).preferred_approach)}
+Approaches NOT of Interest: ${jsonBrief(relevantDataStatic.approaches_not_of_interest || (ebStatic as any).approaches_not_of_interest)}
+Submission Guidelines: ${jsonBrief(relevantDataStatic.submission_guidelines)}
+Solution Type: ${jsonBrief(relevantDataStatic.solution_type)}
+
+${additionalData}`;
+
     for (const batch of batches) {
       // Per-batch model selection: critical sections get premium model
       const batchKeys = batch.map(b => b.key);
@@ -927,11 +990,7 @@ BEFORE REVIEWING INDIVIDUAL SECTIONS, BUILD YOUR MENTAL MODEL:
 Carry these answers through every section review. Each comment should reflect your understanding of the whole, not just the part.`;
       }
 
-      // FIX 3: Curated challenge data — strip irrelevant fields, structure clearly
-      const { ai_section_reviews, targeting_filters, lc_review_required, ...relevantData } = challengeData;
-
-      const eb = relevantData.extended_brief && typeof relevantData.extended_brief === 'object' ? relevantData.extended_brief : {};
-
+      // FIX 3: Curated challenge data — using hoisted staticChallengeBlock (built once before loop)
       let userPrompt = `${userPromptInstruction}
 
 BEFORE REVIEWING INDIVIDUAL SECTIONS, scan the entire challenge and answer these internally:
@@ -943,62 +1002,7 @@ BEFORE REVIEWING INDIVIDUAL SECTIONS, scan the entire challenge and answer these
 
 Use these answers to inform the DEPTH and FOCUS of your section-by-section review.
 
-CHALLENGE DATA:
-Title: ${relevantData.title || '(untitled)'}
-Solution Type: ${relevantData.solution_type || '(not set)'}
-Maturity Level: ${relevantData.maturity_level || '(not set)'}
-Complexity: ${relevantData.complexity_level || '(not set)'} (Score: ${relevantData.complexity_score ?? 'N/A'})
-
-Problem Statement:
-${stripHtml(relevantData.problem_statement)}
-
-Scope:
-${stripHtml(relevantData.scope)}
-
-Deliverables:
-${jsonBrief(relevantData.deliverables)}
-
-Expected Outcomes:
-${jsonBrief(relevantData.expected_outcomes)}
-
-Evaluation Criteria:
-${jsonBrief(relevantData.evaluation_criteria)}
-
-Phase Schedule:
-${jsonBrief(relevantData.phase_schedule)}
-
-Reward Structure:
-${jsonBrief(relevantData.reward_structure)}
-
-IP Model: ${relevantData.ip_model || '(not set)'}
-
-Solver Expertise Requirements:
-${jsonBrief(relevantData.solver_expertise || relevantData.solver_expertise_requirements)}
-
-Eligibility: ${jsonBrief(relevantData.eligibility || relevantData.solver_eligibility_types)}
-Visibility: ${jsonBrief(relevantData.visibility || relevantData.solver_visibility_types)}
-
-Success Metrics & KPIs:
-${jsonBrief(relevantData.success_metrics_kpis)}
-
-Data & Resources:
-${jsonBrief(relevantData.data_resources_provided)}
-
-Domain Tags: ${jsonBrief(relevantData.domain_tags)}
-Challenge Hook: ${stripHtml(relevantData.hook)}
-
-Context & Background:
-${stripHtml(relevantData.context_and_background || (eb as any).context_background)}
-
-Root Causes: ${jsonBrief(relevantData.root_causes || (eb as any).root_causes)}
-Affected Stakeholders: ${jsonBrief(relevantData.affected_stakeholders || (eb as any).affected_stakeholders)}
-Current Deficiencies: ${jsonBrief(relevantData.current_deficiencies || (eb as any).current_deficiencies)}
-Preferred Approach: ${jsonBrief(relevantData.preferred_approach || (eb as any).preferred_approach)}
-Approaches NOT of Interest: ${jsonBrief(relevantData.approaches_not_of_interest || (eb as any).approaches_not_of_interest)}
-Submission Guidelines: ${jsonBrief(relevantData.submission_guidelines)}
-Solution Type: ${jsonBrief(relevantData.solution_type)}
-
-${additionalData}`;
+${staticChallengeBlock}`;
 
       // Phase 7: Inject context digest before reference materials
       if (contextDigestText) {
