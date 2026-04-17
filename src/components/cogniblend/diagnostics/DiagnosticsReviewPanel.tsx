@@ -69,11 +69,13 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
 
           const wSections = wave.sectionIds.map(id => ({ id, entry: sections[id] }));
 
-          // Store is the single source of truth — counts always reflect curator edits
+          // Store is the single source of truth for status counts.
+          // Denominator = current wave config sections (ignore stale exec keys).
+          const totalForWave = wSections.length;
           const ready = wSections.filter(s => s.entry?.reviewStatus === 'reviewed').length;
           const errors = wSections.filter(s => s.entry?.reviewStatus === 'error').length;
           const pending = wSections.filter(s => s.entry?.reviewStatus === 'pending').length;
-          const skipped = wSections.length - ready - errors - pending;
+          const skipped = totalForWave - ready - errors - pending;
 
           // Wave-level badge still derives from execution record (lifecycle marker only)
           const waveStatus = execWave?.status ?? 'pending';
@@ -115,16 +117,30 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                   {wSections.map(({ id, entry }) => {
                     const execSection = execWave?.sections.find(s => s.sectionId === id);
                     const execStatus = execSection?.status;
-                    const sectionStatus = execStatus === 'error'
-                      ? 'error'
-                      : (entry?.reviewStatus ?? 'idle');
-                    const sectionAction = entry?.aiAction ?? execSection?.action ?? '—';
+                    // Store is the single source of truth for section state.
+                    // Execution-record errors are surfaced as a chip — they no longer
+                    // override the live store status (prevents backfilled `warning`
+                    // rows from displaying as Error).
+                    const sectionStatus = entry?.reviewStatus ?? 'idle';
+                    // Re-derive action from current store data so Pass 2 fills are reflected.
+                    const isEmpty = entry?.data == null
+                      || (typeof entry.data === 'string' && entry.data.trim() === '')
+                      || (Array.isArray(entry.data) && entry.data.length === 0);
+                    const rawAction = entry?.aiAction ?? execSection?.action ?? null;
+                    const sectionAction = rawAction === 'generate' && !isEmpty
+                      ? 'review'
+                      : rawAction;
+                    const actionLabel = sectionAction === 'generate'
+                      ? 'Empty → Draft'
+                      : sectionAction === 'skip'
+                        ? 'Skipped'
+                        : sectionAction === 'review'
+                          ? 'Review'
+                          : '—';
                     const commentCount = entry?.aiComments?.length ?? 0;
                     const level = reviewLevels[id] ?? 'principal';
 
                     const statusLabel = (() => {
-                      // Execution record is authoritative for failures
-                      if (execStatus === 'error') return 'Error';
                       if (!entry) return execStatus === 'success' ? 'Analysed' : 'Not Run';
                       if (entry.reviewStatus === 'error') return 'Error';
                       if (entry.reviewStatus === 'reviewed') {
@@ -135,19 +151,31 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                       return entry.aiAction === 'skip' ? 'Skipped' : 'Not Run';
                     })();
 
+                    const showExecError =
+                      execStatus === 'error' &&
+                      entry?.reviewStatus !== 'reviewed' &&
+                      execSection?.errorMessage;
+
                     return (
                       <TableRow key={id}>
                         <TableCell><StatusIcon status={sectionStatus} /></TableCell>
                         <TableCell className="text-xs font-medium">{SECTION_LABELS[id] ?? id}</TableCell>
                         <TableCell>
                           <span className="text-xs">{statusLabel}</span>
-                          {execStatus === 'error' && execSection?.errorMessage && (
-                            <p className="text-[10px] text-destructive mt-0.5 leading-tight">
-                              {execSection.errorCode ? `[${execSection.errorCode}] ` : ''}{execSection.errorMessage}
-                            </p>
+                          {showExecError && (
+                            <div className="mt-1 flex flex-wrap items-start gap-1">
+                              {execSection?.errorCode && (
+                                <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4">
+                                  {execSection.errorCode}
+                                </Badge>
+                              )}
+                              <p className="text-[10px] text-destructive leading-tight">
+                                {execSection?.errorMessage}
+                              </p>
+                            </div>
                           )}
                         </TableCell>
-                        <TableCell><span className="text-xs capitalize">{sectionAction}</span></TableCell>
+                        <TableCell><span className="text-xs">{actionLabel}</span></TableCell>
                         <TableCell>
                           {commentCount > 0 ? (
                             <span className="text-xs">💬 {commentCount}</span>
