@@ -1,13 +1,10 @@
 /**
  * useWaveExecutor — Core wave-based AI review execution engine.
  *
- * Processes 6 dependency-ordered waves sequentially.
- * Each wave calls the existing edge function per section.
- * Updates running context between waves so downstream waves
- * benefit from newly generated/reviewed content.
- *
- * Returns a typed ExecutionResult so callers can distinguish
- * completed / cancelled / error outcomes.
+ * PR1 (batched): Each wave fires ONE edge function call for all its sections
+ * (instead of N calls). Wave 8 invokes the QA-only branch (consistency +
+ * ambiguity). Per-section autosave is preserved via setAiReview inside the
+ * batch invoker. reReviewStale still uses per-section calls (unchanged).
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -19,8 +16,10 @@ import type { SectionReview } from '@/components/cogniblend/curation/CurationAIR
 import { useWaveReviewSection } from '@/hooks/useWaveReviewSection';
 import {
   EXECUTION_WAVES,
+  QA_WAVE_NUMBER,
   determineSectionAction,
   createInitialWaveProgress,
+  getWaveReasoning,
   type WaveProgress,
   type WaveResult,
   type SectionAction,
@@ -35,21 +34,13 @@ import {
   type PassType,
   type WaveSectionResult,
 } from '@/services/cogniblend/waveExecutionHistory';
+import { invokeWaveBatch, invokeQaWave } from '@/services/cogniblend/waveBatchInvoker';
 import type { SectionKey } from '@/types/sections';
 import { supabase } from '@/integrations/supabase/client';
 
-/**
- * Best-effort upsert of curation_progress. Errors are swallowed because progress
- * reporting is non-critical and must never block the actual review work.
- */
 async function supabaseUpsertProgress(
   challengeId: string,
-  updates: {
-    current_wave?: number;
-    sections_reviewed?: number;
-    sections_total?: number;
-    status?: string;
-  },
+  updates: { current_wave?: number; sections_reviewed?: number; sections_total?: number; status?: string },
 ): Promise<void> {
   try {
     await supabase
@@ -59,9 +50,7 @@ async function supabaseUpsertProgress(
         ...updates,
         updated_at: new Date().toISOString(),
       } as never);
-  } catch {
-    /* non-blocking */
-  }
+  } catch { /* non-blocking */ }
 }
 
 interface WaveProgressCallbacks {
@@ -114,6 +103,7 @@ export function useWaveExecutor({
 
   const passType: PassType = skipAnalysis ? 'generate' : (pass1Only ? 'analyse' : 'generate');
 
+  // Kept for reReviewStale (per-section path, unchanged)
   const reviewSingleSection = useWaveReviewSection({
     challengeId,
     onSectionReviewed,
@@ -147,122 +137,112 @@ export function useWaveExecutor({
       setWaveProgress(initialProgress);
 
       let context = buildChallengeContext(buildContextOptions());
+      const totalSectionsAllWaves = EXECUTION_WAVES.reduce((sum, w) => sum + w.sectionIds.length, 0);
 
       for (let i = 0; i < EXECUTION_WAVES.length; i++) {
         if (cancelRef.current) {
           setWaveProgress((prev) => ({
             ...prev,
             overallStatus: 'cancelled',
-            waves: prev.waves.map((w, idx) =>
-              idx >= i ? { ...w, status: 'cancelled' } : w
-            ),
+            waves: prev.waves.map((w, idx) => (idx >= i ? { ...w, status: 'cancelled' } : w)),
           }));
           execRecord = finalizeRecord(execRecord, 'cancelled');
           saveExecutionRecord(execRecord);
           toast.warning('AI review cancelled after completing current wave.');
-          return {
-            outcome: 'cancelled',
-            lastCompletedWave,
-            totalWaves: EXECUTION_WAVES.length,
-            errorMessage: null,
-            failedSections,
-          };
+          return { outcome: 'cancelled', lastCompletedWave, totalWaves: EXECUTION_WAVES.length, errorMessage: null, failedSections };
         }
 
         const wave = EXECUTION_WAVES[i];
         onProgress?.onWaveStart?.(i + 1);
-
         execRecord = updateWaveStart(execRecord, wave.waveNumber);
         saveExecutionRecord(execRecord);
 
         setWaveProgress((prev) => ({
           ...prev,
           currentWave: wave.waveNumber,
-          waves: prev.waves.map((w) =>
-            w.waveNumber === wave.waveNumber ? { ...w, status: 'running' } : w
-          ),
+          waves: prev.waves.map((w) => (w.waveNumber === wave.waveNumber ? { ...w, status: 'running' } : w)),
         }));
 
-        const sectionActions = wave.sectionIds.map((id) => ({
-          sectionId: id,
-          action: determineSectionAction(id, context.sections[id]),
-        }));
+        const sectionsDoneBeforeWave = EXECUTION_WAVES.slice(0, i).reduce(
+          (sum, w) => sum + w.sectionIds.length, 0,
+        );
 
-        const sectionResults: WaveResult['sections'] = [];
+        let sectionResults: WaveResult['sections'] = [];
         const historyResults: WaveSectionResult[] = [];
 
-        // Compute total sections across all waves for accurate progress reporting
-        const totalSectionsAllWaves = EXECUTION_WAVES.reduce(
-          (sum, w) => sum + w.sectionIds.length,
-          0,
-        );
-        let sectionsDoneBeforeWave = EXECUTION_WAVES.slice(0, i).reduce(
-          (sum, w) => sum + w.sectionIds.length,
-          0,
-        );
-
-        for (const sa of sectionActions) {
-          const store = getCurationFormStore(challengeId);
-          store.getState().setAiAction(sa.sectionId, sa.action);
-
-          const result = await reviewSingleSection(sa.sectionId, sa.action, context);
-          sectionResults.push({
-            sectionId: sa.sectionId,
-            action: sa.action,
-            status: result,
-          });
-          historyResults.push({
-            sectionId: sa.sectionId,
-            action: sa.action,
-            status: result,
-          });
-          if (result === 'error') failedSections.push(sa.sectionId);
-
-          // Live update: push partial section results into the running wave so the
-          // progress bar reflects per-section completion, not just whole-wave completion.
-          const partialResults = [...sectionResults];
+        if (wave.waveNumber === QA_WAVE_NUMBER) {
+          // Wave 8 — QA-only call (no per-section results)
+          const qaOutcome = await invokeQaWave(challengeId, context);
+          sectionResults = [];
+          // No section history rows; status reflected on the wave itself
+          execRecord = updateWaveComplete(execRecord, wave.waveNumber, []);
+          saveExecutionRecord(execRecord);
           setWaveProgress((prev) => ({
             ...prev,
             waves: prev.waves.map((w) =>
               w.waveNumber === wave.waveNumber
-                ? { ...w, sections: partialResults }
+                ? { ...w, status: qaOutcome === 'success' ? 'completed' : 'error', sections: [] }
                 : w
             ),
           }));
+          lastCompletedWave = wave.waveNumber;
+          onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+        } else {
+          // Standard wave — single batched call for all sections
+          const sectionActions = wave.sectionIds.map((id) => ({
+            sectionId: id,
+            action: determineSectionAction(id, context.sections[id]),
+          }));
+          sectionActions.forEach((sa) => {
+            const store = getCurationFormStore(challengeId);
+            store.getState().setAiAction(sa.sectionId, sa.action);
+          });
 
-          // Push per-section progress to curation_progress (non-blocking, best-effort)
-          const sectionsReviewedNow = sectionsDoneBeforeWave + sectionResults.length;
+          const reasoningEffort = getWaveReasoning(wave.sectionIds);
+
+          const outcomes = await invokeWaveBatch({
+            challengeId,
+            sectionActions,
+            context,
+            reasoningEffort,
+            pass1Only,
+            skipAnalysis,
+            providedCommentsBySectionKey,
+            onSectionReviewed,
+            onComplexitySuggestion,
+          });
+
+          for (const o of outcomes) {
+            const action = sectionActions.find((sa) => sa.sectionId === o.sectionId)?.action ?? 'review';
+            sectionResults.push({ sectionId: o.sectionId, action, status: o.status });
+            historyResults.push({ sectionId: o.sectionId, action, status: o.status });
+            if (o.status === 'error') failedSections.push(o.sectionId);
+          }
+
+          const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
+          setWaveProgress((prev) => ({
+            ...prev,
+            waves: prev.waves.map((w) =>
+              w.waveNumber === wave.waveNumber ? { ...w, status: waveStatus, sections: sectionResults } : w
+            ),
+          }));
+
+          execRecord = updateWaveComplete(execRecord, wave.waveNumber, historyResults);
+          saveExecutionRecord(execRecord);
+          lastCompletedWave = wave.waveNumber;
+
+          const totalReviewedSoFar = sectionsDoneBeforeWave + sectionResults.length;
+          onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
           void supabaseUpsertProgress(challengeId, {
             current_wave: wave.waveNumber,
-            sections_reviewed: sectionsReviewedNow,
+            sections_reviewed: totalReviewedSoFar,
             sections_total: totalSectionsAllWaves,
             status: 'ai_review',
           });
         }
 
-        const waveStatus = sectionResults.some((s) => s.status === 'error') ? 'error' : 'completed';
-        const totalReviewedSoFar = EXECUTION_WAVES.slice(0, i + 1).reduce((sum, w) => sum + w.sectionIds.length, 0);
-
-        setWaveProgress((prev) => ({
-          ...prev,
-          waves: prev.waves.map((w) =>
-            w.waveNumber === wave.waveNumber
-              ? { ...w, status: waveStatus, sections: sectionResults }
-              : w
-          ),
-        }));
-
-        execRecord = updateWaveComplete(execRecord, wave.waveNumber, historyResults);
-        saveExecutionRecord(execRecord);
-
-        lastCompletedWave = wave.waveNumber;
-        onProgress?.onWaveComplete?.(i + 1, sectionResults.length, totalReviewedSoFar);
-
         context = buildChallengeContext(buildContextOptions());
-
-        if (i < EXECUTION_WAVES.length - 1) {
-          await new Promise((r) => setTimeout(r, 500));
-        }
+        if (i < EXECUTION_WAVES.length - 1) await new Promise((r) => setTimeout(r, 300));
       }
 
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));
@@ -272,30 +252,22 @@ export function useWaveExecutor({
       onProgress?.onAllComplete?.();
       toast.success('All section reviews complete.');
 
-      return {
-        outcome: 'completed',
-        lastCompletedWave,
-        totalWaves: EXECUTION_WAVES.length,
-        errorMessage: null,
-        failedSections,
-      };
+      return { outcome: 'completed', lastCompletedWave, totalWaves: EXECUTION_WAVES.length, errorMessage: null, failedSections };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'error' }));
       execRecord = finalizeRecord(execRecord, 'error', message);
       saveExecutionRecord(execRecord);
       toast.error(`AI review failed: ${message}`);
-      return {
-        outcome: 'error',
-        lastCompletedWave,
-        totalWaves: EXECUTION_WAVES.length,
-        errorMessage: message,
-        failedSections,
-      };
+      return { outcome: 'error', lastCompletedWave, totalWaves: EXECUTION_WAVES.length, errorMessage: message, failedSections };
     } finally {
       inFlightRef.current = false;
     }
-  }, [challengeId, buildContextOptions, reviewSingleSection, onProgress, passType]);
+  }, [
+    challengeId, buildContextOptions, onProgress, passType,
+    pass1Only, skipAnalysis, providedCommentsBySectionKey,
+    onSectionReviewed, onComplexitySuggestion,
+  ]);
 
   const reReviewStale = useCallback(async (): Promise<ExecutionResult> => {
     if (inFlightRef.current) {
@@ -318,14 +290,16 @@ export function useWaveExecutor({
     try {
       const staleIds = new Set(stale.map((s) => s.key));
       const affectedWaves = EXECUTION_WAVES.filter((w) =>
-        w.sectionIds.some((id) => staleIds.has(id))
+        w.waveNumber !== QA_WAVE_NUMBER && w.sectionIds.some((id) => staleIds.has(id))
       );
 
       const initialProgress = createInitialWaveProgress();
       initialProgress.overallStatus = 'running';
       initialProgress.waves = initialProgress.waves.map((w) => {
         const isAffected = affectedWaves.some((aw) => aw.waveNumber === w.waveNumber);
-        return isAffected ? w : { ...w, status: 'completed' as const, sections: w.sections.map((s) => ({ ...s, status: 'skipped' as const })) };
+        return isAffected
+          ? w
+          : { ...w, status: 'completed' as const, sections: w.sections.map((s) => ({ ...s, status: 'skipped' as const })) };
       });
       setWaveProgress(initialProgress);
 
@@ -337,9 +311,7 @@ export function useWaveExecutor({
         setWaveProgress((prev) => ({
           ...prev,
           currentWave: wave.waveNumber,
-          waves: prev.waves.map((w) =>
-            w.waveNumber === wave.waveNumber ? { ...w, status: 'running' } : w
-          ),
+          waves: prev.waves.map((w) => (w.waveNumber === wave.waveNumber ? { ...w, status: 'running' } : w)),
         }));
 
         const sectionsInWave = wave.sectionIds.filter((id) => staleIds.has(id));
@@ -371,9 +343,7 @@ export function useWaveExecutor({
 
       const outcome = cancelRef.current ? 'cancelled' : 'completed';
       setWaveProgress((prev) => ({ ...prev, overallStatus: outcome }));
-      if (!cancelRef.current) {
-        toast.success(`Re-reviewed ${stale.length} stale section(s).`);
-      }
+      if (!cancelRef.current) toast.success(`Re-reviewed ${stale.length} stale section(s).`);
       return { outcome, lastCompletedWave, totalWaves: affectedWaves.length, errorMessage: null, failedSections };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -385,9 +355,7 @@ export function useWaveExecutor({
     }
   }, [challengeId, buildContextOptions, reviewSingleSection]);
 
-  const cancelReview = useCallback(() => {
-    cancelRef.current = true;
-  }, []);
+  const cancelReview = useCallback(() => { cancelRef.current = true; }, []);
 
   return {
     executeWaves,
