@@ -11,7 +11,7 @@
  * - missing_elements per section (specific items that are absent)
  */
 
-const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
 
 export async function callAIPass1Analyze(
   apiKey: string,
