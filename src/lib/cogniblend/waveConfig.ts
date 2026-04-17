@@ -102,6 +102,27 @@ const NO_DRAFT_SECTIONS: SectionKey[] = [
   'evaluation_config',
 ];
 
+/**
+ * Sections that have NO backing column on the `challenges` table — their data
+ * lives in attachments / legal docs / escrow records / org context. They cannot
+ * be serialised into the section_keys batch payload, so the AI receives empty
+ * content and produces malformed JSON that takes down the entire sub-batch.
+ *
+ * These sections are excluded from the LLM batch entirely. They still appear
+ * in the wave UI (so curators see them) and are still editable — they're just
+ * reviewed by their own dedicated panels (Discovery wave, legal compliance UI,
+ * escrow UI) rather than by the section reviewer.
+ */
+export const BATCH_EXCLUDE_SECTIONS: readonly SectionKey[] = [
+  'creator_references',
+  'reference_urls',
+  'legal_docs',
+  'escrow_funding',
+  'creator_legal_instructions',
+  'evaluation_config',
+  'organization_context',
+] as const;
+
 export const DISCOVERY_WAVE_NUMBER = 7;
 export const QA_WAVE_NUMBER = 8;
 

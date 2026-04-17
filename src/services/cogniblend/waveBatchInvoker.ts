@@ -16,9 +16,10 @@ import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
 import type { ChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
 import type { SectionKey } from '@/types/sections';
 import type { SectionReview } from '@/components/cogniblend/curation/CurationAIReviewPanel';
-import type { SectionAction } from '@/lib/cogniblend/waveConfig';
+import { BATCH_EXCLUDE_SECTIONS, type SectionAction } from '@/lib/cogniblend/waveConfig';
 
 const ATTACHMENT_ONLY_SECTIONS = new Set<SectionKey>(['creator_references', 'reference_urls']);
+const BATCH_EXCLUDE_SET = new Set<SectionKey>(BATCH_EXCLUDE_SECTIONS);
 
 export interface BatchInvokeOptions {
   challengeId: string;
@@ -50,8 +51,23 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
     onSectionReviewed, onComplexitySuggestion,
   } = opts;
 
-  const reviewable = sectionActions.filter((sa) => sa.action !== 'skip');
+  // Partition: skip excluded sections (no DB column → empty payload → malformed JSON)
+  // and any section the executor already marked 'skip'. Both end up as 'skipped'
+  // outcomes; only the remaining sections are sent to the edge function.
+  const reviewable = sectionActions.filter(
+    (sa) => sa.action !== 'skip' && !BATCH_EXCLUDE_SET.has(sa.sectionId),
+  );
+
+  // Mark excluded sections as 'idle' so they don't sit in 'pending' forever.
+  const storeEarly = getCurationFormStore(challengeId);
+  for (const sa of sectionActions) {
+    if (BATCH_EXCLUDE_SET.has(sa.sectionId)) {
+      storeEarly.getState().setReviewStatus(sa.sectionId, 'idle');
+    }
+  }
+
   if (reviewable.length === 0) {
+    // Empty batch — short-circuit: skip the network call entirely.
     return sectionActions.map((sa) => ({ sectionId: sa.sectionId, status: 'skipped' as const }));
   }
 
@@ -99,7 +115,7 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
   }
 
   const outcomes: BatchSectionOutcome[] = sectionActions
-    .filter((sa) => sa.action === 'skip')
+    .filter((sa) => sa.action === 'skip' || BATCH_EXCLUDE_SET.has(sa.sectionId))
     .map((sa) => ({ sectionId: sa.sectionId, status: 'skipped' as const }));
 
   try {
