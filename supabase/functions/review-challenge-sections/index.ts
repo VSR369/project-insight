@@ -837,7 +837,10 @@ ${'═'.repeat(60)}\n`;
     const batchPrincipalCompliancePcts: number[] = [];
 
     const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
-    const reasoningEffort = globalConfig?.reasoning_effort || 'high';
+    // PR1: body-provided reasoning_effort wins over global config (per-wave selectivity)
+    const reasoningEffort = (typeof bodyReasoningEffort === 'string' && bodyReasoningEffort.trim().length > 0)
+      ? bodyReasoningEffort
+      : (globalConfig?.reasoning_effort || 'high');
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
