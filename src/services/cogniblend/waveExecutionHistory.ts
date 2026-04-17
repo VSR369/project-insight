@@ -14,6 +14,10 @@ export interface WaveSectionResult {
   sectionId: SectionKey;
   action: SectionAction;
   status: 'success' | 'error' | 'skipped';
+  /** Optional human-readable reason when status is 'error'. */
+  errorMessage?: string | null;
+  /** Optional machine code when status is 'error' (RATE_LIMIT, PAYMENT_REQUIRED, BATCH_ERROR, MISSING, MALFORMED). */
+  errorCode?: string | null;
 }
 
 export interface WaveRunRecord {
