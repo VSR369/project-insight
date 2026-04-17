@@ -346,6 +346,29 @@ serve(async (req) => {
         const existingReviews: any[] = Array.isArray(ch?.ai_section_reviews) ? ch.ai_section_reviews : [];
         const sectionsCtx = (clientContext && typeof clientContext === 'object' && (clientContext as any).sections) || {};
 
+        // Guard: QA passes need broad section coverage to produce meaningful
+        // consistency/ambiguity findings. If too many earlier-wave reviews are
+        // missing (e.g. failures cascaded from Waves 2/3/5), skip QA gracefully
+        // rather than emitting false-positive errors.
+        const MIN_REVIEWS_FOR_QA = 20;
+        if (existingReviews.length < MIN_REVIEWS_FOR_QA) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                sections: [],
+                skipped: true,
+                reason: `Only ${existingReviews.length}/${MIN_REVIEWS_FOR_QA} sections reviewed — QA passes require more coverage.`,
+                consistency_findings_count: 0,
+                ambiguity_findings_count: 0,
+                overall_coherence_score: null,
+                overall_clarity_score: null,
+              },
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
         const [cons, ambi] = await Promise.all([
           callConsistencyPass(LOVABLE_API_KEY, qaModel, existingReviews, ch ?? {}, 'medium').catch(() => null),
           callAmbiguityPass(LOVABLE_API_KEY, qaModel, existingReviews, ch ?? {}, sectionsCtx, 'medium').catch(() => null),

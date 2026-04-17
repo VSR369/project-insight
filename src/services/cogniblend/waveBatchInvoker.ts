@@ -217,6 +217,8 @@ export interface QaWaveOutcome {
   errorMessage?: string;
   consistencyCount?: number;
   ambiguityCount?: number;
+  /** True when the edge function intentionally skipped QA (insufficient coverage). */
+  skipped?: boolean;
 }
 
 export async function invokeQaWave(challengeId: string, context: ChallengeContext): Promise<QaWaveOutcome> {
@@ -232,6 +234,17 @@ export async function invokeQaWave(challengeId: string, context: ChallengeContex
     if (error) return { status: 'error', errorMessage: error.message };
     if (!data?.success) {
       return { status: 'error', errorMessage: data?.error?.message ?? 'QA pass returned no data.' };
+    }
+    // Edge function intentionally skipped QA (insufficient section coverage).
+    // Surface as success-with-note so the UI shows "Skipped" rather than red.
+    if (data?.data?.skipped === true) {
+      return {
+        status: 'success',
+        skipped: true,
+        errorMessage: data?.data?.reason ?? 'QA skipped — insufficient section coverage.',
+        consistencyCount: 0,
+        ambiguityCount: 0,
+      };
     }
     const consistencyCount = data?.data?.consistency_findings_count ?? 0;
     const ambiguityCount = data?.data?.ambiguity_findings_count ?? 0;
