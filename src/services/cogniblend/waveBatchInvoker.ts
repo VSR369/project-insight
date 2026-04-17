@@ -141,17 +141,24 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
           ? parseSuggestionForSection(sa.sectionId, rawSuggestion)
           : rawSuggestion;
 
-        store.getState().setAiReview(sa.sectionId, normalized.comments ?? [], parsedSuggestion);
+        store.getState().setAiReview(
+          sa.sectionId,
+          normalized.comments ?? [],
+          parsedSuggestion as string | string[] | Record<string, unknown> | null,
+        );
         store.getState().clearStaleness(sa.sectionId);
 
         if ((normalized as { status?: string }).status === 'generated' && parsedSuggestion != null) {
-          store.getState().setSectionData(sa.sectionId, parsedSuggestion);
+          store.getState().setSectionData(
+            sa.sectionId,
+            parsedSuggestion as string | string[] | Record<string, unknown>,
+          );
         }
 
         if (context.todaysDate) {
           const validationResult = validateAIOutput(
             sa.sectionId,
-            (normalized as { suggestion?: unknown }).suggestion ?? normalized,
+            ((normalized as { suggestion?: unknown }).suggestion ?? normalized) as Record<string, unknown>,
             context,
           );
           store.getState().setValidationResult(sa.sectionId, validationResult);
