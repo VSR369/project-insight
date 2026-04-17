@@ -27,6 +27,7 @@ import type { Json } from '@/integrations/supabase/types';
 import { DISCOVERY_WAVE_NUMBER, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ExecutionResult } from '@/services/cogniblend/waveExecutionHistory';
 import { clearAllExecutionRecords, clearPass2ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
+import { pauseSync, resumeSync } from '@/hooks/useCurationStoreSync';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
@@ -141,6 +142,21 @@ export function useCurationAIActions({
       sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
       // Clear stored wave exec history + acceptance so diagnostics start blank
       clearAllExecutionRecords(challengeId);
+      // Signal AI Quality panel to reset its in-component assessment state
+      sessionStorage.setItem(`cogni-quality-cleared-${challengeId}`, String(Date.now()));
+      window.dispatchEvent(new CustomEvent('cogni-quality-reset', { detail: { challengeId } }));
+      // Pause autosave so the wipe below isn't immediately overwritten by a debounced flush
+      pauseSync();
+      try {
+        await supabase
+          .from('challenges')
+          .update({ ai_section_reviews: [] as unknown[] } as Record<string, unknown>)
+          .eq('id', challengeId);
+      } catch (wipeErr) {
+        logWarning('Failed to wipe ai_section_reviews on Re-analyse', { operation: 'reanalyse_wipe_reviews', additionalData: { challengeId, error: String(wipeErr) } });
+      } finally {
+        resumeSync();
+      }
     }
     queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
