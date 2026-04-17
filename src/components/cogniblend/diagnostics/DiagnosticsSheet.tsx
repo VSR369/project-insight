@@ -89,6 +89,18 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, on
     [open, challengeId, refreshKey],
   );
 
+  // Compute "fresh Analyse run is in flight" gating signals.
+  // While Analyse is running we suppress prior-run data in dependent panels
+  // (Pass 2, Acceptance, Discovery, QA) and show explicit waiting placeholders.
+  // Telemetry is intentionally NOT gated — it is a historical trend.
+  const analyseRunning = analyseRecord?.overallStatus === 'running';
+  const discoveryWave = analyseRecord?.waves.find((w) => w.waveNumber === DISCOVERY_WAVE_NUMBER);
+  const qaWave = analyseRecord?.waves.find((w) => w.waveNumber === QA_WAVE_NUMBER);
+  const discoveryDone = !analyseRunning || (discoveryWave?.status === 'completed' || discoveryWave?.status === 'error');
+  const qaDone = !analyseRunning || (qaWave?.status === 'completed' || qaWave?.status === 'error');
+  // Pass 2 + Acceptance are downstream of Analyse — blank them while Analyse runs.
+  const downstreamGated = analyseRunning;
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
@@ -108,29 +120,56 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, on
             </div>
           ) : (
             <>
-              <QualityScoreSummary
-                consistencyCount={consistencyFindings?.length ?? 0}
-                consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
-                ambiguityCount={ambiguityFindings?.length ?? 0}
-              />
+              {qaDone ? (
+                <QualityScoreSummary
+                  consistencyCount={consistencyFindings?.length ?? 0}
+                  consistencyErrors={consistencyFindings?.filter(f => f.severity === 'error').length ?? 0}
+                  ambiguityCount={ambiguityFindings?.length ?? 0}
+                />
+              ) : (
+                <WaitingForRunPlaceholder title="Quality Score" detail="Waiting for QA wave to complete." />
+              )}
+
               <DiagnosticsReviewPanel
                 sections={sections}
                 importanceLevels={importanceLevels}
                 reviewLevels={reviewLevels}
                 executionRecord={analyseRecord}
               />
-              <DiagnosticsSuggestionsPanel
-                sections={sections}
-                importanceLevels={importanceLevels}
-                reviewLevels={reviewLevels}
-                executionRecord={generateRecord}
-                analyseRecord={analyseRecord}
-              />
-              <ConsistencyFindingsPanel challengeId={challengeId} />
-              <AmbiguityFindingsPanel challengeId={challengeId} />
-              <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
+
+              {downstreamGated ? (
+                <WaitingForRunPlaceholder title="Suggestions (Pass 2)" detail="Waiting for the new Analyse run to complete." />
+              ) : (
+                <DiagnosticsSuggestionsPanel
+                  sections={sections}
+                  importanceLevels={importanceLevels}
+                  reviewLevels={reviewLevels}
+                  executionRecord={generateRecord}
+                  analyseRecord={analyseRecord}
+                />
+              )}
+
+              {qaDone ? (
+                <>
+                  <ConsistencyFindingsPanel challengeId={challengeId} />
+                  <AmbiguityFindingsPanel challengeId={challengeId} />
+                </>
+              ) : (
+                <WaitingForRunPlaceholder title="Consistency & Ambiguity" detail="Waiting for QA wave to complete." />
+              )}
+
+              {discoveryDone ? (
+                <DiagnosticsDiscoveryPanel stats={attachmentStats} digest={digest} />
+              ) : (
+                <WaitingForRunPlaceholder title="Context Discovery" detail="Waiting for Discovery wave to complete." />
+              )}
+
               <div>
-                <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} onReReviewSection={onReReviewSection} />
+                {downstreamGated ? (
+                  <WaitingForRunPlaceholder title="Acceptance (Pass 3)" detail="Waiting for the new Analyse run to complete." />
+                ) : (
+                  <DiagnosticsAcceptancePanel acceptanceRecord={acceptanceRecord} onReReviewSection={onReReviewSection} />
+                )}
               </div>
             </>
           )}
