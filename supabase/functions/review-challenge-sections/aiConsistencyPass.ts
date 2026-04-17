@@ -182,14 +182,7 @@ Analyze the above section results for cross-section inconsistencies. Return find
     requestBody.reasoning_effort = reasoningEffort;
   }
 
-  const response = await fetch(AI_GATEWAY_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  });
+  const response = await callAIWithFallback(apiKey, requestBody, model);
 
   if (!response.ok) {
     if (response.status === 429) throw new Error('RATE_LIMIT');
