@@ -955,6 +955,10 @@ Solution Type: ${jsonBrief(relevantDataStatic.solution_type)}
 
 ${additionalData}`;
 
+    // Memory-fix: dedupe full digest across sub-batches in the same wave.
+    // First sub-batch gets the full digest; subsequent sub-batches get a short header summary.
+    let digestInjectedForWave = false;
+
     for (const batch of batches) {
       // Per-batch model selection: critical sections get premium model
       const batchKeys = batch.map(b => b.key);
@@ -1004,9 +1008,17 @@ Use these answers to inform the DEPTH and FOCUS of your section-by-section revie
 
 ${staticChallengeBlock}`;
 
-      // Phase 7: Inject context digest before reference materials
+      // Phase 7: Inject context digest before reference materials.
+      // Memory-fix: full digest only on first sub-batch of the wave; short header on subsequent
+      // sub-batches (system prompt's contextIntel already carries the verified intelligence anchor).
       if (contextDigestText) {
-        userPrompt += contextDigestText;
+        if (!digestInjectedForWave) {
+          userPrompt += contextDigestText;
+          digestInjectedForWave = true;
+        } else {
+          const digestSummary = contextDigestText.slice(0, 1500);
+          userPrompt += `\n\nCONTEXT DIGEST (summary — full digest already established earlier in this wave):\n${digestSummary}${contextDigestText.length > 1500 ? '\n...[digest truncated; full version applied to prior sub-batch]' : ''}\n`;
+        }
       }
 
       // Gap 8: When context intelligence flag is ON, Pass 1 gets digest-only (no per-section attachments).
@@ -1029,7 +1041,14 @@ ${staticChallengeBlock}`;
             if (ref.keyData && Object.keys(ref.keyData).length > 0) {
               attachmentBlock += `Key Data: ${JSON.stringify(ref.keyData)}\n`;
             }
-            attachmentBlock += ref.content + '\n';
+            // Memory-fix: truncate raw content body to ~2000 chars. ref.summary + ref.keyData
+            // (above) carry the distilled signal; full content is rarely needed in-prompt and is
+            // the dominant per-batch token contributor.
+            const contentStr = typeof ref.content === 'string' ? ref.content : '';
+            const truncatedContent = contentStr.length > 2000
+              ? contentStr.slice(0, 2000) + '\n...[truncated for context window — see AI Summary above for distilled signal]'
+              : contentStr;
+            attachmentBlock += truncatedContent + '\n';
           }
         }
         attachmentBlock += `
@@ -1178,6 +1197,15 @@ GROUNDING RULE (CRITICAL):
           (r as any).prompt_source = promptSource;
         }
         allNewSections.push(...batchResults);
+
+        // Memory-fix: release large per-batch strings/arrays so the runtime can reclaim memory
+        // before constructing the next sub-batch's prompt. The setTimeout(0) yields to the event
+        // loop, giving V8 a chance to GC between batches. Prevents WORKER_RESOURCE_LIMIT (546)
+        // when a wave splits into multiple sub-batches.
+        userPrompt = '';
+        systemPrompt = '';
+        batchResults = [];
+        await new Promise(resolve => setTimeout(resolve, 0));
       } catch (err: any) {
         // PR1 / Residual 2: Do NOT short-circuit the wave on transient errors.
         // Mark the batch as failed via is_batch_failure flag; the wave executor
