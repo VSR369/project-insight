@@ -153,6 +153,12 @@ export const EXECUTION_WAVES: WaveConfig[] = [
     ],
     prerequisiteSections: ['problem_statement', 'deliverables', 'reward_structure', 'evaluation_criteria'],
   },
+  {
+    waveNumber: QA_WAVE_NUMBER, // Wave 8 — runs Consistency + Ambiguity passes only
+    name: 'Quality Assurance — Consistency & Ambiguity',
+    sectionIds: [], // QA wave has no per-section reviews; renders specially in UI
+    prerequisiteSections: [],
+  },
 ];
 
 /**
