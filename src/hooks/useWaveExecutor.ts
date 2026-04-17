@@ -108,8 +108,12 @@ export function useWaveExecutor({
   providedCommentsBySectionKey,
 }: UseWaveExecutorOptions): UseWaveExecutorReturn {
   const initialProgressFactory = useCallback(
-    () => (pass1Only ? createInitialWaveProgressWithDiscovery() : createInitialWaveProgress()),
-    [pass1Only],
+    () => {
+      if (pass1Only) return createInitialWaveProgressWithDiscovery();
+      if (skipAnalysis) return createInitialWaveProgressForPass2();
+      return createInitialWaveProgress();
+    },
+    [pass1Only, skipAnalysis],
   );
   const [waveProgress, setWaveProgress] = useState<WaveProgress>(initialProgressFactory);
   const cancelRef = useRef(false);
