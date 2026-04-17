@@ -1173,7 +1173,11 @@ GROUNDING RULE (CRITICAL):
     let consistencyResult: Awaited<ReturnType<typeof callConsistencyPass>> | null = null;
     let ambiguityResult: Awaited<ReturnType<typeof callAmbiguityPass>> | null = null;
 
-    if (!section_key && !pass1_only && allNewSections.length >= 2) {
+    // PR1: When the wave executor is in batched mode (section_keys array supplied),
+    // skip the inline consistency/ambiguity pass — Wave 8 will run them once at the end,
+    // avoiding redundant work and 6× duplicated QA calls.
+    const skipInlineQA = Array.isArray(section_keys) && section_keys.length > 0;
+    if (!section_key && !pass1_only && !skipInlineQA && allNewSections.length >= 2) {
       const postBatchModel = globalConfig?.default_model || defaultModel;
 
       // Run consistency and ambiguity passes in parallel
