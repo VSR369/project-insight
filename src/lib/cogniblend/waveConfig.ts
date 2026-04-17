@@ -127,6 +127,36 @@ export const BATCH_EXCLUDE_SECTIONS: readonly SectionKey[] = [
 
 export const DISCOVERY_WAVE_NUMBER = 10;
 export const QA_WAVE_NUMBER = 11;
+/**
+ * Wave 12 — Suggestion Harmonization (Pass 2 only).
+ * After per-section suggestions are generated, a single AI call reads ALL
+ * suggestions together and corrects cross-section inconsistencies before
+ * the curator clicks Accept All.
+ */
+export const HARMONIZE_WAVE_NUMBER = 12;
+
+/**
+ * Sections whose suggestions participate in cross-reference harmonization.
+ * Limited to structurally interdependent sections to keep the harmonization
+ * AI call within ~15-20K tokens at high reasoning. Sections with no structural
+ * dependents (hook, visibility, domain_tags, ip_model copy, etc.) are excluded.
+ */
+export const HARMONIZE_CLUSTER_SECTIONS: readonly SectionKey[] = [
+  'problem_statement',
+  'scope',
+  'deliverables',
+  'expected_outcomes',
+  'success_metrics_kpis',
+  'evaluation_criteria',
+  'phase_schedule',
+  'reward_structure',
+  'complexity',
+  'solver_expertise',
+  'submission_guidelines',
+] as const;
+
+/** Min cluster suggestions required to make harmonization worthwhile. */
+export const HARMONIZE_MIN_SUGGESTIONS = 2;
 
 /**
  * Per-section reasoning_effort policy.
