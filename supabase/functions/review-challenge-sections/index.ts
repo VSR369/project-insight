@@ -1041,7 +1041,14 @@ ${staticChallengeBlock}`;
             if (ref.keyData && Object.keys(ref.keyData).length > 0) {
               attachmentBlock += `Key Data: ${JSON.stringify(ref.keyData)}\n`;
             }
-            attachmentBlock += ref.content + '\n';
+            // Memory-fix: truncate raw content body to ~2000 chars. ref.summary + ref.keyData
+            // (above) carry the distilled signal; full content is rarely needed in-prompt and is
+            // the dominant per-batch token contributor.
+            const contentStr = typeof ref.content === 'string' ? ref.content : '';
+            const truncatedContent = contentStr.length > 2000
+              ? contentStr.slice(0, 2000) + '\n...[truncated for context window — see AI Summary above for distilled signal]'
+              : contentStr;
+            attachmentBlock += truncatedContent + '\n';
           }
         }
         attachmentBlock += `
