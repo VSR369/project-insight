@@ -270,7 +270,7 @@ export function createInitialWaveProgressWithDiscovery(): WaveProgress {
     status: 'pending',
     sections: [],
   };
-  // Insert Wave 7 before Wave 8 (QA). Standard waves are numbered 1-6 + 8.
+  // Insert Discovery wave (10) before QA wave (11). Standard waves are 1-9 + 11.
   const wavesWithDiscovery: WaveResult[] = [];
   let inserted = false;
   for (const w of base.waves) {
