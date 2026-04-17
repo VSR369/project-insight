@@ -21,7 +21,7 @@ import { AmbiguityFindingsPanel } from '@/components/cogniblend/diagnostics/Ambi
 import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/QualityScoreSummary';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
 import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
-import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
+import { loadExecutionRecord, loadAcceptanceRecord, WAVE_EXEC_CHANGED_EVENT } from '@/services/cogniblend/waveExecutionHistory';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
@@ -44,10 +44,12 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, on
     if (open) setRefreshKey((k) => k + 1);
   }, [open]);
 
-  // Auto-refresh when localStorage is updated (covers sheet-open-during-execution)
+  // Auto-refresh when localStorage is updated (covers sheet-open-during-execution).
+  // `storage` event only fires across tabs, so we ALSO listen for the in-tab
+  // custom event dispatched by waveExecutionHistory on save/clear.
   useEffect(() => {
     if (!open) return;
-    const handler = (e: StorageEvent) => {
+    const storageHandler = (e: StorageEvent) => {
       if (
         e.key?.startsWith(`wave-exec-${challengeId}`) ||
         e.key === `wave-accept-${challengeId}`
@@ -55,8 +57,18 @@ export function DiagnosticsSheet({ open, onOpenChange, challengeId, sections, on
         setRefreshKey((k) => k + 1);
       }
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    const inTabHandler = (e: Event) => {
+      const detail = (e as CustomEvent<{ challengeId: string }>).detail;
+      if (!detail || detail.challengeId === challengeId) {
+        setRefreshKey((k) => k + 1);
+      }
+    };
+    window.addEventListener('storage', storageHandler);
+    window.addEventListener(WAVE_EXEC_CHANGED_EVENT, inTabHandler as EventListener);
+    return () => {
+      window.removeEventListener('storage', storageHandler);
+      window.removeEventListener(WAVE_EXEC_CHANGED_EVENT, inTabHandler as EventListener);
+    };
   }, [open, challengeId]);
 
   const analyseRecord = useMemo(

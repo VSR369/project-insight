@@ -3,7 +3,7 @@
  * Read-only view of Pass 1, Pass 2, Quality findings, and Context Discovery results.
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
@@ -18,7 +18,7 @@ import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/Quality
 import { ChallengeTelemetryPanel } from '@/components/cogniblend/diagnostics/ChallengeTelemetryPanel';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
 import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
-import { loadExecutionRecord, loadAcceptanceRecord } from '@/services/cogniblend/waveExecutionHistory';
+import { loadExecutionRecord, loadAcceptanceRecord, WAVE_EXEC_CHANGED_EVENT } from '@/services/cogniblend/waveExecutionHistory';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
 function loadSectionsFromStorage(challengeId: string): Partial<Record<SectionKey, SectionStoreEntry>> {
