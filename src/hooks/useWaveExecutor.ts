@@ -127,6 +127,20 @@ export function useWaveExecutor({
     inFlightRef.current = true;
     cancelRef.current = false;
 
+    // Reset section-store AI state for every section we're about to touch so the
+    // diagnostics panel starts blank on every Re-analyse / Generate run instead
+    // of leaking "reviewed"/"error" rows from the previous run.
+    {
+      const store = getCurationFormStore(challengeId);
+      for (const wave of EXECUTION_WAVES) {
+        for (const sectionId of wave.sectionIds) {
+          store.getState().setAiReview(sectionId, [], null);
+          store.getState().setReviewStatus(sectionId, 'idle');
+          store.getState().setAiAction(sectionId, null);
+        }
+      }
+    }
+
     let execRecord = createFreshRecord(
       challengeId,
       passType,

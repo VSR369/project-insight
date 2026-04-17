@@ -85,6 +85,23 @@ const LOCKED_SECTIONS: SectionKey[] = [];
 /** Sections backed by attachments/external data — always review, never generate */
 const ATTACHMENT_SECTIONS: SectionKey[] = ['creator_references', 'reference_urls'];
 
+/**
+ * Sections explicitly marked `aiCanDraft: false` in SECTION_FORMAT_CONFIG.
+ * The AI must NEVER draft content for these — only review what the curator
+ * provides. When empty, they are skipped (not generated). This prevents the
+ * batch-failure cascade observed in Waves 2/3/6 where the AI was asked to
+ * generate sections it was instructed never to draft, producing malformed
+ * output that killed the entire batch.
+ */
+const NO_DRAFT_SECTIONS: SectionKey[] = [
+  'approaches_not_of_interest',
+  'creator_references',
+  'reference_urls',
+  'solver_audience',
+  'creator_legal_instructions',
+  'evaluation_config',
+];
+
 export const DISCOVERY_WAVE_NUMBER = 7;
 export const QA_WAVE_NUMBER = 8;
 
@@ -183,6 +200,8 @@ export function determineSectionAction(
   if (isLocked) return hasContent ? 'review' : 'skip';
   // Attachment-based sections: always review (AI checks if attachments exist & are relevant)
   if (isAttachmentBased) return 'review';
+  // No-draft sections: review when content exists, skip when empty (NEVER generate)
+  if (NO_DRAFT_SECTIONS.includes(sectionId)) return hasContent ? 'review' : 'skip';
   if (!hasContent) return 'generate';
   return 'review';
 }
