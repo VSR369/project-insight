@@ -955,6 +955,10 @@ Solution Type: ${jsonBrief(relevantDataStatic.solution_type)}
 
 ${additionalData}`;
 
+    // Memory-fix: dedupe full digest across sub-batches in the same wave.
+    // First sub-batch gets the full digest; subsequent sub-batches get a short header summary.
+    let digestInjectedForWave = false;
+
     for (const batch of batches) {
       // Per-batch model selection: critical sections get premium model
       const batchKeys = batch.map(b => b.key);
