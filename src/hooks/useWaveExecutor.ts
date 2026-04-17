@@ -36,6 +36,7 @@ import {
   createFreshRecord,
   updateWaveStart,
   updateWaveComplete,
+  updateHarmonizeMetrics,
   finalizeRecord,
   saveExecutionRecord,
   type ExecutionResult,
@@ -275,6 +276,8 @@ export function useWaveExecutor({
               status: o.status,
               errorCode: o.errorCode ?? null,
               errorMessage: o.errorMessage ?? null,
+              skippedReason: o.skippedReason ?? null,
+              isPass2Failure: o.isPass2Failure ?? false,
             });
             if (o.status === 'error') failedSections.push(o.sectionId);
           }
@@ -317,6 +320,17 @@ export function useWaveExecutor({
           if (entry?.aiSuggestion != null) suggestions[key] = entry.aiSuggestion;
         }
         const suggestionCount = Object.keys(suggestions).length;
+
+        // F5a — Pre-flight: warn (don't block) when cluster sections had Pass 2 failures.
+        const clusterSet = new Set<SectionKey>(HARMONIZE_CLUSTER_SECTIONS);
+        const failedClusterSections = execRecord.waves
+          .flatMap((w) => w.sections)
+          .filter((s) => clusterSet.has(s.sectionId) && s.isPass2Failure === true);
+        if (failedClusterSections.length > 0) {
+          toast.warning(
+            `Wave 12 running with ${suggestionCount}/${HARMONIZE_CLUSTER_SECTIONS.length} cluster suggestions (${failedClusterSections.length} failed in Pass 2 — re-run those sections first).`,
+          );
+        }
 
         setWaveProgress((prev) => ({
           ...prev,
@@ -392,6 +406,19 @@ export function useWaveExecutor({
             ),
           }));
           lastCompletedWave = HARMONIZE_WAVE_NUMBER;
+
+          // F5b — Persist Wave 12 telemetry on the execution record so the
+          // diagnostics panel can display crossSectionScore / issues / applied / dropped
+          // even after a page refresh (currently the toast was the only surface).
+          execRecord = updateHarmonizeMetrics(execRecord, HARMONIZE_WAVE_NUMBER, {
+            crossSectionScore: harmonizeOutcome.crossSectionScore ?? null,
+            issuesFound: harmonizeOutcome.issuesFound ?? null,
+            issuesFixed: harmonizeOutcome.issuesFixed ?? null,
+            appliedCount,
+            droppedCount,
+            skippedReason: harmonizeOutcome.skippedReason ?? null,
+          });
+          saveExecutionRecord(execRecord);
 
           if (harmonizeOutcome.status === 'success' && (appliedCount > 0 || droppedCount > 0)) {
             toast.success(`Harmonization: ${appliedCount} correction(s) applied${droppedCount ? `, ${droppedCount} dropped` : ''}.`);
