@@ -20,9 +20,13 @@ import {
   EXECUTION_WAVES,
   QA_WAVE_NUMBER,
   DISCOVERY_WAVE_NUMBER,
+  HARMONIZE_WAVE_NUMBER,
+  HARMONIZE_CLUSTER_SECTIONS,
+  HARMONIZE_MIN_SUGGESTIONS,
   determineSectionAction,
   createInitialWaveProgress,
   createInitialWaveProgressWithDiscovery,
+  createInitialWaveProgressForPass2,
   getWaveReasoning,
   type WaveProgress,
   type WaveResult,
@@ -38,9 +42,11 @@ import {
   type PassType,
   type WaveSectionResult,
 } from '@/services/cogniblend/waveExecutionHistory';
-import { invokeWaveBatch, invokeQaWave } from '@/services/cogniblend/waveBatchInvoker';
+import { invokeWaveBatch, invokeQaWave, invokeHarmonizationWave } from '@/services/cogniblend/waveBatchInvoker';
 import type { SectionKey } from '@/types/sections';
 import { supabase } from '@/integrations/supabase/client';
+import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
+import { logWarning } from '@/lib/errorHandler';
 
 async function supabaseUpsertProgress(
   challengeId: string,
