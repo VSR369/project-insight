@@ -3,7 +3,7 @@
  * Assessment display extracted to QualityPanelCards.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -24,6 +24,20 @@ export function AICurationQualityPanel({ challengeId, onNavigateToSection }: AIC
   const [isOpen, setIsOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
   const [assessment, setAssessment] = useState<QualityAssessment | null>(null);
+
+  // Reset assessment when Re-analyse fires (signal from useCurationAIActions.runAnalyseFlow)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ challengeId: string }>).detail;
+      if (detail?.challengeId === challengeId) {
+        setAssessment(null);
+        setIsOpen(false);
+        setLegalOpen(false);
+      }
+    };
+    window.addEventListener('cogni-quality-reset', handler);
+    return () => window.removeEventListener('cogni-quality-reset', handler);
+  }, [challengeId]);
 
   const analysisMutation = useMutation({
     mutationFn: async (): Promise<QualityAssessment> => {
