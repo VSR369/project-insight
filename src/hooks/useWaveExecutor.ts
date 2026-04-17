@@ -1,11 +1,12 @@
 /**
  * useWaveExecutor — Core wave-based AI review execution engine.
  *
- * PR1 (batched): Each wave fires ONE edge function call for all its sections
- * (instead of N calls). The QA wave (QA_WAVE_NUMBER = 11) invokes the QA-only
- * branch (consistency + ambiguity). Per-section autosave is preserved via
- * setAiReview inside the batch invoker. reReviewStale still uses per-section
- * calls (unchanged).
+ * Each wave fires ONE edge function call for all its sections. The QA wave
+ * (QA_WAVE_NUMBER = 11) invokes the QA-only branch (consistency + ambiguity).
+ * The Harmonization wave (HARMONIZE_WAVE_NUMBER = 12) runs Pass-2 only and
+ * audits all suggestions for cross-section consistency before Accept All.
+ * During Pass 2, QA is skipped (already executed in Pass 1; underlying data
+ * unchanged). reReviewStale still uses per-section calls (unchanged).
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -19,9 +20,13 @@ import {
   EXECUTION_WAVES,
   QA_WAVE_NUMBER,
   DISCOVERY_WAVE_NUMBER,
+  HARMONIZE_WAVE_NUMBER,
+  HARMONIZE_CLUSTER_SECTIONS,
+  HARMONIZE_MIN_SUGGESTIONS,
   determineSectionAction,
   createInitialWaveProgress,
   createInitialWaveProgressWithDiscovery,
+  createInitialWaveProgressForPass2,
   getWaveReasoning,
   type WaveProgress,
   type WaveResult,
@@ -37,9 +42,11 @@ import {
   type PassType,
   type WaveSectionResult,
 } from '@/services/cogniblend/waveExecutionHistory';
-import { invokeWaveBatch, invokeQaWave } from '@/services/cogniblend/waveBatchInvoker';
+import { invokeWaveBatch, invokeQaWave, invokeHarmonizationWave } from '@/services/cogniblend/waveBatchInvoker';
 import type { SectionKey } from '@/types/sections';
 import { supabase } from '@/integrations/supabase/client';
+import { validateAIOutput } from '@/lib/cogniblend/postLlmValidation';
+import { logWarning } from '@/lib/errorHandler';
 
 async function supabaseUpsertProgress(
   challengeId: string,
@@ -101,8 +108,12 @@ export function useWaveExecutor({
   providedCommentsBySectionKey,
 }: UseWaveExecutorOptions): UseWaveExecutorReturn {
   const initialProgressFactory = useCallback(
-    () => (pass1Only ? createInitialWaveProgressWithDiscovery() : createInitialWaveProgress()),
-    [pass1Only],
+    () => {
+      if (pass1Only) return createInitialWaveProgressWithDiscovery();
+      if (skipAnalysis) return createInitialWaveProgressForPass2();
+      return createInitialWaveProgress();
+    },
+    [pass1Only, skipAnalysis],
   );
   const [waveProgress, setWaveProgress] = useState<WaveProgress>(initialProgressFactory);
   const cancelRef = useRef(false);
@@ -192,24 +203,44 @@ export function useWaveExecutor({
         const historyResults: WaveSectionResult[] = [];
 
         if (wave.waveNumber === QA_WAVE_NUMBER) {
-          // Wave 8 — QA-only call (no per-section results)
-          const qaOutcome = await invokeQaWave(challengeId, context);
-          sectionResults = [];
-          const qaError = qaOutcome.status === 'success'
-            ? undefined
-            : (qaOutcome.errorMessage ?? 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.');
-          execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], qaError);
-          saveExecutionRecord(execRecord);
-          setWaveProgress((prev) => ({
-            ...prev,
-            waves: prev.waves.map((w) =>
-              w.waveNumber === wave.waveNumber
-                ? { ...w, status: qaOutcome.status === 'success' ? 'completed' : 'error', sections: [] }
-                : w
-            ),
-          }));
-          lastCompletedWave = wave.waveNumber;
-          onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+          // Wave 11 — QA-only call (consistency + ambiguity).
+          // During Pass 2 (skipAnalysis=true), QA is intentionally skipped:
+          // ai_section_reviews carries Pass 1 data which has not changed,
+          // so re-running consistency/ambiguity would produce identical findings
+          // at ~60s extra cost. Cross-section coherence for *suggestions* is
+          // checked instead by the Harmonization wave (12) below.
+          if (skipAnalysis) {
+            execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], undefined);
+            saveExecutionRecord(execRecord);
+            setWaveProgress((prev) => ({
+              ...prev,
+              waves: prev.waves.map((w) =>
+                w.waveNumber === wave.waveNumber
+                  ? { ...w, status: 'completed', sections: [] }
+                  : w
+              ),
+            }));
+            lastCompletedWave = wave.waveNumber;
+            onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+          } else {
+            const qaOutcome = await invokeQaWave(challengeId, context);
+            sectionResults = [];
+            const qaError = qaOutcome.status === 'success'
+              ? undefined
+              : (qaOutcome.errorMessage ?? 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.');
+            execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], qaError);
+            saveExecutionRecord(execRecord);
+            setWaveProgress((prev) => ({
+              ...prev,
+              waves: prev.waves.map((w) =>
+                w.waveNumber === wave.waveNumber
+                  ? { ...w, status: qaOutcome.status === 'success' ? 'completed' : 'error', sections: [] }
+                  : w
+              ),
+            }));
+            lastCompletedWave = wave.waveNumber;
+            onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+          }
         } else {
           // Standard wave — single batched call for all sections
           const sectionActions = wave.sectionIds.map((id) => ({
@@ -272,6 +303,100 @@ export function useWaveExecutor({
 
         context = buildChallengeContext(buildContextOptions());
         if (i < EXECUTION_WAVES.length - 1) await new Promise((r) => setTimeout(r, 300));
+      }
+
+      // ── Wave 12 — Suggestion Harmonization (Pass 2 only) ──
+      // Runs ONCE after all per-section suggestions exist. Audits cluster
+      // sections for cross-section consistency and applies validated corrections.
+      if (skipAnalysis && !cancelRef.current) {
+        const store = getCurationFormStore(challengeId);
+        const sections = store.getState().sections;
+        const suggestions: Record<string, unknown> = {};
+        for (const key of HARMONIZE_CLUSTER_SECTIONS) {
+          const entry = sections[key];
+          if (entry?.aiSuggestion != null) suggestions[key] = entry.aiSuggestion;
+        }
+        const suggestionCount = Object.keys(suggestions).length;
+
+        setWaveProgress((prev) => ({
+          ...prev,
+          currentWave: HARMONIZE_WAVE_NUMBER,
+          waves: prev.waves.map((w) =>
+            w.waveNumber === HARMONIZE_WAVE_NUMBER ? { ...w, status: 'running' } : w
+          ),
+        }));
+
+        if (suggestionCount < HARMONIZE_MIN_SUGGESTIONS) {
+          // Not enough cluster suggestions to harmonize — mark complete, no AI call.
+          setWaveProgress((prev) => ({
+            ...prev,
+            waves: prev.waves.map((w) =>
+              w.waveNumber === HARMONIZE_WAVE_NUMBER
+                ? { ...w, status: 'completed', sections: [] }
+                : w
+            ),
+          }));
+          lastCompletedWave = HARMONIZE_WAVE_NUMBER;
+        } else {
+          const harmonizeOutcome = await invokeHarmonizationWave(challengeId, suggestions);
+          let appliedCount = 0;
+          let droppedCount = 0;
+
+          if (harmonizeOutcome.status === 'success') {
+            const ctx = buildChallengeContext(buildContextOptions());
+            for (const correction of harmonizeOutcome.corrections) {
+              const key = correction.section_key as SectionKey;
+              if (!HARMONIZE_CLUSTER_SECTIONS.includes(key)) {
+                droppedCount += 1;
+                continue;
+              }
+              try {
+                const validation = validateAIOutput(
+                  key,
+                  correction.corrected_suggestion as Record<string, unknown> | null,
+                  ctx,
+                );
+                const hasErrors = validation.corrections.some((c) => c.severity === 'error');
+                if (hasErrors) {
+                  droppedCount += 1;
+                  logWarning('Harmonization correction failed validation — dropped', {
+                    operation: 'harmonize_suggestions',
+                    additionalData: { sectionKey: key, reason: correction.reason },
+                  });
+                  continue;
+                }
+                const existing = sections[key];
+                store.getState().setAiReview(
+                  key,
+                  existing?.aiComments ?? [],
+                  correction.corrected_suggestion as Record<string, unknown> | string | string[] | null,
+                );
+                appliedCount += 1;
+              } catch (e) {
+                droppedCount += 1;
+                logWarning('Harmonization correction threw during apply — dropped', {
+                  operation: 'harmonize_suggestions',
+                  additionalData: { sectionKey: key, error: e instanceof Error ? e.message : String(e) },
+                });
+              }
+            }
+          }
+
+          const harmonizeStatus = harmonizeOutcome.status === 'error' ? 'error' : 'completed';
+          setWaveProgress((prev) => ({
+            ...prev,
+            waves: prev.waves.map((w) =>
+              w.waveNumber === HARMONIZE_WAVE_NUMBER
+                ? { ...w, status: harmonizeStatus, sections: [] }
+                : w
+            ),
+          }));
+          lastCompletedWave = HARMONIZE_WAVE_NUMBER;
+
+          if (harmonizeOutcome.status === 'success' && (appliedCount > 0 || droppedCount > 0)) {
+            toast.success(`Harmonization: ${appliedCount} correction(s) applied${droppedCount ? `, ${droppedCount} dropped` : ''}.`);
+          }
+        }
       }
 
       setWaveProgress((prev) => ({ ...prev, overallStatus: 'completed' }));

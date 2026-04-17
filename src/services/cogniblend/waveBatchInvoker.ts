@@ -277,3 +277,69 @@ export async function invokeQaWave(challengeId: string, context: ChallengeContex
     return { status: 'error', errorMessage: e instanceof Error ? e.message : 'Network error' };
   }
 }
+
+/**
+ * Wave 12 — Pass-2 Suggestion Harmonization.
+ * Sends all cluster suggestions in one call; receives cross-section corrections.
+ * Caller is responsible for validating each correction before writing to the store.
+ */
+export interface HarmonizationCorrectionPayload {
+  section_key: string;
+  reason: string;
+  corrected_suggestion: unknown;
+}
+
+export interface HarmonizeWaveOutcome {
+  status: 'success' | 'error' | 'skipped';
+  errorMessage?: string;
+  corrections: HarmonizationCorrectionPayload[];
+  crossSectionScore?: number;
+  issuesFound?: number;
+  issuesFixed?: number;
+  skippedReason?: string;
+}
+
+export async function invokeHarmonizationWave(
+  challengeId: string,
+  suggestions: Record<string, unknown>,
+): Promise<HarmonizeWaveOutcome> {
+  try {
+    const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
+      body: {
+        challenge_id: challengeId,
+        role_context: 'curation',
+        wave_action: 'harmonize_suggestions',
+        context: { suggestions },
+      },
+    });
+    if (error) return { status: 'error', errorMessage: error.message, corrections: [] };
+    if (!data?.success) {
+      return { status: 'error', errorMessage: data?.error?.message ?? 'Harmonization returned no data.', corrections: [] };
+    }
+    if (data?.data?.skipped === true) {
+      return {
+        status: 'skipped',
+        skippedReason: data?.data?.reason ?? 'Skipped — insufficient suggestions to harmonize.',
+        corrections: [],
+      };
+    }
+    const correctionsRaw = Array.isArray(data?.data?.corrections) ? data.data.corrections : [];
+    const corrections: HarmonizationCorrectionPayload[] = correctionsRaw
+      .filter((c: unknown): c is HarmonizationCorrectionPayload => {
+        if (!c || typeof c !== 'object') return false;
+        const obj = c as Record<string, unknown>;
+        return typeof obj.section_key === 'string'
+          && typeof obj.reason === 'string'
+          && obj.corrected_suggestion !== undefined;
+      });
+    return {
+      status: 'success',
+      corrections,
+      crossSectionScore: typeof data?.data?.cross_section_score === 'number' ? data.data.cross_section_score : undefined,
+      issuesFound: typeof data?.data?.issues_found === 'number' ? data.data.issues_found : corrections.length,
+      issuesFixed: typeof data?.data?.issues_fixed === 'number' ? data.data.issues_fixed : corrections.length,
+    };
+  } catch (e) {
+    return { status: 'error', errorMessage: e instanceof Error ? e.message : 'Network error', corrections: [] };
+  }
+}
