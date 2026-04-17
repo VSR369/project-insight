@@ -116,6 +116,22 @@ export function saveExecutionRecord(record: ExecutionRecord): void {
   } catch { /* localStorage unavailable */ }
 }
 
+/** Removes all wave execution + acceptance records for a challenge (used on Re-analyse). */
+export function clearAllExecutionRecords(challengeId: string): void {
+  try {
+    localStorage.removeItem(storageKey(challengeId, 'analyse'));
+    localStorage.removeItem(storageKey(challengeId, 'generate'));
+    localStorage.removeItem(acceptanceKey(challengeId));
+  } catch { /* localStorage unavailable */ }
+}
+
+/** Removes only the Pass 2 (generate) execution record. */
+export function clearPass2ExecutionRecord(challengeId: string): void {
+  try {
+    localStorage.removeItem(storageKey(challengeId, 'generate'));
+  } catch { /* localStorage unavailable */ }
+}
+
 export function createFreshRecord(
   challengeId: string,
   passType: PassType,
