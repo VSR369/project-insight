@@ -302,11 +302,13 @@ serve(async (req) => {
     }
 
     // Change 3: Extract skip_analysis and provided_comments
+    // PR1: Extract section_keys (batched mode) and reasoning_effort (per-wave override)
     const {
-      challenge_id, section_key, role_context, context: clientContext,
+      challenge_id, section_key, section_keys, role_context, context: clientContext,
       preview_mode, current_content, wave_action,
       skip_analysis, provided_comments,
       pass1_only,
+      reasoning_effort: bodyReasoningEffort,
     } = await req.json();
     const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
 
@@ -318,6 +320,63 @@ serve(async (req) => {
     }
 
     const resolvedContext: RoleContext = (VALID_CONTEXTS.includes(role_context) ? role_context : "curation") as RoleContext;
+
+    // ── PR1: Early-return branch for Wave 8 (consistency + ambiguity only) ──
+    // wave_action='consistency_check' → run only Consistency + Ambiguity passes,
+    // skip the per-section batch loop entirely. Saves ~5 minutes of redundant work.
+    if (wave_action === 'consistency_check' && challenge_id && !isPreviewMode) {
+      try {
+        const adminClientQA = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+        const { data: gc } = await adminClientQA
+          .from("ai_review_global_config").select("default_model").eq("id", 1).single();
+        const qaModel = gc?.default_model || 'google/gemini-3-flash-preview';
+
+        const { data: ch } = await adminClientQA
+          .from("challenges")
+          .select("title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ai_section_reviews")
+          .eq("id", challenge_id).single();
+
+        const existingReviews: any[] = Array.isArray(ch?.ai_section_reviews) ? ch.ai_section_reviews : [];
+        const sectionsCtx = (clientContext && typeof clientContext === 'object' && (clientContext as any).sections) || {};
+
+        const [cons, ambi] = await Promise.all([
+          callConsistencyPass(LOVABLE_API_KEY, qaModel, existingReviews, ch ?? {}, 'medium').catch(() => null),
+          callAmbiguityPass(LOVABLE_API_KEY, qaModel, existingReviews, ch ?? {}, sectionsCtx, 'medium').catch(() => null),
+        ]);
+
+        if (cons) {
+          await persistConsistencyFindings(adminClientQA, challenge_id, cons.findings ?? []);
+        }
+        if (ambi) {
+          await persistAmbiguityFindings(adminClientQA, challenge_id, ambi.findings ?? []);
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              sections: [],
+              consistency_findings_count: cons?.findings?.length ?? 0,
+              ambiguity_findings_count: ambi?.findings?.length ?? 0,
+              overall_coherence_score: cons?.overall_coherence_score ?? null,
+              overall_clarity_score: ambi?.overall_clarity_score ?? null,
+            },
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (qaErr) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: { code: "QA_PASS_FAILED", message: qaErr instanceof Error ? qaErr.message : "QA pass failed" },
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -344,32 +403,37 @@ serve(async (req) => {
     const useContextIntelligence = globalConfig?.use_context_intelligence === true;
 
     // Build section list — from DB config or fallback
+    // PR1: Honor section_keys[] (batched mode) in addition to single section_key
+    const sectionKeysFilter: string[] | null = Array.isArray(section_keys) && section_keys.length > 0
+      ? section_keys.map((k: unknown) => String(k))
+      : (section_key ? [String(section_key)] : null);
+
     let sectionsToReview: { key: string; desc: string }[];
     let dbConfigMap: Map<string, SectionConfig> | null = null;
 
     if (useDbConfig) {
       dbConfigMap = new Map(dbConfigs.map(c => [c.section_key, c]));
       const allKeys = dbConfigs.map(c => ({ key: c.section_key, desc: c.section_description || c.section_label }));
-      sectionsToReview = section_key
-        ? allKeys.filter(s => s.key === section_key)
+      sectionsToReview = sectionKeysFilter
+        ? allKeys.filter(s => sectionKeysFilter.includes(s.key))
         : allKeys;
 
-      // Fallback: if a specific section_key was requested but not found in DB config,
+      // Fallback: if a specific section was requested but not found in DB config,
       // check the hardcoded fallback list before returning an error
-      if (section_key && sectionsToReview.length === 0) {
+      if (sectionKeysFilter && sectionsToReview.length === 0) {
         const fallback = getFallbackSections(resolvedContext);
-        sectionsToReview = fallback.filter(s => s.key === section_key);
+        sectionsToReview = fallback.filter(s => sectionKeysFilter.includes(s.key));
       }
     } else {
       const fallback = getFallbackSections(resolvedContext);
-      sectionsToReview = section_key
-        ? fallback.filter(s => s.key === section_key)
+      sectionsToReview = sectionKeysFilter
+        ? fallback.filter(s => sectionKeysFilter.includes(s.key))
         : fallback;
     }
 
-    if (section_key && sectionsToReview.length === 0) {
+    if (sectionKeysFilter && sectionsToReview.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown section_key: ${section_key}` } }),
+        JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: `Unknown section keys: ${sectionKeysFilter.join(',')}` } }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -773,7 +837,10 @@ ${'═'.repeat(60)}\n`;
     const batchPrincipalCompliancePcts: number[] = [];
 
     const defaultModel = globalConfig?.default_model || 'google/gemini-3-flash-preview';
-    const reasoningEffort = globalConfig?.reasoning_effort || 'high';
+    // PR1: body-provided reasoning_effort wins over global config (per-wave selectivity)
+    const reasoningEffort = (typeof bodyReasoningEffort === 'string' && bodyReasoningEffort.trim().length > 0)
+      ? bodyReasoningEffort
+      : (globalConfig?.reasoning_effort || 'high');
 
     // Fire complexity assessment in parallel with standard batches
     const complexityPromise = complexitySection
@@ -1074,29 +1141,26 @@ GROUNDING RULE (CRITICAL):
         }
         allNewSections.push(...batchResults);
       } catch (err: any) {
-        if (err.message === "RATE_LIMIT") {
-          return new Response(
-            JSON.stringify({ success: false, error: { code: "RATE_LIMIT", message: "Rate limit exceeded." } }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        if (err.message === "PAYMENT_REQUIRED") {
-          return new Response(
-            JSON.stringify({ success: false, error: { code: "PAYMENT_REQUIRED", message: "AI credits exhausted." } }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        // If a batch fails, mark all its sections as warning
+        // PR1 / Residual 2: Do NOT short-circuit the wave on transient errors.
+        // Mark the batch as failed via is_batch_failure flag; the wave executor
+        // will surface the failure truthfully and the request still returns the
+        // remaining successful sections. RATE_LIMIT/PAYMENT_REQUIRED retries
+        // are handled inside callAIWithFallback (PR2).
         const now = new Date().toISOString();
+        const errMsg = err instanceof Error ? err.message : String(err);
         for (const sec of batch) {
           allNewSections.push({
             section_key: sec.key,
             status: "warning",
-            comments: [{ text: "Review could not be completed. Please re-review individually.", type: "warning", field: null, reasoning: null }],
+            comments: [{ text: `Review could not be completed: ${errMsg}`, type: "warning", field: null, reasoning: null }],
             reviewed_at: now,
+            is_batch_failure: true,
+            error_code: errMsg === "RATE_LIMIT" ? "RATE_LIMIT"
+              : errMsg === "PAYMENT_REQUIRED" ? "PAYMENT_REQUIRED"
+              : "BATCH_ERROR",
           });
         }
-        console.error("Batch AI call failed:", err);
+        console.error("Batch AI call failed:", errMsg);
       }
     }
 
@@ -1109,7 +1173,11 @@ GROUNDING RULE (CRITICAL):
     let consistencyResult: Awaited<ReturnType<typeof callConsistencyPass>> | null = null;
     let ambiguityResult: Awaited<ReturnType<typeof callAmbiguityPass>> | null = null;
 
-    if (!section_key && !pass1_only && allNewSections.length >= 2) {
+    // PR1: When the wave executor is in batched mode (section_keys array supplied),
+    // skip the inline consistency/ambiguity pass — Wave 8 will run them once at the end,
+    // avoiding redundant work and 6× duplicated QA calls.
+    const skipInlineQA = Array.isArray(section_keys) && section_keys.length > 0;
+    if (!section_key && !pass1_only && !skipInlineQA && allNewSections.length >= 2) {
       const postBatchModel = globalConfig?.default_model || defaultModel;
 
       // Run consistency and ambiguity passes in parallel
@@ -1282,13 +1350,9 @@ GROUNDING RULE (CRITICAL):
         console.error("Failed to persist AI reviews:", updateError);
       }
 
-      // ── Prompt 1: persist findings to dedicated tables (non-blocking) ──
-      if (consistencyResult) {
-        await persistConsistencyFindings(adminClient, challenge_id, consistencyResult.findings ?? []);
-      }
-      if (ambiguityResult) {
-        await persistAmbiguityFindings(adminClient, challenge_id, ambiguityResult.findings ?? []);
-      }
+      // PR1: Removed duplicate persistence — consistency/ambiguity findings are
+      // already persisted inside the inline QA block above. Wave 8 path persists
+      // findings via its own early-return branch.
 
       // ── Telemetry: write quality metrics row (non-blocking) ──
       try {

@@ -86,6 +86,26 @@ const LOCKED_SECTIONS: SectionKey[] = [];
 const ATTACHMENT_SECTIONS: SectionKey[] = ['creator_references', 'reference_urls'];
 
 export const DISCOVERY_WAVE_NUMBER = 7;
+export const QA_WAVE_NUMBER = 8;
+
+/**
+ * Per-section reasoning_effort policy.
+ * Critical sections (Principal-grade) get 'high'; supporting sections get 'medium';
+ * mechanical/lookup sections get 'low'. Used for selective per-wave override.
+ */
+const REASONING_HIGH: SectionKey[] = [
+  'problem_statement', 'deliverables', 'evaluation_criteria',
+  'phase_schedule', 'complexity', 'reward_structure',
+  'solver_expertise', 'success_metrics_kpis', 'expected_outcomes',
+];
+const REASONING_LOW: SectionKey[] = [
+  'hook', 'domain_tags', 'visibility', 'organization_context',
+];
+export function getWaveReasoning(sectionIds: SectionKey[]): 'high' | 'medium' | 'low' {
+  if (sectionIds.some((id) => REASONING_HIGH.includes(id))) return 'high';
+  if (sectionIds.every((id) => REASONING_LOW.includes(id))) return 'low';
+  return 'medium';
+}
 
 export const EXECUTION_WAVES: WaveConfig[] = [
   {
@@ -132,6 +152,12 @@ export const EXECUTION_WAVES: WaveConfig[] = [
       'creator_legal_instructions', 'legal_docs', 'escrow_funding',
     ],
     prerequisiteSections: ['problem_statement', 'deliverables', 'reward_structure', 'evaluation_criteria'],
+  },
+  {
+    waveNumber: QA_WAVE_NUMBER, // Wave 8 — runs Consistency + Ambiguity passes only
+    name: 'Quality Assurance — Consistency & Ambiguity',
+    sectionIds: [], // QA wave has no per-section reviews; renders specially in UI
+    prerequisiteSections: [],
   },
 ];
 
