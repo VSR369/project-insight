@@ -23,6 +23,8 @@ export interface WaveRunRecord {
   sections: WaveSectionResult[];
   startedAt: string | null;
   completedAt: string | null;
+  /** Optional human-readable summary when the wave ends with `status: 'error'`. */
+  errorMessage?: string | null;
 }
 
 export interface ExecutionRecord {
@@ -130,6 +132,7 @@ export function createFreshRecord(
       })),
       startedAt: null,
       completedAt: null,
+      errorMessage: null,
     })),
     startedAt: new Date().toISOString(),
     completedAt: null,
@@ -154,6 +157,7 @@ export function updateWaveComplete(
   record: ExecutionRecord,
   waveNumber: number,
   sections: WaveSectionResult[],
+  errorMessage?: string,
 ): ExecutionRecord {
   const hasErrors = sections.some((s) => s.status === 'error');
   return {
@@ -163,9 +167,10 @@ export function updateWaveComplete(
       w.waveNumber === waveNumber
         ? {
             ...w,
-            status: hasErrors ? 'error' : 'completed',
+            status: hasErrors || errorMessage ? 'error' : 'completed',
             sections,
             completedAt: new Date().toISOString(),
+            errorMessage: errorMessage ?? (hasErrors ? `${sections.filter((s) => s.status === 'error').length} of ${sections.length} sections failed.` : null),
           }
         : w
     ),

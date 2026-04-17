@@ -174,8 +174,10 @@ export function useWaveExecutor({
           // Wave 8 — QA-only call (no per-section results)
           const qaOutcome = await invokeQaWave(challengeId, context);
           sectionResults = [];
-          // No section history rows; status reflected on the wave itself
-          execRecord = updateWaveComplete(execRecord, wave.waveNumber, []);
+          const qaError = qaOutcome === 'success'
+            ? undefined
+            : 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.';
+          execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], qaError);
           saveExecutionRecord(execRecord);
           setWaveProgress((prev) => ({
             ...prev,

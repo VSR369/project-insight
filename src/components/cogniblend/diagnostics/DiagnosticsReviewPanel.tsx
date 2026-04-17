@@ -92,6 +92,14 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                   {skipped > 0 && <Badge variant="outline" className="text-[10px]">{skipped} skipped</Badge>}
                 </div>
               </div>
+              {execWave?.status === 'error' && execWave.errorMessage && (
+                <div className="px-3 py-2 bg-destructive/5 border-t border-destructive/20 flex items-start gap-2">
+                  <XCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-destructive leading-snug">
+                    {execWave.errorMessage}
+                  </p>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
