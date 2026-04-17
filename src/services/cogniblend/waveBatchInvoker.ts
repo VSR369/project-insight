@@ -210,8 +210,16 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
 /**
  * Wave 8 — invokes the QA-only edge branch (consistency + ambiguity).
+ * Returns 'success' only when at least one of the two passes produced a result.
  */
-export async function invokeQaWave(challengeId: string, context: ChallengeContext): Promise<'success' | 'error'> {
+export interface QaWaveOutcome {
+  status: 'success' | 'error';
+  errorMessage?: string;
+  consistencyCount?: number;
+  ambiguityCount?: number;
+}
+
+export async function invokeQaWave(challengeId: string, context: ChallengeContext): Promise<QaWaveOutcome> {
   try {
     const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
       body: {
@@ -221,9 +229,20 @@ export async function invokeQaWave(challengeId: string, context: ChallengeContex
         context,
       },
     });
-    if (error) return 'error';
-    return data?.success ? 'success' : 'error';
-  } catch {
-    return 'error';
+    if (error) return { status: 'error', errorMessage: error.message };
+    if (!data?.success) {
+      return { status: 'error', errorMessage: data?.error?.message ?? 'QA pass returned no data.' };
+    }
+    const consistencyCount = data?.data?.consistency_findings_count ?? 0;
+    const ambiguityCount = data?.data?.ambiguity_findings_count ?? 0;
+    const coherence = data?.data?.overall_coherence_score;
+    const clarity = data?.data?.overall_clarity_score;
+    // Both passes silently failed (caught with .catch(() => null) in the edge fn).
+    if (coherence == null && clarity == null && consistencyCount === 0 && ambiguityCount === 0) {
+      return { status: 'error', errorMessage: 'Consistency and Ambiguity passes both failed to return a score.' };
+    }
+    return { status: 'success', consistencyCount, ambiguityCount };
+  } catch (e) {
+    return { status: 'error', errorMessage: e instanceof Error ? e.message : 'Network error' };
   }
 }
