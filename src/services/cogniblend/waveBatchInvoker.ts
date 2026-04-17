@@ -120,7 +120,13 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
   const outcomes: BatchSectionOutcome[] = sectionActions
     .filter((sa) => sa.action === 'skip' || BATCH_EXCLUDE_SET.has(sa.sectionId))
-    .map((sa) => ({ sectionId: sa.sectionId, status: 'skipped' as const }));
+    .map((sa) => ({
+      sectionId: sa.sectionId,
+      status: 'skipped' as const,
+      skippedReason: BATCH_EXCLUDE_SET.has(sa.sectionId)
+        ? 'Excluded — no DB column (handled by dedicated panel)'
+        : 'Empty no-draft section (AI never drafts these)',
+    }));
 
   try {
     const { data, error } = await supabase.functions.invoke('review-challenge-sections', { body });
