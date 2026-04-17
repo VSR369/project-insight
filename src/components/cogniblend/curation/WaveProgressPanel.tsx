@@ -27,7 +27,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { WaveProgress, WaveResult } from '@/lib/cogniblend/waveConfig';
-import { SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
+import { SECTION_LABELS, DISCOVERY_WAVE_NUMBER, QA_WAVE_NUMBER } from '@/lib/cogniblend/waveConfig';
 import type { SectionKey } from '@/types/sections';
 
 export type PassType = 'analyse' | 'generate';
