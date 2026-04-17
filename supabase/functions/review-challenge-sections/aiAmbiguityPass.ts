@@ -11,7 +11,7 @@
 
 import { DEFAULT_PLATFORM_PREAMBLE } from './promptConstants.ts';
 
-const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+import { callAIWithFallback } from '../_shared/aiModelConfig.ts';
 
 export interface AmbiguityFinding {
   section_key: string;
