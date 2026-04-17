@@ -1,58 +1,46 @@
 
 
-## Plan: Surgical Memory Fix for `review-challenge-sections` (No Architectural Change)
+## Plan: Conditional Attachment Content Truncation
 
-### Context
-The 546 `WORKER_RESOURCE_LIMIT` error is caused by 50-60K-token prompts being built per sub-batch and held in memory across consecutive batches in the same wave. Logs confirm: `prompt_tokens: 53,536` for a 2-section batch. Background processing (`EdgeRuntime.waitUntil`) is the wrong fix — it would require a 15-file refactor and break the synchronous principal-grade scoring contract.
+### Verification
+<lov-tool-use id="toolu_vrtx_018YUvoDFNoTXHhqf5yXU8LP" name="code--view" integration-id="code" data="{\"file_path\": \"supabase/functions/review-challenge-sections/index.ts\", \"lines\": \"1020-1060\"}">
+</lov-tool-use>
 
-### Three targeted edits — all in `supabase/functions/review-challenge-sections/index.ts`
+<lov-tool-use id="toolu_vrtx_01QsG21WeyxWDc4cfYNChRix" name="code--view" integration-id="code" data="{\"file_path\": \"supabase/functions/review-challenge-sections/index.ts\", \"lines\": \"1010-1070\"}">
+</lov-tool-use>
+The truncation at lines 1044-1051 is **already implemented and live** in the deployed code. The user's proposed change matches what's already there (2000-char limit + truncation suffix). No further edit needed.
 
-**Edit 1 — Truncate attachment bodies in per-batch prompt (lines ~1014-1047)**
-- Keep `ref.summary` + `ref.keyData` in full (these are the distilled signal).
-- Truncate `ref.content` to first 2000 chars + "...[truncated for context window]" suffix.
-- Net saving: ~30-50% of attachment block size.
+<lov-plan>
 
-**Edit 2 — Deduplicate context digest across sub-batches (lines ~1007-1010)**
-- Track `digestInjectedForWave` flag scoped to the `batches` loop.
-- First sub-batch: inject full `contextDigestText`.
-- Subsequent sub-batches in same wave: inject a 1500-char header summary only.
-- The system prompt (`contextIntel`) already carries the verified intelligence anchor, so per-batch digest repetition is redundant.
+## No Implementation Needed — Already Live
 
-**Edit 3 — Release prompt memory between sub-batches (after line ~1180)**
-- After `allNewSections.push(...batchResults)`:
-  ```ts
-  // Release large per-batch strings to let the runtime reclaim memory
-  // before constructing the next batch's prompt.
-  userPrompt = '';
-  systemPrompt = '';
-  batchResults = [];
-  await new Promise(resolve => setTimeout(resolve, 0));
-  ```
-- The `setTimeout(0)` yields to the event loop, giving the V8 GC a chance to run between batches.
+The proposed truncation **is already implemented** in `supabase/functions/review-challenge-sections/index.ts` at lines 1044-1051, deployed in the previous memory-fix wave:
 
-### What is preserved (zero functional change)
-- Principal-grade scoring runs synchronously per batch (compliance % still telemetered).
-- Pass 1 → Pass 2 → QA wave handoff stays synchronous.
-- Diagnostics panel still updates in real time.
-- All grounding sources (digest, attachments, corrections, examples) still injected.
-- Cross-section dependency logic (FIX 1) untouched.
-- `MAX_BATCH_SIZE = 3` and `SOLO_SECTIONS` rules untouched.
+```ts
+// Lines 1047-1051 (current state):
+const contentStr = typeof ref.content === 'string' ? ref.content : '';
+const truncatedContent = contentStr.length > 2000
+  ? contentStr.slice(0, 2000) + '\n...[truncated for context window — see AI Summary above for distilled signal]'
+  : contentStr;
+attachmentBlock += truncatedContent + '\n';
+```
 
-### Verification (after deploy)
-1. Re-analyse the same draft (`25ca71a0-...`) end-to-end → confirm no 546 error.
-2. Check edge logs: `prompt_tokens` should drop from ~53K to ~30-35K per batch on multi-batch waves.
-3. Confirm `ai_principal_artifact_coverage` telemetry still shows `compliance_pct: 100`.
-4. Confirm Wave 6 (SOLO sections, multi sub-batch) completes without batch failures.
-5. Confirm Pass 2 suggestions still ground in attachments (spot-check one suggestion against attachment summary).
+This is functionally identical to the user's proposed snippet:
+- Same 2000-char threshold
+- Same truncation suffix pattern
+- Same preservation of `ref.summary` + `ref.keyData` as distilled signal
+- Same per-batch attachment filtering via `batchKeySet` (line 1028-1030)
 
-### Files Touched
-- `supabase/functions/review-challenge-sections/index.ts` — ~25 lines changed across 3 sites.
+### Verification
+- **Edit 1 (truncate attachments)**: ✅ Live at lines 1044-1051
+- **Edit 2 (deduplicate digest)**: ✅ Live at lines 1014-1022 (`digestInjectedForWave` flag)
+- **Edit 3 (memory release)**: ✅ Deployed in previous wave
 
-### Deployment
-Auto-deploy via Lovable's edge function pipeline; no migration, no client changes, no new tables.
+### What This Means
+The "remaining risk" the user flagged was already mitigated in the prior surgical memory fix. No code change, no deployment, no migration required.
 
-### Rejected alternatives
-- **`EdgeRuntime.waitUntil` background jobs** — rejected: requires polling table, RLS, 15-file client refactor, breaks synchronous principal-grade gating, 2-3 day effort with high regression risk.
-- **Reducing `MAX_BATCH_SIZE` to 1** — rejected: doubles wave latency and increases LLM API costs; doesn't fix the per-batch prompt size issue.
-- **Removing context digest injection** — rejected: would compromise grounding quality and violate the Context Intelligence Architecture rule (`mem://cogniblend/ai/context-intelligence-architecture`).
+If 546 errors still recur on attachment-heavy challenges, the next lever would be **lowering the 2000-char threshold to 1200-1500** rather than re-adding truncation logic — but only after confirming via edge logs that attachment content (not digest, not corpus examples) is the dominant token contributor on the failing batch.
+
+### Recommendation
+Close this thread as resolved. Re-open only if a new 546 error appears with edge-log evidence showing `prompt_tokens > 45K` on a multi-attachment wave — at which point the fix is a one-line constant change (`2000` → `1200`), not new logic.
 
