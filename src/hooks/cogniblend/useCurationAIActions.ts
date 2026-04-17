@@ -153,7 +153,7 @@ export function useCurationAIActions({
           .update({ ai_section_reviews: [] as unknown[] } as Record<string, unknown>)
           .eq('id', challengeId);
       } catch (wipeErr) {
-        logWarning('Failed to wipe ai_section_reviews on Re-analyse', { challengeId, error: wipeErr });
+        logWarning('Failed to wipe ai_section_reviews on Re-analyse', { operation: 'reanalyse_wipe_reviews', metadata: { challengeId, error: String(wipeErr) } });
       } finally {
         resumeSync();
       }
