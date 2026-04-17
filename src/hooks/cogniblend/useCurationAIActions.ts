@@ -137,11 +137,17 @@ export function useCurationAIActions({
     setGenerateDoneSession(false);
     setAiReviews([]);
     setContextLibraryReviewed?.(false);
-    if (challengeId) sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
+    if (challengeId) {
+      sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
+      // Clear stored wave exec history + acceptance so diagnostics start blank
+      clearAllExecutionRecords(challengeId);
+    }
     queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['consistency-findings', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['ambiguity-findings', challengeId] });
 
     setAiReviewLoading(true);
     setTriageTotalCount(0);
