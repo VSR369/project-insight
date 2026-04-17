@@ -407,6 +407,19 @@ export function useWaveExecutor({
           }));
           lastCompletedWave = HARMONIZE_WAVE_NUMBER;
 
+          // F5b — Persist Wave 12 telemetry on the execution record so the
+          // diagnostics panel can display crossSectionScore / issues / applied / dropped
+          // even after a page refresh (currently the toast was the only surface).
+          execRecord = updateHarmonizeMetrics(execRecord, HARMONIZE_WAVE_NUMBER, {
+            crossSectionScore: harmonizeOutcome.crossSectionScore ?? null,
+            issuesFound: harmonizeOutcome.issuesFound ?? null,
+            issuesFixed: harmonizeOutcome.issuesFixed ?? null,
+            appliedCount,
+            droppedCount,
+            skippedReason: harmonizeOutcome.skippedReason ?? null,
+          });
+          saveExecutionRecord(execRecord);
+
           if (harmonizeOutcome.status === 'success' && (appliedCount > 0 || droppedCount > 0)) {
             toast.success(`Harmonization: ${appliedCount} correction(s) applied${droppedCount ? `, ${droppedCount} dropped` : ''}.`);
           }
