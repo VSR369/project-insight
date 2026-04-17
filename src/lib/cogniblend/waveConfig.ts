@@ -123,8 +123,8 @@ export const BATCH_EXCLUDE_SECTIONS: readonly SectionKey[] = [
   'organization_context',
 ] as const;
 
-export const DISCOVERY_WAVE_NUMBER = 7;
-export const QA_WAVE_NUMBER = 8;
+export const DISCOVERY_WAVE_NUMBER = 10;
+export const QA_WAVE_NUMBER = 11;
 
 /**
  * Per-section reasoning_effort policy.
