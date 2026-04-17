@@ -320,3 +320,25 @@ export function createInitialWaveProgressWithDiscovery(): WaveProgress {
     waves: wavesWithDiscovery,
   };
 }
+
+/**
+ * Creates wave progress for the Pass-2 (Generate Suggestions) flow.
+ * Includes the standard content waves (1-9), the QA wave (11) which will be
+ * marked skipped at runtime (already executed in Pass 1), and the new
+ * Harmonization wave (12) which performs cross-section consistency on
+ * suggestions before Accept All.
+ */
+export function createInitialWaveProgressForPass2(): WaveProgress {
+  const base = createInitialWaveProgress();
+  const harmonizeWave: WaveResult = {
+    waveNumber: HARMONIZE_WAVE_NUMBER,
+    name: 'Harmonize Suggestions — Cross-Section Consistency',
+    status: 'pending',
+    sections: [],
+  };
+  return {
+    ...base,
+    totalWaves: base.totalWaves + 1,
+    waves: [...base.waves, harmonizeWave],
+  };
+}
