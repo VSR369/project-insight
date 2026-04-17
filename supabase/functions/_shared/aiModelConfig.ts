@@ -57,8 +57,16 @@ export async function getAIModelConfig(): Promise<AIModelConfig> {
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// 429 retry schedule (PR2): 5s then 10s before falling through to fallback model.
+const RATE_LIMIT_BACKOFFS_MS = [5000, 10000];
+
 /**
- * callAIWithFallback — Calls AI gateway with primary model, retries with fallback on 502/503/429.
+ * callAIWithFallback — Calls AI gateway with primary model with resilience:
+ *  - 502/503: immediately retry with fallback model.
+ *  - 429: backoff retry on PRIMARY model (5s, 10s); if still 429, try fallback once.
+ *  - All other statuses (incl. 402, 4xx, 5xx): return the Response as-is.
  * Returns the Response object. Caller handles parsing.
  */
 export async function callAIWithFallback(
@@ -79,13 +87,33 @@ export async function callAIWithFallback(
       body: JSON.stringify({ ...body, model }),
     });
 
-  const primaryResp = await makeRequest(primaryModel);
+  let resp = await makeRequest(primaryModel);
 
-  // Retry with fallback on transient failures (not 429 rate limit — that's user-facing)
-  if ((primaryResp.status === 502 || primaryResp.status === 503) && config.fallbackModel !== primaryModel) {
-    console.warn(`Primary model ${primaryModel} returned ${primaryResp.status}, retrying with fallback ${config.fallbackModel}`);
-    return makeRequest(config.fallbackModel);
+  // 429 — rate limit. Backoff and retry on the primary model.
+  if (resp.status === 429) {
+    for (let i = 0; i < RATE_LIMIT_BACKOFFS_MS.length; i++) {
+      const wait = RATE_LIMIT_BACKOFFS_MS[i];
+      console.warn(`Primary model ${primaryModel} returned 429, retry ${i + 1}/${RATE_LIMIT_BACKOFFS_MS.length} in ${wait}ms`);
+      // Drain the body so the connection can be reused.
+      try { await resp.text(); } catch { /* noop */ }
+      await sleep(wait);
+      resp = await makeRequest(primaryModel);
+      if (resp.status !== 429) break;
+    }
+    // If still 429 after backoffs and a different fallback exists, try it once.
+    if (resp.status === 429 && config.fallbackModel && config.fallbackModel !== primaryModel) {
+      console.warn(`Primary model ${primaryModel} still 429 after retries, attempting fallback ${config.fallbackModel}`);
+      try { await resp.text(); } catch { /* noop */ }
+      resp = await makeRequest(config.fallbackModel);
+    }
   }
 
-  return primaryResp;
+  // 502/503 — transient infra failure. Single fallback retry.
+  if ((resp.status === 502 || resp.status === 503) && config.fallbackModel && config.fallbackModel !== primaryModel) {
+    console.warn(`Primary model ${primaryModel} returned ${resp.status}, retrying with fallback ${config.fallbackModel}`);
+    try { await resp.text(); } catch { /* noop */ }
+    resp = await makeRequest(config.fallbackModel);
+  }
+
+  return resp;
 }
