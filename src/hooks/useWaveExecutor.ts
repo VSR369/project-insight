@@ -361,7 +361,7 @@ export function useWaveExecutor({
                   droppedCount += 1;
                   logWarning('Harmonization correction failed validation — dropped', {
                     operation: 'harmonize_suggestions',
-                    metadata: { sectionKey: key, reason: correction.reason },
+                    additionalData: { sectionKey: key, reason: correction.reason },
                   });
                   continue;
                 }
@@ -376,7 +376,7 @@ export function useWaveExecutor({
                 droppedCount += 1;
                 logWarning('Harmonization correction threw during apply — dropped', {
                   operation: 'harmonize_suggestions',
-                  metadata: { sectionKey: key, error: e instanceof Error ? e.message : String(e) },
+                  additionalData: { sectionKey: key, error: e instanceof Error ? e.message : String(e) },
                 });
               }
             }
