@@ -27,7 +27,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { WaveProgress, WaveResult } from '@/lib/cogniblend/waveConfig';
-import { SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
+import { SECTION_LABELS, DISCOVERY_WAVE_NUMBER, QA_WAVE_NUMBER } from '@/lib/cogniblend/waveConfig';
 import type { SectionKey } from '@/types/sections';
 
 export type PassType = 'analyse' | 'generate';
@@ -100,7 +100,9 @@ function WaveDetail({
   const [open, setOpen] = useState(false);
   const isExpandable = wave.status === 'completed' || wave.status === 'error';
   const sectionCount = wave.sections.length;
-  const isQaWave = sectionCount === 0;
+  const isDiscoveryWave = wave.waveNumber === DISCOVERY_WAVE_NUMBER;
+  const isQaWave = wave.waveNumber === QA_WAVE_NUMBER;
+  const isSpecialWave = isDiscoveryWave || isQaWave || sectionCount === 0;
   const successCount = wave.sections.filter((s) => s.status === 'success').length;
   const reviewedCount = wave.sections.filter(
     (s) => s.status === 'success' && s.action === 'review',
@@ -115,8 +117,17 @@ function WaveDetail({
 
   const counts = passType === 'generate' ? suggestionCounts : commentCounts;
 
-  // QA wave (Wave 8) — render compact, no expandable per-section table
-  if (isQaWave) {
+  // Special waves (Wave 7 Discovery, Wave 8 QA) — render compact, no expandable per-section table
+  if (isSpecialWave) {
+    const runningCopy = isDiscoveryWave
+      ? 'searching attachments, references & web sources…'
+      : 'running consistency & ambiguity checks…';
+    const completedCopy = isDiscoveryWave
+      ? 'Contextual sources discovered & queued for review.'
+      : 'Cross-section consistency & ambiguity findings persisted.';
+    const errorCopy = isDiscoveryWave
+      ? 'Discovery failed — add sources manually in the Context Library.'
+      : 'QA pass failed — re-run AI review.';
     return (
       <div className="flex items-start gap-2">
         <WaveStatusIcon status={wave.status} />
@@ -125,15 +136,16 @@ function WaveDetail({
             Wave {wave.waveNumber}: {wave.name}
           </p>
           {wave.status === 'running' && (
-            <p className="text-[10px] text-primary ml-0">running consistency &amp; ambiguity checks…</p>
+            <p className="text-[10px] text-primary">{runningCopy}</p>
           )}
           {wave.status === 'completed' && (
-            <p className="text-[10px] text-muted-foreground">
-              Cross-section consistency &amp; ambiguity findings persisted.
-            </p>
+            <p className="text-[10px] text-muted-foreground">{completedCopy}</p>
           )}
           {wave.status === 'error' && (
-            <p className="text-[10px] text-destructive">QA pass failed — re-run AI review.</p>
+            <p className="text-[10px] text-destructive">{errorCopy}</p>
+          )}
+          {wave.status === 'pending' && (
+            <p className="text-[10px] text-muted-foreground/70">Pending…</p>
           )}
         </div>
       </div>

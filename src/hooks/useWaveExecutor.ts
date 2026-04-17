@@ -17,8 +17,10 @@ import { useWaveReviewSection } from '@/hooks/useWaveReviewSection';
 import {
   EXECUTION_WAVES,
   QA_WAVE_NUMBER,
+  DISCOVERY_WAVE_NUMBER,
   determineSectionAction,
   createInitialWaveProgress,
+  createInitialWaveProgressWithDiscovery,
   getWaveReasoning,
   type WaveProgress,
   type WaveResult,
@@ -97,7 +99,11 @@ export function useWaveExecutor({
   skipAnalysis = false,
   providedCommentsBySectionKey,
 }: UseWaveExecutorOptions): UseWaveExecutorReturn {
-  const [waveProgress, setWaveProgress] = useState<WaveProgress>(createInitialWaveProgress);
+  const initialProgressFactory = useCallback(
+    () => (pass1Only ? createInitialWaveProgressWithDiscovery() : createInitialWaveProgress()),
+    [pass1Only],
+  );
+  const [waveProgress, setWaveProgress] = useState<WaveProgress>(initialProgressFactory);
   const cancelRef = useRef(false);
   const inFlightRef = useRef(false);
 
@@ -132,7 +138,7 @@ export function useWaveExecutor({
     let lastCompletedWave = 0;
 
     try {
-      const initialProgress = createInitialWaveProgress();
+      const initialProgress = initialProgressFactory();
       initialProgress.overallStatus = 'running';
       setWaveProgress(initialProgress);
 
