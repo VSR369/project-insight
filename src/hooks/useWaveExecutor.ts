@@ -223,7 +223,13 @@ export function useWaveExecutor({
           for (const o of outcomes) {
             const action = sectionActions.find((sa) => sa.sectionId === o.sectionId)?.action ?? 'review';
             sectionResults.push({ sectionId: o.sectionId, action, status: o.status });
-            historyResults.push({ sectionId: o.sectionId, action, status: o.status });
+            historyResults.push({
+              sectionId: o.sectionId,
+              action,
+              status: o.status,
+              errorCode: o.errorCode ?? null,
+              errorMessage: o.errorMessage ?? null,
+            });
             if (o.status === 'error') failedSections.push(o.sectionId);
           }
 
