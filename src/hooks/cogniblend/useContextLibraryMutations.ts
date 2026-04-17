@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { invalidateAllContextKeys, CONTEXT_KEYS } from './contextLibraryKeys';
+import { runWithConcurrency } from '@/lib/concurrency';
 import type { ContextSource } from './useContextLibraryQueries';
 
 /* ── Helpers ── */
