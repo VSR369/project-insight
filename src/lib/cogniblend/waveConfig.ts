@@ -1,8 +1,10 @@
 /**
  * Wave-based execution configuration for global AI review.
  *
- * 6 dependency-ordered waves covering all 31 curation sections.
- * Each wave's sections depend only on sections from prior waves.
+ * 9 dependency-ordered content waves + Discovery (10) + QA (11).
+ * Each wave produces ≤2 sequential sub-batches so wall-time stays under the
+ * 150s edge function ceiling at HIGH reasoning. Each wave's sections depend
+ * only on sections from prior waves.
  */
 
 import type { SectionKey } from '@/types/sections';
