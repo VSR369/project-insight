@@ -32,6 +32,7 @@ import { fetchMasterDataOptions, MASTER_DATA_SECTION_TABLES, STATIC_MASTER_DATA 
 import { callAIPass1Analyze, callAIPass2Rewrite, callAIBatchTwoPass, cleanAIOutput, SECTION_FIELD_ALIASES, SECTION_DEPENDENCIES, DEPENDENCY_REASONING } from "./aiCalls.ts";
 import { callConsistencyPass, mergeConsistencyFindings } from "./aiConsistencyPass.ts";
 import { callAmbiguityPass, mergeAmbiguityFindings } from "./aiAmbiguityPass.ts";
+import { callHarmonizationPass } from "./aiHarmonizationPass.ts";
 import { callComplexityAI, executeComplexityAssessment } from "./complexity.ts";
 import { fetchExamplesForBatch, formatExamplesForPrompt, fetchHardCorrections, formatCorrectionsForPrompt } from "./fetchExamples.ts";
 
@@ -405,7 +406,70 @@ serve(async (req) => {
       }
     }
 
-    const adminClient = createClient(
+    // ── Pass 2 — Suggestion Harmonization (Wave 12) ──────────
+    // wave_action='harmonize_suggestions' → run a single AI call that audits all
+    // Pass-2 suggestions for cross-section consistency and returns ONLY corrected
+    // sections. The hook applies validated corrections to the store.
+    if (wave_action === 'harmonize_suggestions' && challenge_id && !isPreviewMode) {
+      try {
+        const suggestionsInput = (clientContext && typeof clientContext === 'object'
+          ? (clientContext as Record<string, unknown>).suggestions
+          : null) as Record<string, unknown> | null;
+
+        if (!suggestionsInput || typeof suggestionsInput !== 'object') {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              data: { corrections: [], skipped: true, reason: 'No suggestions provided.', cross_section_score: 100, issues_found: 0, issues_fixed: 0 },
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const adminClientH = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+        const { data: gcH } = await adminClientH
+          .from("ai_review_global_config").select("default_model, critical_model").eq("id", 1).single();
+        const harmonizeModel = gcH?.critical_model || gcH?.default_model || 'google/gemini-3-flash-preview';
+
+        const { data: chH } = await adminClientH
+          .from("challenges")
+          .select("title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, complexity_level, currency_code")
+          .eq("id", challenge_id).single();
+
+        const harmonizeResult = await callHarmonizationPass(
+          LOVABLE_API_KEY,
+          harmonizeModel,
+          suggestionsInput,
+          chH ?? {},
+          'high',
+        );
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              corrections: harmonizeResult.corrections,
+              cross_section_score: harmonizeResult.cross_section_score,
+              issues_found: harmonizeResult.issues_found,
+              issues_fixed: harmonizeResult.issues_fixed,
+            },
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (hErr) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: { code: "HARMONIZATION_FAILED", message: hErr instanceof Error ? hErr.message : "Harmonization pass failed" },
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
