@@ -180,13 +180,26 @@ export async function callAIBatchTwoPass(
   }
 
   let suggestionMap: Map<string, string>;
+  let pass2Failures: Array<{ section_key: string; code: string; reason: string }> = [];
   try {
     suggestionMap = await callAIPass2Rewrite(apiKey, model, pass1Results, challengeData, waveAction, clientContext, sectionConfigs, masterDataOptions, orgContext, attachmentsBySection, contextDigestText, useContextIntelligence, reasoningEffort);
+    // Side-channel: aiPass2 attaches per-section failure markers (TRUNCATED/MALFORMED/MISSING).
+    const attached = (suggestionMap as unknown as { __failures?: Array<{ section_key: string; code: string; reason: string }> }).__failures;
+    if (Array.isArray(attached)) pass2Failures = attached;
   } catch (err: any) {
     if (err.message === "RATE_LIMIT" || err.message === "PAYMENT_REQUIRED") throw err;
     console.error("Pass 2 failed, continuing with Pass 1 results:", err);
     suggestionMap = new Map();
+    // Whole-pass-2 failure → mark every section MALFORMED so UI can explain the blank.
+    pass2Failures = pass1Results.map((r: any) => ({
+      section_key: r.section_key,
+      code: 'MALFORMED',
+      reason: err instanceof Error ? err.message : String(err),
+    }));
   }
+
+  const failureByKey = new Map<string, { code: string; reason: string }>();
+  for (const f of pass2Failures) failureByKey.set(f.section_key, { code: f.code, reason: f.reason });
 
   return pass1Results.map((r: any) => {
     const suggestion = suggestionMap.get(r.section_key) || null;
@@ -201,6 +214,8 @@ export async function callAIBatchTwoPass(
       ? r.guidelines.map((g: string) => cleanAIOutput(g)).filter(Boolean)
       : r.guidelines;
 
+    const failure = failureByKey.get(r.section_key);
+
     return {
       ...r,
       comments: cleanedComments,
@@ -209,6 +224,10 @@ export async function callAIBatchTwoPass(
         const fmt = getSectionFormatType(r.section_key);
         return (fmt === 'table' || fmt === 'schedule_table') ? suggestion : cleanAIOutput(suggestion);
       })(),
+      // Per-section Pass 2 failure metadata (read by waveBatchInvoker → diagnostics UI).
+      ...(failure && !suggestion
+        ? { is_pass2_failure: true, pass2_error_code: failure.code, pass2_error_message: failure.reason }
+        : {}),
     };
   });
 }
