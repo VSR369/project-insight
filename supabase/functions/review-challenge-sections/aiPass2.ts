@@ -327,6 +327,9 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
 
   const inputKeys = sectionsNeedingSuggestion.map((s: any) => s.section_key as string);
   const failures: Pass2SectionFailure[] = [];
+  const sectionPromptsByKey = new Map<string, string>(
+    sectionsNeedingSuggestion.map((s: any, i: number) => [s.section_key as string, sectionPrompts[i]]),
+  );
   const suggestionMap = await runPass2Call(
     apiKey,
     requestBody,
@@ -335,6 +338,7 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
     sectionsNeedingSuggestion,
     pass2SystemPrompt,
     failures,
+    sectionPromptsByKey,
     /* allowSplit */ true,
   );
 
@@ -383,6 +387,7 @@ async function runPass2Call(
   pass1ResultsForBatch: any[],
   pass2SystemPrompt: string,
   failures: Pass2SectionFailure[],
+  sectionPromptsByKey: Map<string, string>,
   allowSplit: boolean,
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
@@ -434,13 +439,18 @@ async function runPass2Call(
       const rightBatch = pass1ResultsForBatch.filter((r: any) => rightKeys.includes(r.section_key));
 
       const buildSplitBody = (subset: any[]) => {
-        // Rebuild the user prompt with only the subset of section blocks
+        // Rebuild the user prompt with the ORIGINAL per-section blocks for the subset.
+        // Mirrors lines 218–238 to preserve all instructions, dependencies, attachments,
+        // and Pass 1 issues — fixes the placeholder bug that caused MALFORMED retries.
         const subsetBody = { ...baseRequestBody };
         const messages = (baseRequestBody.messages as any[]).slice();
         const userMsg = messages[messages.length - 1];
-        const newUserContent = (userMsg?.content as string ?? '').split('SECTIONS TO REWRITE:')[0]
-          + 'SECTIONS TO REWRITE:\n'
-          + subset.map((r: any) => `### Section: ${r.section_key}\n[Pass 2 split-retry — see Pass 1 issues for ${r.section_key}]`).join('\n\n---\n\n');
+        const preamble = (userMsg?.content as string ?? '').split('SECTIONS TO REWRITE:')[0];
+        const subsetBlocks = subset
+          .map((r: any) => sectionPromptsByKey.get(r.section_key) ?? '')
+          .filter(Boolean)
+          .join('\n\n---\n\n');
+        const newUserContent = preamble + 'SECTIONS TO REWRITE:\n' + subsetBlocks;
         subsetBody.messages = [
           messages[0],
           { role: 'user', content: newUserContent },
@@ -449,8 +459,8 @@ async function runPass2Call(
       };
 
       const [leftMap, rightMap] = await Promise.all([
-        runPass2Call(apiKey, buildSplitBody(leftBatch), model, leftKeys, leftBatch, pass2SystemPrompt, failures, /* allowSplit */ false),
-        runPass2Call(apiKey, buildSplitBody(rightBatch), model, rightKeys, rightBatch, pass2SystemPrompt, failures, /* allowSplit */ false),
+        runPass2Call(apiKey, buildSplitBody(leftBatch), model, leftKeys, leftBatch, pass2SystemPrompt, failures, sectionPromptsByKey, /* allowSplit */ false),
+        runPass2Call(apiKey, buildSplitBody(rightBatch), model, rightKeys, rightBatch, pass2SystemPrompt, failures, sectionPromptsByKey, /* allowSplit */ false),
       ]);
       for (const [k, v] of leftMap.entries()) map.set(k, v);
       for (const [k, v] of rightMap.entries()) map.set(k, v);
