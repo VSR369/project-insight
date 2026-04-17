@@ -38,6 +38,10 @@ export interface BatchSectionOutcome {
   status: 'success' | 'error' | 'skipped';
   errorCode?: string | null;
   errorMessage?: string | null;
+  /** Reason for `skipped` status (e.g. "Excluded — no DB column"). */
+  skippedReason?: string | null;
+  /** True when the per-section error originated specifically inside Pass 2. */
+  isPass2Failure?: boolean;
 }
 
 /**
