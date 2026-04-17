@@ -138,7 +138,7 @@ export function useWaveExecutor({
     let lastCompletedWave = 0;
 
     try {
-      const initialProgress = createInitialWaveProgress();
+      const initialProgress = initialProgressFactory();
       initialProgress.overallStatus = 'running';
       setWaveProgress(initialProgress);
 
