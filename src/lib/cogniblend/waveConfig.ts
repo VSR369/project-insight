@@ -148,51 +148,60 @@ export function getWaveReasoning(sectionIds: SectionKey[]): 'high' | 'medium' | 
 export const EXECUTION_WAVES: WaveConfig[] = [
   {
     waveNumber: 1,
-    name: 'Foundation — Problem & Context',
-    sectionIds: ['organization_context', 'problem_statement', 'scope', 'expected_outcomes', 'context_and_background'],
+    name: 'Foundation — Problem, Scope & Context',
+    sectionIds: ['problem_statement', 'scope', 'context_and_background'],
     prerequisiteSections: [],
   },
   {
     waveNumber: 2,
-    name: 'Analysis — Root Causes & Stakeholders',
-    sectionIds: ['root_causes', 'affected_stakeholders', 'current_deficiencies', 'preferred_approach', 'approaches_not_of_interest'],
+    name: 'Analysis — Outcomes, Causes & Stakeholders',
+    sectionIds: ['expected_outcomes', 'root_causes', 'affected_stakeholders'],
     prerequisiteSections: ['problem_statement', 'scope', 'context_and_background'],
   },
   {
     waveNumber: 3,
-    name: 'Specification — Deliverables & Measures',
-    sectionIds: [
-      'solution_type', 'deliverables', 'maturity_level',
-      'data_resources_provided', 'success_metrics_kpis',
-      'creator_references',   // Creator reference docs inform deliverable review
-      'reference_urls',       // Creator reference URLs inform scope/deliverable review
-    ],
-    prerequisiteSections: ['problem_statement', 'scope', 'expected_outcomes'],
+    name: 'Diagnosis — Deficiencies, Approach & Solution Type',
+    sectionIds: ['current_deficiencies', 'preferred_approach', 'solution_type'],
+    prerequisiteSections: ['problem_statement', 'root_causes'],
   },
   {
     waveNumber: 4,
-    name: 'Assessment — Complexity & Expertise',
-    sectionIds: ['complexity', 'solver_expertise', 'eligibility'],
-    prerequisiteSections: ['deliverables', 'maturity_level', 'solution_type'],
+    name: 'Specification — Deliverables',
+    sectionIds: ['deliverables'],
+    prerequisiteSections: ['problem_statement', 'scope', 'expected_outcomes', 'solution_type'],
   },
   {
     waveNumber: 5,
-    name: 'Execution — Timeline, Evaluation & Commercial',
-    sectionIds: ['phase_schedule', 'evaluation_criteria', 'submission_guidelines', 'reward_structure', 'ip_model'],
-    prerequisiteSections: ['deliverables', 'complexity', 'maturity_level', 'solver_expertise'],
+    name: 'Calibration — Maturity, Data & Tags',
+    sectionIds: ['maturity_level', 'data_resources_provided', 'domain_tags'],
+    prerequisiteSections: ['deliverables', 'scope', 'solution_type'],
   },
   {
     waveNumber: 6,
-    name: 'Presentation & Compliance',
-    sectionIds: [
-      'hook', 'visibility', 'domain_tags',
-      'evaluation_config', 'solver_audience',
-      'creator_legal_instructions', 'legal_docs', 'escrow_funding',
-    ],
-    prerequisiteSections: ['problem_statement', 'deliverables', 'reward_structure', 'evaluation_criteria'],
+    name: 'Assessment — Complexity, Metrics & Solver Expertise',
+    sectionIds: ['complexity', 'success_metrics_kpis', 'solver_expertise'],
+    prerequisiteSections: ['deliverables', 'maturity_level', 'domain_tags', 'expected_outcomes'],
   },
   {
-    waveNumber: QA_WAVE_NUMBER, // Wave 8 — runs Consistency + Ambiguity passes only
+    waveNumber: 7,
+    name: 'Execution — Eligibility, Schedule & Evaluation',
+    sectionIds: ['eligibility', 'phase_schedule', 'evaluation_criteria'],
+    prerequisiteSections: ['solver_expertise', 'complexity', 'maturity_level', 'deliverables', 'expected_outcomes'],
+  },
+  {
+    waveNumber: 8,
+    name: 'Commercial — Submission & Reward',
+    sectionIds: ['submission_guidelines', 'reward_structure'],
+    prerequisiteSections: ['deliverables', 'evaluation_criteria', 'phase_schedule', 'complexity', 'solver_expertise'],
+  },
+  {
+    waveNumber: 9,
+    name: 'Presentation — IP, Hook & Visibility',
+    sectionIds: ['ip_model', 'hook', 'visibility'],
+    prerequisiteSections: ['reward_structure', 'deliverables', 'maturity_level', 'eligibility'],
+  },
+  {
+    waveNumber: QA_WAVE_NUMBER, // Wave 11 — runs Consistency + Ambiguity passes only
     name: 'Quality Assurance — Consistency & Ambiguity',
     sectionIds: [], // QA wave has no per-section reviews; renders specially in UI
     prerequisiteSections: [],
