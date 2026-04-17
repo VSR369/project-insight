@@ -98,6 +98,7 @@ export function loadAcceptanceRecord(challengeId: string): AcceptanceRecord | nu
 export function saveAcceptanceRecord(record: AcceptanceRecord): void {
   try {
     localStorage.setItem(acceptanceKey(record.challengeId), JSON.stringify(record));
+    dispatchWaveExecChanged(record.challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
@@ -124,6 +125,7 @@ export function saveExecutionRecord(record: ExecutionRecord): void {
       storageKey(record.challengeId, record.passType),
       JSON.stringify(record),
     );
+    dispatchWaveExecChanged(record.challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
@@ -133,6 +135,7 @@ export function clearAllExecutionRecords(challengeId: string): void {
     localStorage.removeItem(storageKey(challengeId, 'analyse'));
     localStorage.removeItem(storageKey(challengeId, 'generate'));
     localStorage.removeItem(acceptanceKey(challengeId));
+    dispatchWaveExecChanged(challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
@@ -140,6 +143,7 @@ export function clearAllExecutionRecords(challengeId: string): void {
 export function clearPass2ExecutionRecord(challengeId: string): void {
   try {
     localStorage.removeItem(storageKey(challengeId, 'generate'));
+    dispatchWaveExecChanged(challengeId);
   } catch { /* localStorage unavailable */ }
 }
 
