@@ -1350,13 +1350,9 @@ GROUNDING RULE (CRITICAL):
         console.error("Failed to persist AI reviews:", updateError);
       }
 
-      // ── Prompt 1: persist findings to dedicated tables (non-blocking) ──
-      if (consistencyResult) {
-        await persistConsistencyFindings(adminClient, challenge_id, consistencyResult.findings ?? []);
-      }
-      if (ambiguityResult) {
-        await persistAmbiguityFindings(adminClient, challenge_id, ambiguityResult.findings ?? []);
-      }
+      // PR1: Removed duplicate persistence — consistency/ambiguity findings are
+      // already persisted inside the inline QA block above. Wave 8 path persists
+      // findings via its own early-return branch.
 
       // ── Telemetry: write quality metrics row (non-blocking) ──
       try {
