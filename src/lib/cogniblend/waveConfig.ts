@@ -210,21 +210,32 @@ export function createInitialWaveProgress(): WaveProgress {
 
 /**
  * Creates wave progress with an extra Wave 7 for context discovery.
- * Used only by the Analyse (Pass 1) flow.
+ * Used only by the Analyse (Pass 1) flow. Wave 7 sits between the standard
+ * execution waves (1-6) and the QA wave (8).
  */
 export function createInitialWaveProgressWithDiscovery(): WaveProgress {
   const base = createInitialWaveProgress();
+  const discoveryWave: WaveResult = {
+    waveNumber: DISCOVERY_WAVE_NUMBER,
+    name: 'Discover Contextual Sources',
+    status: 'pending',
+    sections: [],
+  };
+  // Insert Wave 7 before Wave 8 (QA). Standard waves are numbered 1-6 + 8.
+  const wavesWithDiscovery: WaveResult[] = [];
+  let inserted = false;
+  for (const w of base.waves) {
+    if (!inserted && w.waveNumber === QA_WAVE_NUMBER) {
+      wavesWithDiscovery.push(discoveryWave);
+      inserted = true;
+    }
+    wavesWithDiscovery.push(w);
+  }
+  if (!inserted) wavesWithDiscovery.push(discoveryWave);
+
   return {
     ...base,
-    totalWaves: EXECUTION_WAVES.length + 1,
-    waves: [
-      ...base.waves,
-      {
-        waveNumber: DISCOVERY_WAVE_NUMBER,
-        name: 'Discover Contextual Sources',
-        status: 'pending',
-        sections: [],
-      },
-    ],
+    totalWaves: base.totalWaves + 1,
+    waves: wavesWithDiscovery,
   };
 }
