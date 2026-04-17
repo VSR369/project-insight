@@ -62,7 +62,9 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
   const allAttachmentOnly = reviewable.every((sa) => ATTACHMENT_ONLY_SECTIONS.has(sa.sectionId));
   const wavePass1Only = pass1Only || allAttachmentOnly;
 
-  // Build provided_comments array (Pass-2-only; ignored by pass1Only)
+  // Build provided_comments array (Pass-2-only; ignored by pass1Only).
+  // INVARIANT: providedComments only contains entries for sections in `reviewable`
+  // (the current sub-batch). This prevents Pass-2 duplicate-suggestion bleed.
   const providedComments: Array<{ section_key: string; status: string; comments: unknown[] }> = [];
   if (skipAnalysis && providedCommentsBySectionKey) {
     for (const sa of reviewable) {
