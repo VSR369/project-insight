@@ -192,7 +192,7 @@ export function SuggestionVersionDisplay(props: SuggestionVersionDisplayProps) {
           ))}
         </div>
       ) : hasDeliverableCards ? (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[500px] overflow-y-auto">
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 mx-4 mb-3 p-4 shadow-sm max-h-[70vh] overflow-y-auto">
           <DeliverableCardRenderer items={deliverableItems!} badgePrefix={badgePrefix} hideAcceptanceCriteria={badgePrefix === "S"} />
         </div>
       ) : scheduleRows ? (
@@ -204,7 +204,7 @@ export function SuggestionVersionDisplay(props: SuggestionVersionDisplayProps) {
           const detection = detectAndParseLineItems(editedLineItems ?? [...structuredItems]);
           if (detection.type === 'table') {
             return (
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-96 overflow-y-auto">
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-[60vh] overflow-y-auto">
                 <TableLineItemRenderer rows={detection.rows} schema={detection.schema} onChange={(updatedRows) => {
                   const serialized = updatedRows.map((r) => JSON.stringify(r));
                   onLineItemsChange(serialized);
@@ -213,13 +213,13 @@ export function SuggestionVersionDisplay(props: SuggestionVersionDisplayProps) {
             );
           }
           return (
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto space-y-1">
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-[50vh] overflow-y-auto space-y-1">
               <EditableLineItems items={editedLineItems ?? [...structuredItems]} onChange={onLineItemsChange} />
             </div>
           );
         })()
       ) : tableRows ? (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-72 overflow-y-auto">
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 mx-4 mb-3 p-4 shadow-sm max-h-[50vh] overflow-y-auto">
           <EditableTableRows sectionKey={sectionKey} rows={editedTableRows ?? tableRows.map(r => ({ ...r }))} onChange={onTableRowsChange} />
         </div>
       ) : parsedDate ? (
