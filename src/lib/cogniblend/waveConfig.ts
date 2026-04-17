@@ -260,9 +260,9 @@ export function createInitialWaveProgress(): WaveProgress {
 }
 
 /**
- * Creates wave progress with an extra Wave 7 for context discovery.
- * Used only by the Analyse (Pass 1) flow. Wave 7 sits between the standard
- * execution waves (1-6) and the QA wave (8).
+ * Creates wave progress with an extra Wave 10 for context discovery.
+ * Used only by the Analyse (Pass 1) flow. Wave 10 (DISCOVERY_WAVE_NUMBER) sits
+ * between the standard content execution waves (1-9) and the QA wave (11, QA_WAVE_NUMBER).
  */
 export function createInitialWaveProgressWithDiscovery(): WaveProgress {
   const base = createInitialWaveProgress();

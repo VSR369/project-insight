@@ -2,9 +2,10 @@
  * useWaveExecutor — Core wave-based AI review execution engine.
  *
  * PR1 (batched): Each wave fires ONE edge function call for all its sections
- * (instead of N calls). Wave 8 invokes the QA-only branch (consistency +
- * ambiguity). Per-section autosave is preserved via setAiReview inside the
- * batch invoker. reReviewStale still uses per-section calls (unchanged).
+ * (instead of N calls). The QA wave (QA_WAVE_NUMBER = 11) invokes the QA-only
+ * branch (consistency + ambiguity). Per-section autosave is preserved via
+ * setAiReview inside the batch invoker. reReviewStale still uses per-section
+ * calls (unchanged).
  */
 
 import { useState, useCallback, useRef } from 'react';
