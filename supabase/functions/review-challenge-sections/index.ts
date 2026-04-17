@@ -43,8 +43,12 @@ const corsHeaders = {
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-/* ── FIX 8: Reduced batch size + solo sections ── */
-const MAX_BATCH_SIZE = 6;
+/* ── Batch sizing ──
+ * Each batch runs synchronous post-LLM work (parse, validate, principal-grade
+ * scoring, persistence) inside the edge function's 2s CPU budget. Larger batches
+ * trigger WORKER_RESOURCE_LIMIT (HTTP 546). Cap at 3 to keep CPU headroom.
+ */
+const MAX_BATCH_SIZE = 3;
 const SOLO_SECTIONS = new Set([
   'evaluation_criteria', 'reward_structure', 'deliverables', 'solver_expertise',
 ]);
