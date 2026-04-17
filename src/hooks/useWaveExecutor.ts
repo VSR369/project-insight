@@ -180,16 +180,16 @@ export function useWaveExecutor({
           // Wave 8 — QA-only call (no per-section results)
           const qaOutcome = await invokeQaWave(challengeId, context);
           sectionResults = [];
-          const qaError = qaOutcome === 'success'
+          const qaError = qaOutcome.status === 'success'
             ? undefined
-            : 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.';
+            : (qaOutcome.errorMessage ?? 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.');
           execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], qaError);
           saveExecutionRecord(execRecord);
           setWaveProgress((prev) => ({
             ...prev,
             waves: prev.waves.map((w) =>
               w.waveNumber === wave.waveNumber
-                ? { ...w, status: qaOutcome === 'success' ? 'completed' : 'error', sections: [] }
+                ? { ...w, status: qaOutcome.status === 'success' ? 'completed' : 'error', sections: [] }
                 : w
             ),
           }));
@@ -223,7 +223,13 @@ export function useWaveExecutor({
           for (const o of outcomes) {
             const action = sectionActions.find((sa) => sa.sectionId === o.sectionId)?.action ?? 'review';
             sectionResults.push({ sectionId: o.sectionId, action, status: o.status });
-            historyResults.push({ sectionId: o.sectionId, action, status: o.status });
+            historyResults.push({
+              sectionId: o.sectionId,
+              action,
+              status: o.status,
+              errorCode: o.errorCode ?? null,
+              errorMessage: o.errorMessage ?? null,
+            });
             if (o.status === 'error') failedSections.push(o.sectionId);
           }
 

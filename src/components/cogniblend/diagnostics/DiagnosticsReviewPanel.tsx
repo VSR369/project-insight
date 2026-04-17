@@ -113,18 +113,24 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                 </TableHeader>
                 <TableBody>
                   {wSections.map(({ id, entry }) => {
-                    const sectionStatus = entry?.reviewStatus ?? 'idle';
-                    const sectionAction = entry?.aiAction ?? '—';
+                    const execSection = execWave?.sections.find(s => s.sectionId === id);
+                    const execStatus = execSection?.status;
+                    const sectionStatus = execStatus === 'error'
+                      ? 'error'
+                      : (entry?.reviewStatus ?? 'idle');
+                    const sectionAction = entry?.aiAction ?? execSection?.action ?? '—';
                     const commentCount = entry?.aiComments?.length ?? 0;
                     const level = reviewLevels[id] ?? 'principal';
 
                     const statusLabel = (() => {
-                      if (!entry) return 'Not Run';
+                      // Execution record is authoritative for failures
+                      if (execStatus === 'error') return 'Error';
+                      if (!entry) return execStatus === 'success' ? 'Analysed' : 'Not Run';
+                      if (entry.reviewStatus === 'error') return 'Error';
                       if (entry.reviewStatus === 'reviewed') {
                         if (entry.addressed) return 'Addressed';
                         return 'Analysed';
                       }
-                      if (entry.reviewStatus === 'error') return 'Error';
                       if (entry.reviewStatus === 'pending') return 'Pending';
                       return entry.aiAction === 'skip' ? 'Skipped' : 'Not Run';
                     })();
@@ -133,7 +139,14 @@ export function DiagnosticsReviewPanel({ sections, importanceLevels, reviewLevel
                       <TableRow key={id}>
                         <TableCell><StatusIcon status={sectionStatus} /></TableCell>
                         <TableCell className="text-xs font-medium">{SECTION_LABELS[id] ?? id}</TableCell>
-                        <TableCell><span className="text-xs">{statusLabel}</span></TableCell>
+                        <TableCell>
+                          <span className="text-xs">{statusLabel}</span>
+                          {execStatus === 'error' && execSection?.errorMessage && (
+                            <p className="text-[10px] text-destructive mt-0.5 leading-tight">
+                              {execSection.errorCode ? `[${execSection.errorCode}] ` : ''}{execSection.errorMessage}
+                            </p>
+                          )}
+                        </TableCell>
                         <TableCell><span className="text-xs capitalize">{sectionAction}</span></TableCell>
                         <TableCell>
                           {commentCount > 0 ? (

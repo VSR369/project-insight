@@ -26,6 +26,7 @@ import type { AIQualitySummary } from '@/lib/cogniblend/curationTypes';
 import type { Json } from '@/integrations/supabase/types';
 import { DISCOVERY_WAVE_NUMBER, type WaveProgress } from '@/lib/cogniblend/waveConfig';
 import type { ExecutionResult } from '@/services/cogniblend/waveExecutionHistory';
+import { clearAllExecutionRecords, clearPass2ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 import { useCurationComplexityActions } from './useCurationComplexityActions';
 
 interface UseCurationAIActionsOptions {
@@ -136,11 +137,17 @@ export function useCurationAIActions({
     setGenerateDoneSession(false);
     setAiReviews([]);
     setContextLibraryReviewed?.(false);
-    if (challengeId) sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
+    if (challengeId) {
+      sessionStorage.removeItem(`ctx_reviewed_${challengeId}`);
+      // Clear stored wave exec history + acceptance so diagnostics start blank
+      clearAllExecutionRecords(challengeId);
+    }
     queryClient.invalidateQueries({ queryKey: ['context-digest', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-sources', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-source-count', challengeId] });
     queryClient.invalidateQueries({ queryKey: ['context-pending-count', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['consistency-findings', challengeId] });
+    queryClient.invalidateQueries({ queryKey: ['ambiguity-findings', challengeId] });
 
     setAiReviewLoading(true);
     setTriageTotalCount(0);
@@ -232,6 +239,7 @@ export function useCurationAIActions({
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
+    if (challengeId) clearPass2ExecutionRecord(challengeId);
 
     try {
       // Stage 1: Generate context digest

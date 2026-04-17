@@ -14,6 +14,10 @@ export interface WaveSectionResult {
   sectionId: SectionKey;
   action: SectionAction;
   status: 'success' | 'error' | 'skipped';
+  /** Optional human-readable reason when status is 'error'. */
+  errorMessage?: string | null;
+  /** Optional machine code when status is 'error' (RATE_LIMIT, PAYMENT_REQUIRED, BATCH_ERROR, MISSING, MALFORMED). */
+  errorCode?: string | null;
 }
 
 export interface WaveRunRecord {
@@ -109,6 +113,22 @@ export function saveExecutionRecord(record: ExecutionRecord): void {
       storageKey(record.challengeId, record.passType),
       JSON.stringify(record),
     );
+  } catch { /* localStorage unavailable */ }
+}
+
+/** Removes all wave execution + acceptance records for a challenge (used on Re-analyse). */
+export function clearAllExecutionRecords(challengeId: string): void {
+  try {
+    localStorage.removeItem(storageKey(challengeId, 'analyse'));
+    localStorage.removeItem(storageKey(challengeId, 'generate'));
+    localStorage.removeItem(acceptanceKey(challengeId));
+  } catch { /* localStorage unavailable */ }
+}
+
+/** Removes only the Pass 2 (generate) execution record. */
+export function clearPass2ExecutionRecord(challengeId: string): void {
+  try {
+    localStorage.removeItem(storageKey(challengeId, 'generate'));
   } catch { /* localStorage unavailable */ }
 }
 

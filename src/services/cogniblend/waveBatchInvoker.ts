@@ -35,6 +35,8 @@ export interface BatchInvokeOptions {
 export interface BatchSectionOutcome {
   sectionId: SectionKey;
   status: 'success' | 'error' | 'skipped';
+  errorCode?: string | null;
+  errorMessage?: string | null;
 }
 
 /**
@@ -115,15 +117,28 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
     for (const sa of reviewable) {
       const result = sectionsByKey.get(sa.sectionId);
       if (!result) {
-        // Missing → truthful error (R9: no console)
         store.getState().setReviewStatus(sa.sectionId, 'error');
-        outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+        outcomes.push({
+          sectionId: sa.sectionId,
+          status: 'error',
+          errorCode: 'MISSING',
+          errorMessage: 'AI did not return a result for this section.',
+        });
         continue;
       }
       // is_batch_failure flag from edge function → error
       if (result.is_batch_failure === true) {
         store.getState().setReviewStatus(sa.sectionId, 'error');
-        outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+        const errorCode = typeof result.error_code === 'string' ? result.error_code : 'BATCH_ERROR';
+        const firstComment = Array.isArray(result.comments) && result.comments.length > 0
+          ? (result.comments[0] as { text?: string }).text
+          : null;
+        outcomes.push({
+          sectionId: sa.sectionId,
+          status: 'error',
+          errorCode,
+          errorMessage: firstComment ?? `Batch failed (${errorCode}).`,
+        });
         continue;
       }
 
@@ -166,16 +181,27 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
         onSectionReviewed(sa.sectionId, { ...normalized, addressed: false });
         outcomes.push({ sectionId: sa.sectionId, status: 'success' });
-      } catch {
+      } catch (parseErr) {
         store.getState().setReviewStatus(sa.sectionId, 'error');
-        outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+        outcomes.push({
+          sectionId: sa.sectionId,
+          status: 'error',
+          errorCode: 'MALFORMED',
+          errorMessage: parseErr instanceof Error ? parseErr.message : 'Could not parse AI response.',
+        });
       }
     }
-  } catch {
-    // Whole-wave failure (network / 5xx after fallback) — mark all as error
+  } catch (waveErr) {
+    // Whole-wave failure (network / 5xx after fallback)
+    const msg = waveErr instanceof Error ? waveErr.message : 'Network error';
     for (const sa of reviewable) {
       store.getState().setReviewStatus(sa.sectionId, 'error');
-      outcomes.push({ sectionId: sa.sectionId, status: 'error' });
+      outcomes.push({
+        sectionId: sa.sectionId,
+        status: 'error',
+        errorCode: 'NETWORK',
+        errorMessage: msg,
+      });
     }
   }
 
@@ -184,8 +210,16 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
 /**
  * Wave 8 — invokes the QA-only edge branch (consistency + ambiguity).
+ * Returns 'success' only when at least one of the two passes produced a result.
  */
-export async function invokeQaWave(challengeId: string, context: ChallengeContext): Promise<'success' | 'error'> {
+export interface QaWaveOutcome {
+  status: 'success' | 'error';
+  errorMessage?: string;
+  consistencyCount?: number;
+  ambiguityCount?: number;
+}
+
+export async function invokeQaWave(challengeId: string, context: ChallengeContext): Promise<QaWaveOutcome> {
   try {
     const { data, error } = await supabase.functions.invoke('review-challenge-sections', {
       body: {
@@ -195,9 +229,20 @@ export async function invokeQaWave(challengeId: string, context: ChallengeContex
         context,
       },
     });
-    if (error) return 'error';
-    return data?.success ? 'success' : 'error';
-  } catch {
-    return 'error';
+    if (error) return { status: 'error', errorMessage: error.message };
+    if (!data?.success) {
+      return { status: 'error', errorMessage: data?.error?.message ?? 'QA pass returned no data.' };
+    }
+    const consistencyCount = data?.data?.consistency_findings_count ?? 0;
+    const ambiguityCount = data?.data?.ambiguity_findings_count ?? 0;
+    const coherence = data?.data?.overall_coherence_score;
+    const clarity = data?.data?.overall_clarity_score;
+    // Both passes silently failed (caught with .catch(() => null) in the edge fn).
+    if (coherence == null && clarity == null && consistencyCount === 0 && ambiguityCount === 0) {
+      return { status: 'error', errorMessage: 'Consistency and Ambiguity passes both failed to return a score.' };
+    }
+    return { status: 'success', consistencyCount, ambiguityCount };
+  } catch (e) {
+    return { status: 'error', errorMessage: e instanceof Error ? e.message : 'Network error' };
   }
 }
