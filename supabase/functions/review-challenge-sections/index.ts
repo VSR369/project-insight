@@ -1136,6 +1136,13 @@ GROUNDING RULE (CRITICAL):
           }
         } else {
           // ═══ TWO-PASS: Pass 1 (Analyze) + Pass 2 (Rewrite) ═══
+          // Filter provided_comments to current sub-batch only (mirrors corpusCorrections
+          // and corpusExamples filtering above). Prevents Pass-2 cross-batch duplicate
+          // suggestions when a wave splits into multiple sub-batches.
+          const batchKeySetForComments = new Set(batch.map(b => b.key));
+          const batchProvidedComments = Array.isArray(provided_comments)
+            ? provided_comments.filter((pc: any) => pc && batchKeySetForComments.has(pc.section_key))
+            : provided_comments;
           batchResults = await callAIBatchTwoPass(
             LOVABLE_API_KEY,
             modelToUse,
@@ -1147,7 +1154,7 @@ GROUNDING RULE (CRITICAL):
             clientContext,
             batchSectionConfigs,
             skip_analysis === true,
-            provided_comments,
+            batchProvidedComments,
             masterDataOptions,
             orgContext,
             attachmentsBySection,
