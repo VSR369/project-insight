@@ -203,24 +203,44 @@ export function useWaveExecutor({
         const historyResults: WaveSectionResult[] = [];
 
         if (wave.waveNumber === QA_WAVE_NUMBER) {
-          // Wave 8 — QA-only call (no per-section results)
-          const qaOutcome = await invokeQaWave(challengeId, context);
-          sectionResults = [];
-          const qaError = qaOutcome.status === 'success'
-            ? undefined
-            : (qaOutcome.errorMessage ?? 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.');
-          execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], qaError);
-          saveExecutionRecord(execRecord);
-          setWaveProgress((prev) => ({
-            ...prev,
-            waves: prev.waves.map((w) =>
-              w.waveNumber === wave.waveNumber
-                ? { ...w, status: qaOutcome.status === 'success' ? 'completed' : 'error', sections: [] }
-                : w
-            ),
-          }));
-          lastCompletedWave = wave.waveNumber;
-          onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+          // Wave 11 — QA-only call (consistency + ambiguity).
+          // During Pass 2 (skipAnalysis=true), QA is intentionally skipped:
+          // ai_section_reviews carries Pass 1 data which has not changed,
+          // so re-running consistency/ambiguity would produce identical findings
+          // at ~60s extra cost. Cross-section coherence for *suggestions* is
+          // checked instead by the Harmonization wave (12) below.
+          if (skipAnalysis) {
+            execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], undefined);
+            saveExecutionRecord(execRecord);
+            setWaveProgress((prev) => ({
+              ...prev,
+              waves: prev.waves.map((w) =>
+                w.waveNumber === wave.waveNumber
+                  ? { ...w, status: 'completed', sections: [] }
+                  : w
+              ),
+            }));
+            lastCompletedWave = wave.waveNumber;
+            onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+          } else {
+            const qaOutcome = await invokeQaWave(challengeId, context);
+            sectionResults = [];
+            const qaError = qaOutcome.status === 'success'
+              ? undefined
+              : (qaOutcome.errorMessage ?? 'Quality Assurance pass (consistency + ambiguity) failed. Re-run AI review or check edge function logs.');
+            execRecord = updateWaveComplete(execRecord, wave.waveNumber, [], qaError);
+            saveExecutionRecord(execRecord);
+            setWaveProgress((prev) => ({
+              ...prev,
+              waves: prev.waves.map((w) =>
+                w.waveNumber === wave.waveNumber
+                  ? { ...w, status: qaOutcome.status === 'success' ? 'completed' : 'error', sections: [] }
+                  : w
+              ),
+            }));
+            lastCompletedWave = wave.waveNumber;
+            onProgress?.onWaveComplete?.(i + 1, 0, sectionsDoneBeforeWave);
+          }
         } else {
           // Standard wave — single batched call for all sections
           const sectionActions = wave.sectionIds.map((id) => ({
