@@ -9,7 +9,12 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, CheckCircle2, XCircle, SkipForward, Clock, AlertTriangle, Info } from 'lucide-react';
-import { EXECUTION_WAVES, SECTION_LABELS } from '@/lib/cogniblend/waveConfig';
+import {
+  EXECUTION_WAVES,
+  SECTION_LABELS,
+  QA_WAVE_NUMBER,
+  HARMONIZE_WAVE_NUMBER,
+} from '@/lib/cogniblend/waveConfig';
 import { WaveTimingTable } from '@/components/cogniblend/diagnostics/WaveTimingTable';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
@@ -93,6 +98,71 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
           const execWave = hasRecord
             ? executionRecord.waves.find(w => w.waveNumber === wave.waveNumber)
             : null;
+          const waveStatus = execWave?.status ?? 'skipped';
+
+          // ── F4c: Wave 11 (QA) — explicit skip explainer chip in Pass 2 ──
+          if (wave.waveNumber === QA_WAVE_NUMBER) {
+            return (
+              <div key={wave.waveNumber} className="border rounded-lg overflow-hidden">
+                <div className="px-3 py-2 bg-muted/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon status={hasRecord ? waveStatus : 'skipped'} />
+                    <span className="text-xs font-medium">Wave {wave.waveNumber}: {wave.name}</span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">Skipped in Pass 2</Badge>
+                </div>
+                <div className="flex items-start gap-2 px-3 py-2 bg-background">
+                  <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <span className="text-xs text-muted-foreground">
+                    Skipped — QA already done in Pass 1. Cross-suggestion consistency is handled by Wave 12 (Harmonization).
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          // ── F4d: Wave 12 (Harmonization) — render metrics badges, no section table ──
+          if (wave.waveNumber === HARMONIZE_WAVE_NUMBER) {
+            const metrics = execWave?.harmonizeMetrics;
+            return (
+              <div key={wave.waveNumber} className="border rounded-lg overflow-hidden">
+                <div className="px-3 py-2 bg-muted/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon status={hasRecord ? waveStatus : 'skipped'} />
+                    <span className="text-xs font-medium">Wave {wave.waveNumber}: {wave.name}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {metrics?.crossSectionScore != null && (
+                      <Badge variant="secondary" className="text-[10px]">Score: {metrics.crossSectionScore}</Badge>
+                    )}
+                    {metrics?.issuesFound != null && (
+                      <Badge variant="outline" className="text-[10px]">Issues: {metrics.issuesFound}</Badge>
+                    )}
+                    {metrics?.appliedCount != null && metrics.appliedCount > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">Applied: {metrics.appliedCount}</Badge>
+                    )}
+                    {metrics?.droppedCount != null && metrics.droppedCount > 0 && (
+                      <Badge variant="destructive" className="text-[10px]">Dropped: {metrics.droppedCount}</Badge>
+                    )}
+                  </div>
+                </div>
+                {metrics?.skippedReason && (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-background">
+                    <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="text-xs text-muted-foreground">{metrics.skippedReason}</span>
+                  </div>
+                )}
+                {!metrics && hasRecord && (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-background">
+                    <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="text-xs text-muted-foreground">
+                      Cross-section harmonization audits all cluster suggestions for consistency before Accept All.
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           const wSections = wave.sectionIds.map(id => {
             const execSection = execWave?.sections.find(s => s.sectionId === id);
@@ -100,17 +170,16 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
           });
 
           // Counts derive from the section store (single source of truth).
-          // A section is "generated" if it has a live AI suggestion OR the curator already addressed it.
-          // Errors still come from the execution record (store has no error state for Pass 2).
           const generated = wSections.filter(
             ({ entry }) => !!entry?.aiSuggestion || entry?.addressed === true,
           ).length;
           const errors = execWave
             ? execWave.sections.filter(s => s.status === 'error').length
             : 0;
+          const pass2Failures = execWave
+            ? execWave.sections.filter(s => s.isPass2Failure === true).length
+            : 0;
           const notRun = Math.max(0, wSections.length - generated - errors);
-
-          const waveStatus = execWave?.status ?? 'skipped';
 
           return (
             <div key={wave.waveNumber} className="border rounded-lg overflow-hidden">
@@ -122,6 +191,7 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                 <div className="flex gap-2">
                   {generated > 0 && <Badge variant="secondary" className="text-[10px]">{generated} generated</Badge>}
                   {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} errors</Badge>}
+                  {pass2Failures > 0 && <Badge variant="destructive" className="text-[10px]">{pass2Failures} pass-2 failed</Badge>}
                   {notRun > 0 && <Badge variant="outline" className="text-[10px]">{notRun} not run</Badge>}
                 </div>
               </div>
@@ -132,6 +202,7 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                     <TableHead>Section</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Action</TableHead>
+                    <TableHead>Reason</TableHead>
                     <TableHead>Suggestions</TableHead>
                     <TableHead>AI Review Level</TableHead>
                   </TableRow>
@@ -140,19 +211,17 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                   {wSections.map(({ id, entry, execSection }) => {
                     const level = reviewLevels[id] ?? 'principal';
 
-                    // Execution record drives base status (was Pass 2 run for this section?)
-                    // Store overlays the live state — once curator accepts/rejects, it shows here.
                     const sectionStatus = execSection?.status ?? 'skipped';
-                    const sectionAction = execSection?.action ?? '—';
                     const hasLiveSuggestion = !!entry?.aiSuggestion;
                     const wasAddressed = entry?.addressed === true;
                     const hasSuggestion = execSection?.status === 'success';
+                    const isPass2Failure = execSection?.isPass2Failure === true;
 
                     const statusLabel = (() => {
                       if (!hasRecord) return 'Not Run';
                       if (!execSection) return 'Not Run';
                       if (execSection.status === 'success') {
-                        // Live store overlay: curator already actioned this suggestion
+                        if (isPass2Failure) return 'Suggestion Failed';
                         if (wasAddressed && !hasLiveSuggestion) return 'Accepted by Curator';
                         if (!hasLiveSuggestion && entry?.reviewStatus === 'idle') return 'Discarded by Curator';
                         if (execSection.action === 'generate') return 'AI Content Generated';
@@ -163,6 +232,16 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                       return 'Skipped';
                     })();
 
+                    // F4a: uniform "Suggest" action label in Pass 2.
+                    const actionLabel =
+                      sectionStatus === 'skipped' ? 'Skipped' : 'Suggest';
+
+                    // F4b: Reason — errorCode/errorMessage or skippedReason.
+                    const reasonCode = execSection?.errorCode;
+                    const reasonMsg = execSection?.errorMessage;
+                    const skipReason = execSection?.skippedReason;
+                    const showReason = !!(reasonCode || reasonMsg || skipReason);
+
                     return (
                       <TableRow key={id}>
                         <TableCell>
@@ -170,7 +249,31 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                         </TableCell>
                         <TableCell className="text-xs font-medium">{SECTION_LABELS[id] ?? id}</TableCell>
                         <TableCell><span className="text-xs">{statusLabel}</span></TableCell>
-                        <TableCell><span className="text-xs capitalize">{sectionAction}</span></TableCell>
+                        <TableCell><span className="text-xs">{actionLabel}</span></TableCell>
+                        <TableCell>
+                          {showReason ? (
+                            <div className="flex flex-col gap-1 max-w-[240px]">
+                              {reasonCode && (
+                                <Badge
+                                  variant={isPass2Failure || sectionStatus === 'error' ? 'destructive' : 'outline'}
+                                  className="text-[10px] w-fit"
+                                >
+                                  {reasonCode}
+                                </Badge>
+                              )}
+                              {(reasonMsg || skipReason) && (
+                                <span
+                                  className="text-[10px] text-muted-foreground line-clamp-2"
+                                  title={reasonMsg ?? skipReason ?? ''}
+                                >
+                                  {reasonMsg ?? skipReason}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {hasSuggestion && hasLiveSuggestion ? (
                             <span className="text-xs">✨ 1 pending</span>
