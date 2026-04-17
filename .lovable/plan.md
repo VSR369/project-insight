@@ -1,60 +1,58 @@
 
 
-## Verification & Fix Plan
+## Plan: Surgical Memory Fix for `review-challenge-sections` (No Architectural Change)
 
-Let me verify the current state of `provided_comments` filtering in the edge function.
-<lov-tool-use id="toolu_vrtx_01GqBC1JUHUZZakLJLKQhv9o" name="code--view" integration-id="code" data="{\"file_path\": \"supabase/functions/review-challenge-sections/index.ts\", \"lines\": \"1100-1180\"}">
-</lov-tool-use>
+### Context
+The 546 `WORKER_RESOURCE_LIMIT` error is caused by 50-60K-token prompts being built per sub-batch and held in memory across consecutive batches in the same wave. Logs confirm: `prompt_tokens: 53,536` for a 2-section batch. Background processing (`EdgeRuntime.waitUntil`) is the wrong fix — it would require a 15-file refactor and break the synchronous principal-grade scoring contract.
 
-<lov-tool-use id="toolu_vrtx_01RpezJmMjHikVD8ivtHcR3m" name="code--view" integration-id="code" data="{\"file_path\": \"supabase/functions/review-challenge-sections/index.ts\", \"lines\": \"1090-1180\"}">
-</lov-tool-use>
-Confirmed. Lines 1139-1157 call `callAIBatchTwoPass` with the unfiltered `provided_comments` at line 1150. The filter pattern at lines 1095-1096 (corrections) and 1105-1108 (examples) is the established convention in this same code block — so the fix aligns perfectly with existing architecture.
+### Three targeted edits — all in `supabase/functions/review-challenge-sections/index.ts`
 
-<lov-plan>
+**Edit 1 — Truncate attachment bodies in per-batch prompt (lines ~1014-1047)**
+- Keep `ref.summary` + `ref.keyData` in full (these are the distilled signal).
+- Truncate `ref.content` to first 2000 chars + "...[truncated for context window]" suffix.
+- Net saving: ~30-50% of attachment block size.
 
-## Confirmation: Problem 4 Unfixed — Pass 2 Sub-Batch Comment Leakage
+**Edit 2 — Deduplicate context digest across sub-batches (lines ~1007-1010)**
+- Track `digestInjectedForWave` flag scoped to the `batches` loop.
+- First sub-batch: inject full `contextDigestText`.
+- Subsequent sub-batches in same wave: inject a 1500-char header summary only.
+- The system prompt (`contextIntel`) already carries the verified intelligence anchor, so per-batch digest repetition is redundant.
 
-Verified at `supabase/functions/review-challenge-sections/index.ts:1139-1157`. The two-pass call passes the raw `provided_comments` array (line 1150) without filtering to the current sub-batch. When a wave splits into multiple sub-batches in Pass-2-only mode (`skip_analysis=true`), every sub-batch receives comments for ALL wave sections — the AI then generates suggestions for sections outside its sub-batch, producing duplicates across sub-batches.
+**Edit 3 — Release prompt memory between sub-batches (after line ~1180)**
+- After `allNewSections.push(...batchResults)`:
+  ```ts
+  // Release large per-batch strings to let the runtime reclaim memory
+  // before constructing the next batch's prompt.
+  userPrompt = '';
+  systemPrompt = '';
+  batchResults = [];
+  await new Promise(resolve => setTimeout(resolve, 0));
+  ```
+- The `setTimeout(0)` yields to the event loop, giving the V8 GC a chance to run between batches.
 
-The same file already establishes the correct filtering pattern twice in the immediately preceding block:
-- Lines 1095-1096 — `batchKeySet` filter for `corpusCorrections`
-- Lines 1105-1108 — `batchKeySet` filter for `corpusExamples`
+### What is preserved (zero functional change)
+- Principal-grade scoring runs synchronously per batch (compliance % still telemetered).
+- Pass 1 → Pass 2 → QA wave handoff stays synchronous.
+- Diagnostics panel still updates in real time.
+- All grounding sources (digest, attachments, corrections, examples) still injected.
+- Cross-section dependency logic (FIX 1) untouched.
+- `MAX_BATCH_SIZE = 3` and `SOLO_SECTIONS` rules untouched.
 
-The fix simply extends this established convention to `provided_comments`.
+### Verification (after deploy)
+1. Re-analyse the same draft (`25ca71a0-...`) end-to-end → confirm no 546 error.
+2. Check edge logs: `prompt_tokens` should drop from ~53K to ~30-35K per batch on multi-batch waves.
+3. Confirm `ai_principal_artifact_coverage` telemetry still shows `compliance_pct: 100`.
+4. Confirm Wave 6 (SOLO sections, multi sub-batch) completes without batch failures.
+5. Confirm Pass 2 suggestions still ground in attachments (spot-check one suggestion against attachment summary).
 
-## Fix (single edit, ~5 lines)
+### Files Touched
+- `supabase/functions/review-challenge-sections/index.ts` — ~25 lines changed across 3 sites.
 
-**File:** `supabase/functions/review-challenge-sections/index.ts`
+### Deployment
+Auto-deploy via Lovable's edge function pipeline; no migration, no client changes, no new tables.
 
-Insert before line 1139 (the `callAIBatchTwoPass` call), reusing the same `batchKeySet` pattern:
-
-```ts
-// Filter provided_comments to current sub-batch only (mirrors corpusCorrections
-// and corpusExamples filtering above). Prevents Pass-2 cross-batch duplicate
-// suggestions when a wave splits into multiple sub-batches.
-const batchKeySetForComments = new Set(batch.map(b => b.key));
-const batchProvidedComments = Array.isArray(provided_comments)
-  ? provided_comments.filter((pc: any) => pc && batchKeySetForComments.has(pc.section_key))
-  : provided_comments;
-```
-
-Then change line 1150 from `provided_comments,` to `batchProvidedComments,`.
-
-(Naming: `batchKeySetForComments` to avoid colliding with the two existing `batchKeySet` consts in the surrounding scope.)
-
-## Deployment
-
-After the edit, redeploy via `supabase--deploy_edge_functions` with `["review-challenge-sections"]` so Pass-2 behavior takes effect immediately.
-
-## Verification
-
-1. Open a curated draft, run **Pass 1 (Analyse)** end-to-end.
-2. Click **Pass 2 (Generate Suggestions)** — pick a wave that splits into 2+ sub-batches (e.g. Wave 6 with all SOLO sections).
-3. Confirm in `ai_section_reviews` / diagnostics: each section receives suggestions only once, and no section receives suggestions targeting another section's content.
-4. Re-run Pass 2 on a wave with a single sub-batch — behavior unchanged (sanity check that filter is a no-op when batch == wave).
-
-## Files Touched
-- `supabase/functions/review-challenge-sections/index.ts` (~6 lines added, 1 arg renamed)
-
-No client changes. No DB migration. No new constants file (this is a server-side scoping concern within a single function body, matching the inline pattern already used twice for corrections/examples).
+### Rejected alternatives
+- **`EdgeRuntime.waitUntil` background jobs** — rejected: requires polling table, RLS, 15-file client refactor, breaks synchronous principal-grade gating, 2-3 day effort with high regression risk.
+- **Reducing `MAX_BATCH_SIZE` to 1** — rejected: doubles wave latency and increases LLM API costs; doesn't fix the per-batch prompt size issue.
+- **Removing context digest injection** — rejected: would compromise grounding quality and violate the Context Intelligence Architecture rule (`mem://cogniblend/ai/context-intelligence-architecture`).
 
