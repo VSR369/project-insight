@@ -74,6 +74,17 @@ function acceptanceKey(challengeId: string): string {
   return `wave-accept-${challengeId}`;
 }
 
+/** Custom event fired in-tab whenever wave execution / acceptance records change.
+ *  The browser `storage` event does NOT fire for same-tab writes, so listeners that
+ *  need live updates inside the originating tab must subscribe to this event. */
+export const WAVE_EXEC_CHANGED_EVENT = 'cogni-wave-exec-changed';
+
+function dispatchWaveExecChanged(challengeId: string): void {
+  try {
+    window.dispatchEvent(new CustomEvent(WAVE_EXEC_CHANGED_EVENT, { detail: { challengeId } }));
+  } catch { /* SSR / no window */ }
+}
+
 export function loadAcceptanceRecord(challengeId: string): AcceptanceRecord | null {
   try {
     const raw = localStorage.getItem(acceptanceKey(challengeId));
