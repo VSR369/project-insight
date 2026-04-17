@@ -1197,6 +1197,15 @@ GROUNDING RULE (CRITICAL):
           (r as any).prompt_source = promptSource;
         }
         allNewSections.push(...batchResults);
+
+        // Memory-fix: release large per-batch strings/arrays so the runtime can reclaim memory
+        // before constructing the next sub-batch's prompt. The setTimeout(0) yields to the event
+        // loop, giving V8 a chance to GC between batches. Prevents WORKER_RESOURCE_LIMIT (546)
+        // when a wave splits into multiple sub-batches.
+        userPrompt = '';
+        systemPrompt = '';
+        batchResults = [];
+        await new Promise(resolve => setTimeout(resolve, 0));
       } catch (err: any) {
         // PR1 / Residual 2: Do NOT short-circuit the wave on transient errors.
         // Mark the batch as failed via is_batch_failure flag; the wave executor
