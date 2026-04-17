@@ -14,7 +14,7 @@ export function useSpaStatus(userId: string | undefined) {
       const { data, error } = await (supabase.from('legal_acceptance_log') as any)
         .select('id')
         .eq('user_id', userId)
-        .eq('document_type', 'SPA')
+        .eq('document_code', 'SPA')
         .limit(1);
       if (error) return true; // fail-open
       return (data?.length ?? 0) > 0;
