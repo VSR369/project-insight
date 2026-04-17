@@ -132,6 +132,7 @@ export function createFreshRecord(
       })),
       startedAt: null,
       completedAt: null,
+      errorMessage: null,
     })),
     startedAt: new Date().toISOString(),
     completedAt: null,
