@@ -29,7 +29,7 @@ export interface Pass2SectionFailure {
 }
 
 /** Output token cap for Pass 2 — prevents silent truncation under HIGH reasoning. */
-const PASS2_MAX_TOKENS = 16384;
+const PASS2_MAX_TOKENS = 32768;
 
 // Extended brief subsection keys and field map for nested content lookup
 const EXTENDED_BRIEF_KEYS = new Set([
@@ -178,9 +178,6 @@ ${depBlock}
       if (sectionAtts.length === 0) return '';
       let block = '\nREFERENCE MATERIALS for this section:\n';
 
-      const isSoloBatch = sectionsNeedingSuggestion.length === 1;
-      const fewAttachments = sectionAtts.length <= 2;
-
       for (const a of sectionAtts) {
         const typeTag = a.sourceType === 'url' ? 'WEB PAGE' : 'DOCUMENT';
         const shareTag = a.sharedWithSolver ? 'SHARED WITH SOLVERS' : 'AI-ONLY';
@@ -191,11 +188,13 @@ ${depBlock}
         if (a.summary) block += `KEY POINTS:\n${a.summary}\n`;
         if (a.keyData && Object.keys(a.keyData).length > 0) block += `VERIFIED DATA: ${JSON.stringify(a.keyData)}\n`;
 
-        const includeFull = !useContextIntelligence || isSoloBatch || fewAttachments || !a.summary;
+        // Include full attachment content ONLY when no summary exists.
+        // Cap at 4K chars to prevent a single large file from blowing the prompt budget.
+        const includeFull = !a.summary;
         if (includeFull) {
-          const maxContentLen = 30000 * 4;
+          const maxContentLen = 4000;
           const contentToInclude = a.content.length > maxContentLen
-            ? a.content.substring(0, maxContentLen) + '\n[... content truncated for token budget ...]'
+            ? a.content.substring(0, maxContentLen) + '\n[... content truncated for token budget — see KEY POINTS / VERIFIED DATA above ...]'
             : a.content;
           block += `CONTENT:\n${contentToInclude}\n`;
         }
