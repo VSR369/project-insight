@@ -239,6 +239,7 @@ export function useCurationAIActions({
   const handleGenerateSuggestions = useCallback(async () => {
     setAiReviewLoading(true);
     setTriageTotalCount(0);
+    if (challengeId) clearPass2ExecutionRecord(challengeId);
 
     try {
       // Stage 1: Generate context digest
