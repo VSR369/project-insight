@@ -13,6 +13,7 @@ export async function checkSessionType(userId: string): Promise<SessionType> {
       .from('user_roles')
       .select('id')
       .eq('user_id', userId)
+      .eq('role', 'platform_admin')
       .limit(1)
       .maybeSingle(),
     supabase
