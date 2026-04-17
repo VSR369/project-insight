@@ -1,46 +1,45 @@
 
 
-## Plan: Conditional Attachment Content Truncation
+## Pass 1 Wave Review — Health Assessment
 
-### Verification
-<lov-tool-use id="toolu_vrtx_018YUvoDFNoTXHhqf5yXU8LP" name="code--view" integration-id="code" data="{\"file_path\": \"supabase/functions/review-challenge-sections/index.ts\", \"lines\": \"1020-1060\"}">
-</lov-tool-use>
+### What I checked
+1. **Edge function logs** for `review-challenge-sections` (last 24-48h window) → **0 invocations, 0 errors**.
+2. **Postgres ERROR logs** filtered to AI Review tables (`ai_section_reviews`, `challenge_consistency_findings`, `challenge_ambiguity_findings`, `curation_progress`) → **0 errors**.
+3. **All 5 prior fixes** are live in `supabase/functions/review-challenge-sections/index.ts`:
+   - Attachment truncation (lines 1044-1051) ✅
+   - Digest deduplication across sub-batches (lines 1014-1022) ✅
+   - Inter-batch memory release + GC yield (lines 1201-1208) ✅
+   - Pass-2 sub-batch comment filtering (lines 1162-1168) ✅
+   - Hoisted `staticChallengeBlock` outside batch loop ✅
+4. **Wave executor flow** (`useWaveExecutor.ts` + `waveBatchInvoker.ts`) → store reset on entry, per-section error tagging, graceful network/MISSING/MALFORMED handling, QA wave skip-coverage handling.
+5. **Wave config** → `NO_DRAFT_SECTIONS` correctly skipped (no batch-failure cascade), `SOLO_SECTIONS` correctly isolated, reasoning-effort policy correctly set per wave.
+6. **Pre-flight gate** (`useCurationAIActions.ts`) → blocks Analyse when industry segment missing.
 
-<lov-tool-use id="toolu_vrtx_01QsG21WeyxWDc4cfYNChRix" name="code--view" integration-id="code" data="{\"file_path\": \"supabase/functions/review-challenge-sections/index.ts\", \"lines\": \"1010-1070\"}">
-</lov-tool-use>
-The truncation at lines 1044-1051 is **already implemented and live** in the deployed code. The user's proposed change matches what's already there (2000-char limit + truncation suffix). No further edit needed.
+### Verdict
+**Pass 1 is structurally healthy. No errors observed in the logs window.** All known root causes from prior incidents (546 `WORKER_RESOURCE_LIMIT`, batch-failure cascades, comment leakage, stale diagnostics) have shipped fixes that are confirmed live in the deployed function.
 
-<lov-plan>
+The only DB errors visible are `column challenges.closing_date does not exist` — unrelated to AI Review (originate from `usePublicChallenges.ts` and `usePublicChallengeDetail.ts` on the public feed).
 
-## No Implementation Needed — Already Live
+### What I cannot confirm without a live run
+The current logs window contains zero `review-challenge-sections` invocations, so I cannot prove a real Pass 1 run from end-to-end completes cleanly **today**. The only definitive way to confirm health is for you to trigger an Analyse on a real draft and observe.
 
-The proposed truncation **is already implemented** in `supabase/functions/review-challenge-sections/index.ts` at lines 1044-1051, deployed in the previous memory-fix wave:
+### Recommended verification (no code change needed)
+1. Open any draft in `/cogni/curation/{challengeId}` with industry segment set.
+2. Click **Analyse** (Pass 1).
+3. Watch the Wave Progress panel — Waves 1-6 should each turn green; Wave 7 (Discovery) and Wave 8 (QA) follow.
+4. Open the Diagnostic screen — every wave should show `completed`, no per-section `error`/`warning` red rows.
+5. If any wave shows `error`, share the diagnostic screenshot or the failed section list and I'll trace root cause from edge logs.
 
-```ts
-// Lines 1047-1051 (current state):
-const contentStr = typeof ref.content === 'string' ? ref.content : '';
-const truncatedContent = contentStr.length > 2000
-  ? contentStr.slice(0, 2000) + '\n...[truncated for context window — see AI Summary above for distilled signal]'
-  : contentStr;
-attachmentBlock += truncatedContent + '\n';
-```
+### Side note (separate, low-priority)
+The unrelated `closing_date` DB errors in `src/hooks/queries/usePublicChallenges.ts` and `usePublicChallengeDetail.ts` are firing on every public feed load. Worth a separate cleanup pass — either rename to the actual column (`submission_deadline` or whatever exists) or drop from the SELECT list. **Out of scope for Pass 1 review** but flagged for awareness.
 
-This is functionally identical to the user's proposed snippet:
-- Same 2000-char threshold
-- Same truncation suffix pattern
-- Same preservation of `ref.summary` + `ref.keyData` as distilled signal
-- Same per-batch attachment filtering via `batchKeySet` (line 1028-1030)
+### Files reviewed (no edits proposed)
+- `supabase/functions/review-challenge-sections/index.ts` (lines 1-1350)
+- `src/hooks/useWaveExecutor.ts`
+- `src/services/cogniblend/waveBatchInvoker.ts`
+- `src/lib/cogniblend/waveConfig.ts`
+- `src/hooks/cogniblend/useCurationAIActions.ts`
 
-### Verification
-- **Edit 1 (truncate attachments)**: ✅ Live at lines 1044-1051
-- **Edit 2 (deduplicate digest)**: ✅ Live at lines 1014-1022 (`digestInjectedForWave` flag)
-- **Edit 3 (memory release)**: ✅ Deployed in previous wave
-
-### What This Means
-The "remaining risk" the user flagged was already mitigated in the prior surgical memory fix. No code change, no deployment, no migration required.
-
-If 546 errors still recur on attachment-heavy challenges, the next lever would be **lowering the 2000-char threshold to 1200-1500** rather than re-adding truncation logic — but only after confirming via edge logs that attachment content (not digest, not corpus examples) is the dominant token contributor on the failing batch.
-
-### Recommendation
-Close this thread as resolved. Re-open only if a new 546 error appears with edge-log evidence showing `prompt_tokens > 45K` on a multi-attachment wave — at which point the fix is a one-line constant change (`2000` → `1200`), not new logic.
+### Next action
+Trigger a live Pass 1 on a draft. If errors appear, paste the wave/section that failed and I'll deliver root-cause + fix in the next plan. If it runs clean → close this thread.
 
