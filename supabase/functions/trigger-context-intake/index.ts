@@ -97,12 +97,18 @@ serve(async (req) => {
       .eq("extraction_status", "pending");
 
     if (pendingAttachments && pendingAttachments.length > 0) {
-      for (const att of pendingAttachments) {
-        // Fire-and-forget extraction
-        adminClient.functions.invoke("extract-attachment-text", {
-          body: { attachment_id: att.id },
-        }).catch(() => { /* silent */ });
-      }
+      // Sequentially trigger extractions to avoid WORKER_RESOURCE_LIMIT (memory exhaustion)
+      // when many PDFs/large HTMLs are extracted in parallel isolates.
+      // We still don't await the full extraction — only the invoke dispatch is serialized.
+      (async () => {
+        for (const att of pendingAttachments) {
+          try {
+            await adminClient.functions.invoke("extract-attachment-text", {
+              body: { attachment_id: att.id },
+            });
+          } catch { /* silent — extraction failures are surfaced via attachment status */ }
+        }
+      })();
     }
 
     // Mark as completed
