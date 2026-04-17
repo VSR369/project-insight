@@ -302,11 +302,13 @@ serve(async (req) => {
     }
 
     // Change 3: Extract skip_analysis and provided_comments
+    // PR1: Extract section_keys (batched mode) and reasoning_effort (per-wave override)
     const {
-      challenge_id, section_key, role_context, context: clientContext,
+      challenge_id, section_key, section_keys, role_context, context: clientContext,
       preview_mode, current_content, wave_action,
       skip_analysis, provided_comments,
       pass1_only,
+      reasoning_effort: bodyReasoningEffort,
     } = await req.json();
     const isPreviewMode = preview_mode === true && challenge_id === 'test-preview';
 
@@ -318,6 +320,63 @@ serve(async (req) => {
     }
 
     const resolvedContext: RoleContext = (VALID_CONTEXTS.includes(role_context) ? role_context : "curation") as RoleContext;
+
+    // ── PR1: Early-return branch for Wave 8 (consistency + ambiguity only) ──
+    // wave_action='consistency_check' → run only Consistency + Ambiguity passes,
+    // skip the per-section batch loop entirely. Saves ~5 minutes of redundant work.
+    if (wave_action === 'consistency_check' && challenge_id && !isPreviewMode) {
+      try {
+        const adminClientQA = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+        const { data: gc } = await adminClientQA
+          .from("ai_review_global_config").select("default_model").eq("id", 1).single();
+        const qaModel = gc?.default_model || 'google/gemini-3-flash-preview';
+
+        const { data: ch } = await adminClientQA
+          .from("challenges")
+          .select("title, problem_statement, scope, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ai_section_reviews")
+          .eq("id", challenge_id).single();
+
+        const existingReviews: any[] = Array.isArray(ch?.ai_section_reviews) ? ch.ai_section_reviews : [];
+        const sectionsCtx = (clientContext && typeof clientContext === 'object' && (clientContext as any).sections) || {};
+
+        const [cons, ambi] = await Promise.all([
+          callConsistencyPass(LOVABLE_API_KEY, qaModel, existingReviews, ch ?? {}, 'medium').catch(() => null),
+          callAmbiguityPass(LOVABLE_API_KEY, qaModel, existingReviews, ch ?? {}, sectionsCtx, 'medium').catch(() => null),
+        ]);
+
+        if (cons) {
+          await persistConsistencyFindings(adminClientQA, challenge_id, cons.findings ?? []);
+        }
+        if (ambi) {
+          await persistAmbiguityFindings(adminClientQA, challenge_id, ambi.findings ?? []);
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              sections: [],
+              consistency_findings_count: cons?.findings?.length ?? 0,
+              ambiguity_findings_count: ambi?.findings?.length ?? 0,
+              overall_coherence_score: cons?.overall_coherence_score ?? null,
+              overall_clarity_score: ambi?.overall_clarity_score ?? null,
+            },
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (qaErr) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: { code: "QA_PASS_FAILED", message: qaErr instanceof Error ? qaErr.message : "QA pass failed" },
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
