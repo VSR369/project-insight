@@ -23,6 +23,8 @@ export interface WaveRunRecord {
   sections: WaveSectionResult[];
   startedAt: string | null;
   completedAt: string | null;
+  /** Optional human-readable summary when the wave ends with `status: 'error'`. */
+  errorMessage?: string | null;
 }
 
 export interface ExecutionRecord {
