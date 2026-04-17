@@ -17,8 +17,10 @@ import { useWaveReviewSection } from '@/hooks/useWaveReviewSection';
 import {
   EXECUTION_WAVES,
   QA_WAVE_NUMBER,
+  DISCOVERY_WAVE_NUMBER,
   determineSectionAction,
   createInitialWaveProgress,
+  createInitialWaveProgressWithDiscovery,
   getWaveReasoning,
   type WaveProgress,
   type WaveResult,
