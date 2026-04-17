@@ -3,7 +3,7 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -107,39 +107,46 @@ export function CurationRightRail(props: CurationRightRailProps) {
 
   const navigate = useNavigate();
 
+  // Reactive snapshot of section store. useSyncExternalStore re-renders this
+  // component whenever the store changes (e.g. Re-analyse clears reviews,
+  // a wave repopulates a section). Required so DiagnosticsSheet receives
+  // live `sections` instead of a frozen one-time snapshot.
+  const liveSections = useSyncExternalStore<Partial<Record<SectionKey, SectionStoreEntry>>>(
+    (cb) => {
+      if (!props.curationStore?.subscribe) return () => {};
+      return props.curationStore.subscribe(cb);
+    },
+    () => {
+      const store = props.curationStore;
+      if (!store) return {};
+      return (store.getState?.()?.sections ?? store.sections ?? {}) as Partial<Record<SectionKey, SectionStoreEntry>>;
+    },
+    () => ({}),
+  );
+
   const commentCounts = useMemo(() => {
-    if (!props.curationStore) return undefined;
-    const store = props.curationStore;
     const counts: Partial<Record<SectionKey, number>> = {};
-    const sections = store.getState?.()?.sections ?? store.sections ?? {};
-    for (const [key, entry] of Object.entries(sections)) {
+    for (const [key, entry] of Object.entries(liveSections)) {
       const e = entry as SectionStoreEntry | undefined;
       if (e?.aiComments && Array.isArray(e.aiComments)) {
         counts[key as SectionKey] = e.aiComments.length;
       }
     }
     return counts;
-  }, [props.curationStore]);
+  }, [liveSections]);
 
   const suggestionCounts = useMemo(() => {
-    if (!props.curationStore) return undefined;
-    const store = props.curationStore;
     const counts: Partial<Record<SectionKey, number>> = {};
-    const sections = store.getState?.()?.sections ?? store.sections ?? {};
-    for (const [key, entry] of Object.entries(sections)) {
+    for (const [key, entry] of Object.entries(liveSections)) {
       const e = entry as { aiSuggestion?: string | null } | undefined;
       if (e?.aiSuggestion) {
         counts[key as SectionKey] = 1;
       }
     }
     return counts;
-  }, [props.curationStore]);
+  }, [liveSections]);
 
-  const diagSections = useMemo<Partial<Record<SectionKey, SectionStoreEntry>>>(() => {
-    if (!props.curationStore) return {};
-    const store = props.curationStore;
-    return store.getState?.()?.sections ?? store.sections ?? {};
-  }, [props.curationStore]);
+  const diagSections = liveSections;
 
   return (
     <div className="space-y-4">
