@@ -12,7 +12,7 @@
 import { DEFAULT_PLATFORM_PREAMBLE } from './promptConstants.ts';
 import { SECTION_DEPENDENCIES, DEPENDENCY_REASONING } from './aiCalls.ts';
 
-const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+import { callAIWithFallback } from '../_shared/aiModelConfig.ts';
 
 export interface ConsistencyFinding {
   source_section: string;
