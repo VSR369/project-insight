@@ -210,7 +210,7 @@ export function useCurationAIActions({
     } finally {
       setAiReviewLoading(false);
     }
-  }, [executeWavesPass1, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore]);
+  }, [executeWavesPass1, pass1SetWaveProgress, setAiReviewLoading, setTriageTotalCount, challengeId, queryClient, setPass1DoneSession, setContextLibraryOpen, setGenerateDoneSession, setAiReviews, setContextLibraryReviewed, curationStore]);
 
   // ── handleAnalyse: Pre-flight → runAnalyseFlow ──
   const handleAnalyse = useCallback(async () => {
