@@ -19,9 +19,11 @@ import { DiagnosticsAcceptancePanel } from '@/components/cogniblend/diagnostics/
 import { ConsistencyFindingsPanel } from '@/components/cogniblend/diagnostics/ConsistencyFindingsPanel';
 import { AmbiguityFindingsPanel } from '@/components/cogniblend/diagnostics/AmbiguityFindingsPanel';
 import { QualityScoreSummary } from '@/components/cogniblend/diagnostics/QualityScoreSummary';
+import { WaitingForRunPlaceholder } from '@/components/cogniblend/diagnostics/WaitingForRunPlaceholder';
 import { useDiagnosticsData } from '@/hooks/cogniblend/useDiagnosticsData';
 import { useConsistencyFindings, useAmbiguityFindings } from '@/hooks/queries/useQualityFindings';
 import { loadExecutionRecord, loadAcceptanceRecord, WAVE_EXEC_CHANGED_EVENT } from '@/services/cogniblend/waveExecutionHistory';
+import { DISCOVERY_WAVE_NUMBER, QA_WAVE_NUMBER } from '@/lib/cogniblend/waveConfig';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 
