@@ -163,14 +163,7 @@ Analyze the above for solver-facing ambiguity. Return findings via the detect_am
     requestBody.reasoning_effort = reasoningEffort;
   }
 
-  const response = await fetch(AI_GATEWAY_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  });
+  const response = await callAIWithFallback(apiKey, requestBody, model);
 
   if (!response.ok) {
     if (response.status === 429) throw new Error('RATE_LIMIT');
