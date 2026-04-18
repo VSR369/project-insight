@@ -221,16 +221,20 @@ export const EXECUTION_WAVES: WaveConfig[] = [
     prerequisiteSections: ['solver_expertise', 'complexity', 'maturity_level', 'deliverables', 'expected_outcomes'],
   },
   {
+    // Wave 8 isolated to a single SOLO sub-batch so wall-time stays well under the 150s
+    // edge function ceiling (was timing out at ~150s when bundled with submission_guidelines).
     waveNumber: 8,
-    name: 'Commercial — Submission & Reward',
-    sectionIds: ['submission_guidelines', 'reward_structure'],
-    prerequisiteSections: ['deliverables', 'evaluation_criteria', 'phase_schedule', 'complexity', 'solver_expertise'],
+    name: 'Commercial — Reward Structure',
+    sectionIds: ['reward_structure'],
+    prerequisiteSections: ['complexity', 'maturity_level', 'deliverables', 'phase_schedule', 'solver_expertise'],
   },
   {
+    // submission_guidelines moved here from Wave 8 — its dependencies (deliverables W4,
+    // evaluation_criteria W7, phase_schedule W7) are all satisfied before Wave 9.
     waveNumber: 9,
-    name: 'Presentation — IP, Hook & Visibility',
-    sectionIds: ['ip_model', 'hook', 'visibility'],
-    prerequisiteSections: ['reward_structure', 'deliverables', 'maturity_level', 'eligibility'],
+    name: 'Presentation — Submission, IP, Hook & Visibility',
+    sectionIds: ['submission_guidelines', 'ip_model', 'hook', 'visibility'],
+    prerequisiteSections: ['reward_structure', 'deliverables', 'maturity_level', 'eligibility', 'evaluation_criteria', 'phase_schedule'],
   },
   {
     waveNumber: QA_WAVE_NUMBER, // Wave 11 — runs Consistency + Ambiguity passes only
