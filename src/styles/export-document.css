@@ -56,20 +56,26 @@
   border-top: 1px solid #e5e7eb;
   padding-top: 24px;
   margin-top: 48px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  text-align: left;
+  width: 100%;
+  border-collapse: collapse;
 }
-.export-cover-meta dt {
-  font-weight: 600;
+.export-cover-meta th {
+  background: transparent;
   color: #6b7280;
   text-transform: uppercase;
   font-size: 8pt;
   letter-spacing: 1px;
-  margin-bottom: 4px;
+  font-weight: 600;
+  text-align: left;
+  padding: 0 16px 4px 0;
+  border: none;
+  width: 50%;
 }
-.export-cover-meta dd { margin: 0 0 12px 0; }
+.export-cover-meta td {
+  padding: 0 16px 12px 0;
+  border: none;
+  font-size: 10.5pt;
+}
 .export-cover-footer {
   margin-top: 64px;
   font-size: 9pt;
@@ -280,6 +286,46 @@
   color: #6b7280;
 }
 .export-kv dd { margin: 0; color: #1f2937; }
+
+/* ---------- Renderer additions ---------- */
+.export-list { margin: 8px 0 12px 0; padding-left: 24px; }
+.export-list li { margin-bottom: 6px; }
+.export-card-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-size: 10pt;
+}
+.export-card-table th {
+  background: transparent;
+  color: #6b7280;
+  font-weight: 600;
+  text-align: left;
+  width: 35%;
+  padding: 4px 8px 4px 0;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 9.5pt;
+}
+.export-card-table td {
+  padding: 4px 0;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  color: #1f2937;
+}
+.export-malformed {
+  background: #fef2f2;
+  border-left: 4px solid #dc2626;
+  padding: 8px 12px;
+  font-family: "Courier New", monospace;
+  font-size: 9pt;
+  color: #7f1d1d;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 8px 0;
+}
 
 @page {
   size: A4;
