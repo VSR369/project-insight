@@ -324,6 +324,25 @@ serve(async (req) => {
       );
     }
 
+    // I5 GUARD: Pass 2 (skip_analysis=true) requires existing Pass 1 comments.
+    // Reject early if the caller asked us to skip analysis but provided no
+    // comments to base the rewrite on — prevents Pass 2 firing without Pass 1.
+    if (skip_analysis === true) {
+      const hasComments = Array.isArray(provided_comments) && provided_comments.length > 0;
+      if (!hasComments) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "skip_analysis=true requires non-empty provided_comments (Pass 2 cannot run without Pass 1 results)",
+            },
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const resolvedContext: RoleContext = (VALID_CONTEXTS.includes(role_context) ? role_context : "curation") as RoleContext;
 
     // ── PR1: Early-return branch for Wave 8 (consistency + ambiguity only) ──
