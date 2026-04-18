@@ -32,12 +32,12 @@ const PRINCIPAL_GRADE = new Set([
 
 const NO_DRAFT_KEYS = [
   'approaches_not_of_interest',
-  'creator_references',
-  'reference_urls',
   'solver_audience',
   'creator_legal_instructions',
   'evaluation_config',
 ];
+// creator_references and reference_urls are attachment-based (always "review"),
+// covered separately below.
 
 describe('waveConfig — structure (A1, A2, J1)', () => {
   it('A1: defines exactly 9 content waves + QA wave (10 entries total)', () => {

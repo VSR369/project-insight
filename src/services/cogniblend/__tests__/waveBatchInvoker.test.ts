@@ -11,26 +11,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the Supabase client BEFORE importing the unit under test.
-const invokeMock = vi.fn();
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { functions: { invoke: invokeMock } },
+// Hoisted mocks — vi.mock is hoisted above imports, so factory state must use vi.hoisted.
+const mocks = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  setReviewStatus: vi.fn(),
+  setAiReview: vi.fn(),
+  clearStaleness: vi.fn(),
+  setSectionData: vi.fn(),
+  setValidationResult: vi.fn(),
 }));
 
-// Mock the Zustand store factory to avoid spinning up real stores.
-const setReviewStatus = vi.fn();
-const setAiReview = vi.fn();
-const clearStaleness = vi.fn();
-const setSectionData = vi.fn();
-const setValidationResult = vi.fn();
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: { functions: { invoke: mocks.invokeMock } },
+}));
+
 vi.mock('@/store/curationFormStore', () => ({
   getCurationFormStore: () => ({
     getState: () => ({
-      setReviewStatus, setAiReview, clearStaleness, setSectionData, setValidationResult,
+      setReviewStatus: mocks.setReviewStatus,
+      setAiReview: mocks.setAiReview,
+      clearStaleness: mocks.clearStaleness,
+      setSectionData: mocks.setSectionData,
+      setValidationResult: mocks.setValidationResult,
     }),
   }),
 }));
 
-// Stub helpers that touch the DOM / heavy parsing.
 vi.mock('@/lib/cogniblend/normalizeSectionReview', () => ({
   normalizeSectionReview: (r: Record<string, unknown>) => ({ ...r, comments: r.comments ?? [] }),
 }));
@@ -40,6 +46,8 @@ vi.mock('@/lib/cogniblend/parseSuggestion', () => ({
 vi.mock('@/lib/cogniblend/postLlmValidation', () => ({
   validateAIOutput: () => ({ corrections: [], passedChecks: [] }),
 }));
+
+const { invokeMock } = mocks;
 
 import { invokeWaveBatch } from '../waveBatchInvoker';
 import type { ChallengeContext } from '@/lib/cogniblend/challengeContextAssembler';
