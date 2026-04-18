@@ -170,17 +170,20 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
             return { id, entry: sections[id], execSection };
           });
 
-          // Counts derive from the section store (single source of truth).
+          // Counts derive from the section store + classified outcomes.
           const generated = wSections.filter(
             ({ entry }) => !!entry?.aiSuggestion || entry?.addressed === true,
           ).length;
-          const errors = execWave
-            ? execWave.sections.filter(s => s.status === 'error').length
-            : 0;
-          const pass2Failures = execWave
-            ? execWave.sections.filter(s => s.isPass2Failure === true).length
-            : 0;
-          const notRun = Math.max(0, wSections.length - generated - errors);
+          const classified = wSections.map(({ id, execSection }) => classifyPass2Outcome({
+            hasRecord,
+            status: execSection?.status,
+            errorCode: execSection?.errorCode,
+            isPass2Failure: execSection?.isPass2Failure,
+            sectionId: id,
+          }));
+          const errors = classified.filter((c) => c === 'failed').length;
+          const truncated = classified.filter((c) => c === 'truncated_recoverable').length;
+          const notRun = Math.max(0, wSections.length - generated - errors - truncated);
 
           return (
             <div key={wave.waveNumber} className="border rounded-lg overflow-hidden">
@@ -191,8 +194,8 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                 </div>
                 <div className="flex gap-2">
                   {generated > 0 && <Badge variant="secondary" className="text-[10px]">{generated} generated</Badge>}
-                  {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} errors</Badge>}
-                  {pass2Failures > 0 && <Badge variant="destructive" className="text-[10px]">{pass2Failures} pass-2 failed</Badge>}
+                  {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} failed</Badge>}
+                  {truncated > 0 && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700">{truncated} retry-needed</Badge>}
                   {notRun > 0 && <Badge variant="outline" className="text-[10px]">{notRun} not run</Badge>}
                 </div>
               </div>
