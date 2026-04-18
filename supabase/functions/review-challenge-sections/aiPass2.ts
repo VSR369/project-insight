@@ -281,11 +281,31 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   const contextIntel = buildContextIntelligence(challengeData, clientContext, orgContext);
   pass2SystemPrompt = pass2SystemPrompt + '\n\n' + contextIntel + (contextDigestText || '');
 
+  // Dynamic cap: solo large sections get full 48K; multi-section batches scale.
+  const dynamicMaxTokens = computePass2MaxTokens(sectionsNeedingSuggestion.length);
+
+  // Early-split heuristic — if any section in this call is a known
+  // large-output section AND its original content is substantial, downshift
+  // reasoning_effort to 'medium' to prevent verbose CoT from truncating output.
+  const hasLargeSoloRisk = sectionsNeedingSuggestion.some((r: any) => {
+    if (!LARGE_OUTPUT_SECTIONS.has(r.section_key)) return false;
+    const aliased = SECTION_FIELD_ALIASES[r.section_key] || r.section_key;
+    const content = challengeData[aliased] ?? challengeData[r.section_key];
+    const len = typeof content === 'string'
+      ? content.length
+      : (content ? JSON.stringify(content).length : 0);
+    return len > 4000;
+  });
+  const effectiveReasoningEffort =
+    hasLargeSoloRisk && (!reasoningEffort || reasoningEffort === 'high')
+      ? 'medium'
+      : reasoningEffort;
+
   // Build request body with optional reasoning_effort
   const requestBody: Record<string, unknown> = {
     model,
     temperature: 0.2,
-    max_tokens: PASS2_MAX_TOKENS,
+    max_tokens: dynamicMaxTokens,
     messages: [
       { role: "system", content: pass2SystemPrompt },
       { role: "user", content: pass2UserPrompt },
@@ -341,9 +361,18 @@ ${sectionPrompts.join('\n\n---\n\n')}`;
   };
 
   // Add reasoning_effort if configured (supported by compatible models)
-  if (reasoningEffort && reasoningEffort !== 'default') {
-    (requestBody as any).reasoning_effort = reasoningEffort;
+  if (effectiveReasoningEffort && effectiveReasoningEffort !== 'default') {
+    (requestBody as any).reasoning_effort = effectiveReasoningEffort;
   }
+
+  console.log(JSON.stringify({
+    event: 'pass2_request_config',
+    sectionKeys: sectionsNeedingSuggestion.map((s: any) => s.section_key),
+    max_tokens: dynamicMaxTokens,
+    reasoning_effort: effectiveReasoningEffort ?? 'default',
+    downshifted_for_large_output: hasLargeSoloRisk,
+    timestamp: new Date().toISOString(),
+  }));
 
   const inputKeys = sectionsNeedingSuggestion.map((s: any) => s.section_key as string);
   const failures: Pass2SectionFailure[] = [];
