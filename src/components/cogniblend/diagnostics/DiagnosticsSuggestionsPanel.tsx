@@ -16,6 +16,7 @@ import {
   HARMONIZE_WAVE_NUMBER,
 } from '@/lib/cogniblend/waveConfig';
 import { WaveTimingTable } from '@/components/cogniblend/diagnostics/WaveTimingTable';
+import { classifyPass2Outcome } from '@/lib/cogniblend/diagnosticsActionLabel';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 
