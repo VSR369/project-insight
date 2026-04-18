@@ -30,7 +30,10 @@ export const renderLineItemsCards: SectionRenderer = (value) => {
     if (typeof parsed === 'string' && parsed.trim()) {
       return `<p>${escapeHtml(parsed)}</p>`;
     }
-    logWarning('export.renderer.fallback', { renderer: 'lineItemsCards', reason: 'not_array' });
+    logWarning('export.renderer.fallback', {
+      operation: 'export.renderer.fallback',
+      additionalData: { renderer: 'lineItemsCards', reason: 'not_array' },
+    });
     return MALFORMED_HTML(JSON.stringify(parsed));
   }
 
@@ -73,7 +76,10 @@ export const renderLineItemsCards: SectionRenderer = (value) => {
   }
 
   // Mixed → fallback bullet with stringified each
-  logWarning('export.renderer.fallback', { renderer: 'lineItemsCards', reason: 'mixed_types' });
+  logWarning('export.renderer.fallback', {
+    operation: 'export.renderer.fallback',
+    additionalData: { renderer: 'lineItemsCards', reason: 'mixed_types' },
+  });
   return `<ul class="export-list">${(parsed as unknown[])
     .map((v) => `<li>${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</li>`)
     .join('')}</ul>`;

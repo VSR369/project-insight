@@ -30,7 +30,10 @@ export const renderRewardTiersTable: SectionRenderer = (value, ctx) => {
   const parsed = parseIfString(value);
   if (parsed == null) return EMPTY_HTML;
   if (typeof parsed !== 'object') {
-    logWarning('export.renderer.fallback', { renderer: 'rewardTiers', reason: 'not_object' });
+    logWarning('export.renderer.fallback', {
+      operation: 'export.renderer.fallback',
+      additionalData: { renderer: 'rewardTiers', reason: 'not_object' },
+    });
     return MALFORMED_HTML(String(parsed));
   }
 

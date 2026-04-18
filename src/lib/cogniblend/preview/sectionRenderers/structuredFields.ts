@@ -54,7 +54,10 @@ export const renderStructuredFieldsList: SectionRenderer = (value) => {
 
   if (typeof parsed !== 'object') {
     if (typeof parsed === 'string' && parsed.trim()) return `<p>${escapeHtml(parsed)}</p>`;
-    logWarning('export.renderer.fallback', { renderer: 'structuredFieldsList', reason: 'not_object' });
+    logWarning('export.renderer.fallback', {
+      operation: 'export.renderer.fallback',
+      additionalData: { renderer: 'structuredFieldsList', reason: 'not_object' },
+    });
     return MALFORMED_HTML(String(parsed));
   }
 

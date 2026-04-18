@@ -46,7 +46,10 @@ export const renderCheckboxBadges: SectionRenderer = (value) => {
   }
 
   if (!Array.isArray(parsed)) {
-    logWarning('export.renderer.fallback', { renderer: 'checkboxBadges', reason: 'not_array' });
+    logWarning('export.renderer.fallback', {
+      operation: 'export.renderer.fallback',
+      additionalData: { renderer: 'checkboxBadges', reason: 'not_array' },
+    });
     return EMPTY_HTML;
   }
   if (parsed.length === 0) return EMPTY_HTML;
