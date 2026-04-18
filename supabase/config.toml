@@ -176,6 +176,9 @@ verify_jwt = false
 [functions.review-challenge-sections]
 verify_jwt = false
 
+[functions.repair-malformed-sections]
+verify_jwt = false
+
 [functions.accept-vip-invitation]
 verify_jwt = false
 
