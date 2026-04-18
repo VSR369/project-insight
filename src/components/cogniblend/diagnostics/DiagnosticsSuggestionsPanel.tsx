@@ -268,10 +268,18 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                             <div className="flex flex-col gap-1 max-w-[240px]">
                               {reasonCode && (
                                 <Badge
-                                  variant={isPass2Failure || sectionStatus === 'error' ? 'destructive' : 'outline'}
-                                  className="text-[10px] w-fit"
+                                  variant={
+                                    isRecoverable
+                                      ? 'outline'
+                                      : (isPass2Failure || sectionStatus === 'error' ? 'destructive' : 'outline')
+                                  }
+                                  className={
+                                    isRecoverable
+                                      ? 'text-[10px] w-fit border-amber-500 text-amber-700'
+                                      : 'text-[10px] w-fit'
+                                  }
                                 >
-                                  {reasonCode}
+                                  {isRecoverable ? 'TRUNCATED — retry' : reasonCode}
                                 </Badge>
                               )}
                               {(reasonMsg || skipReason) && (
