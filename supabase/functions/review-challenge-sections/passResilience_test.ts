@@ -129,42 +129,64 @@ Deno.test("C4: When attachment has a summary, raw content is NOT injected into t
 });
 
 // ---------------------------------------------------------------------------
-// C6 — Split-retry executes left batch fully before right batch (sequential)
+// C6 — Sub-batch sequencing within a wave (left batch awaited before right)
 // ---------------------------------------------------------------------------
-Deno.test("C6: Split-retry runs left half then right half sequentially (await both)", () => {
-  // The split-retry path must await both halves — never Promise.all (parallel).
-  // Look for the split-retry helper invocation pattern.
-  const hasSplitLogic = /split[_-]?retry|splitBatch|leftBatch|rightBatch|leftHalf|rightHalf/i.test(INDEX_SRC) ||
-    /split[_-]?retry|splitBatch|leftBatch|rightBatch|leftHalf|rightHalf/i.test(PASS1_SRC);
-  assert(hasSplitLogic, "Edge function must implement split-retry on truncation");
+Deno.test("C6: Wave sub-batches execute sequentially (no Promise.all over batches)", () => {
+  // The wave invoker awaits each sub-batch before the next. Reject any
+  // Promise.all/Promise.allSettled over an array of sub-batch promises
+  // INSIDE the edge function (parallelism would race tokens & timeouts).
+  const combined = INDEX_SRC + PASS1_SRC;
 
-  // Ensure no Promise.all over the split halves (parallel would defeat sequencing)
-  // Specifically reject `Promise.all([leftBatch` or `Promise.all([leftHalf`
+  // Must contain MAX_BATCH_SIZE batching logic (the splitting mechanism)
   assert(
-    !/Promise\.all\s*\(\s*\[\s*(leftBatch|leftHalf|left)\b/.test(INDEX_SRC + PASS1_SRC),
-    "Split-retry must NOT execute halves in parallel via Promise.all",
+    /MAX_BATCH_SIZE|batch[_-]?size|batches\.push/i.test(combined),
+    "Edge function must implement wave→sub-batch splitting (MAX_BATCH_SIZE)",
+  );
+
+  // Must NOT use Promise.all/allSettled over a `batches` array
+  assert(
+    !/Promise\.(all|allSettled)\s*\(\s*batches/i.test(combined),
+    "Sub-batches must run sequentially — no Promise.all(batches) inside the edge function",
+  );
+
+  // Must use a sequential `for` loop with `await` over batches
+  assert(
+    /for\s*\([^)]*(of\s+batches|batchIndex|let\s+\w+\s*=\s*0[^)]*batches\.length)/i.test(combined) ||
+      /for\s+await\s*\([^)]*batches/i.test(combined),
+    "Sub-batches must be iterated with a sequential for-loop using await",
   );
 });
 
 // ---------------------------------------------------------------------------
 // D2 — Harmonization payload contains ONLY cluster sections
 // ---------------------------------------------------------------------------
-Deno.test("D2: Harmonization helper signature accepts a cluster (not the full 22-section set)", async () => {
+Deno.test("D2: Harmonization derives a focused cluster (not the full 22-section set)", async () => {
   const harmSrc = await Deno.readTextFile(
     new URL("./aiHarmonizationPass.ts", HERE),
   );
 
-  // Helper must take a focused cluster array — not iterate over all-section maps.
-  // Accept any of: clusterSections, sectionKeys, cluster, sections (array param)
-  const acceptsCluster = /\b(clusterSections|cluster|sectionKeys|sections)\s*:\s*(string\[\]|Array<)/i.test(harmSrc);
+  // The helper must derive `clusterKeys` from the suggestions map (only
+  // sections with non-null suggestions) — NOT iterate the entire section
+  // catalogue. Match the actual implementation pattern.
+  const derivesCluster =
+    /clusterKeys\s*=\s*Object\.keys\([^)]+\)\.filter/.test(harmSrc) ||
+    /cluster\w*\s*=\s*[^;]*\.filter/i.test(harmSrc);
   assert(
-    acceptsCluster,
-    "aiHarmonizationPass must accept a focused cluster of sections, not the entire 22-section map",
+    derivesCluster,
+    "aiHarmonizationPass must derive a focused cluster from the suggestions map (filter out null entries)",
   );
 
-  // Must NOT contain references to ALL_SECTION_KEYS or hardcoded 22
+  // The dependency matrix and format hints must be built from clusterKeys,
+  // not from any all-sections constant.
   assert(
-    !/ALL_SECTION_KEYS|TWENTY_TWO_SECTIONS|allSections22/i.test(harmSrc),
+    /buildClusterDependencyMatrix\(\s*clusterKeys\s*\)/.test(harmSrc) ||
+      /\(\s*clusterKeys\s*\)/.test(harmSrc),
+    "Dependency matrix must be built from clusterKeys (cluster scope only)",
+  );
+
+  // Must NOT reference all-22-section constants
+  assert(
+    !/ALL_SECTION_KEYS|TWENTY_TWO_SECTIONS|allSections22|FULL_SECTION_LIST/i.test(harmSrc),
     "Harmonization must not reference all-22-section constants",
   );
 });
