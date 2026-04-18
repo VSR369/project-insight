@@ -64,9 +64,12 @@ export function useRepairMalformedSections() {
         throw new Error(data?.error?.message ?? 'Repair failed');
       }
       logInfo('repair_malformed_sections.success', {
-        challengeId,
-        detected: data.data?.summary?.detected ?? 0,
-        regenerated: data.data?.summary?.regenerated ?? 0,
+        operation: 'repair_malformed_sections',
+        additionalData: {
+          challengeId,
+          detected: data.data?.summary?.detected ?? 0,
+          regenerated: data.data?.summary?.regenerated ?? 0,
+        },
       });
       return data.data as RepairResponse;
     },
