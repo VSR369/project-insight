@@ -59,8 +59,9 @@ export async function getAIModelConfig(): Promise<AIModelConfig> {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// 429 retry schedule (PR2): 5s then 10s before falling through to fallback model.
-const RATE_LIMIT_BACKOFFS_MS = [5000, 10000];
+// 429 retry schedule: 5s, 10s, 30s before falling through to fallback model.
+// Each wait gets 0-2s of jitter to avoid thundering herd between concurrent waves.
+const RATE_LIMIT_BACKOFFS_MS = [5000, 10000, 30000];
 
 /**
  * callAIWithFallback — Calls AI gateway with primary model with resilience:
@@ -93,10 +94,12 @@ export async function callAIWithFallback(
   if (resp.status === 429) {
     for (let i = 0; i < RATE_LIMIT_BACKOFFS_MS.length; i++) {
       const wait = RATE_LIMIT_BACKOFFS_MS[i];
-      console.warn(`Primary model ${primaryModel} returned 429, retry ${i + 1}/${RATE_LIMIT_BACKOFFS_MS.length} in ${wait}ms`);
+      const jitter = Math.floor(Math.random() * 2000);
+      const totalWait = wait + jitter;
+      console.warn(`Primary model ${primaryModel} returned 429, retry ${i + 1}/${RATE_LIMIT_BACKOFFS_MS.length} in ${totalWait}ms (base ${wait}ms + jitter ${jitter}ms)`);
       // Drain the body so the connection can be reused.
       try { await resp.text(); } catch { /* noop */ }
-      await sleep(wait);
+      await sleep(totalWait);
       resp = await makeRequest(primaryModel);
       if (resp.status !== 429) break;
     }

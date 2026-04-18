@@ -24,7 +24,7 @@ export async function callAIPass1Analyze(
   const requestBody: Record<string, unknown> = {
     model,
     temperature: 0.2,
-    max_tokens: 16384,
+    max_tokens: 32768,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -170,6 +170,47 @@ export async function callAIPass1Analyze(
     total_tokens: tokenUsage.total_tokens || 0,
     timestamp: new Date().toISOString(),
   }));
+
+  // Truncation detection — Pass 1 parity with Pass 2.
+  // Invisible reasoning tokens can burn the output budget non-deterministically;
+  // detect finish_reason='length' and return per-section warnings instead of
+  // throwing (which would mark the entire batch MALFORMED).
+  const finishReason = result.choices?.[0]?.finish_reason;
+  if (finishReason === 'length') {
+    console.warn(JSON.stringify({
+      event: 'ai_review_truncated',
+      pass: 'pass1_analyze',
+      sectionKeys,
+      model: result.model || model || 'unknown',
+      completion_tokens: tokenUsage.completion_tokens || 0,
+      prompt_tokens: tokenUsage.prompt_tokens || 0,
+      timestamp: new Date().toISOString(),
+    }));
+    const nowTrunc = new Date().toISOString();
+    return sectionKeys.map((key) => ({
+      section_key: key,
+      status: 'warning',
+      comments: [{
+        text: 'Pass 1 analysis was truncated before completion (output token limit reached). Re-run this section individually to get full review.',
+        type: 'warning',
+        field: null,
+        reasoning: null,
+        confidence: 'low',
+        evidence_basis: 'Output truncated (finish_reason=length)',
+        quantification: null,
+        framework_applied: null,
+        evidence_source: 'general_knowledge',
+        cross_reference_verified: [],
+      }],
+      guidelines: [],
+      cross_section_issues: [],
+      solver_impact: null,
+      publication_blocker: false,
+      quality_score: null,
+      missing_elements: [],
+      reviewed_at: nowTrunc,
+    }));
+  }
 
   const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!toolCall?.function?.arguments) throw new Error("AI did not return structured output (Pass 1)");
