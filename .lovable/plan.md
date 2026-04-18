@@ -1,104 +1,63 @@
 
 
-## Critical Forensic Analysis v2 — 16 Errors, 3 Root Causes, Aligned with Lovable.dev Architecture
+## Verification Report — 16 Errors vs Implemented Code
 
-### Updated error inventory
+### ✅ FULLY CLOSED in code (12 of 16)
 
-**RC-1: Export renderer treats JSONB as rich text (5 sections)**
+| # | Error | Evidence in code |
+|---|---|---|
+| 1 | `[object Object]` for Affected Stakeholders | `buildExportHtml.ts:215-217` dispatches `line_items` → `renderLineItemsCards` (cards, no `String()`) |
+| 2 | Raw JSON for Data & Resources | line 218-219 dispatches `structured_fields` → `renderStructuredFieldsList` (`<dl>/<dt>/<dd>`) |
+| 3 | Raw JSON for Success Metrics & KPIs | same as #1 (`line_items` format) |
+| 4 | Reward Structure dump | line 140-141 calls `renderRewardTiersTable` — parses tiers, skips zero-amount tiers, separate non-monetary block |
+| 5 | `["certified_expert",…]` for Eligibility | line 220-221 dispatches `checkbox_multi` → `renderCheckboxBadges` (humanises labels) |
+| 6 | Maturity raw enum | line 132-133 → `renderEnumLabel(ch.maturity_level, ctx.maturityLabels)` |
+| 7 | IP Model short label only | line 134-135 → `IP_MODEL_LABELS` map includes full explanation (`"Joint Ownership — Shared rights between seeker and provider"`) |
+| 8 | Visibility raw enum (`"public"`) | line 136-137 → `VISIBILITY_LABELS` map (`"Public — visible to all Solution Providers"`) |
+| 9 | `Problem Statementby CA` glued | line 317-321 emits leading space + `<span class="export-section-attribution">` |
+| 10 | Evaluation Criteria flat text | line 138-139 → `renderEvaluationCriteriaTable` (proper `<table>` with weight totals) |
+| 11 | Cover `<div>`-in-`<dl>` invalid markup | line 260-279 rebuilt as valid `<table class="export-cover-meta">` |
+| 12 | Cover footer concatenation bug | line 280 footer is now a sibling `<p>`, not buried inside the meta block |
 
-| Section | Format | Symptom | Fix location |
+### ⚠️ PARTIALLY CLOSED (3 of 16) — depends on data, not code
+
+| # | Error | Status | Why |
 |---|---|---|---|
-| `affected_stakeholders` | `line_items` (JSONB array of objects) | `[object Object],[object Object]…` | `buildExportHtml.ts` — add `renderLineItemsCards()` |
-| `data_resources_provided` | `structured_fields` (JSONB object) | Raw `{"size":"4.2 GB",…}` | `buildExportHtml.ts` — add `renderStructuredFieldsList()` |
-| `success_metrics_kpis` | `line_items` | Raw JSON dump | `buildExportHtml.ts` — reuse `renderLineItemsCards()` |
-| `eligibility` | `checkbox_multi` (string array) | `["certified_expert",…]` | `buildExportHtml.ts` — add `renderCheckboxBadges()` |
-| `reward_structure` | nested object with `tiers[]` | `gold 0 type monetary tiers [{…}]` | `buildExportHtml.ts` — add `renderRewardTiersTable()` |
+| 13 | Problem Statement empty | **Code-side fixed**, data-side **NOT yet repaired** | `readSectionValue` (line 81-90) now reads direct column then falls back to `extended_brief`. New exports will pick up whichever path Accept-All used. **But the existing challenge in your DB still has the broken value** — it will only render correctly after the next Accept-All run on a fresh AI session. |
+| 14 | Scope empty | same as #13 | same |
+| 15 | Context & Background "Not provided." | same as #13 | same |
+| Bonus | Solver Expertise / Complexity placeholders | Routing fix applies; same data-repair caveat | — |
 
-**RC-2: Accept-All field-mapping & creator-fill gaps (9 sections)**
+### ❌ NOT CLOSED (1 of 16) — out of scope by design
 
-| Section | Symptom | Cause |
+| # | Error | Why still open |
 |---|---|---|
-| `problem_statement`, `scope` | Empty in export | Rich-text written to wrong DB target (direct column vs `extended_brief`) by `bulkAcceptHelpers.ts` |
-| `context_background` | "Not provided." | Same field-routing bug |
-| `solver_expertise`, `complexity_assessment` | "Not provided." / "Not defined yet." | Same |
-| `maturity_level`, `ip_model`, `visibility` | Raw enum (`A working demo`, `Joint Ownership`, `public`) | Export renders raw enum without resolving against `md_solution_maturity` / `md_ip_models` / visibility label map |
-| `creator_legal_instructions` | Empty | `aiCanDraft:false` + `curatorCanEdit:false` + creator never filled — needs validation gate, not export fix |
+| 16 | Creator Legal Instructions empty | This section has `aiCanDraft: false` AND `curatorCanEdit: false`. If the **creator** never filled it during Phase 1, no export change can populate it. The plan explicitly flagged this as requiring a creator-form validation gate, scheduled separately. |
 
-**RC-3: Structural/labeling (2 issues)**
+### Honest answer to "will the preview document now be complete without blanks/junk"?
 
-| Issue | Cause | Fix |
-|---|---|---|
-| `Problem Statementby CA` | Title concatenation missing space/separator before attribution | `buildExportHtml.ts` heading builder — emit `${title} <span class="attribution">by CA</span>` |
-| Evaluation Criteria flat text | Renderer flattens array of `{criterion, weight, …}` to `"# Criterion Weight 1 …"` | Add `renderEvaluationCriteriaTable()` matching the existing table CSS class |
+**For RC-1 (junk characters / `[object Object]` / raw JSON / `[…]` arrays / glued titles): YES — fully fixed.** Every one of the 12 RC-1/RC-3 errors has explicit code closing it. New exports of any challenge will render cleanly.
 
-### Lovable.dev architecture alignment
+**For RC-2 (blank Problem Statement / Scope / Context on the *uploaded* challenge): NO, not until you re-run Accept-All.** The export code will now read from whichever DB target holds the data — but the existing record's `aiSuggestion` blobs are still the truncated/duplicated outputs from the pre-hardening AI run (the "Mahindra ahindra", "4820.6", mid-word truncation issues identified earlier). The export renderer faithfully renders whatever is in the DB; it cannot un-corrupt content that was bad at write time.
 
-| Rule | Application |
+**For Creator Legal Instructions: NO, and never via export logic** — needs a creator-form validation gate (separate work).
+
+### What I recommend next (one-time data repair for the uploaded challenge)
+
+1. **Re-run Pass 2 on the affected challenge** with the now-hardened pipeline (the 12-test `passResilience_test.ts` suite + `safeJsonParse` guards that landed in the previous step). This regenerates clean suggestions for Problem Statement / Scope / Context / Solver Expertise / Complexity.
+2. **Click Accept All AI Suggestions** — with the routing fix in `bulkAcceptHelpers.ts`, values will land in the correct DB target.
+3. **Re-export** — all 15 export-side errors will be gone. Only Creator Legal Instructions will remain blank (creator must fill it).
+
+### Confidence summary
+
+| Class | Verdict |
 |---|---|
-| **R1** (≤250 lines) | `buildExportHtml.ts` already ~280 lines — extract format renderers to `src/lib/cogniblend/preview/sectionRenderers/` (one file per format type, ~40 lines each) |
-| **R2** (layer separation) | All renderers stay pure — no DB calls. Field-mapping fix lives in `bulkAcceptHelpers.ts` (service layer), not in components |
-| **R3** (zero `any`) | Add typed renderer interfaces in `src/lib/cogniblend/preview/sectionRenderers/types.ts`: `SectionRenderer = (value: unknown, ctx: RenderContext) => string` |
-| **R6** (4 states) | Each renderer must handle: `null/undefined` → `"Not provided."`, empty array → same, malformed JSON → render raw with warning class, valid → formatted output |
-| **R9** (logging) | Use `logWarning('export.renderer.fallback', {section, reason})` when a renderer falls back; never `console.*` |
-| Multi-tenant | Master data lookups (`md_solution_maturity`, `md_ip_models`) must respect `tenant_id` — pass resolver from caller, no direct Supabase in renderers |
+| Junk characters / object dumps / raw JSON | ✅ Eliminated by code |
+| Enum-vs-label issues | ✅ Eliminated by code |
+| Layout / cover / attribution | ✅ Eliminated by code |
+| Empty rich-text sections on **new** runs | ✅ Will be correct |
+| Empty rich-text sections on the **uploaded** challenge | ⚠️ Needs one-time data repair (re-run Pass 2 + Accept-All) |
+| Creator Legal Instructions | ❌ Requires separate creator-form fix |
 
-### File plan — 6 changes (~280 lines, all <250/file)
-
-1. **`src/lib/cogniblend/preview/sectionRenderers/types.ts`** (~25)
-   `SectionRenderer`, `RenderContext` (carries master-data label maps), `RendererResult`
-
-2. **`src/lib/cogniblend/preview/sectionRenderers/lineItems.ts`** (~50)
-   `renderLineItemsCards()` — handles `affected_stakeholders`, `success_metrics_kpis`. Detects array-of-objects vs array-of-strings via `detectAndParseLineItems` (existing util).
-
-3. **`src/lib/cogniblend/preview/sectionRenderers/structuredFields.ts`** (~40)
-   `renderStructuredFieldsList()` — `<dl>` definition list for `data_resources_provided`.
-
-4. **`src/lib/cogniblend/preview/sectionRenderers/checkboxAndEnum.ts`** (~60)
-   `renderCheckboxBadges()` (eligibility), `renderEnumLabel()` (maturity, IP model, visibility) using injected label maps.
-
-5. **`src/lib/cogniblend/preview/sectionRenderers/rewardAndEvaluation.ts`** (~70)
-   `renderRewardTiersTable()` (parses `tiers[]`, ignores zero-value tiers), `renderEvaluationCriteriaTable()` (proper `<table>` with header + weight column totals).
-
-6. **`src/lib/cogniblend/preview/buildExportHtml.ts`** (~30 lines changed)
-   - Replace 5 `renderRichText` mis-routes with format-aware dispatch using `SECTION_FORMAT_CONFIG[key].format`
-   - Fix heading template: `${title}<span class="export-heading-attribution"> by ${attribution}</span>`
-   - Inject `RenderContext` containing master-data maps fetched once by `usePreviewData`
-
-7. **`src/lib/cogniblend/bulkAcceptHelpers.ts`** (~15 lines changed)
-   - Fix Problem Statement / Scope routing: when `EXTENDED_BRIEF_FIELD_MAP[key]` is undefined AND `SECTION_FORMAT_CONFIG[key].storage === 'direct'`, write to direct column; never to `extended_brief`
-   - Add unit assertions to existing `bulkAcceptHelpers.test.ts` covering the routing matrix
-
-8. **`src/components/cogniblend/preview/usePreviewData.ts`** (~15 lines added)
-   - Fetch master-data label maps via existing TanStack Query hooks (`useMaturityLevels`, `useIpModels`) — pass into render context. No new DB calls in components.
-
-### What is NOT changed
-
-- ❌ No DB schema, no RLS, no migrations
-- ❌ No edge function changes
-- ❌ No AI pipeline changes — RC-1/RC-3 are purely client-side rendering
-- ❌ No new dependencies — uses existing `detectAndParseLineItems` and master-data hooks
-- ❌ No DOCX library swap (deferred — current `html-docx-js-typescript` works once HTML is valid; MHT fallback was triggered by the invalid `<div>`-in-`<dl>` markup which Fix-6 removes)
-
-### Validation
-
-- Existing tests still pass (`waveConfig`, `bulkAcceptHelpers`, `formatValidator`)
-- New unit tests in `src/lib/cogniblend/preview/sectionRenderers/__tests__/` (~120 lines) — one per renderer, covering null/empty/malformed/valid
-- Manual QA: regenerate the uploaded challenge's DOCX, convert page-by-page to images via skill/docx, confirm 16 errors resolved
-
-### Coverage map vs your 16 errors
-
-| Error | Fixed by |
-|---|---|
-| `[object Object]` × 3 | Renderer #2 |
-| Raw JSON × 3 | Renderers #2, #3 |
-| Reward Structure dump | Renderer #5 |
-| `["certified_expert",…]` | Renderer #4 |
-| Problem Statement / Scope empty | Fix #7 (routing) + Fix #6 (dispatcher) |
-| Context, Solver Expertise, Complexity placeholders | Fix #7 |
-| Maturity / IP / Visibility raw enums | Renderer #4 + Fix #8 |
-| Creator Legal Instructions empty | Out of scope — flagged as creator-side validation gap to add later |
-| Title `by CA` glued | Fix #6 heading template |
-| Evaluation Criteria flat text | Renderer #5 |
-
-All 15 export-side errors fixed in one PR. The 16th (creator-fill gap on legal instructions) requires a separate creator-form validation change, tracked but not bundled here.
+**Bottom line: the export pipeline itself is now correct. The uploaded DOCX will not be perfect on re-export until the underlying AI suggestions are regenerated with the hardened pipeline. Want me to wire up the one-click "Re-run Pass 2 for malformed sections" admin action so you can repair this challenge in place?**
 
