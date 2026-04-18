@@ -458,10 +458,12 @@ async function runPass2Call(
         return subsetBody;
       };
 
-      const [leftMap, rightMap] = await Promise.all([
-        runPass2Call(apiKey, buildSplitBody(leftBatch), model, leftKeys, leftBatch, pass2SystemPrompt, failures, sectionPromptsByKey, /* allowSplit */ false),
-        runPass2Call(apiKey, buildSplitBody(rightBatch), model, rightKeys, rightBatch, pass2SystemPrompt, failures, sectionPromptsByKey, /* allowSplit */ false),
-      ]);
+      // Sequential split-retry — running both halves in parallel doubles peak
+      // token + CPU load and increases the chance of a 429 / wall-time hit.
+      // 250ms gap gives the AI gateway breathing room between halves.
+      const leftMap = await runPass2Call(apiKey, buildSplitBody(leftBatch), model, leftKeys, leftBatch, pass2SystemPrompt, failures, sectionPromptsByKey, /* allowSplit */ false);
+      await new Promise((r) => setTimeout(r, 250));
+      const rightMap = await runPass2Call(apiKey, buildSplitBody(rightBatch), model, rightKeys, rightBatch, pass2SystemPrompt, failures, sectionPromptsByKey, /* allowSplit */ false);
       for (const [k, v] of leftMap.entries()) map.set(k, v);
       for (const [k, v] of rightMap.entries()) map.set(k, v);
       return map;
