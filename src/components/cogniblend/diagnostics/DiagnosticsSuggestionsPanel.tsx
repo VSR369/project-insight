@@ -16,6 +16,7 @@ import {
   HARMONIZE_WAVE_NUMBER,
 } from '@/lib/cogniblend/waveConfig';
 import { WaveTimingTable } from '@/components/cogniblend/diagnostics/WaveTimingTable';
+import { classifyPass2Outcome } from '@/lib/cogniblend/diagnosticsActionLabel';
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import type { ExecutionRecord } from '@/services/cogniblend/waveExecutionHistory';
 
@@ -169,17 +170,20 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
             return { id, entry: sections[id], execSection };
           });
 
-          // Counts derive from the section store (single source of truth).
+          // Counts derive from the section store + classified outcomes.
           const generated = wSections.filter(
             ({ entry }) => !!entry?.aiSuggestion || entry?.addressed === true,
           ).length;
-          const errors = execWave
-            ? execWave.sections.filter(s => s.status === 'error').length
-            : 0;
-          const pass2Failures = execWave
-            ? execWave.sections.filter(s => s.isPass2Failure === true).length
-            : 0;
-          const notRun = Math.max(0, wSections.length - generated - errors);
+          const classified = wSections.map(({ id, execSection }) => classifyPass2Outcome({
+            hasRecord,
+            status: execSection?.status,
+            errorCode: execSection?.errorCode,
+            isPass2Failure: execSection?.isPass2Failure,
+            sectionId: id,
+          }));
+          const errors = classified.filter((c) => c === 'failed').length;
+          const truncated = classified.filter((c) => c === 'truncated_recoverable').length;
+          const notRun = Math.max(0, wSections.length - generated - errors - truncated);
 
           return (
             <div key={wave.waveNumber} className="border rounded-lg overflow-hidden">
@@ -190,8 +194,8 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                 </div>
                 <div className="flex gap-2">
                   {generated > 0 && <Badge variant="secondary" className="text-[10px]">{generated} generated</Badge>}
-                  {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} errors</Badge>}
-                  {pass2Failures > 0 && <Badge variant="destructive" className="text-[10px]">{pass2Failures} pass-2 failed</Badge>}
+                  {errors > 0 && <Badge variant="destructive" className="text-[10px]">{errors} failed</Badge>}
+                  {truncated > 0 && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700">{truncated} retry-needed</Badge>}
                   {notRun > 0 && <Badge variant="outline" className="text-[10px]">{notRun} not run</Badge>}
                 </div>
               </div>
@@ -216,10 +220,19 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                     const wasAddressed = entry?.addressed === true;
                     const hasSuggestion = execSection?.status === 'success';
                     const isPass2Failure = execSection?.isPass2Failure === true;
+                    const outcome = classifyPass2Outcome({
+                      hasRecord,
+                      status: execSection?.status,
+                      errorCode: execSection?.errorCode,
+                      isPass2Failure,
+                      sectionId: id,
+                    });
+                    const isRecoverable = outcome === 'truncated_recoverable';
 
                     const statusLabel = (() => {
                       if (!hasRecord) return 'Not Run';
                       if (!execSection) return 'Not Run';
+                      if (isRecoverable) return 'Retry-needed (truncated)';
                       if (execSection.status === 'success') {
                         if (isPass2Failure) return 'Suggestion Failed';
                         if (wasAddressed && !hasLiveSuggestion) return 'Accepted by Curator';
@@ -255,10 +268,18 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                             <div className="flex flex-col gap-1 max-w-[240px]">
                               {reasonCode && (
                                 <Badge
-                                  variant={isPass2Failure || sectionStatus === 'error' ? 'destructive' : 'outline'}
-                                  className="text-[10px] w-fit"
+                                  variant={
+                                    isRecoverable
+                                      ? 'outline'
+                                      : (isPass2Failure || sectionStatus === 'error' ? 'destructive' : 'outline')
+                                  }
+                                  className={
+                                    isRecoverable
+                                      ? 'text-[10px] w-fit border-amber-500 text-amber-700'
+                                      : 'text-[10px] w-fit'
+                                  }
                                 >
-                                  {reasonCode}
+                                  {isRecoverable ? 'TRUNCATED — retry' : reasonCode}
                                 </Badge>
                               )}
                               {(reasonMsg || skipReason) && (
