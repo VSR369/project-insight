@@ -187,13 +187,44 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
+    // Tightened from 6 → 3 to bound peak CPU and prevent WORKER_RESOURCE_LIMIT.
+    const MAX_PER_RUN = 3;
+    const SPACING_MS = 1500;
+
     const processInBackground = async () => {
-      // Hard cap per invocation to bound total wall-time.
-      const MAX_PER_RUN = 6;
       const batch = findings.slice(0, MAX_PER_RUN);
 
-      for (const finding of batch) {
+      // Idempotency: re-fetch each section just before regenerating and skip
+      // if it has already been healed since the original scan. Prevents the
+      // "click Repair → adds new failures for already-clean sections" loop.
+      for (let i = 0; i < batch.length; i++) {
+        const finding = batch[i];
+
+        // Re-check freshness — RLS-scoped read.
         try {
+          const { data: fresh } = await supabase
+            .from("challenges")
+            .select(`id, ${finding.section_key}, extended_brief`)
+            .eq("id", challenge_id)
+            .single();
+          if (fresh) {
+            const liveValue = (fresh as Record<string, unknown>)[finding.section_key]
+              ?? ((fresh.extended_brief as Record<string, unknown> | null)?.[finding.section_key]);
+            const liveDet = detect(liveValue);
+            if (liveDet === "ok") {
+              console.info(
+                `[${correlationId}] repair section=${finding.section_key} skipped — already clean`,
+              );
+              continue;
+            }
+          }
+        } catch { /* fall through and attempt repair */ }
+
+        try {
+          // Surgical repair: Pass 2 ONLY with empty provided_comments.
+          // This skips the heavy Pass 1 prompt (~28K tokens), freeing budget
+          // for the actual rewrite and avoiding re-truncation on solo
+          // large-output sections.
           const resp = await fetch(
             `${supabaseUrl}/functions/v1/review-challenge-sections`,
             {
@@ -208,6 +239,15 @@ serve(async (req) => {
                 section_key: finding.section_key,
                 role_context: "curation",
                 wave_action: "review_and_generate",
+                skip_analysis: true,
+                provided_comments: [{
+                  section_key: finding.section_key,
+                  status: "warning",
+                  comments: [{
+                    type: "warning",
+                    text: `Existing content is malformed (${finding.detection}). Regenerate clean, complete content from scratch using challenge context.`,
+                  }],
+                }],
               }),
             },
           );
@@ -221,6 +261,12 @@ serve(async (req) => {
             `[${correlationId}] repair section=${finding.section_key} failed:`,
             err instanceof Error ? err.message : String(err),
           );
+        }
+
+        // Spacing between calls — gives the worker breathing room to GC
+        // large response bodies and prevents WORKER_RESOURCE_LIMIT.
+        if (i < batch.length - 1) {
+          await new Promise((r) => setTimeout(r, SPACING_MS));
         }
       }
       console.info(
@@ -237,22 +283,22 @@ serve(async (req) => {
         data: {
           challenge_id,
           findings,
-          repaired: findings.slice(0, 6).map(f => ({
+          repaired: findings.slice(0, MAX_PER_RUN).map(f => ({
             section_key: f.section_key,
             detection: f.detection,
             status: "regenerated" as const,
-            message: "Queued for background regeneration",
+            message: "Queued for background regeneration (Pass 2 only)",
           })),
           summary: {
             scanned: REPAIR_CANDIDATES.length,
             detected: findings.length,
-            regenerated: Math.min(findings.length, 6),
+            regenerated: Math.min(findings.length, MAX_PER_RUN),
             failed: 0,
           },
           message:
-            findings.length > 6
-              ? `Queued first 6 of ${findings.length} sections. Re-run after ~60s to process the rest.`
-              : "Regeneration running in background. Refresh in ~60s, then click Accept All AI Suggestions.",
+            findings.length > MAX_PER_RUN
+              ? `Queued first ${MAX_PER_RUN} of ${findings.length} sections (Pass 2 only). Re-run after ~30s to process the rest. Already-clean sections will be skipped automatically.`
+              : `Surgical Pass 2 regeneration running in background (~${MAX_PER_RUN * 15}s). Refresh, then click Accept All AI Suggestions.`,
         },
         meta: { correlationId },
       }),
