@@ -26,7 +26,7 @@ describe('partitionSuggestionsForBulkAccept — G4 graceful handling', () => {
   it('G4: returns empty partition for empty input — never throws', () => {
     expect(() => partitionSuggestionsForBulkAccept({})).not.toThrow();
     const out = partitionSuggestionsForBulkAccept({});
-    expect(out).toEqual({ regular: [], extendedBrief: [], skipped: [] });
+    expect(out).toEqual({ regular: [], extendedBrief: [], skipped: [], skippedDetails: [] });
   });
 
   it('G4: silently ignores entries with no aiSuggestion', () => {

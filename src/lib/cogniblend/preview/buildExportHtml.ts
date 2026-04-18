@@ -11,10 +11,16 @@ import { marked } from 'marked';
 import { GROUPS, SECTION_MAP } from '@/lib/cogniblend/curationSectionDefs';
 import { parseJson, getDeliverableObjects, getExpectedOutcomeObjects, getSubmissionGuidelineObjects } from '@/lib/cogniblend/curationHelpers';
 import { resolveGovernanceMode } from '@/lib/governanceMode';
-import { getMaturityLabel } from '@/lib/maturityLabels';
+import { MATURITY_LABELS } from '@/lib/maturityLabels';
+import { SECTION_FORMAT_CONFIG, EXTENDED_BRIEF_FIELD_MAP } from '@/lib/cogniblend/curationSectionFormats';
 import type { ChallengeData, LegalDocDetail, EscrowRecord } from '@/lib/cogniblend/curationTypes';
 import type { OrgData, DigestData, PreviewAttachment } from '@/components/cogniblend/preview/usePreviewData';
 import exportCss from '@/styles/export-document.css?inline';
+import { renderLineItemsCards } from './sectionRenderers/lineItems';
+import { renderStructuredFieldsList } from './sectionRenderers/structuredFields';
+import { renderCheckboxBadges, renderEnumLabel } from './sectionRenderers/checkboxAndEnum';
+import { renderRewardTiersTable, renderEvaluationCriteriaTable } from './sectionRenderers/rewardAndEvaluation';
+import type { RenderContext } from './sectionRenderers/types';
 
 interface BuildExportArgs {
   challenge: ChallengeData;
@@ -24,6 +30,20 @@ interface BuildExportArgs {
   digest: DigestData | null;
   attachments: PreviewAttachment[];
 }
+
+const IP_MODEL_LABELS: Record<string, string> = {
+  'IP-EA': 'Exclusive Assignment — All IP transfers to the seeker',
+  'IP-NEL': 'Non-Exclusive License — Provider retains ownership',
+  'IP-EL': 'Exclusive License — Exclusive license to seeker',
+  'IP-JO': 'Joint Ownership — Shared rights between seeker and provider',
+  'IP-NONE': 'No IP Transfer — Provider retains all rights',
+};
+
+const VISIBILITY_LABELS: Record<string, string> = {
+  public: 'Public — visible to all Solution Providers',
+  private: 'Private — restricted access',
+  invite_only: 'Invite Only — invited Solution Providers',
+};
 
 const escapeHtml = (s: unknown): string => {
   if (s == null) return '';
@@ -54,30 +74,32 @@ const renderCard = (title: string, body: string, meta?: string): string =>
     ${meta ? `<p class="export-card-meta">${escapeHtml(meta)}</p>` : ''}
   </div>`;
 
+/**
+ * Read a section's value from the challenge, preferring the direct DB column
+ * but falling back to extended_brief jsonb (where the curator may have written).
+ */
+function readSectionValue(key: string, ch: ChallengeData): unknown {
+  const direct = (ch as unknown as Record<string, unknown>)[key];
+  if (direct != null && direct !== '') return direct;
+
+  const eb = parseJson<Record<string, unknown>>(ch.extended_brief);
+  if (!eb) return null;
+
+  const ebField = EXTENDED_BRIEF_FIELD_MAP[key] ?? key;
+  return eb[ebField] ?? eb[key] ?? null;
+}
+
 /* ---------- Per-section renderers ---------- */
 
-function renderSectionContent(key: string, ch: ChallengeData, legalDetails: LegalDocDetail[], escrow: EscrowRecord | null): string {
+function renderSectionContent(
+  key: string,
+  ch: ChallengeData,
+  legalDetails: LegalDocDetail[],
+  escrow: EscrowRecord | null,
+  ctx: RenderContext,
+): string {
+  // Special-case sections (kept here because they read from multiple sources).
   switch (key) {
-    case 'problem_statement':
-    case 'scope':
-    case 'hook':
-    case 'context_and_background':
-    case 'root_causes':
-    case 'affected_stakeholders':
-    case 'current_deficiencies':
-    case 'preferred_approach':
-    case 'approaches_not_of_interest':
-    case 'creator_references':
-    case 'reference_urls':
-    case 'visibility':
-    case 'organization_context':
-    case 'solver_expertise':
-    case 'eligibility': {
-      const direct = (ch as unknown as Record<string, unknown>)[key];
-      const eb = parseJson<Record<string, unknown>>(ch.extended_brief);
-      const fromBrief = eb ? (eb[key] as string | undefined) : undefined;
-      return renderRichText((direct as string | undefined) ?? fromBrief ?? '');
-    }
     case 'deliverables': {
       const items = getDeliverableObjects(ch) as unknown as Array<Record<string, unknown>>;
       if (!items.length) return emptyState();
@@ -107,39 +129,16 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
         return renderCard(`O${i + 1}. ${name}`, renderRichText(desc));
       }).join('');
     }
-    case 'maturity_level': {
-      if (!ch.maturity_level) return emptyState();
-      return `<p><span class="export-badge export-badge-primary">${escapeHtml(getMaturityLabel(ch.maturity_level))}</span></p>`;
-    }
-    case 'evaluation_criteria': {
-      const raw = parseJson<Record<string, unknown> | unknown[]>(ch.evaluation_criteria);
-      const ec = (Array.isArray(raw) ? raw : (raw as Record<string, unknown> | null)?.criteria) as Array<Record<string, unknown>> | undefined;
-      if (!ec?.length) return emptyState();
-      const rows = ec.map((c, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(c.criterion_name ?? c.name ?? '—')}</td><td style="text-align:right">${escapeHtml(c.weight_percentage ?? c.weight ?? '—')}%</td></tr>`).join('');
-      return `<table><thead><tr><th style="width:40px">#</th><th>Criterion</th><th style="width:90px">Weight</th></tr></thead><tbody>${rows}</tbody></table>`;
-    }
-    case 'reward_structure': {
-      const raw = parseJson<Record<string, unknown> | unknown[]>(ch.reward_structure);
-      if (!raw) return emptyState();
-      if (Array.isArray(raw)) {
-        const rows = (raw as Array<Record<string, unknown>>).map((r) => `<tr><td>${escapeHtml(r.tier_name ?? r.rank ?? '—')}</td><td>${escapeHtml(r.description ?? '')}</td><td style="text-align:right">${escapeHtml((ch.currency_code ?? ''))} ${escapeHtml(r.fixed_amount ?? r.percentage_of_pool ?? '—')}</td></tr>`).join('');
-        return `<table><thead><tr><th>Tier</th><th>Description</th><th style="width:140px">Amount</th></tr></thead><tbody>${rows}</tbody></table>`;
-      }
-      const obj = raw as Record<string, unknown>;
-      const rows = Object.entries(obj).map(([k, v]) => `<tr><td>${escapeHtml(k.replace(/_/g, ' '))}</td><td>${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</td></tr>`).join('');
-      return `<table><tbody>${rows}</tbody></table>`;
-    }
-    case 'ip_model': {
-      if (!ch.ip_model) return emptyState();
-      const labels: Record<string, string> = {
-        'IP-EA': 'Exclusive Assignment — All IP transfers to the seeker',
-        'IP-NEL': 'Non-Exclusive License — Provider retains ownership',
-        'IP-EL': 'Exclusive License — Exclusive license to seeker',
-        'IP-JO': 'Joint Ownership',
-        'IP-NONE': 'No IP Transfer',
-      };
-      return `<p><span class="export-badge export-badge-primary">${escapeHtml(labels[ch.ip_model] ?? ch.ip_model)}</span></p>`;
-    }
+    case 'maturity_level':
+      return renderEnumLabel(ch.maturity_level, ctx.maturityLabels);
+    case 'ip_model':
+      return renderEnumLabel(ch.ip_model, ctx.ipModelLabels);
+    case 'visibility':
+      return renderEnumLabel((ch as unknown as Record<string, unknown>).visibility, ctx.visibilityLabels);
+    case 'evaluation_criteria':
+      return renderEvaluationCriteriaTable(ch.evaluation_criteria, ctx);
+    case 'reward_structure':
+      return renderRewardTiersTable(ch.reward_structure, ctx);
     case 'solution_type': {
       const st = (ch as unknown as Record<string, unknown>).solution_types;
       if (!Array.isArray(st) || !st.length) return emptyState();
@@ -182,15 +181,6 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
       if (ch.complexity_score == null && !ch.complexity_level) return emptyState();
       return `<p><strong>Level:</strong> <span class="export-badge export-badge-primary">${escapeHtml(ch.complexity_level ?? 'N/A')}</span> &nbsp; <strong>Score:</strong> ${escapeHtml(ch.complexity_score ?? 'N/A')}</p>`;
     }
-    case 'success_metrics_kpis':
-    case 'data_resources_provided': {
-      const raw = parseJson<unknown>((ch as unknown as Record<string, import('@/integrations/supabase/types').Json>)[key] ?? null);
-      if (!raw) return emptyState();
-      if (Array.isArray(raw)) {
-        return `<ul>${(raw as unknown[]).map((v) => `<li>${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : v)}</li>`).join('')}</ul>`;
-      }
-      return renderRichText(typeof raw === 'string' ? raw : JSON.stringify(raw));
-    }
     case 'legal_docs': {
       if (!legalDetails.length) return emptyState();
       const rows = legalDetails.map((d) => `<tr><td>${escapeHtml(d.document_name ?? d.document_type)}</td><td>${escapeHtml(d.tier.replace('_', ' '))}</td><td>${escapeHtml(d.lc_status ?? 'pending')}</td></tr>`).join('');
@@ -208,13 +198,40 @@ function renderSectionContent(key: string, ch: ChallengeData, legalDetails: Lega
         ${escrow.deposit_reference ? `<dt>Reference</dt><dd>${escapeHtml(escrow.deposit_reference)}</dd>` : ''}
       </dl>`;
     }
-    default: {
-      const direct = (ch as unknown as Record<string, unknown>)[key];
-      if (typeof direct === 'string') return renderRichText(direct);
-      const eb = parseJson<Record<string, unknown>>(ch.extended_brief);
-      if (eb && typeof eb[key] === 'string') return renderRichText(eb[key] as string);
-      return emptyState();
+  }
+
+  // Format-aware dispatch for everything else.
+  const cfg = SECTION_FORMAT_CONFIG[key];
+  const value = readSectionValue(key, ch);
+
+  if (!cfg) {
+    if (typeof value === 'string') return renderRichText(value);
+    return emptyState();
+  }
+
+  switch (cfg.format) {
+    case 'rich_text':
+      return renderRichText(typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value));
+    case 'line_items':
+    case 'table':
+      return renderLineItemsCards(value, ctx);
+    case 'structured_fields':
+      return renderStructuredFieldsList(value, ctx);
+    case 'checkbox_multi':
+      return renderCheckboxBadges(value, ctx);
+    case 'tag_input': {
+      const tags = Array.isArray(value) ? value : parseJson<string[]>(value as string);
+      if (!Array.isArray(tags) || !tags.length) return emptyState();
+      return `<p>${renderBadges(tags as string[])}</p>`;
     }
+    case 'checkbox_single':
+    case 'select':
+    case 'radio':
+      return renderEnumLabel(value, {});
+    default:
+      if (typeof value === 'string') return renderRichText(value);
+      if (value == null) return emptyState();
+      return renderRichText(JSON.stringify(value));
   }
 }
 
@@ -225,19 +242,41 @@ export function buildChallengeExportHtml({ challenge, orgData, legalDetails, esc
   const orgName = orgData?.organization_name ?? 'Organization';
   const govMode = resolveGovernanceMode(challenge.governance_mode_override ?? challenge.governance_profile) ?? '—';
 
+  const ctx: RenderContext = {
+    maturityLabels: MATURITY_LABELS,
+    ipModelLabels: IP_MODEL_LABELS,
+    visibilityLabels: VISIBILITY_LABELS,
+    currencyCode: challenge.currency_code ?? null,
+  };
+
   const groupsToRender = GROUPS.filter((g) => g.id !== 'organization');
 
-  // Cover
+  // Cover — uses <table> for meta to avoid invalid <div>-in-<dl> markup
+  // that triggered Word's MHT/quoted-printable fallback.
   const cover = `<section class="export-cover">
     <p class="export-cover-eyebrow">Challenge Brief</p>
     <h1 class="export-cover-title">${escapeHtml(challenge.title)}</h1>
-    ${challenge.hook ? `<p class="export-cover-hook">${escapeHtml(challenge.hook)}</p>` : ''}
-    <dl class="export-cover-meta">
-      <div><dt>Prepared by</dt><dd>${escapeHtml(orgName)}</dd></div>
-      <div><dt>Date</dt><dd>${escapeHtml(generatedAt)}</dd></div>
-      <div><dt>Governance Mode</dt><dd>${escapeHtml(govMode)}</dd></div>
-      <div><dt>Operating Model</dt><dd>${escapeHtml(challenge.operating_model ?? '—')}</dd></div>
-    </dl>
+    ${challenge.hook ? `<div class="export-cover-hook">${renderRichText(challenge.hook)}</div>` : ''}
+    <table class="export-cover-meta">
+      <tbody>
+        <tr>
+          <th>Prepared by</th>
+          <th>Date</th>
+        </tr>
+        <tr>
+          <td>${escapeHtml(orgName)}</td>
+          <td>${escapeHtml(generatedAt)}</td>
+        </tr>
+        <tr>
+          <th>Governance Mode</th>
+          <th>Operating Model</th>
+        </tr>
+        <tr>
+          <td>${escapeHtml(govMode)}</td>
+          <td>${escapeHtml(challenge.operating_model ?? '—')}</td>
+        </tr>
+      </tbody>
+    </table>
     <p class="export-cover-footer">Confidential — ${escapeHtml(orgName)}</p>
   </section>`;
 
@@ -273,9 +312,13 @@ export function buildChallengeExportHtml({ challenge, orgData, legalDetails, esc
     const sections = group.sectionKeys.map((key) => {
       const def = SECTION_MAP.get(key);
       if (!def) return '';
-      const body = renderSectionContent(key, challenge, legalDetails, escrowRecord);
+      const body = renderSectionContent(key, challenge, legalDetails, escrowRecord, ctx);
+      // Note the explicit space between label and attribution span — fixes "Problem Statementby CA".
+      const attribution = def.attribution
+        ? ` <span class="export-section-attribution">${escapeHtml(def.attribution)}</span>`
+        : '';
       return `<div class="export-section">
-        <h3 class="export-section-header">${escapeHtml(def.label)}${def.attribution ? `<span class="export-section-attribution">${escapeHtml(def.attribution)}</span>` : ''}</h3>
+        <h3 class="export-section-header">${escapeHtml(def.label)}${attribution}</h3>
         <div class="export-section-body">${body}</div>
       </div>`;
     }).join('');
