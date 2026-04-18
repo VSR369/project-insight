@@ -24,6 +24,7 @@ import { GovernanceModeSwitcher } from "@/components/cogniblend/curation/Governa
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { BulkActionBar } from "@/components/cogniblend/curation/BulkActionBar";
 import { OriginalBriefAccordion } from "@/components/cogniblend/curation/OriginalBriefAccordion";
+import { RepairMalformedButton } from "@/components/cogniblend/curation/RepairMalformedButton";
 import { cn } from "@/lib/utils";
 import type { GroupDef } from "@/lib/cogniblend/curationTypes";
 
@@ -162,6 +163,9 @@ export function CurationHeaderBar({
             </TooltipTrigger>
             <TooltipContent>Preview Document</TooltipContent>
           </Tooltip>
+          {!isReadOnly && (
+            <RepairMalformedButton challengeId={challengeId} />
+          )}
           {onOpenGuide && (
             <Tooltip>
               <TooltipTrigger asChild>
