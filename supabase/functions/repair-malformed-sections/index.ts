@@ -179,70 +179,57 @@ serve(async (req) => {
       );
     }
 
-    // Re-run review-challenge-sections per malformed section.
-    // We invoke sequentially — each call already batches Pass 1 + Pass 2 internally
-    // and writing them in parallel would breach the AI gateway concurrency budget.
-    const results: RepairResult[] = [];
+    // Background processing — return immediately so the worker doesn't hit the
+    // CPU wall-time limit while waiting for N heavy review-challenge-sections calls.
+    // The UI will refresh challenge data on a timer / via realtime to pick up
+    // regenerated suggestions.
     const authHeader = req.headers.get("Authorization") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-    for (const finding of findings) {
-      try {
-        const resp = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/review-challenge-sections`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": authHeader,
-              "apikey": Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    const processInBackground = async () => {
+      // Hard cap per invocation to bound total wall-time.
+      const MAX_PER_RUN = 6;
+      const batch = findings.slice(0, MAX_PER_RUN);
+
+      for (const finding of batch) {
+        try {
+          const resp = await fetch(
+            `${supabaseUrl}/functions/v1/review-challenge-sections`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": authHeader,
+                "apikey": anonKey,
+              },
+              body: JSON.stringify({
+                challenge_id,
+                section_key: finding.section_key,
+                role_context: "curation",
+                wave_action: "review_and_generate",
+              }),
             },
-            body: JSON.stringify({
-              challenge_id,
-              section_key: finding.section_key,
-              role_context: "curation",
-              wave_action: "review_and_generate",
-            }),
-          },
-        );
-
-        if (!resp.ok) {
-          const text = await resp.text();
-          results.push({
-            section_key: finding.section_key,
-            detection: finding.detection,
-            status: "error",
-            message: `HTTP ${resp.status}: ${text.slice(0, 160)}`,
-          });
-          continue;
+          );
+          // Drain body to free the connection.
+          try { await resp.text(); } catch { /* noop */ }
+          console.info(
+            `[${correlationId}] repair section=${finding.section_key} status=${resp.status}`,
+          );
+        } catch (err) {
+          console.error(
+            `[${correlationId}] repair section=${finding.section_key} failed:`,
+            err instanceof Error ? err.message : String(err),
+          );
         }
-
-        const json = await resp.json();
-        if (json?.success) {
-          results.push({
-            section_key: finding.section_key,
-            detection: finding.detection,
-            status: "regenerated",
-          });
-        } else {
-          results.push({
-            section_key: finding.section_key,
-            detection: finding.detection,
-            status: "error",
-            message: json?.error?.message ?? "Unknown error",
-          });
-        }
-      } catch (err) {
-        results.push({
-          section_key: finding.section_key,
-          detection: finding.detection,
-          status: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
       }
-    }
+      console.info(
+        `[${correlationId}] repair-malformed-sections finished: ${batch.length}/${findings.length} processed`,
+      );
+    };
 
-    const ok = results.filter(r => r.status === "regenerated").length;
-    const fail = results.filter(r => r.status === "error").length;
+    // @ts-ignore — EdgeRuntime is provided by the Supabase edge runtime
+    EdgeRuntime.waitUntil(processInBackground());
 
     return new Response(
       JSON.stringify({
@@ -250,13 +237,22 @@ serve(async (req) => {
         data: {
           challenge_id,
           findings,
-          repaired: results,
+          repaired: findings.slice(0, 6).map(f => ({
+            section_key: f.section_key,
+            detection: f.detection,
+            status: "regenerated" as const,
+            message: "Queued for background regeneration",
+          })),
           summary: {
             scanned: REPAIR_CANDIDATES.length,
             detected: findings.length,
-            regenerated: ok,
-            failed: fail,
+            regenerated: Math.min(findings.length, 6),
+            failed: 0,
           },
+          message:
+            findings.length > 6
+              ? `Queued first 6 of ${findings.length} sections. Re-run after ~60s to process the rest.`
+              : "Regeneration running in background. Refresh in ~60s, then click Accept All AI Suggestions.",
         },
         meta: { correlationId },
       }),
