@@ -22,7 +22,7 @@ describe('parseSuggestionForSection — happy paths', () => {
     const raw = '[{"criterion_name":"Quality","weight":40}]';
     const out = parseSuggestionForSection('evaluation_criteria', raw);
     expect(Array.isArray(out)).toBe(true);
-    expect((out as Array<Record<string, unknown>>)[0].criterion_name).toBe('Quality');
+    expect((out as unknown as Array<Record<string, unknown>>)[0].criterion_name).toBe('Quality');
   });
 
   it('checkbox_single section: parses JSON object', () => {
