@@ -130,7 +130,14 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
   try {
     const { data, error } = await supabase.functions.invoke('review-challenge-sections', { body });
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Preserve HTTP status code (504/546/500) so diagnostics can distinguish
+      // timeout vs memory vs crash. Supabase FunctionsHttpError exposes status
+      // either directly or via .context.status depending on client version.
+      const errAny = error as { status?: number; context?: { status?: number } };
+      const statusCode = errAny?.status ?? errAny?.context?.status ?? 'unknown';
+      throw new Error(`${error.message} [HTTP ${statusCode}]`);
+    }
 
     const sections: Array<Record<string, unknown>> = data?.success && Array.isArray(data?.data?.sections)
       ? (data.data.sections as Array<Record<string, unknown>>)
