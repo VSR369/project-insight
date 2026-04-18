@@ -220,10 +220,19 @@ export function DiagnosticsSuggestionsPanel({ sections, importanceLevels, review
                     const wasAddressed = entry?.addressed === true;
                     const hasSuggestion = execSection?.status === 'success';
                     const isPass2Failure = execSection?.isPass2Failure === true;
+                    const outcome = classifyPass2Outcome({
+                      hasRecord,
+                      status: execSection?.status,
+                      errorCode: execSection?.errorCode,
+                      isPass2Failure,
+                      sectionId: id,
+                    });
+                    const isRecoverable = outcome === 'truncated_recoverable';
 
                     const statusLabel = (() => {
                       if (!hasRecord) return 'Not Run';
                       if (!execSection) return 'Not Run';
+                      if (isRecoverable) return 'Retry-needed (truncated)';
                       if (execSection.status === 'success') {
                         if (isPass2Failure) return 'Suggestion Failed';
                         if (wasAddressed && !hasLiveSuggestion) return 'Accepted by Curator';
