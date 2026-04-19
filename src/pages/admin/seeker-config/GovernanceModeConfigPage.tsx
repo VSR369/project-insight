@@ -7,13 +7,23 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAllGovernanceModeConfigs } from '@/hooks/queries/useGovernanceModeConfig';
+import { useUpdateLcReviewTimeout } from '@/hooks/queries/useUpdateLcReviewTimeout';
 import { GovernanceModeCard } from '@/components/admin/governance/GovernanceModeCard';
+import { LcTimeoutConfigCard } from '@/components/cogniblend/admin/LcTimeoutConfigCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+
+const TIMEOUT_MODES = ['STRUCTURED', 'CONTROLLED'] as const;
 
 export default function GovernanceModeConfigPage() {
   const navigate = useNavigate();
   const { data: configs, isLoading, error } = useAllGovernanceModeConfigs();
+  const updateTimeout = useUpdateLcReviewTimeout();
+
+  const timeoutConfigs = (configs ?? []).filter((c) =>
+    (TIMEOUT_MODES as readonly string[]).includes(c.governance_mode),
+  );
 
   return (
     <div className="space-y-6 p-6">
@@ -55,6 +65,31 @@ export default function GovernanceModeConfigPage() {
             <GovernanceModeCard key={config.governance_mode} config={config} />
           ))}
         </div>
+      )}
+
+      {!isLoading && timeoutConfigs.length > 0 && (
+        <>
+          <Separator />
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">Timeout Configuration</h2>
+            <p className="text-sm text-muted-foreground">
+              Per-mode SLA windows for the Legal Coordinator review. The hourly enforcement job notifies the Curator and LC when the window elapses.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {timeoutConfigs.map((config) => (
+              <LcTimeoutConfigCard
+                key={config.governance_mode}
+                governanceMode={config.governance_mode as 'STRUCTURED' | 'CONTROLLED'}
+                currentTimeoutDays={config.lc_review_timeout_days ?? 7}
+                isSaving={updateTimeout.isPending}
+                onSave={(days) =>
+                  updateTimeout.mutate({ governanceMode: config.governance_mode, days })
+                }
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

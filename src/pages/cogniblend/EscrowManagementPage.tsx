@@ -16,6 +16,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
+import { notifyEscrowConfirmed } from '@/lib/cogniblend/workflowNotifications';
+import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -183,6 +185,21 @@ export default function EscrowManagementPage() {
           metadata: { amount: variables.deposit_amount, currency: variables.currency },
         });
       }
+
+      // Notify Curator(s) that escrow is confirmed (fire-and-forget).
+      void (async () => {
+        const curatorIds = await getActiveRoleUsers(variables.challengeId, ['CU']);
+        await Promise.all(
+          curatorIds.map((uid) =>
+            notifyEscrowConfirmed({
+              challengeId: variables.challengeId,
+              curatorUserId: uid,
+              amount: variables.deposit_amount,
+              currency: variables.currency,
+            }),
+          ),
+        );
+      })();
 
       // Call complete_financial_review RPC to set fc_compliance_complete and potentially advance phase
       try {
