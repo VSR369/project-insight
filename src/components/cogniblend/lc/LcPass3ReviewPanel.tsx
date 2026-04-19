@@ -2,13 +2,15 @@
  * LcPass3ReviewPanel — Pass 3 (Legal AI Review) UI for the Legal Coordinator.
  * Mirrors CuratorLegalReviewPanel; uses useLcPass3Review for data access.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Extension } from '@tiptap/core';
 import { CheckCircle2, Loader2, RefreshCw, Save, Shield, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -19,6 +21,8 @@ import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEdi
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
 import { LegalDocUploadHandler } from '@/components/cogniblend/legal/LegalDocUploadHandler';
 import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
+import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
+import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 
@@ -35,21 +39,74 @@ const CONFIDENCE_VARIANT: Record<
   low: { label: 'Low confidence', className: 'bg-destructive/10 text-destructive border-destructive/30' },
 };
 
+function buildHeadingGuard(protectedHeadings: string[]) {
+  const normalized = protectedHeadings.map((h) => h.trim().toLowerCase()).filter(Boolean);
+  return Extension.create({
+    name: 'protectedHeadingGuard',
+    addOptions() {
+      return { protectedHeadings: normalized };
+    },
+  });
+}
+
+function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<string> {
+  const found = new Set<string>();
+  doc?.descendants?.((node: any) => {
+    if (node?.type?.name === 'heading' && node?.attrs?.level === 2) {
+      const text = String(node.textContent ?? '').trim().toLowerCase();
+      if (protectedNormalized.includes(text)) found.add(text);
+    }
+    return true;
+  });
+  return found;
+}
+
 export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
   const review = useLcPass3Review(challengeId);
   const [editedHtml, setEditedHtml] = useState<string>('');
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
-    ],
-    content: '',
-    editable: !review.isPass3Accepted,
-    onUpdate: ({ editor: e }) => setEditedHtml(e.getHTML()),
-  });
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit,
+        Underline,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
+        buildHeadingGuard(review.protectedHeadings),
+      ],
+      content: '',
+      editable: !review.isPass3Accepted,
+      onUpdate: ({ editor: e }) => setEditedHtml(e.getHTML()),
+    },
+    [protectedNormalized.join('|')],
+  );
+
+  useEffect(() => {
+    if (!editor || protectedNormalized.length === 0) return;
+    const view = editor.view;
+    const original = view.props.dispatchTransaction ?? view.dispatch.bind(view);
+    const guarded = (tr: typeof view.state.tr) => {
+      if (tr.docChanged) {
+        const before = collectProtectedHeadings(view.state.doc, protectedNormalized);
+        const after = collectProtectedHeadings(tr.doc, protectedNormalized);
+        for (const heading of before) {
+          if (!after.has(heading)) {
+            toast.info(
+              'This section is mandatory for the Aggregator model and cannot be removed. You can edit the terms within it.',
+            );
+            return;
+          }
+        }
+      }
+      original(tr);
+    };
+    view.setProps({ dispatchTransaction: guarded });
+    return () => {
+      view.setProps({ dispatchTransaction: original });
+    };
+  }, [editor, protectedNormalized.join('|')]);
 
   useEffect(() => {
     if (!editor) return;
