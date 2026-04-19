@@ -409,6 +409,66 @@ export type Database = {
           },
         ]
       }
+      ai_legal_review_config: {
+        Row: {
+          anti_disintermediation_required: boolean
+          applies_to_engagement: string
+          applies_to_governance: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          min_clauses: number | null
+          regulatory_frameworks: string[]
+          required_context_keys: string[]
+          section_instructions: string | null
+          section_key: string
+          section_order: number
+          section_title: string
+          system_prompt: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          anti_disintermediation_required?: boolean
+          applies_to_engagement?: string
+          applies_to_governance?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          min_clauses?: number | null
+          regulatory_frameworks?: string[]
+          required_context_keys?: string[]
+          section_instructions?: string | null
+          section_key: string
+          section_order: number
+          section_title: string
+          system_prompt: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          anti_disintermediation_required?: boolean
+          applies_to_engagement?: string
+          applies_to_governance?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          min_clauses?: number | null
+          regulatory_frameworks?: string[]
+          required_context_keys?: string[]
+          section_instructions?: string | null
+          section_key?: string
+          section_order?: number
+          section_title?: string
+          system_prompt?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       ai_review_frameworks: {
         Row: {
           applicability_condition: string | null
@@ -1388,6 +1448,11 @@ export type Database = {
       }
       challenge_legal_docs: {
         Row: {
+          ai_changes_summary: string | null
+          ai_confidence: string | null
+          ai_modified_content_html: string | null
+          ai_regulatory_flags: Json
+          ai_review_status: string | null
           assembled_from_template_id: string | null
           assembly_variables: Json | null
           attached_by: string | null
@@ -1406,6 +1471,7 @@ export type Database = {
           lc_reviewed_by: string | null
           lc_status: string | null
           maturity_level: string | null
+          pass3_run_count: number
           priority: string | null
           rationale: string | null
           reviewed_at: string | null
@@ -1419,6 +1485,11 @@ export type Database = {
           version_history: Json
         }
         Insert: {
+          ai_changes_summary?: string | null
+          ai_confidence?: string | null
+          ai_modified_content_html?: string | null
+          ai_regulatory_flags?: Json
+          ai_review_status?: string | null
           assembled_from_template_id?: string | null
           assembly_variables?: Json | null
           attached_by?: string | null
@@ -1437,6 +1508,7 @@ export type Database = {
           lc_reviewed_by?: string | null
           lc_status?: string | null
           maturity_level?: string | null
+          pass3_run_count?: number
           priority?: string | null
           rationale?: string | null
           reviewed_at?: string | null
@@ -1450,6 +1522,11 @@ export type Database = {
           version_history?: Json
         }
         Update: {
+          ai_changes_summary?: string | null
+          ai_confidence?: string | null
+          ai_modified_content_html?: string | null
+          ai_regulatory_flags?: Json
+          ai_review_status?: string | null
           assembled_from_template_id?: string | null
           assembly_variables?: Json | null
           attached_by?: string | null
@@ -1468,6 +1545,7 @@ export type Database = {
           lc_reviewed_by?: string | null
           lc_status?: string | null
           maturity_level?: string | null
+          pass3_run_count?: number
           priority?: string | null
           rationale?: string | null
           reviewed_at?: string | null
@@ -5542,6 +5620,7 @@ export type Database = {
           governance_mode: string
           id: string
           is_active: boolean
+          lc_review_timeout_days: number
           legal_doc_creation_allowed: boolean
           legal_doc_editable: boolean
           legal_doc_mode: string
@@ -5568,6 +5647,7 @@ export type Database = {
           governance_mode: string
           id?: string
           is_active?: boolean
+          lc_review_timeout_days?: number
           legal_doc_creation_allowed?: boolean
           legal_doc_editable?: boolean
           legal_doc_mode?: string
@@ -5594,6 +5674,7 @@ export type Database = {
           governance_mode?: string
           id?: string
           is_active?: boolean
+          lc_review_timeout_days?: number
           legal_doc_creation_allowed?: boolean
           legal_doc_editable?: boolean
           legal_doc_mode?: string

@@ -8,6 +8,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
+import { handlePass3 } from "./pass3Handler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,7 +145,7 @@ serve(async (req) => {
       );
     }
 
-    const { challenge_id } = await req.json();
+    const { challenge_id, pass3_mode } = await req.json();
     if (!challenge_id) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "VALIDATION_ERROR", message: "challenge_id is required" } }),
@@ -156,6 +157,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // ── Pass 3 (Legal AI Review) — unified SPA generation ──
+    if (pass3_mode === true) {
+      return await handlePass3({
+        supabaseAdmin: adminClient,
+        userId: user.id,
+        challengeId: challenge_id,
+        lovableApiKey: LOVABLE_API_KEY,
+      });
+    }
 
     const { data: challenge, error: challengeErr } = await adminClient
       .from("challenges")
