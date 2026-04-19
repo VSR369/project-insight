@@ -1,12 +1,13 @@
 /**
  * EscrowDepositForm — Inline form for confirming escrow deposits.
- * Extracted from EscrowManagementPage.tsx.
+ * FC role only; mounted inside EscrowManagementPage.
  */
 
 import { UseFormReturn } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -23,8 +24,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import { Loader2, Building2 } from 'lucide-react';
 import { z } from 'zod';
+
+const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const SWIFT_RE = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
 
 export const escrowFormSchema = z.object({
   bank_name: z.string().min(1, 'Bank name is required').max(200),
@@ -34,6 +39,14 @@ export const escrowFormSchema = z.object({
   deposit_amount: z.coerce.number().positive('Amount must be positive'),
   deposit_date: z.string().min(1, 'Deposit date is required'),
   deposit_reference: z.string().min(1, 'Transaction reference is required').max(100),
+  account_number: z.string().min(1, 'Account number is required').max(30),
+  ifsc_swift_code: z
+    .string()
+    .min(1, 'IFSC/SWIFT code is required')
+    .refine(
+      (val) => IFSC_RE.test(val) || SWIFT_RE.test(val),
+      'Must be a valid IFSC (11 chars, e.g. SBIN0001234) or SWIFT code (8-11 chars, e.g. SBININBBXXX)',
+    ),
   fc_notes: z.string().max(1000).optional(),
 });
 
@@ -41,13 +54,31 @@ export type EscrowFormValues = z.infer<typeof escrowFormSchema>;
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'CHF', 'AUD', 'CAD', 'SGD', 'AED', 'INR', 'JPY'];
 
+const PROOF_CONFIG = {
+  maxSizeBytes: 10 * 1024 * 1024,
+  maxSizeMB: 10,
+  allowedTypes: ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'],
+  allowedExtensions: ['.pdf', '.png', '.jpg', '.jpeg', '.webp'],
+  label: 'Deposit Proof',
+} as const;
+
 interface EscrowDepositFormProps {
   form: UseFormReturn<EscrowFormValues>;
   onSubmit: (values: EscrowFormValues) => void;
   isPending: boolean;
+  proofFile: File | null;
+  onProofFileChange: (file: File | null) => void;
+  proofUploading: boolean;
 }
 
-export function EscrowDepositForm({ form, onSubmit, isPending }: EscrowDepositFormProps) {
+export function EscrowDepositForm({
+  form,
+  onSubmit,
+  isPending,
+  proofFile,
+  onProofFileChange,
+  proofUploading,
+}: EscrowDepositFormProps) {
   return (
     <div className="mt-4 pt-4 border-t">
       <Form {...form}>
@@ -133,6 +164,53 @@ export function EscrowDepositForm({ form, onSubmit, isPending }: EscrowDepositFo
               </FormItem>
             )} />
 
+            <FormField control={form.control} name="account_number" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Account Number *</FormLabel>
+                <FormControl>
+                  <Input type="text" placeholder="e.g. 123456789012" {...field} />
+                </FormControl>
+                <FormDescription>Bank account number (will be stored masked)</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <FormField control={form.control} name="ifsc_swift_code" render={({ field }) => (
+              <FormItem>
+                <FormLabel>IFSC/SWIFT Code *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    className="uppercase"
+                    maxLength={11}
+                    placeholder="e.g. SBIN0001234"
+                    {...field}
+                    onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                  />
+                </FormControl>
+                <FormDescription>
+                  India: 11-char IFSC (e.g. SBIN0001234). International: 8-11 char SWIFT.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            <div className="lg:col-span-2 space-y-2">
+              <Label className="flex items-center gap-2">
+                Deposit Proof *
+                {proofUploading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              </Label>
+              <FileUploadZone
+                config={PROOF_CONFIG}
+                value={proofFile}
+                onChange={onProofFileChange}
+                disabled={proofUploading || isPending}
+              />
+              <p className="text-xs text-muted-foreground">
+                Upload deposit proof (PDF or image, max 10MB)
+              </p>
+            </div>
+
             <FormField control={form.control} name="fc_notes" render={({ field }) => (
               <FormItem className="lg:col-span-2">
                 <FormLabel>FC Notes</FormLabel>
@@ -145,7 +223,7 @@ export function EscrowDepositForm({ form, onSubmit, isPending }: EscrowDepositFo
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending || proofUploading}>
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (

@@ -14,6 +14,8 @@ import { handleMutationError } from '@/lib/errorHandler';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
+import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,19 +36,27 @@ interface EscrowChallenge {
   deposit_reference: string | null;
 }
 
+function maskAccountNumber(raw: string): string {
+  if (!raw) return '';
+  if (raw.length <= 6) return '****' + raw.slice(-2);
+  return raw.slice(0, 2) + '****' + raw.slice(-4);
+}
+
 export default function EscrowManagementPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
   const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(user?.id);
   const [pwaAccepted, setPwaAccepted] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
 
   const form = useForm<EscrowFormValues>({
     resolver: zodResolver(escrowFormSchema),
     defaultValues: {
       bank_name: '', bank_branch: '', bank_address: '', currency: 'USD',
       deposit_amount: 0, deposit_date: new Date().toISOString().split('T')[0],
-      deposit_reference: '', fc_notes: '',
+      deposit_reference: '', account_number: '', ifsc_swift_code: '', fc_notes: '',
     },
   });
   const { clearPersistedData: clearEscrowPersistence } = useFormPersistence('cogni_escrow', form);
@@ -95,6 +105,35 @@ export default function EscrowManagementPage() {
   const confirmEscrow = useMutation({
     mutationFn: async (values: EscrowFormValues & { challengeId: string; escrowId: string | null }) => {
       if (!user?.id) throw new Error('Not authenticated');
+
+      // Step 1: Upload deposit proof if provided.
+      let proofUrl: string | null = null;
+      let proofFileName: string | null = null;
+      if (proofFile) {
+        setProofUploading(true);
+        try {
+          const safeName = sanitizeFileName(proofFile.name);
+          const storagePath = `${values.challengeId}/${Date.now()}_${safeName}`;
+          const { error: uploadErr } = await supabase.storage
+            .from('escrow-proofs')
+            .upload(storagePath, proofFile, { upsert: false });
+          if (uploadErr) throw new Error(`Proof upload failed: ${uploadErr.message}`);
+          proofUrl = storagePath;
+          proofFileName = proofFile.name;
+        } finally {
+          setProofUploading(false);
+        }
+      }
+
+      // Step 2: Build common payload (incl. new columns).
+      const newColumns = {
+        account_number_masked: maskAccountNumber(values.account_number),
+        ifsc_swift_code: values.ifsc_swift_code,
+        proof_document_url: proofUrl,
+        proof_file_name: proofFileName,
+        proof_uploaded_at: proofUrl ? new Date().toISOString() : null,
+      };
+
       if (values.escrowId) {
         const { error } = await supabase.from('escrow_records').update({
           escrow_status: 'FUNDED', deposit_amount: values.deposit_amount, remaining_amount: values.deposit_amount,
@@ -102,6 +141,7 @@ export default function EscrowManagementPage() {
           currency: values.currency, deposit_date: new Date(values.deposit_date).toISOString(),
           deposit_reference: values.deposit_reference, fc_notes: values.fc_notes ?? null,
           updated_at: new Date().toISOString(), updated_by: user.id,
+          ...newColumns,
         } as any).eq('id', values.escrowId);
         if (error) throw new Error(error.message);
       } else {
@@ -111,16 +151,39 @@ export default function EscrowManagementPage() {
           bank_address: values.bank_address ?? null, currency: values.currency,
           deposit_date: new Date(values.deposit_date).toISOString(), deposit_reference: values.deposit_reference,
           fc_notes: values.fc_notes ?? null, created_by: user.id,
+          ...newColumns,
         } as any);
         if (error) throw new Error(error.message);
       }
+
       await supabase.from('audit_trail').insert({
         user_id: user.id, challenge_id: values.challengeId, action: 'ESCROW_FUNDED', method: 'FC_MANUAL',
-        details: { amount: values.deposit_amount, currency: values.currency, bank_name: values.bank_name, deposit_reference: values.deposit_reference },
+        details: {
+          amount: values.deposit_amount,
+          currency: values.currency,
+          bank_name: values.bank_name,
+          deposit_reference: values.deposit_reference,
+          ifsc_swift_code: values.ifsc_swift_code,
+          proof_uploaded: !!proofUrl,
+        },
       } as any);
     },
     onSuccess: async (_data, variables) => {
       toast.success('Escrow deposit confirmed successfully');
+
+      // Best-effort status history (fire-and-forget).
+      if (user?.id) {
+        void logStatusTransition({
+          challengeId: variables.challengeId,
+          fromStatus: 'PENDING_FC_ESCROW',
+          toStatus: 'FC_ESCROW_CONFIRMED',
+          changedBy: user.id,
+          role: 'FC',
+          triggerEvent: 'ESCROW_DEPOSIT_CONFIRMED',
+          metadata: { amount: variables.deposit_amount, currency: variables.currency },
+        });
+      }
+
       // Call complete_financial_review RPC to set fc_compliance_complete and potentially advance phase
       try {
         const { error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
@@ -135,17 +198,28 @@ export default function EscrowManagementPage() {
       } catch {
         toast.warning('Escrow saved but could not trigger phase advancement.');
       }
-      setSelectedChallengeId(null); form.reset(); clearEscrowPersistence();
+      setSelectedChallengeId(null);
+      form.reset();
+      clearEscrowPersistence();
+      setProofFile(null);
+      setProofUploading(false);
       queryClient.invalidateQueries({ queryKey: ['fc-escrow-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['escrow-deposit'] });
       queryClient.invalidateQueries({ queryKey: ['publication-readiness'] });
     },
-    onError: (error: Error) => { handleMutationError(error, { operation: 'confirm_escrow' }); },
+    onError: (error: Error) => {
+      setProofUploading(false);
+      handleMutationError(error, { operation: 'confirm_escrow' });
+    },
   });
 
   const handleSubmit = (values: EscrowFormValues) => {
     const challenge = escrowChallenges?.find(c => c.challenge_id === selectedChallengeId);
     if (!challenge || !selectedChallengeId) return;
+    if (!proofFile) {
+      toast.error('Please upload deposit proof before submitting.');
+      return;
+    }
     confirmEscrow.mutate({ ...values, challengeId: selectedChallengeId, escrowId: challenge.escrow_id });
   };
 
@@ -212,7 +286,14 @@ export default function EscrowManagementPage() {
                   {isFunded && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
                 </div>
                 {isSelected && !isFunded && (
-                  <EscrowDepositForm form={form} onSubmit={handleSubmit} isPending={confirmEscrow.isPending} />
+                  <EscrowDepositForm
+                    form={form}
+                    onSubmit={handleSubmit}
+                    isPending={confirmEscrow.isPending}
+                    proofFile={proofFile}
+                    onProofFileChange={setProofFile}
+                    proofUploading={proofUploading}
+                  />
                 )}
               </CardContent>
             </Card>
