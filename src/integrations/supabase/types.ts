@@ -1397,6 +1397,57 @@ export type Database = {
           },
         ]
       }
+      challenge_edit_history: {
+        Row: {
+          after_value: Json | null
+          before_value: Json | null
+          challenge_id: string
+          created_at: string
+          edit_source: string
+          edited_by: string
+          id: string
+          role: string
+          section_key: string
+        }
+        Insert: {
+          after_value?: Json | null
+          before_value?: Json | null
+          challenge_id: string
+          created_at?: string
+          edit_source?: string
+          edited_by: string
+          id?: string
+          role?: string
+          section_key: string
+        }
+        Update: {
+          after_value?: Json | null
+          before_value?: Json | null
+          challenge_id?: string
+          created_at?: string
+          edit_source?: string
+          edited_by?: string
+          id?: string
+          role?: string
+          section_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_edit_history_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_edit_history_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
       challenge_incentive_selections: {
         Row: {
           challenge_id: string
@@ -2086,6 +2137,10 @@ export type Database = {
           context_intake_status: string | null
           created_at: string
           created_by: string | null
+          creator_approval_notes: string | null
+          creator_approval_requested_at: string | null
+          creator_approval_status: string | null
+          creator_approved_at: string | null
           creator_legal_instructions: string | null
           creator_snapshot: Json | null
           curation_frozen_at: string | null
@@ -2129,6 +2184,7 @@ export type Database = {
           min_star_tier: number
           operating_model: string | null
           organization_id: string
+          pass3_stale: boolean | null
           payment_status: string | null
           phase_schedule: Json | null
           phase_status: string | null
@@ -2180,6 +2236,10 @@ export type Database = {
           context_intake_status?: string | null
           created_at?: string
           created_by?: string | null
+          creator_approval_notes?: string | null
+          creator_approval_requested_at?: string | null
+          creator_approval_status?: string | null
+          creator_approved_at?: string | null
           creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
           curation_frozen_at?: string | null
@@ -2223,6 +2283,7 @@ export type Database = {
           min_star_tier?: number
           operating_model?: string | null
           organization_id: string
+          pass3_stale?: boolean | null
           payment_status?: string | null
           phase_schedule?: Json | null
           phase_status?: string | null
@@ -2274,6 +2335,10 @@ export type Database = {
           context_intake_status?: string | null
           created_at?: string
           created_by?: string | null
+          creator_approval_notes?: string | null
+          creator_approval_requested_at?: string | null
+          creator_approval_status?: string | null
+          creator_approved_at?: string | null
           creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
           curation_frozen_at?: string | null
@@ -2317,6 +2382,7 @@ export type Database = {
           min_star_tier?: number
           operating_model?: string | null
           organization_id?: string
+          pass3_stale?: boolean | null
           payment_status?: string | null
           phase_schedule?: Json | null
           phase_status?: string | null
