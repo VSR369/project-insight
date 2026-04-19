@@ -165,9 +165,15 @@ export function useCurationActionData({
   // ── CR Approval mutation ──
   const crApprovalMutation = useMutation({
     mutationFn: async () => {
+      // Set phase_status AND seed the Creator approval window so the
+      // 7-day countdown / timeout cron has an anchor date.
       const { error: updateError } = await supabase
         .from('challenges')
-        .update({ phase_status: 'CR_APPROVAL_PENDING' } as any)
+        .update({
+          phase_status: 'CR_APPROVAL_PENDING',
+          creator_approval_status: 'pending',
+          creator_approval_requested_at: new Date().toISOString(),
+        } as any)
         .eq('id', challengeId);
       if (updateError) throw new Error(updateError.message);
 
