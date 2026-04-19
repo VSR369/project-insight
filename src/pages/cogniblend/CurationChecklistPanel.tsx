@@ -96,6 +96,22 @@ export default function CurationChecklistPanel({
     enabled: !!challengeId, staleTime: 5 * 60_000,
   });
 
+  const { data: pass3Complete = false } = useQuery({
+    queryKey: ['pass3-complete-check', challengeId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('challenge_legal_docs')
+        .select('ai_review_status')
+        .eq('challenge_id', challengeId)
+        .eq('document_type', 'UNIFIED_SPA')
+        .eq('ai_review_status', 'accepted')
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!challengeId,
+    staleTime: 10_000,
+  });
+
   const returnMutation = useMutation({
     mutationFn: async (reason: string) => {
       const newNum = amendmentCount + 1;
@@ -127,7 +143,7 @@ export default function CurationChecklistPanel({
   const evalCriteria = unwrapEvalCriteria(challenge.evaluation_criteria);
   const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight ?? 0), 0) ?? 0;
 
-  const autoChecks: boolean[] = useMemo(() => [
+  const baseAutoChecks: boolean[] = useMemo(() => [
     !!challenge.problem_statement?.trim(),
     !!challenge.scope?.trim(),
     (() => { const d = unwrapArray(challenge.deliverables, "items"); return !!d && d.length > 0; })(),
@@ -149,13 +165,26 @@ export default function CurationChecklistPanel({
     isControlledMode(governanceMode) ? escrowRecord?.escrow_status === "FUNDED" : true,
   ], [challenge, evalWeightSum, escrowRecord, governanceMode]);
 
-  const CHECKLIST_LABELS: string[] = [
+  const baseLabels: string[] = useMemo(() => [
     "Problem Statement present", "Scope defined", "Deliverables listed",
     "Evaluation criteria weights = 100%", "Reward structure valid", "Phase schedule defined",
     "Submission guidelines provided", "Eligibility configured", "IP model confirmed",
     "Complexity parameters entered", "Maturity level confirmed", "Artifact types configured",
     isControlledMode(governanceMode) ? "Creator approval requested" : "Fee calculation verified",
-  ];
+  ], [governanceMode]);
+
+  // V-CR-6: STRUCTURED/CONTROLLED require Pass 3 (Legal AI Review) acceptance.
+  const requiresPass3 = governanceMode !== 'QUICK';
+
+  const autoChecks: boolean[] = useMemo(
+    () => requiresPass3 ? [...baseAutoChecks, pass3Complete === true] : baseAutoChecks,
+    [baseAutoChecks, requiresPass3, pass3Complete],
+  );
+
+  const CHECKLIST_LABELS: string[] = useMemo(
+    () => requiresPass3 ? [...baseLabels, "Legal AI review completed (Pass 3)"] : baseLabels,
+    [baseLabels, requiresPass3],
+  );
 
   const TOTAL_ITEMS = CHECKLIST_LABELS.length;
 
@@ -180,6 +209,10 @@ export default function CurationChecklistPanel({
   const handleSubmitClick = () => {
     if (isLegalPending) { toast.error('Legal documents must be attached before curation can begin.'); return; }
     if (hasOutstandingRequired) { toast.error('All Required modification points must be Addressed or Waived before submitting.'); return; }
+    if (requiresPass3 && !pass3Complete) {
+      toast.error('Legal AI Review (Pass 3) must be completed before submission. Please review the Legal Review panel below.');
+      return;
+    }
     if (!allComplete) { setShowIncompleteModal(true); return; }
     if (!user?.id) { toast.error("Authentication required"); return; }
     const summary = checklistItems.map((item) => ({ id: item.id, label: item.label, passed: isChecked(item), method: item.autoChecked ? "auto" : "manual" }));
