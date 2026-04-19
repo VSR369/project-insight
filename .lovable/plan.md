@@ -1,98 +1,65 @@
 
 
-## Sprint 0 — Database Lifecycle Fix (Plan)
+## Sprint 1 — TipTap Legal Editor Components (Cogniblend)
 
-### Verified state of the database
+Create 5 new reusable building-block components under `src/components/cogniblend/legal/`. Standalone — not wired into any existing page. Zero modifications to existing files.
 
-| Item | Current | Target | Notes |
+### Files to create
+
+| # | File | ~Lines | Purpose |
 |---|---|---|---|
-| `complete_phase` line 133 | `v_legal_doc_mode = 'formal_approval'` | `'ai_review'` | Bug confirmed — value not in CHECK constraint, branch never fires |
-| `complete_phase` line 137 | `v_escrow_mode = 'mandatory_escrow'` | `'mandatory'` | Bug confirmed — value not in CHECK constraint, escrow never created |
-| `md_governance_mode_config` STRUCTURED row | `ai_legal_review_enabled = false` | `true` | Enables Pass 3 prep |
-| `auto_assign_roles_on_creation` STRUCTURED | `ARRAY['CR','LC']` | `ARRAY['CR']` | LC stays with Curator, not Creator |
-| `md_lifecycle_phase_config` STRUCTURED P3 | `auto_complete = false`, `required_role = 'CU'` | `auto_complete = true` | Curator already absorbs LC/FC in STRUCTURED, so P3 should cascade |
-| LC/FC auto-assign on CONTROLLED Phase 3 entry | not present | present | New block inside Phase 3 setup |
+| 1 | `LegalDocEditorPanel.tsx` | ~90 | Controlled TipTap editor with legal-doc CSS shell |
+| 2 | `LegalDocEditorToolbar.tsx` | ~140 | Formatting toolbar (Bold/Italic/Underline, H2/H3, lists, quote, HR, undo/redo) with shadcn `Tooltip` |
+| 3 | `LegalDocQuickInserts.tsx` | ~180 | Dropdown with 8 prebuilt legal clause templates (7 standard + 1 AGG-specific) |
+| 4 | `LegalDocUploadHandler.tsx` | ~170 | DOCX (mammoth) + TXT upload, 10MB cap, replace-confirm `AlertDialog`, loading spinner, sonner toasts |
+| 5 | `LegalDocSectionNav.tsx` | ~120 | Vertical 11-section navigator with status dots; exports `LEGAL_SECTIONS` constant |
 
-### One discrepancy with the user's prompt to flag
+### Design decisions (deltas vs admin/legal versions)
 
-The prompt assumes `auto_assign_challenge_role(p_challenge_id, p_role_code, p_assigned_by)` (3 args). The **actual deployed signature** is:
+- **Controlled editor**: unlike admin's `contentVersion`-keyed reset, the new panel diffs `content` vs `editor.getHTML()` inside a `useEffect` to avoid cursor jumping, per prompt.
+- **Extensions**: `StarterKit + Underline + TextAlign + Placeholder` only (lighter than admin which loads Table/Highlight/Link/CharacterCount).
+- **Placeholder**: uses `@tiptap/extension-placeholder` driven by `placeholder` prop.
+- **ReadOnly**: passed via `editable: !readOnly` and re-applied with `editor.setEditable()` on prop change.
+- **Quick Inserts**: shadcn `DropdownMenu` (admin uses inline `Button`s) with a `DropdownMenuSeparator` between Standard Clauses (7) and Model-Specific (Non-Circumvention AGG). Each template is a real 2–3 sentence legal paragraph with numbered sub-clauses.
+- **Upload Handler**: same mammoth pattern as admin hook but inlined (no Supabase storage upload — purely local conversion as the prompt does not mention persistence). 10MB guard + `AlertDialog` for replace confirmation when `hasExistingContent`.
+- **Section Nav**: new component (no admin equivalent). Tailwind-only, ~220px wide, exports both component and `LEGAL_SECTIONS` constant array of 11 sections with `id` + `label` + index.
 
+### Status badge mapping (Section Nav)
+
+```text
+pending      → bg-muted   gray dot
+ai_modified  → bg-blue-500 dot + "AI" pill
+reviewed     → bg-yellow-500 dot
+approved     → green check icon (lucide CheckCircle2)
 ```
-auto_assign_challenge_role(
-  p_challenge_id uuid,
-  p_pool_member_id uuid,
-  p_user_id uuid,
-  p_slm_role_code text,
-  p_governance_role_code text,
-  p_assigned_by uuid,
-  p_assignment_phase text
-)
-```
 
-It needs a **pool member already selected** — it does not pick a member itself. So calling it the way the prompt suggests would always fail. I will keep the spirit of Bug Fix 4 by:
+### Type exports
 
-1. Adding a small lookup that picks the next eligible pool member for `LC` (R9) and `FC` (R8) using `getPoolCodesForGovernanceRole` logic inline, then
-2. Calling the real 7-arg signature, all wrapped in a `BEGIN…EXCEPTION WHEN OTHERS THEN NULL` so a pool miss never breaks the phase transition.
-
-If no eligible pool member exists, the block becomes a no-op (logged as a skip in `audit_trail`), and a human admin assigns the role manually later — no regression.
-
-### What the migration will contain (single new file)
-
-1. **`CREATE OR REPLACE FUNCTION public.complete_phase`** with:
-   - Line 133 condition fixed (`'ai_review'`)
-   - Line 137 condition fixed (`'mandatory'`)
-   - New CONTROLLED LC/FC pool auto-assignment block immediately after the `lc_review_required = TRUE` line, using the real 7-arg signature with a safe pool-pick subquery and a `BEGIN/EXCEPTION` wrapper
-   - Same signature `(p_challenge_id uuid, p_user_id uuid)`, same `RETURNS jsonb`, same `SECURITY DEFINER`, same `SET search_path = public`
-   - Every other line preserved verbatim (QUICK path untouched)
-
-2. **`CREATE OR REPLACE FUNCTION public.auto_assign_roles_on_creation`** with:
-   - STRUCTURED branch changed from `ARRAY['CR','LC']` to `ARRAY['CR']`
-   - Same signature, return type, security
-   - QUICK and CONTROLLED branches preserved verbatim
-
-3. **`UPDATE md_governance_mode_config SET ai_legal_review_enabled = true WHERE governance_mode = 'STRUCTURED';`**
-
-4. **`UPDATE md_lifecycle_phase_config SET auto_complete = true WHERE governance_mode = 'STRUCTURED' AND phase_number = 3;`**
+Each file exports its `Props` interface. `LegalDocSectionNav.tsx` additionally exports:
+- `LEGAL_SECTIONS: ReadonlyArray<{ id: string; label: string }>`
+- `LegalSectionStatus` type: `'pending' | 'ai_modified' | 'reviewed' | 'approved'`
 
 ### Guarantees
 
-- **Single new migration file** — no edits to any prior migration.
-- **Zero frontend changes** — no `.tsx` / `.ts` touched.
-- **QUICK code path bit-identical** — the only QUICK-relevant change is removing the false-`'mandatory_escrow'` branch which never executed for QUICK anyway (`v_escrow_mode = 'not_applicable'` for QUICK).
-- **No types regeneration risk** — function signatures and return types are byte-identical to current.
-- **Idempotent** — re-running the migration is safe (CREATE OR REPLACE + UPDATE WHERE).
-
-### Post-migration validation queries
-
-```sql
--- Should return ai_legal_review_enabled = true
-SELECT governance_mode, ai_legal_review_enabled
-FROM md_governance_mode_config WHERE governance_mode = 'STRUCTURED';
-
--- Should return auto_complete = true
-SELECT governance_mode, phase_number, auto_complete
-FROM md_lifecycle_phase_config
-WHERE governance_mode = 'STRUCTURED' AND phase_number = 3;
-
--- Confirm STRUCTURED Creator no longer gets LC
--- (manual: create a STRUCTURED challenge, inspect user_challenge_roles for the creator)
-```
+- 5 new files only; **no existing file touched**.
+- Each file < 250 lines (R1).
+- TypeScript strict; no `any` (R3).
+- All deps (`@tiptap/*`, `mammoth`, shadcn primitives, `lucide-react`, `sonner`) already in `package.json` — no installs.
+- CSS reused: `import '@/styles/legal-document.css'` once in the editor panel.
+- Components are pure presentational/controlled — no Supabase, no React Query, no business logic (R2 layer separation respected).
+- No route/page changes; existing Curation Queue, LC workspace, admin legal editor untouched.
 
 ### Out of scope (explicitly)
 
-- No change to `auto_assign_challenge_role` itself.
-- No change to `md_governance_mode_config` CHECK constraints.
-- No change to Phase 2 logic, harmonization, repair-malformed-sections, or any AI edge function.
-- Creator Legal Instructions creator-form gate (still tracked separately).
+- No wiring into Curator or LC pages (Sprint 3 / Sprint 4).
+- No persistence to DB or Supabase storage.
+- No AI suggestion overlays.
+- No section-level diff or version history (separate component already exists for admin).
 
-### Risk register
+### Validation after generation
 
-| Risk | Mitigation |
-|---|---|
-| LC/FC pool empty on CONTROLLED Phase 3 entry | Wrapped in `EXCEPTION WHEN OTHERS THEN NULL`; phase transition still succeeds; human admin assigns later |
-| `auto_assign_challenge_role` signature changes in future | Block is fully self-contained inside one IF; future change touches only that block |
-| Existing CONTROLLED challenges already past Phase 3 | Migration only affects future transitions; no backfill needed |
-| STRUCTURED P3 cascade now skipping a step a curator expected to act on | STRUCTURED P3 has `lc_compliance_complete + fc_compliance_complete` already auto-set TRUE during P2, so there's nothing for a human to do at P3 — auto_complete is the correct semantics |
-
-After approval I will write the single migration file and submit it via the migration tool. No other files touched.
+- `npm run build` must pass with zero new errors.
+- `src/components/cogniblend/legal/` contains exactly 5 new files.
+- `git diff` shows only additions, no modifications.
+- Existing routes (`/cogni/curation/queue`, `/cogni/lc-workspace`, `/admin/legal`) render identically.
 
