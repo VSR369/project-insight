@@ -96,6 +96,22 @@ export default function CurationChecklistPanel({
     enabled: !!challengeId, staleTime: 5 * 60_000,
   });
 
+  const { data: pass3Complete = false } = useQuery({
+    queryKey: ['pass3-complete-check', challengeId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('challenge_legal_docs')
+        .select('ai_review_status')
+        .eq('challenge_id', challengeId)
+        .eq('document_type', 'UNIFIED_SPA')
+        .eq('ai_review_status', 'accepted')
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!challengeId,
+    staleTime: 10_000,
+  });
+
   const returnMutation = useMutation({
     mutationFn: async (reason: string) => {
       const newNum = amendmentCount + 1;
