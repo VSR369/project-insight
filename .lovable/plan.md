@@ -1,98 +1,78 @@
 
 
-## Sprint 3 — Curator Pass 3 UX (STRUCTURED Mode)
+## Sprint 4 — LC Refactor + Pass 3 Wiring
 
-Wires Sprint 1 components + Sprint 2 backend into the Curation Review page. Three new files, two minimal edits. QUICK mode untouched.
+Decompose the 1,358-line `LcLegalWorkspacePage.tsx` into 7 small files plus a thin orchestrator, and add the Pass 3 unified-SPA panel for the LC role.
 
 ### Files
 
 | # | File | Type | Lines | Purpose |
 |---|---|---|---|---|
-| 1 | `src/hooks/cogniblend/useCuratorLegalReview.ts` | CREATE | ~150 | Pass 3 query + 3 mutations (run/save/accept) |
-| 2 | `src/components/cogniblend/legal/CuratorLegalReviewPanel.tsx` | CREATE | ~220 | Idle/Running/Completed/Error UI with TipTap editor |
-| 3 | `src/pages/cogniblend/CurationReviewPage.tsx` | MODIFY | +12 | Add panel below CuratorCpaReviewPanel, gated by `govMode !== 'QUICK'` AND `current_phase === 2` |
-| 4 | `src/pages/cogniblend/CurationChecklistPanel.tsx` | MODIFY | +25 | Add Pass 3 query, V-CR-6 submit gate, conditional 14th checklist item |
+| 1 | `src/lib/cogniblend/lcLegalHelpers.ts` | CREATE | ~110 | `IP_MODEL_LABELS`, `DOCUMENT_TYPES`, `FILE_UPLOAD_CONFIG`, types `SuggestedDoc`/`DocEditState`/`AttachedDoc`, `renderJsonList`, `renderEvalCriteria`, `parseRewardStructure` |
+| 2 | `src/hooks/cogniblend/useLcLegalData.ts` | CREATE | ~100 | `useChallengeForLC`, `useAttachedLegalDocs`, `usePersistedSuggestions` (typed return — no `any`) |
+| 3 | `src/hooks/cogniblend/useLcPass3Review.ts` | CREATE | ~150 | Mirror of `useCuratorLegalReview` for LC: query, `runPass3`, `saveEdits`, `acceptPass3`. Same `pass3-legal-review` query key so cache is shared. |
+| 4 | `src/components/cogniblend/lc/LcChallengeDetailsCard.tsx` | CREATE | ~230 | Read-only Accordion (Overview, Deliverables, Evaluation, IP/Governance/Reward, Solver) |
+| 5 | `src/components/cogniblend/lc/LcAttachedDocsCard.tsx` | CREATE | ~120 | Attached docs list with delete `AlertDialog` |
+| 6 | `src/components/cogniblend/lc/LcAiSuggestionsSection.tsx` | CREATE | ~240 | Generate CTA + loading/error + collapsible suggestion cards (Textarea + FileUploadZone + Accept/Save/Dismiss) |
+| 7 | `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | CREATE | ~220 | TipTap-based unified SPA panel (idle/running/completed/error) |
+| 8 | `src/components/cogniblend/lc/LcAddDocumentForm.tsx` | CREATE | ~180 | Manual add-doc form (extracted to keep page <300 lines) |
+| 9 | `src/pages/cogniblend/LcLegalWorkspacePage.tsx` | REWRITE | ~240 | Thin orchestrator: hooks at top, conditional returns, JSX composition |
 
-### Hook design (`useCuratorLegalReview`)
+### Hook design (`useLcPass3Review`)
 
-- Query `['pass3-legal-review', challengeId]` → `challenge_legal_docs` filtered by `document_type='UNIFIED_SPA'`, returns `{ai_review_status, content_html, ai_modified_content_html, ai_changes_summary, ai_confidence, ai_regulatory_flags}` or null.
-- `pass3Status` derived: `null/pending` → `'idle'`, `'ai_suggested'/'accepted'` → `'completed'`, mutation pending → `'running'`, mutation error → `'error'`.
-- `runPass3`: invokes edge function with `{ challenge_id, pass3_mode: true }`; invalidates query; sonner toast.
-- `saveEdits(html)`: updates the row's `ai_modified_content_html` (preserves original `content_html`); invalidates.
-- `acceptPass3`: updates `ai_review_status='accepted'`, `lc_status='approved'`, `lc_reviewed_by`, `lc_reviewed_at`; invalidates both `pass3-legal-review` and `pass3-complete-check` keys (so checklist gate clears immediately).
-- All mutations use `withUpdatedBy` per project standards; errors via `handleMutationError` if available, else sonner.
+Identical contract to `useCuratorLegalReview` (Sprint 3) — same `['pass3-legal-review', challengeId]` key, same mutations (`runPass3`, `saveEdits`, `acceptPass3`), same derived `pass3Status` / `isPass3Complete`. Reusing the same key means if both Curator and LC view the same challenge in different sessions, cache stays consistent.
 
-### Panel design (`CuratorLegalReviewPanel`)
+### Panel design (`LcPass3ReviewPanel`)
 
-- Card with Shield icon + "Legal Review — Pass 3" title.
-- Branches on `pass3Status`: idle (CTA), running (Loader2), completed (summary Alert + confidence Badge + flags + TipTap editor + action row), error (destructive Alert + Retry).
-- Toolbar row: `LegalDocEditorToolbar` + `LegalDocQuickInserts` + `LegalDocUploadHandler` (hasExistingContent={true}).
-- Editor: `LegalDocEditorPanel` controlled, readOnly when accepted. Local `editedHtml` state seeded from hook; "Save Draft" passes it to `saveEdits`.
-- Section nav (`LegalDocSectionNav`) shown alongside as a left-rail when completed (single-doc view, navigates by anchor scroll within document).
-- Stays under 250 lines by delegating all data work to the hook.
+Same four-state pattern as `CuratorLegalReviewPanel`:
+- **Idle** → Shield card + "Run Pass 3 AI Review" CTA + explainer
+- **Running** → Loader2 + status text
+- **Completed** → AI summary Alert + confidence Badge + regulatory flags + `LegalDocEditorToolbar` + `LegalDocQuickInserts` + `LegalDocUploadHandler` + `LegalDocEditorPanel` + Save Draft / Re-run / Accept buttons; after accept → green "Approved ✓" badge with read-only editor
+- **Error** → destructive Alert + Retry
 
-### CurationReviewPage edit
+### Page composition order (LcLegalWorkspacePage)
 
-Insert AFTER closing `</div>` of the `lg:grid-cols-4` block (line 378), BEFORE `MODALS & OVERLAYS` comment (line 380):
-
-```tsx
-{/* Pass 3: Legal AI Review — STRUCTURED/CONTROLLED only */}
-{((o.challenge as any)?.governance_mode_override ?? o.challenge?.governance_profile ?? 'QUICK')
-  .toUpperCase() !== 'QUICK' &&
-  (o.challenge?.current_phase ?? 0) === 2 && (
-    <CuratorLegalReviewPanel challengeId={o.challengeId!} />
-  )}
+```
+Header (inline, ~20 lines)
+WorkflowProgressBanner step={3}
+<LcChallengeDetailsCard challenge={…} />
+<AssembledCpaSection challengeId={…} />        ← unchanged
+<LcAttachedDocsCard … />
+{isLC && <LcPass3ReviewPanel challengeId={…} />}  ← NEW
+<LcAiSuggestionsSection … />                    ← existing flow, untouched
+{isLC && <LcAddDocumentForm … />}
+GATE-02 banners + pending warning + submit Card with <LcReturnToCurator/>, <LcApproveAction/>, Submit button
 ```
 
-Plus one import. Zero changes to existing JSX.
+### What stays in the page (orchestrator only)
 
-### CurationChecklistPanel edit
+- All `useState` for generate / docEdits / openCards / submit / addDoc form state
+- All mutations (`acceptDocMutation`, `deleteDocMutation`, `dismissSuggestionMutation`, `handleGenerate`, `handleSaveContent`, `handleAddNewDoc`, `handleSubmitToCuration`)
+- Conditional returns for `challengeLoading`, PWA gate, access denied
+- Final submit Card with `gateFailures` + pending suggestions Alert + `LcReturnToCurator` + `LcApproveAction` + Submit button
 
-1. Add Pass 3 query before `governanceMode` line:
-   ```ts
-   const { data: pass3Complete = false } = useQuery({
-     queryKey: ['pass3-complete-check', challengeId],
-     queryFn: async () => {
-       const { data } = await supabase
-         .from('challenge_legal_docs')
-         .select('ai_review_status')
-         .eq('challenge_id', challengeId)
-         .eq('document_type', 'UNIFIED_SPA')
-         .eq('ai_review_status', 'accepted')
-         .maybeSingle();
-       return !!data;
-     },
-     enabled: !!challengeId, staleTime: 10_000,
-   });
-   ```
+State and handlers passed down as props. No business logic moves into components.
 
-2. Convert `CHECKLIST_LABELS` and `autoChecks` to `useMemo`-derived arrays that conditionally append the Pass 3 item when `governanceMode !== 'QUICK'`:
-   - QUICK → 13 items (unchanged)
-   - STRUCTURED/CONTROLLED → 14 items, last = "Legal AI review completed (Pass 3)" / `pass3Complete`
+### Backward-compatibility guarantees
 
-3. In `handleSubmitClick`, BEFORE the `!allComplete` check:
-   ```ts
-   if (governanceMode !== 'QUICK' && !pass3Complete) {
-     toast.error('Legal AI Review (Pass 3) must be completed before submission. Please review the Legal Review panel below.');
-     return;
-   }
-   ```
+- "Generate Legal Documents" button still calls edge function with `{ challenge_id }` (no `pass3_mode`) → legacy flow unchanged.
+- Individual doc Accept/Save/Dismiss/file upload preserved verbatim inside `LcAiSuggestionsSection`.
+- `complete_legal_review` RPC submit path untouched.
+- `AssembledCpaSection`, `LcReturnToCurator`, `LcApproveAction`, `WorkflowProgressBanner`, `PwaAcceptanceGate`, `FileUploadZone` imports preserved.
+- Pass 3 panel is purely additive — placed between AttachedDocs and AI Suggestions.
 
-No other behavior touched. Modal/return/audit logic identical.
+### Constraints met
 
-### Safety guarantees
-
-- `govMode !== 'QUICK'` gate at every entry point — QUICK challenges never see panel, never get 14th item, never hit V-CR-6 gate.
-- `current_phase === 2` gate ensures panel only renders during curation, not after.
-- LC workspace's "Generate Legal Docs" call sends `{ challenge_id }` only — `pass3_mode` stays `undefined`, legacy edge function path runs byte-identically.
-- Pass 1 / Pass 2 / Accept All / wave execution code: zero touch.
-- All files < 250 lines; layer separation respected (component → hook → supabase).
-- React Query cache invalidation links: panel acceptance → checklist gate clears within one render.
+- Every new file < 250 lines (largest: `LcAiSuggestionsSection` at ~240, `LcChallengeDetailsCard` at ~230).
+- Page rewrite ~240 lines (target <300).
+- Layer separation: components receive data via props; hooks own queries/mutations; no `supabase.from` in components 4/5/6/8.
+- Zero `any` in new code — `Record<string, unknown>` + narrowed types; existing `any` usages confined to legacy mutation payloads inside the page orchestrator (cannot eliminate without schema changes — out of scope).
+- TipTap components from Sprint 1 reused as-is.
+- `useCuratorLegalReview` pattern from Sprint 3 mirrored exactly.
 
 ### Out of scope
 
-- No edge function changes (already handled in Sprint 2).
-- No CONTROLLED-mode LC handoff (Sprint 4).
-- No section-level diff visualization (single unified doc).
-- No PDF export of the unified SPA.
+- Visibility gating of Pass 3 panel by governance mode — the prompt specifies "shown for CONTROLLED mode" but also says `{isLC && <LcPass3ReviewPanel/>}`. Will follow the explicit JSX directive (`isLC` only). LC role assignment is itself governance-gated (LC only assigned in STRUCTURED/CONTROLLED), so this naturally restricts visibility without an extra check.
+- Refactoring legacy `as any` casts in existing mutations.
+- Section-level diff/version history for Pass 3 (single unified doc view).
 
