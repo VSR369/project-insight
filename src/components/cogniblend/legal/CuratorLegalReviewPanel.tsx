@@ -44,21 +44,76 @@ const CONFIDENCE_VARIANT: Record<
   low: { label: 'Low confidence', className: 'bg-destructive/10 text-destructive border-destructive/30' },
 };
 
+function buildHeadingGuard(protectedHeadings: string[]) {
+  const normalized = protectedHeadings.map((h) => h.trim().toLowerCase()).filter(Boolean);
+  return Extension.create({
+    name: 'protectedHeadingGuard',
+    addOptions() {
+      return { protectedHeadings: normalized };
+    },
+  });
+}
+
+function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<string> {
+  const found = new Set<string>();
+  doc?.descendants?.((node: any) => {
+    if (node?.type?.name === 'heading' && node?.attrs?.level === 2) {
+      const text = String(node.textContent ?? '').trim().toLowerCase();
+      if (protectedNormalized.includes(text)) found.add(text);
+    }
+    return true;
+  });
+  return found;
+}
+
 export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanelProps) {
   const review = useCuratorLegalReview(challengeId);
   const [editedHtml, setEditedHtml] = useState<string>('');
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
-    ],
-    content: '',
-    editable: !review.isPass3Accepted,
-    onUpdate: ({ editor: e }) => setEditedHtml(e.getHTML()),
-  });
+  const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
+
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit,
+        Underline,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
+        buildHeadingGuard(review.protectedHeadings),
+      ],
+      content: '',
+      editable: !review.isPass3Accepted,
+      onUpdate: ({ editor: e }) => setEditedHtml(e.getHTML()),
+    },
+    [protectedNormalized.join('|')],
+  );
+
+  // Install the protected-heading dispatch guard.
+  useEffect(() => {
+    if (!editor || protectedNormalized.length === 0) return;
+    const view = editor.view;
+    const original = view.props.dispatchTransaction ?? view.dispatch.bind(view);
+    const guarded = (tr: typeof view.state.tr) => {
+      if (tr.docChanged) {
+        const before = collectProtectedHeadings(view.state.doc, protectedNormalized);
+        const after = collectProtectedHeadings(tr.doc, protectedNormalized);
+        for (const heading of before) {
+          if (!after.has(heading)) {
+            toast.info(
+              'This section is mandatory for the Aggregator model and cannot be removed. You can edit the terms within it.',
+            );
+            return;
+          }
+        }
+      }
+      original(tr);
+    };
+    view.setProps({ dispatchTransaction: guarded });
+    return () => {
+      view.setProps({ dispatchTransaction: original });
+    };
+  }, [editor, protectedNormalized.join('|')]);
 
   // Sync hook content into the editor whenever it changes externally.
   useEffect(() => {
