@@ -14,6 +14,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 
+const STALE_KEY = (challengeId: string | undefined) =>
+  ['pass3-stale', challengeId] as const;
+
 export type Pass3Status = 'idle' | 'running' | 'completed' | 'error';
 export type Pass3Confidence = 'high' | 'medium' | 'low' | null;
 
