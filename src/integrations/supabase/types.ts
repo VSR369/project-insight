@@ -418,14 +418,18 @@ export type Database = {
           created_by: string | null
           id: string
           is_active: boolean
+          max_tokens: number | null
           min_clauses: number | null
+          reasoning_effort: string | null
           regulatory_frameworks: string[]
           required_context_keys: string[]
           section_instructions: string | null
+          section_instructions_by_tier: Json | null
           section_key: string
           section_order: number
           section_title: string
           system_prompt: string
+          tier_complexity: string | null
           updated_at: string | null
           updated_by: string | null
         }
@@ -437,14 +441,18 @@ export type Database = {
           created_by?: string | null
           id?: string
           is_active?: boolean
+          max_tokens?: number | null
           min_clauses?: number | null
+          reasoning_effort?: string | null
           regulatory_frameworks?: string[]
           required_context_keys?: string[]
           section_instructions?: string | null
+          section_instructions_by_tier?: Json | null
           section_key: string
           section_order: number
           section_title: string
           system_prompt: string
+          tier_complexity?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -456,14 +464,18 @@ export type Database = {
           created_by?: string | null
           id?: string
           is_active?: boolean
+          max_tokens?: number | null
           min_clauses?: number | null
+          reasoning_effort?: string | null
           regulatory_frameworks?: string[]
           required_context_keys?: string[]
           section_instructions?: string | null
+          section_instructions_by_tier?: Json | null
           section_key?: string
           section_order?: number
           section_title?: string
           system_prompt?: string
+          tier_complexity?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -1513,6 +1525,7 @@ export type Database = {
           content_summary: string | null
           created_at: string
           created_by: string | null
+          creator_comments: string | null
           document_name: string | null
           document_type: string
           id: string
@@ -1550,6 +1563,7 @@ export type Database = {
           content_summary?: string | null
           created_at?: string
           created_by?: string | null
+          creator_comments?: string | null
           document_name?: string | null
           document_type: string
           id?: string
@@ -1587,6 +1601,7 @@ export type Database = {
           content_summary?: string | null
           created_at?: string
           created_by?: string | null
+          creator_comments?: string | null
           document_name?: string | null
           document_type?: string
           id?: string
@@ -2201,6 +2216,7 @@ export type Database = {
           creator_approval_requested_at: string | null
           creator_approval_status: string | null
           creator_approved_at: string | null
+          creator_escrow_comments: string | null
           creator_legal_instructions: string | null
           creator_snapshot: Json | null
           curation_frozen_at: string | null
@@ -2300,6 +2316,7 @@ export type Database = {
           creator_approval_requested_at?: string | null
           creator_approval_status?: string | null
           creator_approved_at?: string | null
+          creator_escrow_comments?: string | null
           creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
           curation_frozen_at?: string | null
@@ -2399,6 +2416,7 @@ export type Database = {
           creator_approval_requested_at?: string | null
           creator_approval_status?: string | null
           creator_approved_at?: string | null
+          creator_escrow_comments?: string | null
           creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
           curation_frozen_at?: string | null

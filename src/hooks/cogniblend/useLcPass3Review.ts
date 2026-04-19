@@ -25,6 +25,9 @@ export interface Pass3Document {
   ai_confidence: Pass3Confidence;
   ai_regulatory_flags: string[];
   pass3_run_count: number;
+  version_history: unknown;
+  lc_reviewed_by: string | null;
+  lc_reviewed_at: string | null;
 }
 
 const PASS3_KEY = (challengeId: string | undefined) =>
@@ -32,6 +35,18 @@ const PASS3_KEY = (challengeId: string | undefined) =>
 
 const STALE_KEY = (challengeId: string | undefined) =>
   ['pass3-stale', challengeId] as const;
+
+const OP_MODEL_KEY = (challengeId: string | undefined) =>
+  ['challenge-operating-model', challengeId] as const;
+
+function appendVersion(
+  existing: unknown,
+  entry: Record<string, unknown>,
+): unknown[] {
+  const current = Array.isArray(existing) ? [...existing] : [];
+  current.push(entry);
+  return current;
+}
 
 export function useLcPass3Review(challengeId: string | undefined) {
   const queryClient = useQueryClient();
@@ -45,7 +60,7 @@ export function useLcPass3Review(challengeId: string | undefined) {
       const { data, error } = await supabase
         .from('challenge_legal_docs')
         .select(
-          'id, ai_review_status, content_html, ai_modified_content_html, ai_changes_summary, ai_confidence, ai_regulatory_flags, pass3_run_count',
+          'id, ai_review_status, content_html, ai_modified_content_html, ai_changes_summary, ai_confidence, ai_regulatory_flags, pass3_run_count, version_history, lc_reviewed_by, lc_reviewed_at',
         )
         .eq('challenge_id', challengeId!)
         .eq('document_type', 'UNIFIED_SPA')
@@ -71,6 +86,9 @@ export function useLcPass3Review(challengeId: string | undefined) {
         ai_confidence: (data.ai_confidence as Pass3Confidence) ?? null,
         ai_regulatory_flags: flags,
         pass3_run_count: (data.pass3_run_count as number | null) ?? 0,
+        version_history: data.version_history,
+        lc_reviewed_by: (data.lc_reviewed_by as string | null) ?? null,
+        lc_reviewed_at: (data.lc_reviewed_at as string | null) ?? null,
       };
     },
   });
@@ -87,6 +105,21 @@ export function useLcPass3Review(challengeId: string | undefined) {
         .maybeSingle();
       if (error) return false;
       return (data as { pass3_stale?: boolean | null } | null)?.pass3_stale === true;
+    },
+  });
+
+  const opModelQuery = useQuery({
+    queryKey: OP_MODEL_KEY(challengeId),
+    enabled: !!challengeId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<string | null> => {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('operating_model')
+        .eq('id', challengeId!)
+        .maybeSingle();
+      if (error) return null;
+      return (data as { operating_model?: string | null } | null)?.operating_model ?? null;
     },
   });
 
@@ -116,6 +149,31 @@ export function useLcPass3Review(challengeId: string | undefined) {
           .from('challenges')
           .update({ pass3_stale: false } as never)
           .eq('id', challengeId);
+
+        const { data: existing } = await supabase
+          .from('challenge_legal_docs')
+          .select('id, version_history, pass3_run_count, content_html')
+          .eq('challenge_id', challengeId)
+          .eq('document_type', 'UNIFIED_SPA')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing?.id && user?.id) {
+          const entry = {
+            version: ((existing.pass3_run_count as number | null) ?? 0),
+            timestamp: new Date().toISOString(),
+            actor: user.id,
+            role: 'LC',
+            action: 'pass3_run',
+            content_snapshot_length:
+              (existing.content_html as string | null)?.length ?? 0,
+          };
+          const next = appendVersion(existing.version_history, entry);
+          await supabase
+            .from('challenge_legal_docs')
+            .update({ version_history: next as never })
+            .eq('id', existing.id as string);
+        }
       }
       invalidateAll();
       toast.success('Legal AI review completed');
@@ -147,11 +205,20 @@ export function useLcPass3Review(challengeId: string | undefined) {
     mutationFn: async () => {
       const docId = query.data?.id;
       if (!docId) throw new Error('No legal document to accept');
+      const versionEntry = {
+        version: query.data?.pass3_run_count ?? 0,
+        timestamp: new Date().toISOString(),
+        actor: user?.id ?? null,
+        role: 'LC',
+        action: 'accepted',
+      };
+      const nextHistory = appendVersion(query.data?.version_history, versionEntry);
       const updates = await withUpdatedBy({
         ai_review_status: 'accepted',
         lc_status: 'approved',
         lc_reviewed_by: user?.id ?? null,
         lc_reviewed_at: new Date().toISOString(),
+        version_history: nextHistory as never,
       });
       const { error } = await supabase
         .from('challenge_legal_docs')
@@ -189,6 +256,9 @@ export function useLcPass3Review(challengeId: string | undefined) {
   const unifiedDocHtml =
     doc?.ai_modified_content_html ?? doc?.content_html ?? '';
 
+  const isAGG = opModelQuery.data === 'AGG';
+  const protectedHeadings = isAGG ? ['ANTI-DISINTERMEDIATION'] : [];
+
   return {
     pass3Status,
     unifiedDocHtml,
@@ -207,5 +277,10 @@ export function useLcPass3Review(challengeId: string | undefined) {
     runPass3: () => runPass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),
+    // Sprint 6B additions
+    protectedHeadings,
+    isAGG,
+    reviewerUserId: doc?.lc_reviewed_by ?? null,
+    reviewedAt: doc?.lc_reviewed_at ?? null,
   };
 }

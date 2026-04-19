@@ -18,6 +18,9 @@ import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 const STALE_KEY = (challengeId: string | undefined) =>
   ['pass3-stale', challengeId] as const;
 
+const APPROVAL_KEY = (challengeId: string | undefined) =>
+  ['pass3-creator-approval', challengeId] as const;
+
 export type Pass3Status = 'idle' | 'running' | 'completed' | 'error';
 export type Pass3Confidence = 'high' | 'medium' | 'low' | null;
 
@@ -30,10 +33,33 @@ export interface Pass3Document {
   ai_confidence: Pass3Confidence;
   ai_regulatory_flags: string[];
   pass3_run_count: number;
+  version_history: unknown;
+  lc_reviewed_by: string | null;
+  lc_reviewed_at: string | null;
+  creator_comments: string | null;
+}
+
+export interface CreatorApprovalSnapshot {
+  status: string | null;
+  requestedAt: string | null;
+  daysOverdue: number;
+  isOverdue: boolean;
+  operatingModel: string | null;
 }
 
 const PASS3_KEY = (challengeId: string | undefined) =>
   ['pass3-legal-review', challengeId] as const;
+
+const CREATOR_TIMEOUT_DAYS = 7;
+
+function appendVersion(
+  existing: unknown,
+  entry: Record<string, unknown>,
+): unknown[] {
+  const current = Array.isArray(existing) ? [...existing] : [];
+  current.push(entry);
+  return current;
+}
 
 export function useCuratorLegalReview(challengeId: string | undefined) {
   const queryClient = useQueryClient();
@@ -47,7 +73,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       const { data, error } = await supabase
         .from('challenge_legal_docs')
         .select(
-          'id, ai_review_status, content_html, ai_modified_content_html, ai_changes_summary, ai_confidence, ai_regulatory_flags, pass3_run_count',
+          'id, ai_review_status, content_html, ai_modified_content_html, ai_changes_summary, ai_confidence, ai_regulatory_flags, pass3_run_count, version_history, lc_reviewed_by, lc_reviewed_at, creator_comments',
         )
         .eq('challenge_id', challengeId!)
         .eq('document_type', 'UNIFIED_SPA')
@@ -73,6 +99,11 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
         ai_confidence: (data.ai_confidence as Pass3Confidence) ?? null,
         ai_regulatory_flags: flags,
         pass3_run_count: (data.pass3_run_count as number | null) ?? 0,
+        version_history: data.version_history,
+        lc_reviewed_by: (data.lc_reviewed_by as string | null) ?? null,
+        lc_reviewed_at: (data.lc_reviewed_at as string | null) ?? null,
+        creator_comments:
+          (data as { creator_comments?: string | null }).creator_comments ?? null,
       };
     },
   });
@@ -92,10 +123,54 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
     },
   });
 
+  const approvalQuery = useQuery({
+    queryKey: APPROVAL_KEY(challengeId),
+    enabled: !!challengeId,
+    staleTime: 30_000,
+    queryFn: async (): Promise<CreatorApprovalSnapshot | null> => {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select(
+          'creator_approval_status, creator_approval_requested_at, operating_model',
+        )
+        .eq('id', challengeId!)
+        .maybeSingle();
+      if (error) return null;
+      const row = data as {
+        creator_approval_status?: string | null;
+        creator_approval_requested_at?: string | null;
+        operating_model?: string | null;
+      } | null;
+      if (!row) return null;
+      const status = row.creator_approval_status ?? null;
+      const requestedAt = row.creator_approval_requested_at ?? null;
+      let daysOverdue = 0;
+      let isOverdue = false;
+      if (status === 'pending' && requestedAt) {
+        const elapsedMs = Date.now() - new Date(requestedAt).getTime();
+        const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+        const overshoot = elapsedDays - CREATOR_TIMEOUT_DAYS;
+        if (overshoot > 0) {
+          isOverdue = true;
+          daysOverdue = Math.floor(overshoot);
+          if (daysOverdue < 1) daysOverdue = 1;
+        }
+      }
+      return {
+        status,
+        requestedAt,
+        daysOverdue,
+        isOverdue,
+        operatingModel: row.operating_model ?? null,
+      };
+    },
+  });
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: PASS3_KEY(challengeId) });
     queryClient.invalidateQueries({ queryKey: ['pass3-complete-check', challengeId] });
     queryClient.invalidateQueries({ queryKey: STALE_KEY(challengeId) });
+    queryClient.invalidateQueries({ queryKey: APPROVAL_KEY(challengeId) });
   };
 
   const runPass3 = useMutation({
@@ -113,12 +188,37 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       return data;
     },
     onSuccess: async () => {
-      // Best-effort clear of pass3_stale on the parent challenge.
+      // Best-effort clear of pass3_stale + append version history snapshot.
       if (challengeId) {
         await supabase
           .from('challenges')
           .update({ pass3_stale: false } as never)
           .eq('id', challengeId);
+
+        const { data: existing } = await supabase
+          .from('challenge_legal_docs')
+          .select('id, version_history, pass3_run_count, content_html')
+          .eq('challenge_id', challengeId)
+          .eq('document_type', 'UNIFIED_SPA')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing?.id && user?.id) {
+          const entry = {
+            version: ((existing.pass3_run_count as number | null) ?? 0),
+            timestamp: new Date().toISOString(),
+            actor: user.id,
+            role: 'CU',
+            action: 'pass3_run',
+            content_snapshot_length:
+              (existing.content_html as string | null)?.length ?? 0,
+          };
+          const next = appendVersion(existing.version_history, entry);
+          await supabase
+            .from('challenge_legal_docs')
+            .update({ version_history: next as never })
+            .eq('id', existing.id as string);
+        }
       }
       invalidateAll();
       toast.success('Legal AI review completed');
@@ -150,11 +250,20 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
     mutationFn: async () => {
       const docId = query.data?.id;
       if (!docId) throw new Error('No legal document to accept');
+      const versionEntry = {
+        version: query.data?.pass3_run_count ?? 0,
+        timestamp: new Date().toISOString(),
+        actor: user?.id ?? null,
+        role: 'CU',
+        action: 'accepted',
+      };
+      const nextHistory = appendVersion(query.data?.version_history, versionEntry);
       const updates = await withUpdatedBy({
         ai_review_status: 'accepted',
         lc_status: 'approved',
         lc_reviewed_by: user?.id ?? null,
         lc_reviewed_at: new Date().toISOString(),
+        version_history: nextHistory as never,
       });
       const { error } = await supabase
         .from('challenge_legal_docs')
@@ -180,6 +289,40 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       handleMutationError(e, { operation: 'accept_pass3', component: 'useCuratorLegalReview' }),
   });
 
+  const overrideCreatorApproval = useMutation({
+    mutationFn: async (reason: string) => {
+      if (!challengeId) throw new Error('Missing challenge id');
+      const updates = await withUpdatedBy({
+        creator_approval_status: 'timeout_override',
+        creator_approval_notes: reason,
+      });
+      const { error } = await supabase
+        .from('challenges')
+        .update(updates)
+        .eq('id', challengeId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      if (challengeId && user?.id) {
+        void logStatusTransition({
+          challengeId,
+          fromStatus: 'CR_APPROVAL_PENDING',
+          toStatus: 'CR_APPROVAL_TIMEOUT_OVERRIDE',
+          changedBy: user.id,
+          role: 'CU',
+          triggerEvent: 'CURATOR_OVERRIDE_CREATOR_TIMEOUT',
+        });
+      }
+      invalidateAll();
+      toast.success('Creator approval overridden — challenge can proceed to publication');
+    },
+    onError: (e) =>
+      handleMutationError(e, {
+        operation: 'override_creator_approval',
+        component: 'useCuratorLegalReview',
+      }),
+  });
+
   const doc = query.data ?? null;
   const status = doc?.ai_review_status ?? null;
   const isPass3Accepted = status === 'accepted';
@@ -192,6 +335,9 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
   // Prefer modified content (latest edits), fall back to AI-generated content.
   const unifiedDocHtml =
     doc?.ai_modified_content_html ?? doc?.content_html ?? '';
+
+  const isAGG = approvalQuery.data?.operatingModel === 'AGG';
+  const protectedHeadings = isAGG ? ['ANTI-DISINTERMEDIATION'] : [];
 
   return {
     pass3Status,
@@ -211,5 +357,16 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
     runPass3: () => runPass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),
+    // Sprint 6B additions
+    protectedHeadings,
+    isAGG,
+    operatingModel: approvalQuery.data?.operatingModel ?? null,
+    creatorComments: doc?.creator_comments ?? null,
+    reviewerUserId: doc?.lc_reviewed_by ?? null,
+    reviewedAt: doc?.lc_reviewed_at ?? null,
+    creatorApproval: approvalQuery.data ?? null,
+    overrideCreatorApproval: (reason: string) =>
+      overrideCreatorApproval.mutate(reason),
+    isOverridingCreator: overrideCreatorApproval.isPending,
   };
 }
