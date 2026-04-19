@@ -20,7 +20,11 @@ import { usePreviewData } from '@/components/cogniblend/preview/usePreviewData';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
-import { notifyPass3Stale } from '@/lib/cogniblend/workflowNotifications';
+import {
+  notifyPass3Stale,
+  notifyCreatorApproved,
+  notifyCreatorChangesRequested,
+} from '@/lib/cogniblend/workflowNotifications';
 import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
 import {
   useCreatorReviewMutations,
@@ -152,6 +156,22 @@ export function useCreatorReview(challengeId: string | undefined) {
           role: 'CR',
           triggerEvent: 'CREATOR_ACCEPT_ALL',
         });
+
+        // Sprint 6C — Notify Curator (and LC if CTRL) that Creator approved.
+        void (async () => {
+          const roles = approvalQuery.data?.operating_model === 'AGG'
+            ? ['CU', 'LC']
+            : ['CU', 'LC'];
+          const recipients = await getActiveRoleUsers(challengeId, roles);
+          const title = preview.challenge?.title ?? undefined;
+          if (recipients.length > 0) {
+            await notifyCreatorApproved({
+              challengeId,
+              recipientUserIds: recipients,
+              challengeTitle: title,
+            });
+          }
+        })();
       }
       invalidateAll();
       toast.success('Challenge approved');
@@ -234,7 +254,7 @@ export function useCreatorReview(challengeId: string | undefined) {
         .eq('id', challengeId);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => {
+    onSuccess: (_data, reason) => {
       if (challengeId && user?.id) {
         void logStatusTransition({
           challengeId,
@@ -244,6 +264,20 @@ export function useCreatorReview(challengeId: string | undefined) {
           role: 'CR',
           triggerEvent: 'CREATOR_REQUEST_RECURATION',
         });
+
+        // Sprint 6C — Notify Curator(s).
+        void (async () => {
+          const recipients = await getActiveRoleUsers(challengeId, ['CU']);
+          await Promise.all(
+            recipients.map((uid) =>
+              notifyCreatorChangesRequested({
+                challengeId,
+                curatorUserId: uid,
+                reason: reason as string,
+              }),
+            ),
+          );
+        })();
       }
       invalidateAll();
       toast.success('Re-curation requested');

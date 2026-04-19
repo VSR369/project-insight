@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
+import { notifyLcApproved } from '@/lib/cogniblend/workflowNotifications';
+import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
 
 export type Pass3Status = 'idle' | 'running' | 'completed' | 'error';
 export type Pass3Confidence = 'high' | 'medium' | 'low' | null;
@@ -236,6 +238,14 @@ export function useLcPass3Review(challengeId: string | undefined) {
           role: 'LC',
           triggerEvent: 'LC_ACCEPT_PASS3',
         });
+
+        // Sprint 6C — Notify Curator + FC that LC has approved.
+        void (async () => {
+          const recipients = await getActiveRoleUsers(challengeId, ['CU', 'FC']);
+          if (recipients.length > 0) {
+            await notifyLcApproved({ challengeId, recipientUserIds: recipients });
+          }
+        })();
       }
       invalidateAll();
       toast.success('Legal documents approved');

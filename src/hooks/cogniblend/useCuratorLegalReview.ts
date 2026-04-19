@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
+import { notifyCurationComplete } from '@/lib/cogniblend/workflowNotifications';
 
 const STALE_KEY = (challengeId: string | undefined) =>
   ['pass3-stale', challengeId] as const;
@@ -281,6 +282,25 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
           role: 'CU',
           triggerEvent: 'CURATOR_ACCEPT_PASS3',
         });
+
+        // Sprint 6C — Notify Creator that curation+legal is complete and
+        // their approval window has opened. Fire-and-forget.
+        void (async () => {
+          const { data: row } = await supabase
+            .from('challenges')
+            .select('created_by, title')
+            .eq('id', challengeId)
+            .maybeSingle();
+          const creatorId = (row as { created_by?: string | null } | null)?.created_by;
+          const title = (row as { title?: string | null } | null)?.title ?? undefined;
+          if (creatorId) {
+            await notifyCurationComplete({
+              challengeId,
+              creatorUserId: creatorId,
+              challengeTitle: title ?? undefined,
+            });
+          }
+        })();
       }
       invalidateAll();
       toast.success('Legal documents approved');
