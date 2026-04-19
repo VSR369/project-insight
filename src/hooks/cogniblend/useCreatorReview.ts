@@ -19,6 +19,7 @@ import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles'
 import { usePreviewData } from '@/components/cogniblend/preview/usePreviewData';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
+import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 
 export const CREATOR_EDITABLE_SECTIONS = new Set<string>([
   'problem_statement',
@@ -133,6 +134,16 @@ export function useCreatorReview(challengeId: string | undefined) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      if (challengeId && user?.id) {
+        void logStatusTransition({
+          challengeId,
+          fromStatus: 'PENDING_CREATOR_APPROVAL',
+          toStatus: 'CREATOR_APPROVED',
+          changedBy: user.id,
+          role: 'CR',
+          triggerEvent: 'CREATOR_ACCEPT_ALL',
+        });
+      }
       invalidateAll();
       toast.success('Challenge approved');
     },
@@ -172,6 +183,17 @@ export function useCreatorReview(challengeId: string | undefined) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      if (challengeId && user?.id) {
+        void logStatusTransition({
+          challengeId,
+          fromStatus: 'PENDING_CREATOR_APPROVAL',
+          toStatus: 'CREATOR_CHANGES_SUBMITTED',
+          changedBy: user.id,
+          role: 'CR',
+          triggerEvent: 'CREATOR_SUBMIT_EDITS',
+          metadata: { edited_section_count: Object.keys(editedSections).length },
+        });
+      }
       setEditedSections({});
       invalidateAll();
       toast.success('Edits submitted to Curator');
@@ -194,6 +216,16 @@ export function useCreatorReview(challengeId: string | undefined) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      if (challengeId && user?.id) {
+        void logStatusTransition({
+          challengeId,
+          fromStatus: 'PENDING_CREATOR_APPROVAL',
+          toStatus: 'CREATOR_CHANGES_REQUESTED',
+          changedBy: user.id,
+          role: 'CR',
+          triggerEvent: 'CREATOR_REQUEST_RECURATION',
+        });
+      }
       invalidateAll();
       toast.success('Re-curation requested');
     },

@@ -2010,6 +2010,66 @@ export type Database = {
           },
         ]
       }
+      challenge_status_history: {
+        Row: {
+          challenge_id: string
+          changed_by: string | null
+          created_at: string
+          from_phase: number | null
+          from_status: string | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          role: string | null
+          to_phase: number | null
+          to_status: string
+          trigger_event: string
+        }
+        Insert: {
+          challenge_id: string
+          changed_by?: string | null
+          created_at?: string
+          from_phase?: number | null
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          role?: string | null
+          to_phase?: number | null
+          to_status: string
+          trigger_event: string
+        }
+        Update: {
+          challenge_id?: string
+          changed_by?: string | null
+          created_at?: string
+          from_phase?: number | null
+          from_status?: string | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          role?: string | null
+          to_phase?: number | null
+          to_status?: string
+          trigger_event?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_status_history_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_status_history_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
       challenge_submissions: {
         Row: {
           award_tier: string | null
@@ -3583,6 +3643,7 @@ export type Database = {
       }
       escrow_records: {
         Row: {
+          account_number_masked: string | null
           bank_address: string | null
           bank_branch: string | null
           bank_name: string | null
@@ -3596,6 +3657,10 @@ export type Database = {
           escrow_status: string
           fc_notes: string | null
           id: string
+          ifsc_swift_code: string | null
+          proof_document_url: string | null
+          proof_file_name: string | null
+          proof_uploaded_at: string | null
           rejection_fee_percentage: number
           released_amount: number
           remaining_amount: number
@@ -3604,6 +3669,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          account_number_masked?: string | null
           bank_address?: string | null
           bank_branch?: string | null
           bank_name?: string | null
@@ -3617,6 +3683,10 @@ export type Database = {
           escrow_status?: string
           fc_notes?: string | null
           id?: string
+          ifsc_swift_code?: string | null
+          proof_document_url?: string | null
+          proof_file_name?: string | null
+          proof_uploaded_at?: string | null
           rejection_fee_percentage?: number
           released_amount?: number
           remaining_amount?: number
@@ -3625,6 +3695,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          account_number_masked?: string | null
           bank_address?: string | null
           bank_branch?: string | null
           bank_name?: string | null
@@ -3638,6 +3709,10 @@ export type Database = {
           escrow_status?: string
           fc_notes?: string | null
           id?: string
+          ifsc_swift_code?: string | null
+          proof_document_url?: string | null
+          proof_file_name?: string | null
+          proof_uploaded_at?: string | null
           rejection_fee_percentage?: number
           released_amount?: number
           remaining_amount?: number
@@ -14085,6 +14160,7 @@ export type Database = {
           is_deleted: boolean
           is_enterprise: boolean
           lc_review_required: boolean
+          lc_review_timeout_days_override: number | null
           legal_entity_name: string | null
           linkedin_url: string | null
           logo_url: string | null
@@ -14157,6 +14233,7 @@ export type Database = {
           is_deleted?: boolean
           is_enterprise?: boolean
           lc_review_required?: boolean
+          lc_review_timeout_days_override?: number | null
           legal_entity_name?: string | null
           linkedin_url?: string | null
           logo_url?: string | null
@@ -14229,6 +14306,7 @@ export type Database = {
           is_deleted?: boolean
           is_enterprise?: boolean
           lc_review_required?: boolean
+          lc_review_timeout_days_override?: number | null
           legal_entity_name?: string | null
           linkedin_url?: string | null
           logo_url?: string | null

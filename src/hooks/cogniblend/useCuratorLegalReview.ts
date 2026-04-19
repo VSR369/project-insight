@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
+import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 
 const STALE_KEY = (challengeId: string | undefined) =>
   ['pass3-stale', challengeId] as const;
@@ -162,6 +163,16 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      if (challengeId && user?.id) {
+        void logStatusTransition({
+          challengeId,
+          fromStatus: 'PASS3_PENDING',
+          toStatus: 'PASS3_ACCEPTED',
+          changedBy: user.id,
+          role: 'CU',
+          triggerEvent: 'CURATOR_ACCEPT_PASS3',
+        });
+      }
       invalidateAll();
       toast.success('Legal documents approved');
     },
