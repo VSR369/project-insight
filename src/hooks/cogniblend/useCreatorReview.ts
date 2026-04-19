@@ -22,6 +22,12 @@ import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyPass3Stale } from '@/lib/cogniblend/workflowNotifications';
 import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
+import {
+  useCreatorReviewMutations,
+  CREATOR_COMMENT_ONLY_SECTIONS,
+} from './useCreatorReviewMutations';
+
+export { CREATOR_COMMENT_ONLY_SECTIONS };
 
 export const CREATOR_EDITABLE_SECTIONS = new Set<string>([
   'problem_statement',
@@ -71,6 +77,7 @@ export function useCreatorReview(challengeId: string | undefined) {
   const { user } = useAuth();
   const preview = usePreviewData(challengeId);
   const rolesQuery = useUserChallengeRoles(user?.id, challengeId);
+  const commentMutations = useCreatorReviewMutations({ challengeId });
 
   // Local state — Creator's pending edits this session.
   const [editedSections, setEditedSections] = useState<Record<string, unknown>>({});
@@ -319,5 +326,11 @@ export function useCreatorReview(challengeId: string | undefined) {
     isAccepting: acceptAll.isPending,
     isSubmittingEdits: submitEdits.isPending,
     isRequestingRecuration: requestRecuration.isPending,
+
+    // Sprint 6B comment-only mutations
+    submitLegalComment: commentMutations.submitLegalComment,
+    submitEscrowComment: commentMutations.submitEscrowComment,
+    isSubmittingLegalComment: commentMutations.isSubmittingLegalComment,
+    isSubmittingEscrowComment: commentMutations.isSubmittingEscrowComment,
   };
 }

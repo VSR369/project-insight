@@ -17,10 +17,10 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useCreatorReview, CREATOR_EDITABLE_SECTIONS, AGG_RESTRICTED_SECTIONS } from '@/hooks/cogniblend/useCreatorReview';
 import { PreviewDocument } from '@/components/cogniblend/preview/PreviewDocument';
-import { LegalDocEditorPanel } from '@/components/cogniblend/legal/LegalDocEditorPanel';
 import { CreatorApprovalStatusBanner } from '@/components/cogniblend/creator/CreatorApprovalStatusBanner';
 import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
 import { RequestRecurationModal } from '@/components/cogniblend/creator/RequestRecurationModal';
+import { CreatorCommentSection } from '@/components/cogniblend/creator/CreatorCommentSection';
 
 export default function CreatorChallengeReviewPage() {
   const { id: challengeId } = useParams<{ id: string }>();
@@ -217,12 +217,23 @@ export default function CreatorChallengeReviewPage() {
         </CardContent>
       </Card>
 
-      {/* Legal documents */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2 text-base">
-            <span>Legal Documents — {review.isMP ? 'Review Required' : 'Optional Review'}</span>
-            {review.isAGG && (
+      {/* Legal documents — comment-only after Curator/LC approval */}
+      {review.showLegalDocs && (
+        <CreatorCommentSection
+          title="Legal Documents"
+          approvedByLabel={review.isMP ? 'Curator' : 'Legal Coordinator / Curator'}
+          contentHtml={review.legalDocHtml}
+          fallbackText="Legal documents are being prepared by the Curator."
+          initialComment={null}
+          onSave={(c) => review.submitLegalComment(c)}
+          isSaving={review.isSubmittingLegalComment}
+        />
+      )}
+      {!review.showLegalDocs && review.isAGG && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <span>Legal Documents — Optional Review</span>
               <div className="flex items-center gap-2">
                 <Switch
                   id="show-legal"
@@ -233,27 +244,10 @@ export default function CreatorChallengeReviewPage() {
                   I want to review legal documents
                 </Label>
               </div>
-            )}
-          </CardTitle>
-        </CardHeader>
-        {review.showLegalDocs && (
-          <CardContent>
-            {review.legalDocHtml ? (
-              <LegalDocEditorPanel
-                content={review.legalDocHtml}
-                onChange={() => {
-                  /* read-only */
-                }}
-                readOnly
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground italic">
-                Legal documents are being prepared by the Curator.
-              </p>
-            )}
-          </CardContent>
-        )}
-      </Card>
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      )}
 
       {/* Footer actions */}
       <div className="border-t pt-4 flex justify-end">

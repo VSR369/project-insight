@@ -237,6 +237,13 @@ export default function EscrowManagementPage() {
       toast.error('Please upload deposit proof before submitting.');
       return;
     }
+    // Sprint 6B: Cross-validate deposit amount against challenge reward total.
+    if (Math.abs(values.deposit_amount - challenge.reward_total) > 0.01) {
+      toast.error(
+        `Deposit amount (${values.currency} ${values.deposit_amount.toLocaleString()}) does not match the challenge reward total (${values.currency} ${challenge.reward_total.toLocaleString()}). Please enter the exact amount.`,
+      );
+      return;
+    }
     confirmEscrow.mutate({ ...values, challengeId: selectedChallengeId, escrowId: challenge.escrow_id });
   };
 
