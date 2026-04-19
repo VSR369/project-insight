@@ -111,7 +111,14 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Best-effort clear of pass3_stale on the parent challenge.
+      if (challengeId) {
+        await supabase
+          .from('challenges')
+          .update({ pass3_stale: false } as never)
+          .eq('id', challengeId);
+      }
       invalidateAll();
       toast.success('Legal AI review completed');
     },
@@ -189,6 +196,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
     error: runPass3.error instanceof Error ? runPass3.error.message : null,
     isPass3Accepted,
     isPass3Complete: isPass3Accepted,
+    isStale: staleQuery.data === true,
     runPass3: () => runPass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),
