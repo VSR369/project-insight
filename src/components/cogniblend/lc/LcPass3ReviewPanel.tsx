@@ -242,9 +242,24 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               </div>
             )}
 
-            <div className="legal-doc-page">
-              <div className="legal-doc">
-                <EditorContent editor={editor} />
+            <div className="flex flex-col gap-4 lg:flex-row">
+              <Pass3SectionNavWrapper
+                containerRef={editorContainerRef}
+                contentKey={review.unifiedDocHtml.length}
+                isAccepted={review.isPass3Accepted}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="legal-doc-page" ref={editorContainerRef}>
+                  <div className="legal-doc">
+                    <EditorContent editor={editor} />
+                  </div>
+                </div>
+                {review.isPass3Accepted && (
+                  <Pass3AttributionBadge
+                    reviewerUserId={review.reviewerUserId}
+                    reviewedAt={review.reviewedAt}
+                  />
+                )}
               </div>
             </div>
 
