@@ -49,7 +49,7 @@ export function LegalDocEditorPanel({
     if (!editor) return;
     const current = editor.getHTML();
     if (content !== current) {
-      editor.commands.setContent(content || '', false);
+      editor.commands.setContent(content || '', { emitUpdate: false });
     }
   }, [content, editor]);
 

@@ -42,7 +42,7 @@ function StatusIndicator({ status }: StatusIndicatorProps) {
   if (status === 'approved') {
     return (
       <CheckCircle2
-        className="h-4 w-4 text-green-600 dark:text-green-500"
+        className="h-4 w-4 text-[hsl(var(--success,142_71%_45%))]"
         aria-label="Approved"
       />
     );
@@ -51,8 +51,8 @@ function StatusIndicator({ status }: StatusIndicatorProps) {
   if (status === 'ai_modified') {
     return (
       <span className="inline-flex items-center gap-1" aria-label="AI modified">
-        <span className="h-2 w-2 rounded-full bg-blue-500" />
-        <span className="rounded bg-blue-500/10 px-1 text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+        <span className="h-2 w-2 rounded-full bg-primary" />
+        <span className="rounded bg-primary/10 px-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
           AI
         </span>
       </span>
@@ -61,7 +61,7 @@ function StatusIndicator({ status }: StatusIndicatorProps) {
 
   const dotClass =
     status === 'reviewed'
-      ? 'bg-yellow-500'
+      ? 'bg-[hsl(var(--warning,38_92%_50%))]'
       : 'bg-muted-foreground/40';
   const aria = status === 'reviewed' ? 'Reviewed' : 'Pending';
   return <span className={cn('h-2 w-2 rounded-full', dotClass)} aria-label={aria} />;
