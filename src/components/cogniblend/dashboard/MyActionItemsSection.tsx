@@ -72,13 +72,22 @@ interface ActionItem {
   challengeId?: string;
   /** Role codes the user holds on this challenge */
   roleCodes?: string[];
+  /** Optional deep link from cogni_notifications.action_url */
+  action_url?: string | null;
 }
 
-function getActionRoute(item: ActionItem): {
+interface NotificationRow {
+  action_url?: string | null;
+}
+
+function getActionRoute(item: ActionItem & NotificationRow): {
   route: string; label: string; icon: typeof Eye;
 } {
-  // Notification-based items → challenge view
+  // Notification-based items → prefer action_url, fall back to challenge view
   if (item.isNotification) {
+    if (item.action_url) {
+      return { route: item.action_url, label: 'View', icon: Eye };
+    }
     const targetId = item.challengeId || item.id;
     return { route: `/cogni/challenges/${targetId}/view`, label: 'View', icon: Eye };
   }

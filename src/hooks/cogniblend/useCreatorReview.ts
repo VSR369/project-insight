@@ -301,7 +301,20 @@ export function useCreatorReview(challengeId: string | undefined) {
     () => legalDoc?.ai_modified_content_html ?? legalDoc?.content_html ?? null,
     [legalDoc],
   );
-  const showLegalDocs = isMP || (isAGG && showLegalToggle);
+
+  // AGG-mode Creator opts in to legal review via extended_brief flag
+  // (creator_approval_required). MP is always shown.
+  const briefRecord = (typeof approval?.extended_brief === 'string'
+    ? (() => {
+        try {
+          return JSON.parse(approval.extended_brief as string);
+        } catch {
+          return {};
+        }
+      })()
+    : (approval?.extended_brief as Record<string, unknown>) ?? {}) as Record<string, unknown>;
+  const aggCreatorApprovalRequired = briefRecord.creator_approval_required === true;
+  const showLegalDocs = isMP || (isAGG && (aggCreatorApprovalRequired || showLegalToggle));
 
   const timeoutDate = useMemo(() => {
     if (!approval?.creator_approval_requested_at) return null;
