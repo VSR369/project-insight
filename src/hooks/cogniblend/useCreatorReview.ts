@@ -20,6 +20,8 @@ import { usePreviewData } from '@/components/cogniblend/preview/usePreviewData';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
+import { notifyPass3Stale } from '@/lib/cogniblend/workflowNotifications';
+import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
 
 export const CREATOR_EDITABLE_SECTIONS = new Set<string>([
   'problem_statement',
@@ -193,6 +195,16 @@ export function useCreatorReview(challengeId: string | undefined) {
           triggerEvent: 'CREATOR_SUBMIT_EDITS',
           metadata: { edited_section_count: Object.keys(editedSections).length },
         });
+
+        // Notify Curator + LC that Pass 3 is now stale (fire-and-forget).
+        void (async () => {
+          const recipients = await getActiveRoleUsers(challengeId, ['CU', 'LC']);
+          await Promise.all(
+            recipients.map((uid) =>
+              notifyPass3Stale({ challengeId, curatorOrLcUserId: uid }),
+            ),
+          );
+        })();
       }
       setEditedSections({});
       invalidateAll();
