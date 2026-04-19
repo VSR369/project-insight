@@ -2,284 +2,46 @@
  * LcLegalWorkspacePage — AI-assisted Legal Coordinator workspace.
  * Route: /cogni/challenges/:id/lc-legal
  *
- * Full-width layout: read-only challenge details → manual "Generate Legal Docs"
- * → AI-generated document cards with inline editing + file attachment.
- * LC can also delete docs and manually add new documents.
+ * Thin orchestrator: hooks at top, conditional returns, JSX composition of
+ * extracted components. Business logic & mutations live here; presentation
+ * lives in src/components/cogniblend/lc/*.
  */
+import { useCallback, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { AlertCircle, ArrowLeft, Loader2, Send, Shield } from 'lucide-react';
 
-import { useState, useCallback } from 'react';
-import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
-import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
-// useCompletePhase removed — direct phase update used instead
-import { toast } from 'sonner';
+import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
 import { handleMutationError } from '@/lib/errorHandler';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
-import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { AssembledCpaSection } from '@/components/cogniblend/lc/AssembledCpaSection';
 import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
 import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
-import { getMaturityLabel } from '@/lib/maturityLabels';
-import { FileUploadZone } from '@/components/shared/FileUploadZone';
-import { sanitizeFileName } from '@/lib/sanitizeFileName';
+import { LcChallengeDetailsCard } from '@/components/cogniblend/lc/LcChallengeDetailsCard';
+import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
+import { LcAiSuggestionsSection } from '@/components/cogniblend/lc/LcAiSuggestionsSection';
+import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
+import { LcAddDocumentForm } from '@/components/cogniblend/lc/LcAddDocumentForm';
 
-const IP_MODEL_LABELS: Record<string, string> = {
-  'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
-  'IP-NEL': 'Non-Exclusive License — Solution Provider retains rights, seeker gets license',
-  'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
-  'IP-JO': 'Joint Ownership — Shared IP between Solution Provider and seeker',
-  'IP-NONE': 'No Transfer — Solution Provider retains all IP rights',
-};
-
-const DOCUMENT_TYPES = [
-  'NDA',
-  'CHALLENGE_TERMS',
-  'IP_ASSIGNMENT',
-  'SOLUTION_LICENSE',
-  'ESCROW_AGREEMENT',
-  'DATA_PROTECTION',
-  'COLLABORATION_AGREEMENT',
-] as const;
-
-const FILE_UPLOAD_CONFIG = {
-  maxSizeBytes: 10 * 1024 * 1024,
-  maxSizeMB: 10,
-  allowedTypes: [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  ] as readonly string[],
-  allowedExtensions: ['.pdf', '.docx'] as readonly string[],
-  label: 'Legal Document',
-};
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from '@/components/ui/collapsible';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { logWarning } from '@/lib/errorHandler';
-import {
-  ArrowLeft,
-  Sparkles,
-  FileText,
-  CheckCircle2,
-  ChevronDown,
-  Loader2,
-  Shield,
-  AlertCircle,
-  Send,
-  Eye,
-  Trash2,
-  Plus,
-  Save,
-} from 'lucide-react';
-
-/* ─── Types ──────────────────────────────────────────────── */
-
-interface SuggestedDoc {
-  id: string;
-  document_type: string;
-  tier: string;
-  title: string;
-  rationale: string;
-  content_summary: string;
-  priority: 'required' | 'recommended';
-}
-
-interface DocEditState {
-  content: string;
-  notes: string;
-  file: File | null;
-}
-
-interface AttachedDoc {
-  id: string;
-  document_type: string;
-  tier: string;
-  document_name: string | null;
-  status: string | null;
-  lc_status: string | null;
-  lc_review_notes: string | null;
-  attached_by: string | null;
-  created_at: string;
-}
-
-/* ─── Hook: fetch challenge (expanded fields) ────────────── */
-
-function useChallengeForLC(challengeId: string | undefined) {
-  return useQuery({
-    queryKey: ['challenge-lc-detail', challengeId],
-    queryFn: async () => {
-      if (!challengeId) throw new Error('No challenge ID');
-      const { data, error } = await supabase
-        .from('challenges')
-        .select(
-          'title, problem_statement, scope, description, ip_model, maturity_level, deliverables, current_phase, master_status, governance_profile, evaluation_criteria, eligibility, solver_eligibility_types, hook, reward_structure, operating_model, solver_visibility_types'
-        )
-        .eq('id', challengeId)
-        .single();
-      if (error) throw new Error(error.message);
-      return data;
-    },
-    enabled: !!challengeId,
-    staleTime: 60_000,
-  });
-}
-
-/* ─── Hook: fetch attached legal docs (non-suggested) ────── */
-
-function useAttachedLegalDocs(challengeId: string | undefined) {
-  return useQuery({
-    queryKey: ['attached-legal-docs', challengeId],
-    queryFn: async () => {
-      if (!challengeId) throw new Error('No challenge ID');
-      const { data, error } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, document_type, tier, document_name, status, lc_status, lc_review_notes, attached_by, created_at')
-        .eq('challenge_id', challengeId)
-        .neq('status', 'ai_suggested')
-        .order('created_at', { ascending: true });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as AttachedDoc[];
-    },
-    enabled: !!challengeId,
-    staleTime: 30_000,
-  });
-}
-
-/* ─── Hook: fetch persisted AI suggestions from DB ───────── */
-
-function usePersistedSuggestions(challengeId: string | undefined) {
-  return useQuery({
-    queryKey: ['ai-legal-suggestions', challengeId],
-    queryFn: async (): Promise<SuggestedDoc[]> => {
-      if (!challengeId) throw new Error('No challenge ID');
-      const { data, error } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, document_type, tier, document_name, status, content_summary, rationale, priority')
-        .eq('challenge_id', challengeId)
-        .eq('status', 'ai_suggested')
-        .order('created_at', { ascending: true });
-      if (error) throw new Error(error.message);
-      return (data ?? []).map((d: any) => ({
-        id: d.id,
-        document_type: d.document_type,
-        tier: d.tier,
-        title: d.document_name ?? d.document_type,
-        rationale: d.rationale ?? '',
-        content_summary: d.content_summary ?? '',
-        priority: d.priority ?? 'recommended',
-      }));
-    },
-    enabled: !!challengeId,
-    staleTime: 30_000,
-  });
-}
-
-/* ─── Helpers ────────────────────────────────────────────── */
-
-function renderJsonList(val: unknown): string[] {
-  if (!val) return [];
-  if (typeof val === 'object' && !Array.isArray(val)) {
-    const obj = val as Record<string, unknown>;
-    if (Array.isArray(obj.items)) return renderJsonList(obj.items);
-    if (Array.isArray(obj.criteria)) return renderJsonList(obj.criteria);
-    if (Array.isArray(obj.types)) return renderJsonList(obj.types);
-    const keys = Object.keys(obj);
-    for (const k of keys) {
-      if (Array.isArray(obj[k])) return renderJsonList(obj[k]);
-    }
-  }
-  if (Array.isArray(val)) {
-    return val.map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') {
-        return (item as Record<string, unknown>).label as string
-          ?? (item as Record<string, unknown>).name as string
-          ?? (item as Record<string, unknown>).description as string
-          ?? (item as Record<string, unknown>).title as string
-          ?? (item as Record<string, unknown>).type as string
-          ?? JSON.stringify(item);
-      }
-      return String(item);
-    });
-  }
-  if (typeof val === 'string') return [val];
-  return [JSON.stringify(val)];
-}
-
-function renderEvalCriteria(val: unknown): { name: string; weight: number; description?: string }[] {
-  if (!val) return [];
-  if (typeof val === 'object' && !Array.isArray(val)) {
-    const obj = val as Record<string, unknown>;
-    if (Array.isArray(obj.criteria)) return renderEvalCriteria(obj.criteria);
-    if (Array.isArray(obj.items)) return renderEvalCriteria(obj.items);
-  }
-  if (!Array.isArray(val)) return [];
-  return val.map((item: any) => ({
-    name: item.name ?? item.criterion ?? '',
-    weight: item.weight ?? item.percentage ?? 0,
-    description: item.description ?? '',
-  }));
-}
-
-function parseRewardStructure(val: unknown): {
-  currency?: string;
-  paymentMode?: string;
-  numRewarded?: number;
-  milestones?: { name: string; trigger: string; percentage: number }[];
-  tiers?: { label: string; amount: number }[];
-  totalPool?: number;
-} | null {
-  if (!val || typeof val !== 'object') return null;
-  const obj = val as Record<string, unknown>;
-  return {
-    currency: (obj.currency ?? obj.currency_code) as string | undefined,
-    paymentMode: (obj.payment_mode ?? obj.paymentMode) as string | undefined,
-    numRewarded: (obj.num_rewarded ?? obj.numRewarded) as number | undefined,
-    milestones: Array.isArray(obj.payment_milestones) ? obj.payment_milestones as any[] : undefined,
-    tiers: Array.isArray(obj.tiers) ? obj.tiers as any[] : undefined,
-    totalPool: (obj.total_pool ?? obj.totalPool) as number | undefined,
-  };
-}
-
-/* ─── Main Component ─────────────────────────────────────── */
+  useAttachedLegalDocs,
+  useChallengeForLC,
+  usePersistedSuggestions,
+} from '@/hooks/cogniblend/useLcLegalData';
+import type { DocEditState, SuggestedDoc } from '@/lib/cogniblend/lcLegalHelpers';
 
 export default function LcLegalWorkspacePage() {
   // ── Hooks (all at top level) ──
@@ -291,14 +53,11 @@ export default function LcLegalWorkspacePage() {
   const { data: roles } = useUserChallengeRoles(user?.id, challengeId);
   const { data: challenge, isLoading: challengeLoading } = useChallengeForLC(challengeId);
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
-  const {
-    data: aiSuggestions,
-    isLoading: suggestionsQueryLoading,
-  } = usePersistedSuggestions(challengeId);
+  const { data: aiSuggestions, isLoading: suggestionsQueryLoading } = usePersistedSuggestions(challengeId);
 
-  const opModel = (challenge as any)?.operating_model ?? 'IP';
+  const opModel = challenge?.operating_model ?? 'IP';
   const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
-    opModel === 'MP' ? user?.id : undefined
+    opModel === 'MP' ? user?.id : undefined,
   );
   const [pwaAccepted, setPwaAccepted] = useState(false);
 
@@ -308,10 +67,9 @@ export default function LcLegalWorkspacePage() {
   const [docEdits, setDocEdits] = useState<Record<string, DocEditState>>({});
   const [submitting, setSubmitting] = useState(false);
   const [gateFailures, setGateFailures] = useState<string[]>([]);
-  
   const [savingContent, setSavingContent] = useState<string | null>(null);
 
-  // ── Add New Doc form state ──
+  // Add-doc form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocType, setNewDocType] = useState('');
@@ -321,11 +79,35 @@ export default function LcLegalWorkspacePage() {
   const [newDocFile, setNewDocFile] = useState<File | null>(null);
   const [addingDoc, setAddingDoc] = useState(false);
 
-  // ── Derived state ──
-  const isLC = roles?.includes('LC');
-  const hasAccess = isLC || roles?.includes('CR');
+  // Derived
+  const isLC = roles?.includes('LC') ?? false;
+  const hasAccess = isLC || (roles?.includes('CR') ?? false);
 
-  // ── Generate handler (calls edge function via mutation) ──
+  const getDocEdit = useCallback(
+    (docType: string): DocEditState =>
+      docEdits[docType] ?? { content: '', notes: '', file: null },
+    [docEdits],
+  );
+
+  const updateDocEdit = useCallback(
+    (docType: string, field: keyof DocEditState, value: string | File | null) => {
+      setDocEdits((prev) => ({
+        ...prev,
+        [docType]: { ...(prev[docType] ?? { content: '', notes: '', file: null }), [field]: value },
+      }));
+    },
+    [],
+  );
+
+  const initDocContent = useCallback((doc: SuggestedDoc) => {
+    setDocEdits((prev) => {
+      if (prev[doc.document_type]?.content) return prev;
+      const existing = prev[doc.document_type] ?? { content: '', notes: '', file: null };
+      return { ...prev, [doc.document_type]: { ...existing, content: doc.content_summary } };
+    });
+  }, []);
+
+  // ── Generate (legacy individual-doc flow — no pass3_mode) ──
   const handleGenerate = async () => {
     setGenerating(true);
     setGenerateError(null);
@@ -335,7 +117,6 @@ export default function LcLegalWorkspacePage() {
       });
       if (error) throw new Error(error.message ?? 'Failed to get suggestions');
       if (!data?.success) throw new Error(data?.error?.message ?? 'AI suggestion failed');
-      // Invalidate the persisted suggestions query to reload from DB
       queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
       toast.success('Legal documents generated successfully');
     } catch (err) {
@@ -347,36 +128,11 @@ export default function LcLegalWorkspacePage() {
     }
   };
 
-  // ── Edit state helpers ──
-  const getDocEdit = (docType: string): DocEditState =>
-    docEdits[docType] ?? { content: '', notes: '', file: null };
-
-  const updateDocEdit = (docType: string, field: keyof DocEditState, value: string | File | null) => {
-    setDocEdits((prev) => ({
-      ...prev,
-      [docType]: { ...getDocEdit(docType), [field]: value },
-    }));
-  };
-
-  // ── Initialize edit content from AI suggestion ──
-  const initDocContent = (doc: SuggestedDoc) => {
-    if (!docEdits[doc.document_type]?.content) {
-      setDocEdits((prev) => ({
-        ...prev,
-        [doc.document_type]: {
-          ...getDocEdit(doc.document_type),
-          content: doc.content_summary,
-        },
-      }));
-    }
-  };
-
-  // ── Accept doc mutation (UPDATE existing ai_suggested row) ──
+  // ── Mutations ──
   const acceptDocMutation = useMutation({
     mutationFn: async (doc: SuggestedDoc) => {
       if (!challengeId || !user?.id) throw new Error('Missing context');
       const edit = getDocEdit(doc.document_type);
-
       const { error } = await supabase.from('challenge_legal_docs').update({
         status: 'ATTACHED',
         content_summary: edit.content || doc.content_summary || null,
@@ -386,22 +142,15 @@ export default function LcLegalWorkspacePage() {
         lc_review_notes: edit.notes || `AI-suggested: ${doc.rationale}`,
         updated_by: user.id,
         updated_at: new Date().toISOString(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any).eq('id', doc.id);
-
       if (error) throw new Error(error.message);
 
-      // Upload file if attached
       if (edit.file && challengeId) {
         const safeName = sanitizeFileName(edit.file.name);
         const path = `${challengeId}/${doc.document_type}/${crypto.randomUUID()}_${safeName}`;
-        const { error: uploadErr } = await supabase.storage
-          .from('legal-docs')
-          .upload(path, edit.file);
-        if (uploadErr) {
-          console.error('File upload failed:', uploadErr.message);
-        }
+        await supabase.storage.from('legal-docs').upload(path, edit.file);
       }
-
       return doc.document_type;
     },
     onSuccess: (docType) => {
@@ -409,12 +158,9 @@ export default function LcLegalWorkspacePage() {
       queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
       queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
     },
-    onError: (error: Error) => {
-      handleMutationError(error, { operation: 'accept_legal_doc' });
-    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'accept_legal_doc' }),
   });
 
-  // ── Delete doc mutation ──
   const deleteDocMutation = useMutation({
     mutationFn: async (docId: string) => {
       const { error } = await supabase.from('challenge_legal_docs').delete().eq('id', docId);
@@ -425,15 +171,16 @@ export default function LcLegalWorkspacePage() {
       toast.success('Legal document deleted');
       queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
     },
-    onError: (error: Error) => {
-      handleMutationError(error, { operation: 'delete_legal_doc' });
-    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'delete_legal_doc' }),
   });
 
-  // ── Dismiss AI suggestion (delete from DB) ──
   const dismissSuggestionMutation = useMutation({
     mutationFn: async (docId: string) => {
-      const { error } = await supabase.from('challenge_legal_docs').delete().eq('id', docId).eq('status', 'ai_suggested');
+      const { error } = await supabase
+        .from('challenge_legal_docs')
+        .delete()
+        .eq('id', docId)
+        .eq('status', 'ai_suggested');
       if (error) throw new Error(error.message);
       return docId;
     },
@@ -441,35 +188,35 @@ export default function LcLegalWorkspacePage() {
       toast.success('Suggestion dismissed');
       queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
     },
-    onError: (error: Error) => {
-      handleMutationError(error, { operation: 'dismiss_legal_suggestion' });
-    },
+    onError: (error: Error) =>
+      handleMutationError(error, { operation: 'dismiss_legal_suggestion' }),
   });
 
-  // ── Save content edits without accepting ──
-  const handleSaveContent = useCallback(async (doc: SuggestedDoc) => {
-    if (!user?.id) return;
-    const edit = getDocEdit(doc.document_type);
-    const contentToSave = edit.content || doc.content_summary;
-    if (!contentToSave) return;
-    setSavingContent(doc.document_type);
-    try {
-      const { error } = await supabase.from('challenge_legal_docs').update({
-        content_summary: contentToSave,
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      } as any).eq('id', doc.id);
-      if (error) throw new Error(error.message);
-      toast.success(`${doc.document_type} content saved`);
-      queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
-    } finally {
-      setSavingContent(null);
-    }
-  }, [user?.id, docEdits, challengeId, queryClient]);
-
-
+  const handleSaveContent = useCallback(
+    async (doc: SuggestedDoc) => {
+      if (!user?.id) return;
+      const edit = getDocEdit(doc.document_type);
+      const contentToSave = edit.content || doc.content_summary;
+      if (!contentToSave) return;
+      setSavingContent(doc.document_type);
+      try {
+        const { error } = await supabase.from('challenge_legal_docs').update({
+          content_summary: contentToSave,
+          updated_by: user.id,
+          updated_at: new Date().toISOString(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any).eq('id', doc.id);
+        if (error) throw new Error(error.message);
+        toast.success(`${doc.document_type} content saved`);
+        queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to save');
+      } finally {
+        setSavingContent(null);
+      }
+    },
+    [user?.id, getDocEdit, challengeId, queryClient],
+  );
 
   const handleAddNewDoc = async () => {
     if (!challengeId || !user?.id || !newDocTitle || !newDocType) {
@@ -478,7 +225,6 @@ export default function LcLegalWorkspacePage() {
     }
     setAddingDoc(true);
     try {
-      // Check if a row already exists for this challenge+type+tier (e.g. ai_suggested)
       const { data: existing } = await supabase
         .from('challenge_legal_docs')
         .select('id')
@@ -499,41 +245,37 @@ export default function LcLegalWorkspacePage() {
         attached_by: user.id,
         updated_by: user.id,
         updated_at: new Date().toISOString(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       if (existing?.id) {
-        // Update existing row (replaces ai_suggested or prior doc)
-        const { error } = await supabase.from('challenge_legal_docs').update(payload).eq('id', existing.id);
+        const { error } = await supabase
+          .from('challenge_legal_docs')
+          .update(payload)
+          .eq('id', existing.id);
         if (error) throw new Error(error.message);
       } else {
-        // Insert new row
         const { error } = await supabase.from('challenge_legal_docs').insert({
           challenge_id: challengeId,
           document_type: newDocType,
           tier: newDocTier,
           created_by: user.id,
           ...payload,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);
         if (error) throw new Error(error.message);
       }
 
-      // Upload file if provided
       if (newDocFile) {
         const safeName = sanitizeFileName(newDocFile.name);
         const path = `${challengeId}/${newDocType}/${crypto.randomUUID()}_${safeName}`;
-        const { error: uploadErr } = await supabase.storage
-          .from('legal-docs')
-          .upload(path, newDocFile);
-        if (uploadErr) {
-          console.error('File upload failed:', uploadErr.message);
-        }
+        await supabase.storage.from('legal-docs').upload(path, newDocFile);
       }
 
       toast.success('Legal document added successfully');
       queryClient.invalidateQueries({ queryKey: ['attached-legal-docs', challengeId] });
       queryClient.invalidateQueries({ queryKey: ['ai-legal-suggestions', challengeId] });
 
-      // Reset form
       setNewDocTitle('');
       setNewDocType('');
       setNewDocTier('TIER_1');
@@ -549,7 +291,6 @@ export default function LcLegalWorkspacePage() {
     }
   };
 
-  // ── Submit to curation ──
   const handleSubmitToCuration = async () => {
     if (!challengeId || !user?.id) return;
     setSubmitting(true);
@@ -558,7 +299,6 @@ export default function LcLegalWorkspacePage() {
       const { data: gateResult } = await supabase.rpc('validate_gate_02', {
         p_challenge_id: challengeId,
       });
-
       const gate = gateResult as unknown as { passed: boolean; failures: string[] } | null;
       if (!gate?.passed) {
         const failures = gate?.failures ?? ['Unknown validation failure'];
@@ -567,21 +307,21 @@ export default function LcLegalWorkspacePage() {
         return;
       }
 
-      // Use complete_legal_review RPC — sets lc_compliance_complete and auto-advances if fc is also done
       const { data: reviewResult, error } = await supabase.rpc('complete_legal_review', {
         p_challenge_id: challengeId,
         p_user_id: user.id,
       });
-
       if (error) throw new Error(error.message);
 
-      const result = reviewResult as unknown as { success: boolean; phase_advanced: boolean; current_phase: number; message: string; error?: string };
+      const result = reviewResult as unknown as {
+        success: boolean;
+        phase_advanced: boolean;
+        current_phase: number;
+        message: string;
+        error?: string;
+      };
       if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
 
-      // Curation happens BEFORE compliance — no CU auto-assign needed after legal review
-      // Phase 3 (Compliance) → Phase 4 (Publication) is handled by complete_phase RPC
-
-      // Invalidate dashboard queries so curator sees the challenge
       queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
@@ -600,15 +340,14 @@ export default function LcLegalWorkspacePage() {
     }
   };
 
-  // ── Toggle card ──
-  const toggleCard = (docType: string) => {
+  const toggleCard = useCallback((docType: string) => {
     setOpenCards((prev) => {
       const next = new Set(prev);
       if (next.has(docType)) next.delete(docType);
       else next.add(docType);
       return next;
     });
-  };
+  }, []);
 
   // ── Conditional returns (AFTER all hooks) ──
   if (challengeLoading) {
@@ -648,21 +387,15 @@ export default function LcLegalWorkspacePage() {
     );
   }
 
-  const deliverablesList = renderJsonList(challenge?.deliverables);
-  const evalCriteria = renderEvalCriteria(challenge?.evaluation_criteria);
-  const solverTypes = renderJsonList(challenge?.solver_eligibility_types);
-  const solverVisible = renderJsonList(challenge?.solver_visibility_types);
-
-  // AI suggestions are now loaded from DB — no local filtering needed
   const visibleSuggestions = aiSuggestions ?? [];
   const hasSuggestions = visibleSuggestions.length > 0;
   const totalAccepted = attachedDocs?.length ?? 0;
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-5xl mx-auto">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <Link to="/cogni/lc-queue" className="text-muted-foreground hover:text-foreground">
+        <Link to="/cogni/lc-queue" className="text-muted-foreground hover:text-foreground" aria-label="Back to LC queue">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1">
@@ -677,620 +410,72 @@ export default function LcLegalWorkspacePage() {
         </div>
       </div>
 
-      {/* ── Workflow Banner ── */}
       <WorkflowProgressBanner step={3} />
 
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 1: Read-Only Challenge Details                  */}
-      {/* ════════════════════════════════════════════════════════ */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Eye className="h-4 w-4 text-muted-foreground" />
-            Challenge Specification — Read Only
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="multiple" defaultValue={['overview', 'deliverables', 'evaluation', 'ip', 'solver']}>
-            {/* Overview */}
-            <AccordionItem value="overview">
-              <AccordionTrigger className="text-sm font-semibold">Overview</AccordionTrigger>
-              <AccordionContent className="space-y-4">
-                {challenge?.hook && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Hook</p>
-                    <p className="text-sm text-foreground">{challenge.hook}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Problem Statement</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">{challenge?.problem_statement || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Scope & Constraints</p>
-                  <p className="text-sm text-foreground whitespace-pre-line">{challenge?.scope || '—'}</p>
-                </div>
-                {challenge?.description && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
-                    <p className="text-sm text-foreground whitespace-pre-line">{challenge.description}</p>
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
+      <LcChallengeDetailsCard challenge={challenge ?? null} />
 
-            {/* Deliverables */}
-            <AccordionItem value="deliverables">
-              <AccordionTrigger className="text-sm font-semibold">Deliverables</AccordionTrigger>
-              <AccordionContent>
-                {deliverablesList.length > 0 ? (
-                  <ol className="list-decimal list-inside space-y-1.5 text-sm text-foreground">
-                    {deliverablesList.map((d, i) => (
-                      <li key={i}>{d}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No deliverables specified.</p>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Evaluation Criteria */}
-            <AccordionItem value="evaluation">
-              <AccordionTrigger className="text-sm font-semibold">Evaluation Criteria</AccordionTrigger>
-              <AccordionContent>
-                {evalCriteria.length > 0 ? (
-                  <div className="relative w-full overflow-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Criterion</th>
-                          <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Weight</th>
-                          <th className="text-left py-2 font-medium text-muted-foreground">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {evalCriteria.map((c, i) => (
-                          <tr key={i} className="border-b last:border-0">
-                            <td className="py-2 pr-4 font-medium">{c.name}</td>
-                            <td className="py-2 pr-4 tabular-nums">{c.weight}%</td>
-                            <td className="py-2 text-muted-foreground">{c.description}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No evaluation criteria specified.</p>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* IP & Governance */}
-            <AccordionItem value="ip">
-              <AccordionTrigger className="text-sm font-semibold">IP Model & Governance</AccordionTrigger>
-              <AccordionContent className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {challenge?.ip_model && (
-                    <Badge variant="outline">IP: {IP_MODEL_LABELS[challenge.ip_model] ?? challenge.ip_model}</Badge>
-                  )}
-                  {(() => {
-                    const mode = resolveGovernanceMode(challenge?.governance_profile);
-                    const cfg = GOVERNANCE_MODE_CONFIG[mode];
-                    return (
-                      <span
-                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-                        style={{ backgroundColor: cfg.bg, color: cfg.color }}
-                      >
-                        Governance: {cfg.label}
-                      </span>
-                    );
-                  })()}
-                  <Badge variant="secondary">Maturity: {getMaturityLabel(challenge?.maturity_level)}</Badge>
-                  {challenge?.operating_model && <Badge variant="secondary">Model: {challenge.operating_model}</Badge>}
-                  {challenge?.current_phase != null && <Badge variant="outline">Phase: {challenge.current_phase}</Badge>}
-                  {challenge?.master_status && <Badge variant="outline">Status: {challenge.master_status}</Badge>}
-                </div>
-                {(() => {
-                  const reward = parseRewardStructure(challenge?.reward_structure);
-                  if (!reward) return null;
-                  return (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reward Structure</p>
-                      <div className="flex flex-wrap gap-2">
-                        {reward.currency && <Badge variant="outline">Currency: {reward.currency}</Badge>}
-                        {reward.paymentMode && <Badge variant="secondary">{reward.paymentMode.replace(/_/g, ' ')}</Badge>}
-                        {reward.numRewarded != null && <Badge variant="secondary">{reward.numRewarded} awarded</Badge>}
-                        {reward.totalPool != null && <Badge variant="outline">Pool: {reward.totalPool.toLocaleString()}</Badge>}
-                      </div>
-                      {reward.tiers && reward.tiers.length > 0 && (
-                        <div className="relative w-full overflow-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Tier</th>
-                                <th className="text-left py-2 font-medium text-muted-foreground">Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {reward.tiers.map((t: any, i: number) => (
-                                <tr key={i} className="border-b last:border-0">
-                                  <td className="py-2 pr-4 font-medium">{t.label ?? t.name ?? `Tier ${i + 1}`}</td>
-                                  <td className="py-2 tabular-nums">{(t.amount ?? t.value ?? 0).toLocaleString()}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      {reward.milestones && reward.milestones.length > 0 && (
-                        <div className="relative w-full overflow-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Milestone</th>
-                                <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Trigger</th>
-                                <th className="text-left py-2 font-medium text-muted-foreground">%</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {reward.milestones.map((m: any, i: number) => (
-                                <tr key={i} className="border-b last:border-0">
-                                  <td className="py-2 pr-4 font-medium">{m.name ?? m.label ?? `Milestone ${i + 1}`}</td>
-                                  <td className="py-2 pr-4 text-muted-foreground">{(m.trigger ?? '').replace(/_/g, ' ')}</td>
-                                  <td className="py-2 tabular-nums">{m.pct ?? m.percentage ?? m.percent ?? 0}%</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Solver Eligibility */}
-            <AccordionItem value="solver">
-              <AccordionTrigger className="text-sm font-semibold">Solution Provider Eligibility & Visibility</AccordionTrigger>
-              <AccordionContent className="space-y-3">
-                {challenge?.eligibility && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Eligibility</p>
-                    <p className="text-sm text-foreground">{challenge.eligibility}</p>
-                  </div>
-                )}
-                {solverTypes.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Eligible Solution Provider Types</p>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {solverTypes.map((t, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">{t}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {solverVisible.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Visible Solution Provider Types</p>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {solverVisible.map((t, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">{t}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
-
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 1.5: Assembled CPA Documents                   */}
-      {/* ════════════════════════════════════════════════════════ */}
       <AssembledCpaSection challengeId={challengeId!} />
 
       <Separator />
 
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 2: Attached Legal Documents                    */}
-      {/* ════════════════════════════════════════════════════════ */}
-      {!attachedLoading && attachedDocs && attachedDocs.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Attached Legal Documents ({attachedDocs.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {attachedDocs.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="border rounded-lg p-3 flex items-center gap-3 bg-muted/30"
-                >
-                  <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold">{doc.document_name ?? doc.document_type}</span>
-                      <Badge variant="outline" className="text-[10px]">Tier {doc.tier}</Badge>
-                      <Badge variant="secondary" className="text-[10px]">{doc.document_type}</Badge>
-                      {doc.lc_status && (
-                        <Badge
-                          variant={doc.lc_status === 'approved' ? 'default' : 'secondary'}
-                          className="text-[10px]"
-                        >
-                          {doc.lc_status}
-                        </Badge>
-                      )}
-                    </div>
-                    {doc.lc_review_notes && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">{doc.lc_review_notes}</p>
-                    )}
-                  </div>
-                  {doc.attached_by === user?.id && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 text-destructive hover:text-destructive"
-                          disabled={deleteDocMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Legal Document</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "{doc.document_name ?? doc.document_type}"?
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteDocMutation.mutate(doc.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <LcAttachedDocsCard
+        docs={attachedDocs}
+        isLoading={attachedLoading}
+        currentUserId={user?.id}
+        onDelete={(id) => deleteDocMutation.mutate(id)}
+        isDeleting={deleteDocMutation.isPending}
+      />
+
+      {/* Pass 3 — Unified AI Legal Review (LC) */}
+      {isLC && <LcPass3ReviewPanel challengeId={challengeId!} />}
 
       <Separator />
 
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 4: Generate Legal Documents                    */}
-      {/* ════════════════════════════════════════════════════════ */}
-      {isLC && !generating && !suggestionsQueryLoading && !hasSuggestions && (
-        <Card className="border-dashed border-2 border-primary/20">
-          <CardContent className="py-8 text-center space-y-3">
-            <Sparkles className="h-8 w-8 mx-auto text-primary" />
-            <p className="text-sm font-semibold text-foreground">
-              {totalAccepted > 0 ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
-            </p>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              AI will analyze the challenge specification above — maturity level, IP model, governance
-              profile — and generate complete legal documents with full clauses ready for review.
-            </p>
-            <Button onClick={handleGenerate} disabled={generating}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Generate Legal Documents
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <LcAiSuggestionsSection
+        isLC={isLC}
+        generating={generating}
+        generateError={generateError}
+        hasSuggestions={hasSuggestions}
+        totalAccepted={totalAccepted}
+        suggestionsLoading={suggestionsQueryLoading}
+        visibleSuggestions={visibleSuggestions}
+        onGenerate={handleGenerate}
+        getDocEdit={getDocEdit}
+        updateDocEdit={updateDocEdit}
+        initDocContent={initDocContent}
+        onAccept={(doc) => acceptDocMutation.mutate(doc)}
+        onSaveContent={handleSaveContent}
+        onDismiss={(id) => dismissSuggestionMutation.mutate(id)}
+        isAccepting={acceptDocMutation.isPending}
+        savingContent={savingContent}
+        openCards={openCards}
+        onToggleCard={toggleCard}
+      />
 
-      {/* Loading */}
-      {generating && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
-            <p className="text-sm text-muted-foreground">AI is generating comprehensive legal documents…</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Error */}
-      {generateError && (
-        <Card className="border-destructive/30">
-          <CardContent className="py-6 text-center">
-            <AlertCircle className="h-6 w-6 mx-auto text-destructive mb-2" />
-            <p className="text-sm text-destructive">Failed to generate AI suggestions</p>
-            <p className="text-xs text-muted-foreground mt-1">{generateError}</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={handleGenerate}>
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 5: AI Suggestion Document Cards                 */}
-      {/* ════════════════════════════════════════════════════════ */}
-      {hasSuggestions && (
-        <div className="space-y-4">
-          {/* AI Summary Banner */}
-          {/* AI Summary Banner */}
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="py-3 flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">AI Legal Analysis</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {visibleSuggestions.length} document{visibleSuggestions.length !== 1 ? 's' : ''} recommended for this challenge.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Document cards */}
-          {visibleSuggestions && visibleSuggestions.length > 0 ? (
-            visibleSuggestions.map((doc) => {
-              const isOpen = openCards.has(doc.document_type);
-              const edit = getDocEdit(doc.document_type);
-
-              return (
-                <Collapsible
-                  key={doc.document_type}
-                  open={isOpen}
-                  onOpenChange={() => {
-                    toggleCard(doc.document_type);
-                    initDocContent(doc);
-                  }}
-                >
-                  <Card>
-                    <CollapsibleTrigger className="w-full">
-                      <CardContent className="py-3 flex items-center gap-3 cursor-pointer">
-                        <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <div className="flex-1 text-left">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold">{doc.title}</span>
-                            <Badge variant={doc.priority === 'required' ? 'default' : 'secondary'} className="text-[10px]">
-                              {doc.priority}
-                            </Badge>
-                            <Badge variant="outline" className="text-[10px]">
-                              Tier {doc.tier}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{doc.rationale}</p>
-                        </div>
-                        <ChevronDown
-                          className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                        />
-                      </CardContent>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="px-4 pb-4 space-y-4 border-t pt-3">
-                        {/* Inline editable content */}
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                            Document Content
-                          </label>
-                          <Textarea
-                            value={edit.content || doc.content_summary}
-                            onChange={(e) => updateDocEdit(doc.document_type, 'content', e.target.value)}
-                            className="text-sm min-h-[300px] font-mono"
-                            placeholder="AI-generated legal document — edit as needed…"
-                          />
-                        </div>
-
-                        {/* File upload */}
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                            Upload Document (optional)
-                          </label>
-                          <FileUploadZone
-                            config={FILE_UPLOAD_CONFIG}
-                            value={edit.file}
-                            onChange={(file) => updateDocEdit(doc.document_type, 'file', file)}
-                          />
-                        </div>
-
-                        {/* LC Notes */}
-                        <div>
-                          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                            LC Review Notes
-                          </label>
-                          <Textarea
-                            placeholder="Add notes about modifications, special clauses…"
-                            value={edit.notes}
-                            onChange={(e) => updateDocEdit(doc.document_type, 'notes', e.target.value)}
-                            className="text-sm"
-                            rows={2}
-                          />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-2 flex-wrap">
-                          <Button
-                            size="sm"
-                            onClick={() => acceptDocMutation.mutate(doc)}
-                            disabled={acceptDocMutation.isPending}
-                          >
-                            {acceptDocMutation.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                            )}
-                            Accept & Attach
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSaveContent(doc)}
-                            disabled={savingContent === doc.document_type}
-                          >
-                            {savingContent === doc.document_type ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <Save className="h-3 w-3 mr-1" />
-                            )}
-                            Save Edits
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => dismissSuggestionMutation.mutate(doc.id)}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Dismiss
-                          </Button>
-                        </div>
-                      </div>
-                    </CollapsibleContent>
-                  </Card>
-                </Collapsible>
-              );
-            })
-          ) : (
-            visibleSuggestions.length === 0 && (
-              <Card>
-                <CardContent className="py-4 text-center text-sm text-muted-foreground">
-                  All suggested documents have been processed.
-                </CardContent>
-              </Card>
-            )
-          )}
-        </div>
-      )}
-
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* Add New Legal Document (Collapsible) — always visible   */}
-      {/* ════════════════════════════════════════════════════════ */}
       {isLC && (
-        <Collapsible open={showAddForm} onOpenChange={setShowAddForm}>
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full justify-start">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Legal Document Manually
-              <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${showAddForm ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <Card className="mt-2">
-              <CardContent className="pt-4 space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                      Document Title *
-                    </label>
-                    <Input
-                      placeholder="e.g., Non-Disclosure Agreement"
-                      value={newDocTitle}
-                      onChange={(e) => setNewDocTitle(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                      Document Type *
-                    </label>
-                    <Select value={newDocType} onValueChange={setNewDocType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DOCUMENT_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t.replace(/_/g, ' ')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                    Tier
-                  </label>
-                  <Select value={newDocTier} onValueChange={setNewDocTier}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="TIER_1">Tier 1 — Entry/Participation</SelectItem>
-                      <SelectItem value="TIER_2">Tier 2 — Solution/Award</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                    Document Content
-                  </label>
-                  <Textarea
-                    placeholder="Paste or write the full legal document content here…"
-                    value={newDocContent}
-                    onChange={(e) => setNewDocContent(e.target.value)}
-                    className="text-sm min-h-[160px]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                    Upload Document (optional)
-                  </label>
-                  <FileUploadZone
-                    config={FILE_UPLOAD_CONFIG}
-                    value={newDocFile}
-                    onChange={setNewDocFile}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
-                    LC Notes (optional)
-                  </label>
-                  <Textarea
-                    placeholder="Add notes about this document…"
-                    value={newDocNotes}
-                    onChange={(e) => setNewDocNotes(e.target.value)}
-                    className="text-sm"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button onClick={handleAddNewDoc} disabled={addingDoc || !newDocTitle || !newDocType}>
-                    {addingDoc ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-2" />
-                    )}
-                    Add Document
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </CollapsibleContent>
-        </Collapsible>
+        <LcAddDocumentForm
+          open={showAddForm}
+          onOpenChange={setShowAddForm}
+          title={newDocTitle}
+          onTitleChange={setNewDocTitle}
+          docType={newDocType}
+          onDocTypeChange={setNewDocType}
+          tier={newDocTier}
+          onTierChange={setNewDocTier}
+          content={newDocContent}
+          onContentChange={setNewDocContent}
+          notes={newDocNotes}
+          onNotesChange={setNewDocNotes}
+          file={newDocFile}
+          onFileChange={setNewDocFile}
+          onSubmit={handleAddNewDoc}
+          submitting={addingDoc}
+        />
       )}
 
       <Separator />
 
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* Submit to Curation                                       */}
-      {/* ════════════════════════════════════════════════════════ */}
-
-      {/* GATE-02 Failure Banners */}
+      {/* GATE-02 failures */}
       {gateFailures.length > 0 && (
         <div className="space-y-3">
           {gateFailures.map((failure, idx) => {
@@ -1313,13 +498,12 @@ export default function LcLegalWorkspacePage() {
         </div>
       )}
 
-      {/* Pending suggestions warning */}
       {hasSuggestions && (
         <Alert className="border-destructive/20 bg-muted/30">
           <AlertCircle className="h-4 w-4 text-destructive" />
           <AlertDescription className="text-sm">
-            <strong>{visibleSuggestions.length}</strong> AI-suggested document{visibleSuggestions.length !== 1 ? 's' : ''} pending review.
-            Accept or Dismiss all before submitting to curation.
+            <strong>{visibleSuggestions.length}</strong> AI-suggested document
+            {visibleSuggestions.length !== 1 ? 's' : ''} pending review. Accept or Dismiss all before submitting to curation.
           </AlertDescription>
         </Alert>
       )}
