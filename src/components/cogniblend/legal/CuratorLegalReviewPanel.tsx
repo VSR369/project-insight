@@ -6,7 +6,7 @@
  * upload handler, and the controlled editor panel. Data access is delegated
  * to useCuratorLegalReview.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -23,6 +23,11 @@ import { LegalDocEditorToolbar } from './LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from './LegalDocQuickInserts';
 import { LegalDocUploadHandler } from './LegalDocUploadHandler';
 import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
+import { Pass3SectionNavWrapper } from './Pass3SectionNavWrapper';
+import { Pass3AttributionBadge } from './Pass3AttributionBadge';
+import { Pass3OverdueBanner } from './Pass3OverdueBanner';
+import { Extension } from '@tiptap/core';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 

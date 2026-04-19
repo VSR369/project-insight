@@ -308,7 +308,10 @@ export async function handlePass3({
       .neq("status", "ai_suggested");
 
     // 5) Resolve org pricing tier and build prompts.
-    const tier = await resolveOrgTier(supabaseAdmin, context.org?.id);
+    const tier = await resolveOrgTier(
+      supabaseAdmin,
+      (context.challenge.organization_id as string | null | undefined) ?? null,
+    );
     const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier);
     const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
 
