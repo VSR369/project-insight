@@ -2549,6 +2549,7 @@ export type Database = {
       }
       cogni_notifications: {
         Row: {
+          action_url: string | null
           challenge_id: string | null
           created_at: string
           id: string
@@ -2559,6 +2560,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          action_url?: string | null
           challenge_id?: string | null
           created_at?: string
           id?: string
@@ -2569,6 +2571,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          action_url?: string | null
           challenge_id?: string | null
           created_at?: string
           id?: string

@@ -72,13 +72,22 @@ interface ActionItem {
   challengeId?: string;
   /** Role codes the user holds on this challenge */
   roleCodes?: string[];
+  /** Optional deep link from cogni_notifications.action_url */
+  action_url?: string | null;
 }
 
-function getActionRoute(item: ActionItem): {
+interface NotificationRow {
+  action_url?: string | null;
+}
+
+function getActionRoute(item: ActionItem & NotificationRow): {
   route: string; label: string; icon: typeof Eye;
 } {
-  // Notification-based items → challenge view
+  // Notification-based items → prefer action_url, fall back to challenge view
   if (item.isNotification) {
+    if (item.action_url) {
+      return { route: item.action_url, label: 'View', icon: Eye };
+    }
     const targetId = item.challengeId || item.id;
     return { route: `/cogni/challenges/${targetId}/view`, label: 'View', icon: Eye };
   }
@@ -111,7 +120,7 @@ export function MyActionItemsSection() {
       if (!user?.id) return [];
       const { data, error } = await supabase
         .from('cogni_notifications')
-        .select('id, user_id, challenge_id, notification_type, title, message, is_read, created_at')
+        .select('id, user_id, challenge_id, notification_type, title, message, is_read, created_at, action_url')
         .eq('user_id', user.id)
         .eq('is_read', false)
         .order('created_at', { ascending: false })
@@ -127,14 +136,16 @@ export function MyActionItemsSection() {
 
   const challengeItems = challengesData?.items ?? [];
 
-  // Mark notification as read + navigate
+  // Mark notification as read + navigate (prefer deep link from action_url)
   const handleNotificationAction = useCallback(
-    async (notifId: string, challengeId: string | null) => {
+    async (notifId: string, challengeId: string | null, actionUrl: string | null) => {
       await supabase.rpc('mark_notification_read', { p_notification_id: notifId });
       queryClient.invalidateQueries({ queryKey: ['cogni-notifications-unread', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['cogni-notifications', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['cogni-unread-count', user?.id] });
-      if (challengeId) {
+      if (actionUrl) {
+        navigate(actionUrl);
+      } else if (challengeId) {
         navigate(`/cogni/challenges/${challengeId}/view`);
       }
     },
@@ -190,6 +201,7 @@ export function MyActionItemsSection() {
           isNotification: true,
           notificationId: notif.id,
           challengeId: notif.challenge_id ?? undefined,
+          action_url: (notif as { action_url?: string | null }).action_url ?? null,
         });
       }
     }
@@ -287,7 +299,11 @@ export function MyActionItemsSection() {
                         className="h-7 gap-1 text-xs"
                         onClick={() => {
                           if (item.isNotification && item.notificationId) {
-                            handleNotificationAction(item.notificationId, item.challengeId ?? null);
+                            handleNotificationAction(
+                              item.notificationId,
+                              item.challengeId ?? null,
+                              item.action_url ?? null,
+                            );
                           } else {
                             navigate(route);
                           }
