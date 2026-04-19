@@ -33,12 +33,48 @@ interface SectionConfigRow {
   section_order: number;
   system_prompt: string;
   section_instructions: string | null;
+  section_instructions_by_tier: Record<string, string> | null;
+  max_tokens: number | null;
+  reasoning_effort: string | null;
+  tier_complexity: string | null;
   required_context_keys: string[];
   regulatory_frameworks: string[];
   anti_disintermediation_required: boolean;
   applies_to_engagement: "MARKETPLACE" | "AGGREGATOR" | "BOTH";
   applies_to_governance: "QUICK" | "STRUCTURED" | "CONTROLLED" | "ALL";
   is_active: boolean;
+}
+
+type TierComplexity = "standard" | "premium" | "enterprise";
+
+async function resolveOrgTier(
+  supabaseAdmin: SupabaseClient,
+  orgId: string | null | undefined,
+): Promise<TierComplexity> {
+  if (!orgId) return "standard";
+  try {
+    const { data } = await supabaseAdmin
+      .from("seeker_memberships")
+      .select("status")
+      .eq("organization_id", orgId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    return data ? "premium" : "standard";
+  } catch {
+    return "standard";
+  }
+}
+
+function pickTierInstructions(
+  section: SectionConfigRow,
+  tier: TierComplexity,
+): string | null {
+  const byTier = section.section_instructions_by_tier;
+  if (byTier && typeof byTier === "object" && byTier[tier]) {
+    return String(byTier[tier]);
+  }
+  return section.section_instructions;
 }
 
 interface SectionAIResult {
@@ -104,24 +140,26 @@ function buildSystemPrompt(
   sections: SectionConfigRow[],
   engagement: "MARKETPLACE" | "AGGREGATOR",
   governance: "QUICK" | "STRUCTURED" | "CONTROLLED",
+  tier: TierComplexity,
 ): string {
   const sectionInstructions = sections
-    .map(
-      (s, idx) =>
-        `### Section ${idx + 1}: ${s.section_title} (key: ${s.section_key})\n${s.system_prompt}${
-          s.section_instructions ? `\n\nAdditional instructions: ${s.section_instructions}` : ""
-        }${
-          s.regulatory_frameworks.length > 0
-            ? `\n\nApplicable regulatory frameworks: ${s.regulatory_frameworks.join(", ")}`
-            : ""
-        }`,
-    )
+    .map((s, idx) => {
+      const tierInstructions = pickTierInstructions(s, tier);
+      return `### Section ${idx + 1}: ${s.section_title} (key: ${s.section_key})\n${s.system_prompt}${
+        tierInstructions ? `\n\nAdditional instructions: ${tierInstructions}` : ""
+      }${
+        s.regulatory_frameworks.length > 0
+          ? `\n\nApplicable regulatory frameworks: ${s.regulatory_frameworks.join(", ")}`
+          : ""
+      }`;
+    })
     .join("\n\n");
 
   return `You are a senior legal counsel drafting a unified Solution Provider Agreement (SPA) for a global open innovation platform.
 
 Engagement model: ${engagement}
 Governance mode: ${governance}
+Pricing tier: ${tier} — apply the tier-specific drafting depth in each section's instructions.
 
 You will produce a SINGLE unified HTML document containing every section listed below, in the exact order given.
 
@@ -230,11 +268,11 @@ export async function handlePass3({
     const engagement = resolveEngagement(context.challenge.operating_model);
     const governance = resolveGovernance(context.challenge.governance_profile);
 
-    // 3) Load section configs
+    // 3) Load section configs (incl. tier columns)
     const { data: configRows, error: configErr } = await supabaseAdmin
       .from("ai_legal_review_config")
       .select(
-        "section_key, section_title, section_order, system_prompt, section_instructions, required_context_keys, regulatory_frameworks, anti_disintermediation_required, applies_to_engagement, applies_to_governance, is_active",
+        "section_key, section_title, section_order, system_prompt, section_instructions, section_instructions_by_tier, max_tokens, reasoning_effort, tier_complexity, required_context_keys, regulatory_frameworks, anti_disintermediation_required, applies_to_engagement, applies_to_governance, is_active",
       )
       .eq("is_active", true)
       .order("section_order", { ascending: true });
@@ -269,12 +307,19 @@ export async function handlePass3({
       .eq("challenge_id", challengeId)
       .neq("status", "ai_suggested");
 
-    // 5) Build prompts and call AI
-    const systemPrompt = buildSystemPrompt(sections, engagement, governance);
+    // 5) Resolve org pricing tier and build prompts.
+    const tier = await resolveOrgTier(supabaseAdmin, context.org?.id);
+    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier);
     const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
 
+    // Tier may bump max_tokens (use highest configured value across sections).
+    const maxTokens = Math.max(
+      16384,
+      ...sections.map((s) => Number(s.max_tokens ?? 0)).filter((n) => n > 0),
+    );
+
     const aiResp = await callAIWithFallback(lovableApiKey, {
-      max_tokens: 16384,
+      max_tokens: maxTokens,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
