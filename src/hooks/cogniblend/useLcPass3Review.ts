@@ -192,6 +192,7 @@ export function useLcPass3Review(challengeId: string | undefined) {
     error: runPass3.error instanceof Error ? runPass3.error.message : null,
     isPass3Accepted,
     isPass3Complete: isPass3Accepted,
+    isStale: staleQuery.data === true,
     runPass3: () => runPass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),
