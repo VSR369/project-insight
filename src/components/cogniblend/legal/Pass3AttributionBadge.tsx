@@ -19,7 +19,8 @@ export interface Pass3AttributionBadgeProps {
 }
 
 interface ProfileRow {
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
 }
 
@@ -34,7 +35,7 @@ export function Pass3AttributionBadge({
     queryFn: async (): Promise<ProfileRow | null> => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, email')
+        .select('first_name, last_name, email')
         .eq('user_id', reviewerUserId!)
         .maybeSingle();
       if (error) return null;
@@ -44,10 +45,12 @@ export function Pass3AttributionBadge({
 
   if (!reviewerUserId || !reviewedAt) return null;
 
+  const fullName = [profileQuery.data?.first_name, profileQuery.data?.last_name]
+    .filter((p) => p && p.trim())
+    .join(' ')
+    .trim();
   const displayName =
-    profileQuery.data?.full_name?.trim() ||
-    profileQuery.data?.email?.trim() ||
-    'Platform Reviewer';
+    fullName || profileQuery.data?.email?.trim() || 'Platform Reviewer';
 
   let formattedDate = reviewedAt;
   try {
