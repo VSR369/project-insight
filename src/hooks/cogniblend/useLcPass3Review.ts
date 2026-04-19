@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
+import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 
 export type Pass3Status = 'idle' | 'running' | 'completed' | 'error';
 export type Pass3Confidence = 'high' | 'medium' | 'low' | null;
@@ -159,6 +160,16 @@ export function useLcPass3Review(challengeId: string | undefined) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
+      if (challengeId && user?.id) {
+        void logStatusTransition({
+          challengeId,
+          fromStatus: 'PASS3_PENDING',
+          toStatus: 'PASS3_ACCEPTED',
+          changedBy: user.id,
+          role: 'LC',
+          triggerEvent: 'LC_ACCEPT_PASS3',
+        });
+      }
       invalidateAll();
       toast.success('Legal documents approved');
     },
