@@ -10,6 +10,7 @@ import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageO
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
 import { CuratorCpaReviewPanel } from "@/components/cogniblend/curation/CuratorCpaReviewPanel";
+import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
 import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
@@ -375,6 +376,14 @@ export default function CurationReviewPage() {
             userId={o.user?.id ?? ''}
           />
         )}
+
+        {/* Pass 3: Legal AI Review — STRUCTURED/CONTROLLED only, Phase 2 only */}
+        {((o.challenge as any)?.governance_mode_override ?? o.challenge?.governance_profile ?? 'QUICK')
+          .toUpperCase() !== 'QUICK' &&
+          (o.challenge?.current_phase ?? 0) === 2 &&
+          o.challengeId && (
+            <CuratorLegalReviewPanel challengeId={o.challengeId} />
+          )}
       </div>
 
       {/* ═══ MODALS & OVERLAYS ═══ */}
