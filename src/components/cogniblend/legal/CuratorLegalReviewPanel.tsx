@@ -33,9 +33,9 @@ const CONFIDENCE_VARIANT: Record<
   NonNullable<Pass3Confidence>,
   { label: string; className: string }
 > = {
-  high: { label: 'High confidence', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  medium: { label: 'Medium confidence', className: 'bg-amber-100 text-amber-800 border-amber-200' },
-  low: { label: 'Low confidence', className: 'bg-red-100 text-red-800 border-red-200' },
+  high: { label: 'High confidence', className: 'bg-success/10 text-success border-success/30' },
+  medium: { label: 'Medium confidence', className: 'bg-warning/10 text-warning border-warning/30' },
+  low: { label: 'Low confidence', className: 'bg-destructive/10 text-destructive border-destructive/30' },
 };
 
 export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanelProps) {
@@ -84,7 +84,7 @@ export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanel
             Legal Review — Pass 3
           </CardTitle>
           {review.isPass3Accepted && (
-            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+            <Badge className="bg-success/10 text-success border-success/30">
               <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
               Legal Documents Approved
             </Badge>
@@ -220,7 +220,7 @@ export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanel
                 <Button
                   onClick={() => review.acceptPass3()}
                   disabled={review.isAccepting || review.isSaving}
-                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="gap-2"
                 >
                   {review.isAccepting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
