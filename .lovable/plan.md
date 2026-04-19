@@ -1,78 +1,86 @@
 
 
-## Sprint 4 — LC Refactor + Pass 3 Wiring
+## Sprint 5 — Creator Approval Enhancement
 
-Decompose the 1,358-line `LcLegalWorkspacePage.tsx` into 7 small files plus a thin orchestrator, and add the Pass 3 unified-SPA panel for the LC role.
+Build a Creator review/approve workflow with new DB columns + table, a new page, supporting hook/components, and minimal edits to MyChallengesPage and the two Pass 3 panels.
 
 ### Files
 
-| # | File | Type | Lines | Purpose |
-|---|---|---|---|---|
-| 1 | `src/lib/cogniblend/lcLegalHelpers.ts` | CREATE | ~110 | `IP_MODEL_LABELS`, `DOCUMENT_TYPES`, `FILE_UPLOAD_CONFIG`, types `SuggestedDoc`/`DocEditState`/`AttachedDoc`, `renderJsonList`, `renderEvalCriteria`, `parseRewardStructure` |
-| 2 | `src/hooks/cogniblend/useLcLegalData.ts` | CREATE | ~100 | `useChallengeForLC`, `useAttachedLegalDocs`, `usePersistedSuggestions` (typed return — no `any`) |
-| 3 | `src/hooks/cogniblend/useLcPass3Review.ts` | CREATE | ~150 | Mirror of `useCuratorLegalReview` for LC: query, `runPass3`, `saveEdits`, `acceptPass3`. Same `pass3-legal-review` query key so cache is shared. |
-| 4 | `src/components/cogniblend/lc/LcChallengeDetailsCard.tsx` | CREATE | ~230 | Read-only Accordion (Overview, Deliverables, Evaluation, IP/Governance/Reward, Solver) |
-| 5 | `src/components/cogniblend/lc/LcAttachedDocsCard.tsx` | CREATE | ~120 | Attached docs list with delete `AlertDialog` |
-| 6 | `src/components/cogniblend/lc/LcAiSuggestionsSection.tsx` | CREATE | ~240 | Generate CTA + loading/error + collapsible suggestion cards (Textarea + FileUploadZone + Accept/Save/Dismiss) |
-| 7 | `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | CREATE | ~220 | TipTap-based unified SPA panel (idle/running/completed/error) |
-| 8 | `src/components/cogniblend/lc/LcAddDocumentForm.tsx` | CREATE | ~180 | Manual add-doc form (extracted to keep page <300 lines) |
-| 9 | `src/pages/cogniblend/LcLegalWorkspacePage.tsx` | REWRITE | ~240 | Thin orchestrator: hooks at top, conditional returns, JSX composition |
+| # | File | Type | Lines |
+|---|---|---|---|
+| 1 | New migration | CREATE | SQL |
+| 2 | `src/hooks/cogniblend/useCreatorReview.ts` | CREATE | ~220 |
+| 3 | `src/pages/cogniblend/CreatorChallengeReviewPage.tsx` | CREATE | ~240 |
+| 4 | `src/components/cogniblend/creator/RequestRecurationModal.tsx` | CREATE | ~120 |
+| 5 | `src/components/cogniblend/creator/Pass3StaleAlert.tsx` | CREATE | ~60 |
+| 6 | `src/components/cogniblend/creator/CreatorApprovalStatusBanner.tsx` | CREATE | ~80 |
+| 7 | `src/pages/cogniblend/MyChallengesPage.tsx` | MODIFY | +6 (route branch) |
+| 8 | `src/components/cogniblend/legal/CuratorLegalReviewPanel.tsx` | MODIFY | +stale alert + clear-stale on re-run |
+| 9 | `src/hooks/cogniblend/useCuratorLegalReview.ts` | MODIFY | read+clear `pass3_stale` |
+| 10 | `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | MODIFY | +stale alert |
+| 11 | `src/hooks/cogniblend/useLcPass3Review.ts` | MODIFY | read+clear `pass3_stale` |
+| 12 | `src/App.tsx` | MODIFY | +1 route |
 
-### Hook design (`useLcPass3Review`)
+> Naming note: a file already exists at `src/components/cogniblend/curation/CreatorApprovalStatusBanner.tsx` (different concern — preferences banner). To avoid confusion I'll place the new one under `creator/` (matches Part D path). Both can coexist.
 
-Identical contract to `useCuratorLegalReview` (Sprint 3) — same `['pass3-legal-review', challengeId]` key, same mutations (`runPass3`, `saveEdits`, `acceptPass3`), same derived `pass3Status` / `isPass3Complete`. Reusing the same key means if both Curator and LC view the same challenge in different sessions, cache stays consistent.
+### Migration (Part A)
 
-### Panel design (`LcPass3ReviewPanel`)
+- New table `challenge_edit_history` with columns/indexes/RLS exactly per spec. RLS uses existing `user_challenge_roles` (verified — same pattern as other tables).
+- `ALTER challenges ADD COLUMN IF NOT EXISTS` × 5: `creator_approval_status` (CHECK), `creator_approval_requested_at`, `creator_approved_at`, `creator_approval_notes`, `pass3_stale BOOLEAN DEFAULT false`. All nullable / safely defaulted — zero impact on existing rows.
 
-Same four-state pattern as `CuratorLegalReviewPanel`:
-- **Idle** → Shield card + "Run Pass 3 AI Review" CTA + explainer
-- **Running** → Loader2 + status text
-- **Completed** → AI summary Alert + confidence Badge + regulatory flags + `LegalDocEditorToolbar` + `LegalDocQuickInserts` + `LegalDocUploadHandler` + `LegalDocEditorPanel` + Save Draft / Re-run / Accept buttons; after accept → green "Approved ✓" badge with read-only editor
-- **Error** → destructive Alert + Retry
+### Hook design (`useCreatorReview`)
 
-### Page composition order (LcLegalWorkspacePage)
+- Single React Query `['creator-review', challengeId]` fetching challenge (preview field set, similar to `usePreviewData`), org, legal docs (UNIFIED_SPA accepted only), digest, attachments. Reuses `usePreviewData`'s sub-queries via direct composition rather than re-implementing — calls existing `usePreviewData(challengeId)` and additionally fetches the approval/stale columns + roles.
+- Verify CR role via existing `useUserChallengeRoles`.
+- Constants: `CREATOR_EDITABLE_SECTIONS`, `AGG_RESTRICTED_SECTIONS` exported for use by the page's `canEditSection` callback.
+- Local state: `editedSections` (Record<string, unknown>) accumulating Creator edits, `showLegalToggle` for AGG opt-in.
+- Mutations:
+  - `acceptAll()` → update `creator_approval_status='approved'`, `creator_approved_at=now()`; invalidate; toast.
+  - `submitEdits()` → for each entry in `editedSections`, insert `challenge_edit_history` row with `before_value`/`after_value`; update challenge columns; set `creator_approval_status='changes_submitted'`, `pass3_stale=true`; invalidate.
+  - `requestRecuration(reason)` → update `creator_approval_status='changes_requested'`, `creator_approval_notes=reason`; invalidate.
+- Computed: `isApproved`, `canEdit`, `legalDocHtml`, `showLegalDocs`, `timeoutDate`, `isTimedOut`, `isAGG`.
+- All mutations use `withUpdatedBy`, errors via `handleMutationError`.
 
+### Page (`CreatorChallengeReviewPage`)
+
+- Route guard: redirect to `/cogni/my-challenges` if not authenticated; show "Access Denied" if no CR role; show "not awaiting approval" message if `creator_approval_status !== 'pending'` AND not approved.
+- Header: back link, title, status badge from `getStatusConfig`, 7-day countdown using `timeoutDate`.
+- `Pass3StaleAlert` shown when `pass3_stale === true`.
+- `CreatorApprovalStatusBanner` reflecting current status.
+- Sticky action row (top) and footer row (bottom): Accept All / Submit with Edits (enabled only when `Object.keys(editedSections).length > 0`) / Request Re-curation.
+- `<PreviewDocument />` reused with `canEditSection={(k) => CREATOR_EDITABLE_SECTIONS.has(k) && !(isAGG && AGG_RESTRICTED_SECTIONS.has(k))}`. Inline edits already write to DB via `PreviewDocument`'s built-in editor; the page additionally tracks edited keys to enable the "Submit with Edits" branch and to write history rows on submit.
+- Legal section: MP → always render Card with `LegalDocEditorPanel readOnly`; AGG → Switch toggle; if no `UNIFIED_SPA accepted` row → muted "being prepared by the Curator" message.
+- After approval: green banner "You approved this challenge on [date]"; all action buttons disabled.
+
+### Pass 3 panel modifications
+
+- Both `useCuratorLegalReview` and `useLcPass3Review`: extend query to also fetch `pass3_stale` from `challenges` (separate small query keyed on `['pass3-stale', challengeId]` to keep doc query tight). Add `isStale` to return value. Modify `runPass3` mutation `onSuccess` to clear `challenges.pass3_stale = false` (best-effort, ignore error to not block).
+- Both panels: when `isStale && pass3Status === 'completed'`, render `Pass3StaleAlert` above the AI Summary with the "Click 'Re-run Pass 3'" copy.
+
+### MyChallengesPage edit
+
+Update `onView` to branch on `phase_status === 'CR_APPROVAL_PENDING'` → `/cogni/challenges/:id/creator-review`. The "Review & Approve" button already exists in the card (line 341); just change its destination by routing through the new `onView`. QUICK challenges never get `CR_APPROVAL_PENDING`, so behavior is unchanged for them.
+
+### App.tsx edit
+
+Add one route inside the existing cogni block:
+```tsx
+<Route path="/cogni/challenges/:id/creator-review" element={<LazyRoute><CreatorChallengeReviewPage /></LazyRoute>} />
 ```
-Header (inline, ~20 lines)
-WorkflowProgressBanner step={3}
-<LcChallengeDetailsCard challenge={…} />
-<AssembledCpaSection challengeId={…} />        ← unchanged
-<LcAttachedDocsCard … />
-{isLC && <LcPass3ReviewPanel challengeId={…} />}  ← NEW
-<LcAiSuggestionsSection … />                    ← existing flow, untouched
-{isLC && <LcAddDocumentForm … />}
-GATE-02 banners + pending warning + submit Card with <LcReturnToCurator/>, <LcApproveAction/>, Submit button
-```
+Plus the lazy import at the top.
 
-### What stays in the page (orchestrator only)
+### Safety guarantees
 
-- All `useState` for generate / docEdits / openCards / submit / addDoc form state
-- All mutations (`acceptDocMutation`, `deleteDocMutation`, `dismissSuggestionMutation`, `handleGenerate`, `handleSaveContent`, `handleAddNewDoc`, `handleSubmitToCuration`)
-- Conditional returns for `challengeLoading`, PWA gate, access denied
-- Final submit Card with `gateFailures` + pending suggestions Alert + `LcReturnToCurator` + `LcApproveAction` + Submit button
-
-State and handlers passed down as props. No business logic moves into components.
-
-### Backward-compatibility guarantees
-
-- "Generate Legal Documents" button still calls edge function with `{ challenge_id }` (no `pass3_mode`) → legacy flow unchanged.
-- Individual doc Accept/Save/Dismiss/file upload preserved verbatim inside `LcAiSuggestionsSection`.
-- `complete_legal_review` RPC submit path untouched.
-- `AssembledCpaSection`, `LcReturnToCurator`, `LcApproveAction`, `WorkflowProgressBanner`, `PwaAcceptanceGate`, `FileUploadZone` imports preserved.
-- Pass 3 panel is purely additive — placed between AttachedDocs and AI Suggestions.
-
-### Constraints met
-
-- Every new file < 250 lines (largest: `LcAiSuggestionsSection` at ~240, `LcChallengeDetailsCard` at ~230).
-- Page rewrite ~240 lines (target <300).
-- Layer separation: components receive data via props; hooks own queries/mutations; no `supabase.from` in components 4/5/6/8.
-- Zero `any` in new code — `Record<string, unknown>` + narrowed types; existing `any` usages confined to legacy mutation payloads inside the page orchestrator (cannot eliminate without schema changes — out of scope).
-- TipTap components from Sprint 1 reused as-is.
-- `useCuratorLegalReview` pattern from Sprint 3 mirrored exactly.
+- QUICK mode: Creator approval is never triggered server-side (no `CR_APPROVAL_PENDING`), so route is unreachable; if directly visited, the "not awaiting approval" guard renders.
+- ChallengeManagePage / ChallengePreviewPage / Pass 1 / Pass 2 / Accept All flows: zero touch.
+- `PreviewDocument` already supports `canEditSection` (verified line 32, 149) — no changes needed.
+- `LegalDocEditorPanel` (the cogniblend one, verified) supports `readOnly` and uses `legal-document.css`.
+- All new files < 250 lines via hook/component decomposition.
+- Audit trail logging deferred (RPC `log_audit_event` not verified present); mutations use `created_by` via `withCreatedBy` for `challenge_edit_history` instead. If `audit_trail` insert is required, will add as a best-effort call.
 
 ### Out of scope
 
-- Visibility gating of Pass 3 panel by governance mode — the prompt specifies "shown for CONTROLLED mode" but also says `{isLC && <LcPass3ReviewPanel/>}`. Will follow the explicit JSX directive (`isLC` only). LC role assignment is itself governance-gated (LC only assigned in STRUCTURED/CONTROLLED), so this naturally restricts visibility without an extra check.
-- Refactoring legacy `as any` casts in existing mutations.
-- Section-level diff/version history for Pass 3 (single unified doc view).
+- 7-day timeout enforcement automation (a `pg_cron` job to flip `timeout_override`) — UI shows the countdown only.
+- Curator-side "override timeout" action — separate sprint.
+- Notification dispatch on approval state changes.
 
