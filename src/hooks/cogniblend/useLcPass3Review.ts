@@ -29,6 +29,9 @@ export interface Pass3Document {
 const PASS3_KEY = (challengeId: string | undefined) =>
   ['pass3-legal-review', challengeId] as const;
 
+const STALE_KEY = (challengeId: string | undefined) =>
+  ['pass3-stale', challengeId] as const;
+
 export function useLcPass3Review(challengeId: string | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -71,9 +74,25 @@ export function useLcPass3Review(challengeId: string | undefined) {
     },
   });
 
+  const staleQuery = useQuery({
+    queryKey: STALE_KEY(challengeId),
+    enabled: !!challengeId,
+    staleTime: 10_000,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('pass3_stale')
+        .eq('id', challengeId!)
+        .maybeSingle();
+      if (error) return false;
+      return (data as { pass3_stale?: boolean | null } | null)?.pass3_stale === true;
+    },
+  });
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: PASS3_KEY(challengeId) });
     queryClient.invalidateQueries({ queryKey: ['pass3-complete-check', challengeId] });
+    queryClient.invalidateQueries({ queryKey: STALE_KEY(challengeId) });
   };
 
   const runPass3 = useMutation({
@@ -90,7 +109,13 @@ export function useLcPass3Review(challengeId: string | undefined) {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      if (challengeId) {
+        await supabase
+          .from('challenges')
+          .update({ pass3_stale: false } as never)
+          .eq('id', challengeId);
+      }
       invalidateAll();
       toast.success('Legal AI review completed');
     },
@@ -167,6 +192,7 @@ export function useLcPass3Review(challengeId: string | undefined) {
     error: runPass3.error instanceof Error ? runPass3.error.message : null,
     isPass3Accepted,
     isPass3Complete: isPass3Accepted,
+    isStale: staleQuery.data === true,
     runPass3: () => runPass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),

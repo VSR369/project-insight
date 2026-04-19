@@ -14,6 +14,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 
+const STALE_KEY = (challengeId: string | undefined) =>
+  ['pass3-stale', challengeId] as const;
+
 export type Pass3Status = 'idle' | 'running' | 'completed' | 'error';
 export type Pass3Confidence = 'high' | 'medium' | 'low' | null;
 
@@ -73,9 +76,25 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
     },
   });
 
+  const staleQuery = useQuery({
+    queryKey: STALE_KEY(challengeId),
+    enabled: !!challengeId,
+    staleTime: 10_000,
+    queryFn: async (): Promise<boolean> => {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('pass3_stale')
+        .eq('id', challengeId!)
+        .maybeSingle();
+      if (error) return false;
+      return (data as { pass3_stale?: boolean | null } | null)?.pass3_stale === true;
+    },
+  });
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: PASS3_KEY(challengeId) });
     queryClient.invalidateQueries({ queryKey: ['pass3-complete-check', challengeId] });
+    queryClient.invalidateQueries({ queryKey: STALE_KEY(challengeId) });
   };
 
   const runPass3 = useMutation({
@@ -92,7 +111,14 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Best-effort clear of pass3_stale on the parent challenge.
+      if (challengeId) {
+        await supabase
+          .from('challenges')
+          .update({ pass3_stale: false } as never)
+          .eq('id', challengeId);
+      }
       invalidateAll();
       toast.success('Legal AI review completed');
     },
@@ -170,6 +196,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
     error: runPass3.error instanceof Error ? runPass3.error.message : null,
     isPass3Accepted,
     isPass3Complete: isPass3Accepted,
+    isStale: staleQuery.data === true,
     runPass3: () => runPass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),

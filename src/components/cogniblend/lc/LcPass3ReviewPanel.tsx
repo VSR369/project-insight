@@ -18,6 +18,7 @@ import { useLcPass3Review, type Pass3Confidence } from '@/hooks/cogniblend/useLc
 import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
 import { LegalDocUploadHandler } from '@/components/cogniblend/legal/LegalDocUploadHandler';
+import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 
@@ -133,6 +134,9 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
 
         {review.pass3Status === 'completed' && !review.isRunning && (
           <>
+            {review.isStale && (
+              <Pass3StaleAlert description="Creator made edits. Click 'Re-run Pass 3' to update legal documents." />
+            )}
             {review.changesSummary && (
               <Alert>
                 <AlertTitle className="flex items-center gap-2">

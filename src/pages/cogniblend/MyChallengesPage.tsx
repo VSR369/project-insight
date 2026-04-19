@@ -211,7 +211,13 @@ export default function MyChallengesPage() {
                 key={ch.challenge_id}
                 challenge={ch}
                 isDuplicate={duplicateTitles.has(ch.title.trim().toLowerCase())}
-                onView={() => navigate(`/cogni/challenges/${ch.challenge_id}/view`)}
+                onView={() => {
+                  if (ch.phase_status === 'CR_APPROVAL_PENDING') {
+                    navigate(`/cogni/challenges/${ch.challenge_id}/creator-review`);
+                  } else {
+                    navigate(`/cogni/challenges/${ch.challenge_id}/view`);
+                  }
+                }}
                 onResume={() => navigate(`/cogni/challenges/create?draft=${ch.challenge_id}`)}
                 onDelete={() => setDeleteTarget(ch.challenge_id)}
               />

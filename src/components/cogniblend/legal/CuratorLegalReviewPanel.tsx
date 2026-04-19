@@ -22,6 +22,7 @@ import { useCuratorLegalReview, type Pass3Confidence } from '@/hooks/cogniblend/
 import { LegalDocEditorToolbar } from './LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from './LegalDocQuickInserts';
 import { LegalDocUploadHandler } from './LegalDocUploadHandler';
+import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 
@@ -139,6 +140,9 @@ export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanel
 
         {review.pass3Status === 'completed' && !review.isRunning && (
           <>
+            {review.isStale && (
+              <Pass3StaleAlert description="Creator made edits. Click 'Re-run Pass 3' to update legal documents." />
+            )}
             {review.changesSummary && (
               <Alert>
                 <AlertTitle className="flex items-center gap-2">
