@@ -29,6 +29,9 @@ export interface Pass3Document {
 const PASS3_KEY = (challengeId: string | undefined) =>
   ['pass3-legal-review', challengeId] as const;
 
+const STALE_KEY = (challengeId: string | undefined) =>
+  ['pass3-stale', challengeId] as const;
+
 export function useLcPass3Review(challengeId: string | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
