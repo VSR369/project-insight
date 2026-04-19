@@ -1,59 +1,123 @@
 
 
-## Sprint 6B — 10-Gap Patch Plan
+## BRD v2.1 FINAL — Implementation Gap Analysis
 
-Net-additive, defensive. Several files (CuratorLegalReviewPanel 245L, LcPass3ReviewPanel 239L, useCreatorReview 323L, EscrowManagementPage 322L) are at/over the 250/300 line limits, so additions go into **new sub-components / hooks** rather than ballooning the parents.
+**Overall verdict:** The BRD is **~95% implemented**. All P0 blockers (6 DB bugs), Pass 3 (Curator + LC), AGG Section 9 protection, Creator approval workflow, FC escrow, daily/hourly timeout enforcement, audit trail, and version history are live. A small set of **wiring / consistency / minor UX** gaps remain. None block functionality, but a few create user-experience friction.
 
-### File map
+---
 
-| # | File | Type | Notes |
+### ✅ Verified PRESENT (no gaps)
+
+| BRD Requirement | Evidence |
+|---|---|
+| 6 P0 DB bug fixes | `md_governance_mode_config`: STRUCTURED `ai_legal_review_enabled=true`, `escrow_mode='mandatory'` for CTRL, `legal_doc_mode='ai_review'` for CTRL. Phase 3 STRUCTURED `auto_complete=true`. `auto_assign_roles_on_creation` returns `['CR']` only for STRUCT/CTRL. |
+| Pass 3 mandatory STRUCT + CTRL | `CuratorLegalReviewPanel` + `LcPass3ReviewPanel` mounted; V-CR-6 enforced in `CurationChecklistPanel` |
+| Unified Solution Provider Agreement (11 sections) | `LEGAL_SECTIONS` constant + `Pass3SectionNavWrapper` |
+| AGG Section 9 protection | `protectedHeadings = ['ANTI-DISINTERMEDIATION']` + ProseMirror `dispatchTransaction` guard |
+| 15-source AI context | `pass3Handler.ts` with `buildUnifiedContext` + tier resolution |
+| `ai_legal_review_config` table | Present, 11 rows seeded, with `max_tokens`, `reasoning_effort`, `tier_complexity`, `section_instructions_by_tier` |
+| New columns on `challenge_legal_docs` | All 7 BRD-required columns present (`ai_modified_content_html`, `ai_changes_summary`, `ai_review_status`, `ai_confidence`, `ai_regulatory_flags`, `version_history`, `creator_comments`) |
+| Pass 3 re-run on Creator edits (Decision #5) | `notifyPass3Stale` wired in `useCreatorReview.submitEdits` |
+| Creator approval (MP=mandatory, AGG=opt-in) | `CreatorApprovalCard` + `creator_approval_required` toggle in extended_brief |
+| Creator comment-only on legal/escrow | `CreatorCommentSection` + `creator_comments` / `creator_escrow_comments` columns |
+| LC review timeout 7d configurable | `lc_review_timeout_days` on `md_governance_mode_config` + `LcTimeoutConfigCard` admin UI |
+| Override Creator timeout | `Pass3OverdueBanner` + `overrideCreatorApproval` mutation logging to `challenge_status_history` |
+| FC escrow cross-validation | `Math.abs(deposit - reward_total) > 0.01` block in `EscrowManagementPage` |
+| Audit trails | `challenge_status_history` + `challenge_edit_history` tables + `logStatusTransition` boundary |
+| Hourly + daily cron enforcement | `enforce-lc-timeout-hourly`, `enforce-creator-approval-timeout-hourly` jobs ACTIVE |
+
+---
+
+### ⚠️ Identified GAPS (none blocking)
+
+#### Gap A — Notification Matrix incomplete (Section 11)
+BRD requires notifications for **6 events**; only **4 are wired**. Missing senders:
+
+| BRD Event | Notification | Status |
+|---|---|---|
+| Curation + Pass 3 done → Creator | Email + In-app | ❌ Not wired in `useCuratorLegalReview.acceptPass3` |
+| Creator approves → Curator (in-app) + LC (email if CTRL) | — | ❌ No `notifyCreatorApproved` helper exists |
+| Creator requests changes → Curator | In-app | ❌ Not wired in `submitRequestRecuration` |
+| LC approves (CTRL) → Curator + FC | In-app + Email | ❌ Not wired in `useLcPass3Review.acceptPass3` |
+| FC confirms escrow → Curator | In-app | ✅ Wired (`notifyEscrowConfirmed`) |
+| Pass 3 stale (Creator edits) | In-app | ✅ Wired (`notifyPass3Stale`) |
+
+`workflowNotifications.ts` only exports 4 helpers. Missing: `notifyCurationComplete`, `notifyCreatorApproved`, `notifyCreatorChangesRequested`, `notifyLcApproved`.
+
+#### Gap B — Two parallel cron paths (LC + Creator timeouts)
+Both `enforce-lc-timeout-hourly` (Sprint 6) AND `check-review-timeouts` (Sprint 6B daily — **never scheduled**) handle the same job. The daily one was created but no cron entry exists. Either remove the unused `check-review-timeouts` function or schedule it. Currently no functional gap since hourly fns work, but **dead code creates confusion**.
+
+#### Gap C — Email delivery missing
+BRD Section 11 specifies "Email + In-app" for several events. All current notifications are **in-app only** (`cogni_notifications` table). No `send-email` integration in `workflowNotifications.ts`. Documented out-of-scope in Sprint 6B but still a BRD gap.
+
+#### Gap D — Creator legal doc visibility (AGG opt-in path)
+Per Decision #3, AGG Creator can opt in to see legal docs. The toggle exists (`CreatorApprovalCard`), but `CreatorChallengeReviewPage` always renders `CreatorCommentSection` regardless of the AGG opt-in flag. Should hide legal section entirely for AGG when `creator_approval_required=false`.
+
+#### Gap E — `escrow_records` vs `escrow_transactions` naming
+BRD references `escrow_transactions`; actual table is `escrow_records`. Functional alias only — **not a real gap**, but doc-vs-code drift to flag.
+
+#### Gap F — STRUCTURED Phase 3 `required_role`
+Sprint 0 spec only flipped `auto_complete=true`. Implementation also changed `required_role` from `LC` → `CU`. Consistent with Curator-absorbs-LC intent — **acceptable**, document it.
+
+#### Gap G — UX navigation consistency
+- After Curator accepts Pass 3 in STRUCTURED, no automatic navigation to Creator approval queue notification — Creator must manually find the challenge in `MyActionItemsSection`.
+- `MyActionItemsSection` only shows `CR_APPROVAL_PENDING` items; no separate visual cue when Pass 3 has been re-run on Creator edits and is awaiting Curator/LC.
+- No deep link from `cogni_notifications` rows into the relevant page (currently notifications are listed but don't carry actionable URLs).
+
+#### Gap H — `LcLegalWorkspacePage.tsx` size
+File is 1,358 lines (per BRD Section 12); component-policy cap is 250. Refactor was deferred per Sprint 4 plan but not executed. **Maintenance risk**, not a functional gap.
+
+---
+
+### 🧭 UX / Document Flow Verification
+
+| Stage | Role transition | Status |
+|---|---|---|
+| Phase 2 → Phase 3 (CTRL) | CU → LC + FC auto-assigned via `complete_phase` | ✅ Working |
+| Phase 3 LC complete → FC visible | `lc_compliance_complete=TRUE` gates `FcChallengeQueuePage` | ✅ Working |
+| Phase 3 FC complete → Phase 4 | Both compliance flags → `complete_phase` advances | ✅ Working |
+| Pass 3 acceptance → Creator review trigger | `creator_approval_requested_at` set in `useCurationActionData` | ✅ Working |
+| Creator edit → Pass 3 stale → Curator/LC notified | `notifyPass3Stale` fires | ✅ Working |
+| Creator timeout → override available | `Pass3OverdueBanner` + cron auto-flip | ✅ Working |
+| Notification → action navigation | ❌ No clickable deep links | ❌ Gap G |
+
+---
+
+### 🎯 Recommended Fix Plan (Sprint 6C — small)
+
+1. **Add missing notification helpers** (`notifyCurationComplete`, `notifyCreatorApproved`, `notifyCreatorChangesRequested`, `notifyLcApproved`) and wire into:
+   - `useCuratorLegalReview.acceptPass3.onSuccess` → notify Creator
+   - `useLcPass3Review.acceptPass3.onSuccess` → notify Curator + FC
+   - `useCreatorReview.submitAcceptAll.onSuccess` → notify Curator (and LC if CTRL)
+   - `useCreatorReview.requestRecuration.onSuccess` → notify Curator
+2. **Decommission unused `check-review-timeouts`** edge function (or schedule it daily and remove the hourly duplicates).
+3. **Hide `CreatorCommentSection` for AGG when `creator_approval_required=false`** in `CreatorChallengeReviewPage`.
+4. **Add deep links to `cogni_notifications`** — extend the table with an `action_url` column and surface as clickable rows in `MyActionItemsSection`.
+5. **Optional:** Refactor `LcLegalWorkspacePage` into `<LcLegalHeader>`, `<LcLegalDocsList>`, `<LcLegalActions>` to bring under 250 lines.
+6. **Optional (P3):** Email delivery — wire `workflowNotifications` into a `send-workflow-email` edge function for the BRD-required Email events.
+
+### Files (estimated)
+
+| # | File | Type | Lines |
 |---|---|---|---|
-| 1 | `LegalDocEditorPanel.tsx` | MODIFY +25L | Add `protectedSectionHeadings` prop; appendTransaction guard + toast |
-| 2 | `useCuratorLegalReview.ts` | MODIFY +35L | Query `creator_approval_*`, `creator_comments`, `operating_model`; version_history append in runPass3/acceptPass3; expose `protectedHeadings` |
-| 3 | `useLcPass3Review.ts` | MODIFY +20L | version_history append; expose `protectedHeadings` (queries operating_model) |
-| 4 | NEW `Pass3OverdueBanner.tsx` (~80L) | CREATE | Banner + override prompt for Curator panel |
-| 5 | NEW `Pass3AttributionBadge.tsx` (~60L) | CREATE | "Generated by AI — Reviewed by X on Y" badge with profile lookup |
-| 6 | NEW `Pass3SectionNavWrapper.tsx` (~90L) | CREATE | Wraps `LegalDocSectionNav` + tracks active section + scroll target; reused by Curator + LC panels |
-| 7 | `CuratorLegalReviewPanel.tsx` | MODIFY +30L net (split layout) | Wire SectionNav (left) + editor (right); pass `protectedSectionHeadings`; show overdue banner; show creator comments alert; mount attribution badge |
-| 8 | `LcPass3ReviewPanel.tsx` | MODIFY +25L net | Same pattern — section nav, AGG protection, attribution badge |
-| 9 | `useCreatorReview.ts` | MODIFY +40L → split | Add `submitLegalComment`, `submitEscrowComment`, `COMMENT_ONLY_SECTIONS`. To stay <250L, extract approval/legal queries to `useCreatorReviewQueries.ts` (~100L) |
-| 10 | NEW `CreatorCommentSection.tsx` (~90L) | CREATE | Read-only legal/escrow card + Textarea + Save button |
-| 11 | `CreatorChallengeReviewPage.tsx` | MODIFY +20L | Replace inline legal Card with `CreatorCommentSection`; add `Modified` badge slot via `editedSections` |
-| 12 | `EscrowManagementPage.tsx` | MODIFY +15L | Cross-validate `deposit_amount === reward_total` (±0.01); insert `challenge_edit_history` row in onSuccess |
-| 13 | `pass3Handler.ts` (edge) | MODIFY +25L | Resolve org `tier_complexity` from `seeker_memberships.md_membership_tiers.code`; load tier-keyed `section_instructions`; pass into prompt + `max_tokens`/`reasoning_effort` overrides |
-| 14 | NEW edge fn `check-review-timeouts/index.ts` (~180L) | CREATE | Daily Creator + LC overdue scan; updates statuses, inserts history + audit_trail; no notifications |
-| 15 | NEW migration | CREATE SQL | Columns: `ai_legal_review_config.max_tokens/reasoning_effort/tier_complexity`; `challenge_legal_docs.creator_comments`; `challenges.creator_escrow_comments`; convert `section_instructions` to JSONB if currently TEXT (else add `section_instructions_by_tier JSONB`) |
-| 16 | Data UPDATE (separate, NOT migration) | INSERT-tool SQL | Populate per-section tier instructions for all 11 rows |
-| 17 | pg_cron schedule (insert-tool SQL) | INSERT SQL | Daily 02:00 UTC call to `check-review-timeouts` |
+| 1 | `src/lib/cogniblend/workflowNotifications.ts` | MODIFY | +60 |
+| 2 | `src/hooks/cogniblend/useCuratorLegalReview.ts` | MODIFY | +15 |
+| 3 | `src/hooks/cogniblend/useLcPass3Review.ts` | MODIFY | +15 |
+| 4 | `src/hooks/cogniblend/useCreatorReview.ts` | MODIFY | +20 |
+| 5 | `src/pages/cogniblend/CreatorChallengeReviewPage.tsx` | MODIFY | +10 |
+| 6 | `supabase/functions/check-review-timeouts/` | DELETE | — |
+| 7 | Migration: `cogni_notifications.action_url` column | CREATE SQL | ~10 |
+| 8 | `src/components/cogniblend/dashboard/MyActionItemsSection.tsx` | MODIFY | +15 |
 
-### Key design decisions
+### Out of Scope
 
-- **AGG Section 9 protection** — uses TipTap `appendTransaction` to inspect deletions of H2 nodes whose text matches any `protectedSectionHeadings` (case-insensitive trim). If deletion detected, return a no-op transaction and `toast.info(...)`. Heading text the AI generates: `ANTI-DISINTERMEDIATION` (matches `ai_legal_review_config.section_title` for that key, uppercased).
-- **Section navigator scroll** — relies on `data-section="<key>"` attributes on H2s. Since AI-generated HTML doesn't include those, the wrapper post-processes editor HTML on mount: walks H2s in order, attaches `data-section` matching the section_order from `LEGAL_SECTIONS`. Section status starts `ai_modified` per section, flips to `approved` when `isPass3Accepted`.
-- **Creator comments vs edits** — comment-only sections (legal_docs, escrow_funding, AGG-only reward_structure) render `CreatorCommentSection`: read-only viewer + Textarea + "Save Comment" button. Edits to allowed sections show an amber `Modified — will be sent to Curator` Badge driven by `editedSections.has(sectionKey)`.
-- **Version history** — append-only metadata only (no full HTML in JSONB). Two events per cycle: `pass3_run` (in runPass3 onSuccess) and `accepted` (in acceptPass3). Read existing array, append, write back atomically inside the same update.
-- **FC cross-validation** — strict equality with `Math.abs(diff) > 0.01` tolerance. Blocks submission via toast.error before mutation fires; no DB call.
-- **check-review-timeouts vs existing enforce-* fns** — keeps the spec's daily cron separate. The existing `enforce-creator-approval-timeout` already flips status; the new one is a daily aggregate that also handles LC. To avoid double-processing, the new function checks `creator_approval_status = 'pending'` (skips already-overridden rows).
-- **Tier resolution** — `md_membership_tiers.code` values are `annual` / `multi_year`, not `standard/premium/enterprise`. The migration adds an explicit `tier_complexity` column on `ai_legal_review_config` and a separate org→tier mapping resolves to `standard` by default. Concrete mapping kept simple: any active membership ⇒ `premium`; no membership ⇒ `standard`. Enterprise reserved for manual override (out of scope for this sprint).
-- **Attribution badge** — reads `lc_reviewed_by` from `challenge_legal_docs` and looks up display name via `profiles` table (single small query, cached 5min).
+- Email delivery integration (deferred per Sprint 6B).
+- `LcLegalWorkspacePage` refactor (separate sprint — high risk of regression).
+- Backfill of `creator_approval_requested_at` for already-pending challenges.
 
-### Layer compliance (R2)
+### Safety Guarantees
 
-- All Supabase calls remain in hooks (`useCreatorReview`, `useCuratorLegalReview`, `useLcPass3Review`).
-- New `Pass3AttributionBadge` and `CreatorCommentSection` consume props only — they receive HTML/comments and callbacks from their parent hook.
-- `EscrowManagementPage` already calls supabase directly (existing R2 deviation, not introduced here); the `challenge_edit_history` insert follows the same pattern.
-
-### Safety guarantees
-
-- QUICK mode untouched — protected headings, comment sections, tier resolution, version history, overdue banner all gated on `governance_profile !== 'QUICK'` or operating_model checks already present in callers.
-- Existing Pass 3 flow preserved — section nav and attribution badge are additive UI; no changes to runPass3/saveEdits/acceptPass3 contracts.
-- AGG protection inert for MP — `protectedSectionHeadings={[]}` when `operating_model === 'MP'`.
-- FC validation is pre-submit only — no DB schema change, easily revertible.
-- Daily cron job is read-mostly — only flips already-pending statuses past their deadline; idempotent (skips rows already in `timeout_override`).
-
-### Out of scope
-
-- Wiring notifications into the new daily cron (per spec — "deferred to future sprint").
-- Surfacing version history in any viewer UI.
-- Email delivery for any notification.
+- All notification adds are fire-and-forget (existing `insertNotification` contract).
+- QUICK mode untouched — every new helper gated on `governance_mode !== 'QUICK'` at call site.
+- No changes to `complete_phase`, RLS, or any P0 plumbing.
 
