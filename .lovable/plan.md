@@ -1,81 +1,101 @@
 
 
-## Sprint 6 — FC Escrow Enhancement + Audit Trail + Timeout Config
+## Closing the Sprint 6 Gaps — Implementation Plan
 
-Final sprint: enhance FC escrow form (3 new fields + proof upload), add immutable status history audit table, ship a timeout config admin component, and wire fire-and-forget status logging into existing mutations from Sprints 3-5.
+Five focused changes to wire the existing utilities into live flows and add automated timeout enforcement. All net-additive; no existing behavior changes.
+
+---
+
+### Gap 1 — Wire `workflowNotifications` into FC, CR, CU, LC mutations
+
+**Where to add the calls (fire-and-forget, on `onSuccess` after the mutation succeeds):**
+
+| Caller | Hook / file | Notification | Recipient |
+|---|---|---|---|
+| FC confirms escrow | `EscrowManagementPage.tsx` (confirmEscrow.onSuccess) | `notifyEscrowConfirmed` | Curator(s) of the challenge |
+| Creator accepts/edits/requests | `useCreatorReview.ts` | (none new — already logged) | — |
+| Creator submits edits → Pass 3 stale | `useCreatorReview.ts` (submitEdits.onSuccess) | `notifyPass3Stale` | Curator (and LC if CONTROLLED) |
+| Curator accepts Pass 3 | `useCuratorLegalReview.ts` (acceptPass3.onSuccess) | (no notification needed) | — |
+| LC accepts Pass 3 | `useLcPass3Review.ts` (acceptPass3.onSuccess) | (no notification needed) | — |
+
+Recipient lookup helper: add `src/lib/cogniblend/challengeRoleLookup.ts` (~50 lines) exporting `getActiveRoleUsers(challengeId, roleCode)` that queries `user_challenge_roles` for `role_code IN (...)` AND `is_active = true`. Used by callers to resolve curator/LC user ids before invoking notification helpers.
+
+---
+
+### Gap 2 — Mount `LcTimeoutConfigCard` in admin UI
+
+Add a new section to `src/pages/admin/seeker-config/GovernanceModeConfigPage.tsx`:
+- Below the existing `<GovernanceModeCard>` grid, render a new "Timeout Configuration" section.
+- For STRUCTURED and CONTROLLED config rows, render `<LcTimeoutConfigCard>` with `currentTimeoutDays={config.lc_review_timeout_days}` and `onSave={(days) => updateTimeout(config.governance_mode, days)}`.
+- Extend `useGovernanceModeConfig` SELECT_COLS to include `lc_review_timeout_days` (currently missing).
+- Add an `updateLcTimeout` mutation in a new small hook `src/hooks/queries/useUpdateLcReviewTimeout.ts` (~50 lines) that calls `.update({ lc_review_timeout_days: days })` with `withUpdatedBy`, then invalidates `['governance-mode-config']`.
+
+QUICK row is excluded (timeout doesn't apply).
+
+---
+
+### Gap 3 — Set `creator_approval_requested_at` when CR review opens
+
+The timeout countdown can never fire because `creator_approval_requested_at` is never written. Fix in the existing `complete_phase` RPC (or wherever Phase 4 → CR_APPROVAL_PENDING transition occurs): when status flips to `CR_APPROVAL_PENDING`, also `UPDATE challenges SET creator_approval_requested_at = NOW(), creator_approval_status = 'pending'` if null.
+
+Single new migration adds this update logic into `complete_phase` via `CREATE OR REPLACE FUNCTION` (preserving signature). Without this, Gap 4 cron has no anchor date.
+
+---
+
+### Gap 4 — `pg_cron` enforcement for LC + Creator timeouts
+
+Two new edge functions + two cron jobs:
+
+**Edge function `enforce-lc-timeout`** (~120 lines):
+- Joins `challenges` (status = LC review pending) with `seeker_organizations.lc_review_timeout_days_override` (fallback to `md_governance_mode_config.lc_review_timeout_days`).
+- For each row where `NOW() > phase_started_at + timeout_days * INTERVAL '1 day'` and no prior timeout notification:
+  - Call `notifyLcReviewTimeout` (insert via service role).
+  - Append a `challenge_status_history` row with `trigger_event = 'LC_REVIEW_TIMEOUT_REACHED'` (no status change — informational).
+
+**Edge function `enforce-creator-approval-timeout`** (~120 lines):
+- Selects challenges where `creator_approval_status = 'pending'` AND `creator_approval_requested_at + 7 days < NOW()`.
+- Sets `creator_approval_status = 'timeout_override'`.
+- Logs to `challenge_status_history` (role = SYSTEM, trigger = `CR_APPROVAL_TIMEOUT_OVERRIDE`).
+- Calls `notifyCreatorApprovalTimeout`.
+
+**pg_cron schedule (separate insert SQL, NOT a migration — contains anon key + URL):**
+- Both jobs run hourly (`0 * * * *`).
+- Use `net.http_post` to invoke each function.
+
+---
+
+### Gap 5 — Trim Sprint 2 edge function (optional cleanup)
+
+`suggest-legal-documents/index.ts` (344 L) + `pass3Handler.ts` (422 L) = 766 L. Already split per spec; further extraction is low-value and risks regressing the working Pass 3 path. **Recommend deferring** unless a specific maintainability issue arises.
+
+---
 
 ### Files
 
-| # | File | Type | Lines |
+| # | File | Type | Est. Lines |
 |---|---|---|---|
-| 1 | New migration | CREATE | SQL |
-| 2 | `src/pages/cogniblend/EscrowDepositForm.tsx` | MODIFY | 161 → ~210 |
-| 3 | `src/pages/cogniblend/EscrowManagementPage.tsx` | MODIFY | 224 → ~280 |
-| 4 | `src/lib/cogniblend/statusHistoryLogger.ts` | CREATE | ~60 |
-| 5 | `src/lib/cogniblend/workflowNotifications.ts` | CREATE | ~140 |
-| 6 | `src/components/cogniblend/admin/LcTimeoutConfigCard.tsx` | CREATE | ~130 |
-| 7 | `src/hooks/cogniblend/useCreatorReview.ts` | MODIFY | +6 (logging in 3 mutations) |
-| 8 | `src/hooks/cogniblend/useCuratorLegalReview.ts` | MODIFY | +3 (logging in acceptPass3) |
-| 9 | `src/hooks/cogniblend/useLcPass3Review.ts` | MODIFY | +3 (logging in acceptPass3) |
+| 1 | `src/lib/cogniblend/challengeRoleLookup.ts` | CREATE | ~50 |
+| 2 | `src/pages/cogniblend/EscrowManagementPage.tsx` | MODIFY | +12 |
+| 3 | `src/hooks/cogniblend/useCreatorReview.ts` | MODIFY | +15 |
+| 4 | `src/hooks/queries/useGovernanceModeConfig.ts` | MODIFY | +1 (add column) |
+| 5 | `src/hooks/queries/useUpdateLcReviewTimeout.ts` | CREATE | ~50 |
+| 6 | `src/pages/admin/seeker-config/GovernanceModeConfigPage.tsx` | MODIFY | +30 |
+| 7 | Migration: `complete_phase` adds `creator_approval_requested_at` write | CREATE (SQL) | ~40 |
+| 8 | `supabase/functions/enforce-lc-timeout/index.ts` | CREATE | ~120 |
+| 9 | `supabase/functions/enforce-creator-approval-timeout/index.ts` | CREATE | ~120 |
+| 10 | pg_cron schedule SQL (two `cron.schedule` calls, run via DB tool — not migration) | INSERT SQL | ~30 |
 
-### Migration (Part A)
+### Out of scope (deliberately)
 
-Single migration file:
-- `challenge_status_history` table + 2 indexes + RLS (SELECT via `user_challenge_roles`, INSERT for any authed user) + immutability comment.
-- `escrow_records` ALTER ADD COLUMN IF NOT EXISTS × 5: `account_number_masked`, `ifsc_swift_code`, `proof_document_url`, `proof_file_name`, `proof_uploaded_at`.
-- Storage bucket `escrow-proofs` (private, 10MB, PDF/PNG/JPEG/WEBP) + 2 RLS policies on `storage.objects` (FC insert, authed select).
-- `organizations.lc_review_timeout_days_override INTEGER` (nullable; falls back to `md_governance_mode_config.lc_review_timeout_days`).
-
-### Form changes (B1)
-
-- Extend `escrowFormSchema` with `account_number` (string 1-30) and `ifsc_swift_code` (regex: IFSC `^[A-Z]{4}0[A-Z0-9]{6}$` OR SWIFT `^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$`).
-- Add 3 props: `proofFile`, `onProofFileChange`, `proofUploading`.
-- Insert 2 new `FormField` blocks (Account Number, IFSC/SWIFT with auto-uppercase + maxLength=11) after `deposit_reference`, then a non-RHF labeled block wrapping `<FileUploadZone>` for proof, then existing `fc_notes`.
-- Loader2 spinner next to "Deposit Proof *" label when `proofUploading`.
-
-### Page changes (B2)
-
-- Add `useState` for `proofFile` + `proofUploading`.
-- Default form values extended for the 2 new RHF fields.
-- In `confirmEscrow.mutationFn`, **before** the existing escrow upsert: if `proofFile`, sanitize name → upload to `escrow-proofs/{challengeId}/{ts}_{name}` → capture `proofUrl` + `proofFileName`. Throw on upload error so the mutation fails cleanly.
-- Extend the upsert payload with the 5 new columns (mask account number `slice(0,2)+'****'+slice(-4)`).
-- Extend audit-trail `details` JSON with `ifsc_swift_code` and `proof_uploaded` flag.
-- After successful confirmation, fire-and-forget insert into `challenge_status_history` (FC, `PENDING_FC_ESCROW → FC_ESCROW_CONFIRMED`).
-- `onSuccess`: reset `proofFile=null`, `proofUploading=false`. Do NOT touch the existing `complete_financial_review` RPC call sequence.
-- Pass 3 new props down to `EscrowDepositForm`. Import `sanitizeFileName`.
-
-### statusHistoryLogger (Part C)
-
-Single exported `logStatusTransition` — fire-and-forget insert. Wrapped in try/catch; logs via `console.error` (per spec — this single file is exempt from the no-console rule because it is the audit-logging boundary; alternative is `logWarning` from `@/lib/errorHandler`, which I will use to comply with R9 if available).
-
-### workflowNotifications (Part E)
-
-Four functions inserting into `cogni_notifications`: `notifyEscrowConfirmed`, `notifyLcReviewTimeout`, `notifyCreatorApprovalTimeout`, `notifyPass3Stale`. Each typed; each fire-and-forget; each uses a distinct `notification_type`. Not yet wired into any flow — provided for future use as the spec describes.
-
-### LcTimeoutConfigCard (Part D)
-
-Standalone Card with Clock icon, controlled number Input (min 1 / max 30), governance mode badge, Save button bound to `onSave`. No data-fetching — purely presentational with props. Future admin page can mount it.
-
-### Logging integration (Part F)
-
-Three hooks each gain one import + one `logStatusTransition(...)` call inside the existing `onSuccess` of the relevant mutation. Logging is fire-and-forget; never affects existing toast/invalidation/UI behavior.
+- Restructuring/trimming `suggest-legal-documents` further.
+- Backfilling `creator_approval_requested_at` for already-pending challenges (one-shot UPDATE can be added if needed).
+- Surfacing the timeout-override state in any new UI (banner already handles `timeout_override` per Sprint 5).
+- Email delivery for the new notifications (in-app `cogni_notifications` only — same convention as existing helpers).
 
 ### Safety guarantees
 
-- Original 8 escrow form fields untouched; new fields only added.
-- `complete_financial_review` RPC call path preserved exactly.
-- `challenge_status_history` is insert-only at the API surface; no UPDATE/DELETE methods are exposed.
-- All new files < 250 lines; modified files stay < 300.
-- QUICK/STRUCTURED unaffected — FC escrow page is CONTROLLED-only, and Sprint 3-5 hooks already gate by mode.
-- Account number never stored raw — only masked form persisted.
-- Proof bucket isolated from `legal-docs`.
-- Logger uses `logWarning` (R9 compliant) instead of bare `console.error`.
-
-### Out of scope
-
-- Wiring `workflowNotifications.*` into mutations (provided as utilities; integration deferred).
-- Mounting `LcTimeoutConfigCard` in an admin page (component shipped standalone).
-- Enforcement cron for LC/CR timeouts.
-- Backfilling history for past status changes.
-- Status-history viewer UI.
+- Every notification call wrapped fire-and-forget; failures never block the parent mutation (matches existing helper contract).
+- New cron jobs are idempotent (skip rows that already have a `LC_REVIEW_TIMEOUT_REACHED` history row, skip challenges already in `timeout_override`).
+- `complete_phase` change is purely additive — only writes the new column when the status transition matches `CR_APPROVAL_PENDING`.
+- QUICK challenges never reach CR approval / LC review states, so all paths remain inert for them.
 
