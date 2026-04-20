@@ -12,7 +12,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Loader2, Shield, Sparkles, RefreshCw, CheckCircle2, Save } from 'lucide-react';
+import { Loader2, Shield, Sparkles, RefreshCw, CheckCircle2, Save, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -157,9 +157,21 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {readOnly && (
+          <Alert className="border-primary/30 bg-primary/5">
+            <Lock className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-primary">View-only — Approved by Legal Coordinator</AlertTitle>
+            <AlertDescription>
+              {review.reviewedAt
+                ? `Legal documents were approved by the Legal Coordinator on ${new Date(review.reviewedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}. The Curator view is read-only.`
+                : 'Legal documents are owned by the Legal Coordinator. The Curator view is read-only.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {review.isLoading && <Skeleton className="h-40 w-full" />}
 
-        {!review.isLoading && review.pass3Status === 'idle' && (
+        {!review.isLoading && review.pass3Status === 'idle' && !readOnly && (
           <div className="space-y-4 rounded-lg border bg-muted/30 p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Run Pass 3 to generate the unified Solution Provider Agreement
@@ -177,6 +189,12 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               Run Pass 3 AI Review
             </Button>
           </div>
+        )}
+
+        {!review.isLoading && review.pass3Status === 'idle' && readOnly && (
+          <p className="text-sm text-muted-foreground italic">
+            The Legal Coordinator has not yet generated the unified agreement.
+          </p>
         )}
 
         {review.isRunning && (
@@ -257,7 +275,7 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               </span>
             </div>
 
-            {!review.isPass3Accepted && (
+            {!review.isPass3Accepted && !readOnly && (
               <div className="flex flex-wrap items-center gap-2">
                 <LegalDocEditorToolbar editor={editor} />
                 <LegalDocQuickInserts editor={editor} />
@@ -290,7 +308,7 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               </div>
             </div>
 
-            {!review.isPass3Accepted && (
+            {!review.isPass3Accepted && !readOnly && (
               <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
                 <Button variant="outline" onClick={() => review.runPass3()} disabled={review.isRunning || review.isSaving || review.isAccepting} className="gap-2">
                   <RefreshCw className="h-4 w-4" />
