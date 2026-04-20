@@ -85,6 +85,12 @@ export default function EscrowManagementPage() {
           supabase.from('escrow_records').select('id, escrow_status, deposit_amount, bank_name, deposit_reference, currency').eq('challenge_id', cid).maybeSingle(),
         ]);
         if (!challengeRes.data) continue;
+        const govMode = resolveGovernanceMode(
+          (challengeRes.data as Record<string, unknown>).governance_mode_override as string | null
+            ?? (challengeRes.data as Record<string, unknown>).governance_profile as string | null,
+        );
+        // S9R guard: STRUCTURED handled by the Curator — exclude from FC queue.
+        if (govMode === 'STRUCTURED' || govMode === 'QUICK') continue;
         const rs = challengeRes.data.reward_structure as Record<string, unknown> | null;
         let rewardTotal = 0;
         if (rs) {
@@ -94,10 +100,6 @@ export default function EscrowManagementPage() {
           rewardTotal = p + g + s;
           if (rewardTotal === 0) rewardTotal = Number(rs.budget_max ?? rs.budget_min ?? 0);
         }
-        const govMode = resolveGovernanceMode(
-          (challengeRes.data as Record<string, unknown>).governance_mode_override as string | null
-            ?? (challengeRes.data as Record<string, unknown>).governance_profile as string | null,
-        );
         results.push({
           challenge_id: cid, challenge_title: challengeRes.data.title,
           escrow_id: escrowRes.data?.id ?? null, escrow_status: escrowRes.data?.escrow_status ?? null,
