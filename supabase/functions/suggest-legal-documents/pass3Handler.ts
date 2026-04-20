@@ -333,6 +333,7 @@ export async function handlePass3({
   userId,
   challengeId,
   lovableApiKey,
+  arrangeOnly = false,
 }: HandlePass3Args): Promise<Response> {
   try {
     // 1) Build unified context
@@ -375,19 +376,28 @@ export async function handlePass3({
       );
     }
 
-    // 4) Load existing accepted legal templates
+    // 4) Load source documents — broadened to include all non-UNIFIED_SPA rows
+    //    (SOURCE_DOC uploads from Creator/Curator/LC/Platform).
     const { data: existingDocs } = await supabaseAdmin
       .from("challenge_legal_docs")
-      .select("document_type, document_name, tier, content_summary, content_html, status")
+      .select("document_type, document_name, tier, content_summary, content_html, status, source_origin, created_at")
       .eq("challenge_id", challengeId)
-      .neq("status", "ai_suggested");
+      .neq("document_type", DOCUMENT_TYPE)
+      .order("created_at", { ascending: true });
+
+    if (arrangeOnly && (!existingDocs || existingDocs.length === 0)) {
+      return jsonResponse(
+        { success: false, error: { code: "NO_SOURCE_DOCS", message: "Arrange-only mode requires at least one uploaded source document." } },
+        400,
+      );
+    }
 
     // 5) Resolve org pricing tier and build prompts.
     const tier = await resolveOrgTier(
       supabaseAdmin,
       (context.challenge.organization_id as string | null | undefined) ?? null,
     );
-    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier);
+    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, arrangeOnly);
     const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
 
     // Tier may bump max_tokens (use highest configured value across sections).
@@ -398,6 +408,8 @@ export async function handlePass3({
 
     const aiResp = await callAIWithFallback(lovableApiKey, {
       max_tokens: maxTokens,
+      // Lower temperature in arrange-only mode for deterministic slotting.
+      temperature: arrangeOnly ? 0.1 : 0.3,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
