@@ -114,10 +114,13 @@ export function CuratorComplianceTab({
           </TabsList>
 
           <TabsContent value="legal" className="space-y-3 pt-3">
-            <LcPass3ReviewPanel challengeId={challengeId} userId={userId} />
+            <LcPass3ReviewPanel challengeId={challengeId} />
             <LcAttachedDocsCard
-              challengeId={challengeId}
-              docs={attachedDocs ?? []}
+              docs={attachedDocs}
+              isLoading={false}
+              currentUserId={userId}
+              onDelete={() => { /* read-only summary in this context */ }}
+              isDeleting={false}
             />
           </TabsContent>
 
