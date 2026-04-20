@@ -40,6 +40,7 @@ interface EscrowChallenge {
   currency: string;
   bank_name: string | null;
   deposit_reference: string | null;
+  governance_mode: GovernanceMode;
 }
 
 function maskAccountNumber(raw: string): string {
@@ -80,7 +81,7 @@ export default function EscrowManagementPage() {
       const results: EscrowChallenge[] = [];
       for (const cid of challengeIds) {
         const [challengeRes, escrowRes] = await Promise.all([
-          supabase.from('challenges').select('id, title, reward_structure').eq('id', cid).single(),
+          supabase.from('challenges').select('id, title, reward_structure, governance_profile, governance_mode_override').eq('id', cid).single(),
           supabase.from('escrow_records').select('id, escrow_status, deposit_amount, bank_name, deposit_reference, currency').eq('challenge_id', cid).maybeSingle(),
         ]);
         if (!challengeRes.data) continue;
@@ -93,6 +94,10 @@ export default function EscrowManagementPage() {
           rewardTotal = p + g + s;
           if (rewardTotal === 0) rewardTotal = Number(rs.budget_max ?? rs.budget_min ?? 0);
         }
+        const govMode = resolveGovernanceMode(
+          (challengeRes.data as Record<string, unknown>).governance_mode_override as string | null
+            ?? (challengeRes.data as Record<string, unknown>).governance_profile as string | null,
+        );
         results.push({
           challenge_id: cid, challenge_title: challengeRes.data.title,
           escrow_id: escrowRes.data?.id ?? null, escrow_status: escrowRes.data?.escrow_status ?? null,
@@ -100,6 +105,7 @@ export default function EscrowManagementPage() {
           currency: (escrowRes.data as any)?.currency ?? 'USD',
           bank_name: (escrowRes.data as any)?.bank_name ?? null,
           deposit_reference: (escrowRes.data as any)?.deposit_reference ?? null,
+          governance_mode: govMode,
         });
       }
       return results;
