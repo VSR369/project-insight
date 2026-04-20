@@ -308,7 +308,7 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               </div>
             </div>
 
-            {!review.isPass3Accepted && (
+            {!review.isPass3Accepted && !readOnly && (
               <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
                 <Button variant="outline" onClick={() => review.runPass3()} disabled={review.isRunning || review.isSaving || review.isAccepting} className="gap-2">
                   <RefreshCw className="h-4 w-4" />
