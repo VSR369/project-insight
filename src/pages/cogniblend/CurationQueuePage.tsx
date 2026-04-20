@@ -266,49 +266,69 @@ export default function CurationQueuePage() {
         }
       }
 
-      // Step 5: Enrich with SLA status + assignment label
-      const enriched = await Promise.all(
-        (rows as CurationChallenge[]).map(async (ch) => {
-          let sla: SlaStatus | null = null;
-          if (ch.current_phase === 2) {
-            const slaRes = await supabase.rpc("check_sla_status", {
-              p_challenge_id: ch.id,
-              p_phase: 2,
-            });
-            sla = slaRes.error
-              ? null
-              : ((typeof slaRes.data === "string"
-                  ? JSON.parse(slaRes.data)
-                  : slaRes.data) as SlaStatus | null);
-          }
+      // Step 5: Batch SLA status — single query instead of N+1 RPC calls.
+      // Mirrors check_sla_status semantics (status, deadline_at, percentage_used).
+      const { data: timerRows } = await supabase
+        .from("sla_timers")
+        .select("challenge_id, deadline_at, started_at, phase_duration_days, breached_at")
+        .in("challenge_id", challengeIds)
+        .eq("phase", 2)
+        .order("started_at", { ascending: false });
 
-          const assignments = assignmentMap.get(ch.id) ?? [];
-          let assignmentLabel: "mine" | "other" | "unassigned" = "unassigned";
-          let assigneeName: string | null = null;
-          if (assignments.length > 0) {
-            const isMine = assignments.some((a) => a.user_id === user!.id);
-            if (isMine) {
-              assignmentLabel = "mine";
-            } else {
-              assignmentLabel = "other";
-              assigneeName = "Another Curator";
-            }
-          }
+      const slaMap = new Map<string, SlaStatus>();
+      if (timerRows) {
+        for (const t of timerRows) {
+          // First (most recent) timer per challenge wins — matches RPC's ORDER BY started_at DESC LIMIT 1
+          if (slaMap.has(t.challenge_id)) continue;
+          const deadline = new Date(t.deadline_at).getTime();
+          const now = Date.now();
+          const remainingMs = deadline - now;
+          const totalMs = (t.phase_duration_days ?? 5) * 24 * 60 * 60 * 1000;
+          const remainingHours = Math.round((remainingMs / 3_600_000) * 10) / 10;
+          let pctUsed = totalMs > 0 ? 1 - remainingMs / totalMs : 1;
+          if (pctUsed > 1) pctUsed = 1;
+          if (pctUsed < 0) pctUsed = 0;
+          let status: SlaStatus["status"];
+          if (t.breached_at !== null || remainingMs <= 0) status = "BREACHED";
+          else if (pctUsed > 0.75) status = "APPROACHING";
+          else status = "ON_TRACK";
+          slaMap.set(t.challenge_id, {
+            status,
+            // Preserve legacy field shape used by slaIndicator (days_remaining/days_overdue)
+            days_remaining: status === "BREACHED" ? null : Math.max(0, Math.ceil(remainingHours / 24)),
+            days_overdue: status === "BREACHED" ? Math.max(0, Math.ceil(-remainingHours / 24)) : null,
+            percentage_used: pctUsed,
+            deadline_at: t.deadline_at,
+          });
+        }
+      }
 
-          return {
-            ...ch,
-            sla,
-            modificationCycle: "Cycle 1 of 3",
-            assignmentLabel,
-            assigneeName,
-          } satisfies EnrichedCurationChallenge;
-        })
-      );
+      const enriched: EnrichedCurationChallenge[] = (rows as CurationChallenge[]).map((ch) => {
+        const assignments = assignmentMap.get(ch.id) ?? [];
+        let assignmentLabel: "mine" | "other" | "unassigned" = "unassigned";
+        let assigneeName: string | null = null;
+        if (assignments.length > 0) {
+          const isMine = assignments.some((a) => a.user_id === user!.id);
+          if (isMine) {
+            assignmentLabel = "mine";
+          } else {
+            assignmentLabel = "other";
+            assigneeName = "Another Curator";
+          }
+        }
+        return {
+          ...ch,
+          sla: ch.current_phase === 2 ? slaMap.get(ch.id) ?? null : null,
+          modificationCycle: "Cycle 1 of 3",
+          assignmentLabel,
+          assigneeName,
+        } satisfies EnrichedCurationChallenge;
+      });
 
       return enriched;
     },
     enabled: !!user?.id,
-    staleTime: 30_000,
+    ...CACHE_STANDARD,
   });
 
   // ══════════════════════════════════════
