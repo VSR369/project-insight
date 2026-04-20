@@ -201,16 +201,24 @@ export default function EscrowManagementPage() {
         );
       })();
 
-      // Call complete_financial_review RPC to set fc_compliance_complete and potentially advance phase
+      // Call complete_financial_review RPC to set fc_compliance_complete and
+      // potentially trigger Creator-approval pause (S7C).
       try {
-        const { error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
+        const { data: rpcData, error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
           p_challenge_id: variables.challengeId,
           p_user_id: user?.id,
         });
         if (rpcError) {
           toast.warning('Escrow saved but financial review completion failed — please contact support.');
         } else {
-          toast.success('Financial compliance confirmed — phase may auto-advance.');
+          const r = rpcData as { awaiting?: string; phase_advanced?: boolean } | null;
+          if (r?.awaiting === 'creator_approval') {
+            toast.success('Escrow confirmed — Creator approval requested');
+          } else if (r?.phase_advanced) {
+            toast.success('Financial compliance confirmed — challenge advanced.');
+          } else {
+            toast.success('Financial compliance confirmed — waiting for legal review.');
+          }
         }
       } catch {
         toast.warning('Escrow saved but could not trigger phase advancement.');
