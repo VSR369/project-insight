@@ -33,7 +33,6 @@ function FreezeForLegalAction({
   };
   return <>{children(handler)}</>;
 }
-import { CuratorCpaReviewPanel } from "@/components/cogniblend/curation/CuratorCpaReviewPanel";
 import { CuratorComplianceTab } from "@/components/cogniblend/curation/CuratorComplianceTab";
 import { CuratorPackReviewPanel } from "@/components/cogniblend/curation/CuratorPackReviewPanel";
 import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
@@ -445,22 +444,22 @@ export default function CurationReviewPage() {
           />
         )}
 
-        {/* STRUCTURED + FROZEN: curator-led CPA review panel */}
-        {(o.challenge as any)?.curation_lock_status === 'FROZEN' &&
-          ((o.challenge as any)?.governance_mode_override ?? (o.challenge as any)?.governance_profile ?? 'STRUCTURED').toUpperCase() === 'STRUCTURED' && (
-          <CuratorCpaReviewPanel
-            challengeId={o.challengeId!}
-            userId={o.user?.id ?? ''}
-          />
-        )}
-
-        {/* Pass 3: Legal AI Review — STRUCTURED/CONTROLLED only, Phase 2 only */}
-        {((o.challenge as any)?.governance_mode_override ?? o.challenge?.governance_profile ?? 'QUICK')
-          .toUpperCase() !== 'QUICK' &&
-          (o.challenge?.current_phase ?? 0) === 2 &&
-          o.challengeId && (
-            <CuratorLegalReviewPanel challengeId={o.challengeId} />
-          )}
+        {/* Pass 3: Legal AI Review — STRUCTURED/CONTROLLED at any phase.
+            CONTROLLED post-Phase-2 is read-only (LC owns the editing). */}
+        {(() => {
+          const govMode = ((o.challenge as any)?.governance_mode_override
+            ?? o.challenge?.governance_profile
+            ?? 'QUICK').toUpperCase();
+          if (govMode === 'QUICK' || !o.challengeId) return null;
+          const isReadOnlyForCurator =
+            govMode === 'CONTROLLED' && (o.challenge?.current_phase ?? 0) > 2;
+          return (
+            <CuratorLegalReviewPanel
+              challengeId={o.challengeId}
+              readOnly={isReadOnlyForCurator}
+            />
+          );
+        })()}
       </div>
 
       {/* ═══ MODALS & OVERLAYS (lazy-loaded — only mount when needed) ═══ */}

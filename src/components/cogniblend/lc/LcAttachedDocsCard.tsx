@@ -1,8 +1,7 @@
 /**
- * LcAttachedDocsCard — List of accepted/attached legal docs with delete
- * dialog and lazy "View content" expansion (S7A-3).
- *
- * Pure presentation. Mutations are owned by the page orchestrator.
+ * LcAttachedDocsCard — Unified-flow legal docs list.
+ * - SOURCE_DOC rows: blue "Source Input" badge + origin sub-badge.
+ * - UNIFIED_SPA rows: green "Final Agreement" badge, no delete.
  */
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +28,7 @@ import { CheckCircle2, ChevronDown, Eye, FileText, Trash2 } from 'lucide-react';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 import { useLegalDocContent } from '@/hooks/cogniblend/useLcLegalData';
 import type { AttachedDoc } from '@/lib/cogniblend/lcLegalHelpers';
+import { ORIGIN_LABEL, type SourceOrigin } from '@/services/legal/sourceDocService';
 
 export interface LcAttachedDocsCardProps {
   docs: AttachedDoc[] | undefined;
@@ -38,7 +38,6 @@ export interface LcAttachedDocsCardProps {
   isDeleting: boolean;
 }
 
-/** Per-row content viewer — fetches HTML lazily when opened. */
 function DocContentRow({ docId, open }: { docId: string; open: boolean }) {
   const { data, isLoading } = useLegalDocContent(docId, open);
   if (!open) return null;
@@ -96,13 +95,17 @@ export function LcAttachedDocsCard({
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <FileText className="h-4 w-4 text-muted-foreground" />
-          Attached Legal Documents ({docs.length})
+          Legal Documents ({docs.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
           {docs.map((doc) => {
             const isOpen = openIds.has(doc.id);
+            const isUnified = doc.document_type === 'UNIFIED_SPA';
+            const isSource = doc.document_type === 'SOURCE_DOC';
+            const originKey = (doc.source_origin ?? 'lc') as SourceOrigin;
+            const canDelete = !isUnified && doc.attached_by === currentUserId;
             return (
               <Collapsible
                 key={doc.id}
@@ -117,26 +120,23 @@ export function LcAttachedDocsCard({
                         <span className="text-sm font-semibold">
                           {doc.document_name ?? doc.document_type}
                         </span>
-                        <Badge variant="outline" className="text-[10px]">
-                          Tier {doc.tier}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {doc.document_type}
-                        </Badge>
-                        {doc.lc_status && (
-                          <Badge
-                            variant={doc.lc_status === 'approved' ? 'default' : 'secondary'}
-                            className="text-[10px]"
-                          >
-                            {doc.lc_status}
+                        {isUnified && (
+                          <Badge className="bg-success/10 text-success border-success/30 text-[10px]">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Final Agreement
                           </Badge>
                         )}
+                        {isSource && (
+                          <>
+                            <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                              Source Input
+                            </Badge>
+                            <Badge variant="secondary" className="text-[10px]">
+                              {ORIGIN_LABEL[originKey] ?? originKey}
+                            </Badge>
+                          </>
+                        )}
                       </div>
-                      {doc.lc_review_notes && (
-                        <p className="text-xs text-muted-foreground mt-1 truncate">
-                          {doc.lc_review_notes}
-                        </p>
-                      )}
                     </div>
 
                     <CollapsibleTrigger asChild>
@@ -156,7 +156,7 @@ export function LcAttachedDocsCard({
                       </Button>
                     </CollapsibleTrigger>
 
-                    {doc.attached_by === currentUserId && (
+                    {canDelete && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -171,7 +171,7 @@ export function LcAttachedDocsCard({
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Legal Document</AlertDialogTitle>
+                            <AlertDialogTitle>Delete Document</AlertDialogTitle>
                             <AlertDialogDescription>
                               Are you sure you want to delete &quot;
                               {doc.document_name ?? doc.document_type}&quot;? This action cannot be undone.
