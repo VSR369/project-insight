@@ -275,7 +275,7 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               </span>
             </div>
 
-            {!review.isPass3Accepted && (
+            {!review.isPass3Accepted && !readOnly && (
               <div className="flex flex-wrap items-center gap-2">
                 <LegalDocEditorToolbar editor={editor} />
                 <LegalDocQuickInserts editor={editor} />
