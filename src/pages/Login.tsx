@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { pickCogniLandingRoute } from '@/lib/cogniLanding';
 
 // Portal type for routing
 type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
@@ -218,6 +219,14 @@ export default function Login() {
             navigate('/reviewer/pending-approval', { replace: true });
             return;
           }
+          if (cachedPortal === 'cogniblend') {
+            const allCodes: string[] = [
+              ...poolRows.flatMap((r) => r.role_codes ?? []),
+              ...challengeRows.flatMap((r) => r.role_codes ?? []),
+            ];
+            navigate(pickCogniLandingRoute(allCodes), { replace: true });
+            return;
+          }
           navigate(PORTAL_ROUTES[cachedPortal], { replace: true });
           return;
         }
@@ -239,6 +248,14 @@ export default function Login() {
         return;
       }
 
+      if (targetPortal === 'cogniblend') {
+        const allCodes: string[] = [
+          ...poolRows.flatMap((r) => r.role_codes ?? []),
+          ...challengeRows.flatMap((r) => r.role_codes ?? []),
+        ];
+        navigate(pickCogniLandingRoute(allCodes), { replace: true });
+        return;
+      }
       navigate(PORTAL_ROUTES[targetPortal], { replace: true });
     };
 
