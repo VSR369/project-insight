@@ -410,6 +410,16 @@ export default function Login() {
         }
         
         toast.success('Welcome back!');
+        if (targetPortal === 'cogniblend') {
+          const cogniRows = (cogniLoginResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+          const poolRowsLogin = (poolLoginResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+          const allCodes: string[] = [
+            ...poolRowsLogin.flatMap((r) => r.role_codes ?? []),
+            ...cogniRows.flatMap((r) => r.role_codes ?? []),
+          ];
+          navigate(pickCogniLandingRoute(allCodes), { replace: true });
+          return;
+        }
         navigate(PORTAL_ROUTES[targetPortal], { replace: true });
       } else {
         toast.success('Welcome back!');
