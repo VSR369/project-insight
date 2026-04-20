@@ -275,13 +275,35 @@ function buildUserPrompt(
     operatingModel: context.org.operatingModel,
   };
 
-  const existingSlim = (existingDocs ?? []).map((d) => ({
-    document_type: d.document_type,
-    document_name: d.document_name,
-    tier: d.tier,
-    content_summary: typeof d.content_summary === "string" ? d.content_summary.slice(0, 4000) : null,
-    content_html: typeof d.content_html === "string" ? d.content_html.slice(0, 4000) : null,
-  }));
+  // Source documents — apply per-doc cap and aggregate budget. Drop oldest overflow.
+  // Sort by created_at ascending (oldest first) so we can drop oldest from the front.
+  const sourcesSorted = [...(existingDocs ?? [])].sort((a, b) => {
+    const ta = String(a.created_at ?? "");
+    const tb = String(b.created_at ?? "");
+    return ta.localeCompare(tb);
+  });
+
+  const sourceSlim: Array<Record<string, unknown>> = [];
+  let runningBytes = 0;
+  // Walk newest-first so we keep the most recent uploads when budget runs out.
+  for (let i = sourcesSorted.length - 1; i >= 0; i--) {
+    const d = sourcesSorted[i];
+    const html = typeof d.content_html === "string" ? d.content_html.slice(0, PER_DOC_CONTENT_CAP) : null;
+    const summary = typeof d.content_summary === "string" ? d.content_summary.slice(0, PER_DOC_CONTENT_CAP) : null;
+    const sizeOf = (html?.length ?? 0) + (summary?.length ?? 0);
+    if (runningBytes + sizeOf > TOTAL_SOURCE_CAP && sourceSlim.length > 0) break;
+    runningBytes += sizeOf;
+    const originRaw = String(d.source_origin ?? "");
+    sourceSlim.unshift({
+      document_type: d.document_type,
+      document_name: d.document_name,
+      tier: d.tier,
+      source_origin: originRaw,
+      uploaded_by: ORIGIN_LABELS[originRaw] ?? "Unknown",
+      content_summary: summary,
+      content_html: html,
+    });
+  }
 
   return `Generate the unified Solution Provider Agreement for the following challenge.
 
@@ -297,8 +319,8 @@ ${context.industryPack ? JSON.stringify(context.industryPack, null, 2) : "(none)
 ## Geographic / regulatory context
 ${context.geoContext ? JSON.stringify(context.geoContext, null, 2) : "(none)"}
 
-## Existing accepted legal templates (enhance these — do NOT regenerate from blank)
-${existingSlim.length > 0 ? JSON.stringify(existingSlim, null, 2) : "(none — generate from scratch using the section system prompts)"}
+## Source documents (uploaded by Creator/Curator/LC — merge into appropriate sections, prefer wording verbatim)
+${sourceSlim.length > 0 ? JSON.stringify(sourceSlim, null, 2) : "(none — generate from scratch using the section system prompts)"}
 
 ## Section list (in order)
 ${sections.map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`).join("\n")}
