@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { pickCogniLandingRoute } from '@/lib/cogniLanding';
 
 type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
 
@@ -83,6 +84,14 @@ export function RoleBasedRedirect() {
             navigate('/reviewer/pending-approval', { replace: true });
             return;
           }
+          if (cachedPortal === 'cogniblend') {
+            const allCodes: string[] = [
+              ...poolRows.flatMap((r) => r.role_codes ?? []),
+              ...challengeRows.flatMap((r) => r.role_codes ?? []),
+            ];
+            navigate(pickCogniLandingRoute(allCodes), { replace: true });
+            return;
+          }
           navigate(PORTAL_ROUTES[cachedPortal], { replace: true });
           return;
         }
@@ -111,6 +120,15 @@ export function RoleBasedRedirect() {
       // Handle pending reviewer
       if (targetPortal === 'reviewer' && isPendingReviewer) {
         navigate('/reviewer/pending-approval', { replace: true });
+        return;
+      }
+
+      if (targetPortal === 'cogniblend') {
+        const allCodes: string[] = [
+          ...poolRows.flatMap((r) => r.role_codes ?? []),
+          ...challengeRows.flatMap((r) => r.role_codes ?? []),
+        ];
+        navigate(pickCogniLandingRoute(allCodes), { replace: true });
         return;
       }
 

@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { pickCogniLandingRoute } from '@/lib/cogniLanding';
 
 // Portal type for routing
 type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
@@ -218,6 +219,14 @@ export default function Login() {
             navigate('/reviewer/pending-approval', { replace: true });
             return;
           }
+          if (cachedPortal === 'cogniblend') {
+            const allCodes: string[] = [
+              ...poolRows.flatMap((r) => r.role_codes ?? []),
+              ...challengeRows.flatMap((r) => r.role_codes ?? []),
+            ];
+            navigate(pickCogniLandingRoute(allCodes), { replace: true });
+            return;
+          }
           navigate(PORTAL_ROUTES[cachedPortal], { replace: true });
           return;
         }
@@ -239,6 +248,14 @@ export default function Login() {
         return;
       }
 
+      if (targetPortal === 'cogniblend') {
+        const allCodes: string[] = [
+          ...poolRows.flatMap((r) => r.role_codes ?? []),
+          ...challengeRows.flatMap((r) => r.role_codes ?? []),
+        ];
+        navigate(pickCogniLandingRoute(allCodes), { replace: true });
+        return;
+      }
       navigate(PORTAL_ROUTES[targetPortal], { replace: true });
     };
 
@@ -276,8 +293,8 @@ export default function Login() {
       if (session?.session?.user) {
         const userId = session.session.user.id;
         
-        // Fetch roles, provider record, reviewer record, and enrollments in parallel
-        const [rolesResult, providerResult, reviewerResult, orgUserResult] = await Promise.all([
+        // Fetch roles, provider record, reviewer record, org, cogni roles, pool in parallel
+        const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniLoginResult, poolLoginResult] = await Promise.all([
           supabase
             .from('user_roles')
             .select('role')
@@ -298,11 +315,14 @@ export default function Login() {
             .eq('user_id', userId)
             .eq('is_active', true)
             .limit(1)
-            .maybeSingle()
+            .maybeSingle(),
+          supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId }),
+          supabase
+            .from('platform_provider_pool')
+            .select('role_codes')
+            .eq('user_id', userId)
+            .eq('is_active', true),
         ]);
-        
-        // Also check cogni roles
-        const cogniLoginResult = await supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId });
         
         const roles = rolesResult.data;
         const providerRecord = providerResult.data;
@@ -390,6 +410,16 @@ export default function Login() {
         }
         
         toast.success('Welcome back!');
+        if (targetPortal === 'cogniblend') {
+          const cogniRows = (cogniLoginResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+          const poolRowsLogin = (poolLoginResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+          const allCodes: string[] = [
+            ...poolRowsLogin.flatMap((r) => r.role_codes ?? []),
+            ...cogniRows.flatMap((r) => r.role_codes ?? []),
+          ];
+          navigate(pickCogniLandingRoute(allCodes), { replace: true });
+          return;
+        }
         navigate(PORTAL_ROUTES[targetPortal], { replace: true });
       } else {
         toast.success('Welcome back!');

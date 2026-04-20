@@ -10,10 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Lock, Unlock, FileText, Loader2, Scale } from 'lucide-react';
 import {
-  useFreezeForLegalReview,
   useUnfreezeForRecuration,
   useAssembleCpa,
 } from '@/hooks/cogniblend/useFreezeActions';
+import { useSendToLegal } from '@/hooks/cogniblend/useSendToLegal';
 
 interface LegalReviewPanelProps {
   challengeId: string;
@@ -30,7 +30,7 @@ export function LegalReviewPanel({
   governanceMode,
   currentPhase,
 }: LegalReviewPanelProps) {
-  const freezeMut = useFreezeForLegalReview(challengeId);
+  const sendMut = useSendToLegal(challengeId);
   const unfreezeMut = useUnfreezeForRecuration(challengeId);
   const assembleMut = useAssembleCpa(challengeId);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -40,8 +40,8 @@ export function LegalReviewPanel({
   const canFreeze = lockStatus === 'OPEN' && currentPhase === 2;
   const isFrozen = lockStatus === 'FROZEN';
 
-  const handleFreeze = () => {
-    freezeMut.mutate(userId);
+  const handleSend = () => {
+    sendMut.mutate(userId);
   };
 
   const handleAssemble = () => {
@@ -86,15 +86,15 @@ export function LegalReviewPanel({
             <Button
               size="sm"
               className="w-full"
-              onClick={handleFreeze}
-              disabled={freezeMut.isPending}
+              onClick={handleSend}
+              disabled={sendMut.isPending}
             >
-              {freezeMut.isPending ? (
+              {sendMut.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
               ) : (
                 <Lock className="h-4 w-4 mr-1.5" />
               )}
-              Freeze for Legal Review
+              Send to Legal Review
             </Button>
           )}
 
