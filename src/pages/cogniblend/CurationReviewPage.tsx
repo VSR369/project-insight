@@ -9,6 +9,30 @@ import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
+
+// Phase 4: lazy-mount freeze hooks — only initialized when right rail commits.
+function FreezeForLegalAction({
+  challengeId,
+  userId,
+  children,
+}: {
+  challengeId: string;
+  userId: string | undefined;
+  children: (handler: () => Promise<void>) => React.ReactNode;
+}) {
+  const freezeMut = useFreezeForLegalReview(challengeId);
+  const assembleMut = useAssembleCpa(challengeId);
+  const handler = async () => {
+    if (!userId) return;
+    try {
+      await freezeMut.mutateAsync(userId);
+      await assembleMut.mutateAsync(userId);
+    } catch {
+      /* errors handled by individual mutation onError */
+    }
+  };
+  return <>{children(handler)}</>;
+}
 import { CuratorCpaReviewPanel } from "@/components/cogniblend/curation/CuratorCpaReviewPanel";
 import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
@@ -51,8 +75,6 @@ const PreFlightGateDialog = lazy(() =>
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
-  const freezeMut = useFreezeForLegalReview(o.challengeId ?? '');
-  const assembleMut = useAssembleCpa(o.challengeId ?? '');
   const [pwaAccepted, setPwaAccepted] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => !hasSeenGuide(o.challengeId ?? ''));
 
@@ -61,13 +83,6 @@ export default function CurationReviewPage() {
     opModel === 'MP' ? o.user?.id : undefined
   );
 
-  const handleFreezeForLegal = async () => {
-    if (!o.user?.id) return;
-    try {
-      await freezeMut.mutateAsync(o.user.id);
-      await assembleMut.mutateAsync(o.user.id);
-    } catch { /* errors handled by individual mutation onError */ }
-  };
 
   // Warn before navigating away during active wave execution
   useEffect(() => {
@@ -306,95 +321,100 @@ export default function CurationReviewPage() {
           </Card>
         </div>
 
-        {/* RIGHT RAIL (1/4) */}
-        <CurationRightRail
-          challengeId={o.challengeId!}
-          challengeCurrencyCode={o.challenge?.currency_code ?? 'USD'}
-          phaseStatus={o.challenge.phase_status ?? null}
-          operatingModel={o.challenge.operating_model}
-          isReadOnly={isReadOnly}
-          aiQuality={o.aiQuality}
-          aiQualityLoading={o.aiQualityLoading}
-          onAIQualityAnalysis={o.handleAIQualityAnalysis}
-          challengeCtx={o.challengeCtx}
-          allSectionKeys={GROUPS.flatMap(g => g.sectionKeys).filter(Boolean)}
-          completenessResult={o.completenessResult}
-          completenessCheckDefs={o.completenessCheckDefs}
-          completenessRunning={o.completenessRunning}
-          onRunCompletenessCheck={o.runCompletenessCheck}
-          onNavigateToSection={o.handleNavigateToSection}
-          onOpenContextLibrary={() => o.setContextLibraryOpen(true)}
-          aiReviewLoading={o.aiReviewLoading}
-          onAIReview={o.handleAIReview}
-          onAnalyse={o.handleAnalyse}
-          onGenerateSuggestions={o.handleGenerateSuggestions}
-          pass1Done={o.pass1DoneSession}
-          waveProgress={o.waveProgress}
-          passType={o.currentPassType}
-          onCancelReview={o.cancelReview}
-          budgetShortfall={o.budgetShortfall}
-          curationStore={o.curationStore}
-          onDismissBudgetShortfall={() => o.setBudgetShortfall(null)}
-          onModifyRewardManually={() => {
-            const group = GROUPS.find(g => g.sectionKeys.includes('reward_structure'));
-            if (group) o.setActiveGroup(group.id);
-            o.setBudgetShortfall(null);
-          }}
-          onAcceptBudgetRevision={o.handleAcceptBudgetRevision}
-          phase2Status={o.phase2Status}
-          triageTotalCount={o.triageTotalCount}
-          aiReviews={o.aiReviews}
-          staleSections={o.staleSections}
-          showOnlyStale={o.showOnlyStale}
-          setShowOnlyStale={o.setShowOnlyStale}
-          groups={GROUPS}
-          sectionMap={SECTION_MAP}
-          getSectionDisplayName={getSectionDisplayName}
-          setActiveGroup={o.setActiveGroup}
-          allComplete={o.allComplete}
-          checklistSummary={o.checklistSummary}
-          completedCount={o.completedCount}
-          legalEscrowBlocked={o.legalEscrowBlocked}
-          blockingReason={o.blockingReason}
-          onReReviewStale={o.reReviewStale}
-          setAiReviewLoading={o.setAiReviewLoading}
-          userId={o.user?.id}
-          lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
-          governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile) ?? 'QUICK'}
-          currentPhase={o.challenge.current_phase}
-          onFreezeForLegal={handleFreezeForLegal}
-          contextLibraryReviewed={o.contextLibraryReviewed}
-          creatorApprovalRequired={(() => {
-            try {
-              const eb = typeof o.challenge?.extended_brief === 'string'
-                ? JSON.parse(o.challenge.extended_brief)
-                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
-              return eb?.creator_approval_required === true;
-            } catch { return null; }
-          })()}
-          communityCreationAllowed={(() => {
-            try {
-              const eb = typeof o.challenge?.extended_brief === 'string'
-                ? JSON.parse(o.challenge.extended_brief)
-                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
-              return eb?.community_creation_allowed === true;
-            } catch { return false; }
-          })()}
-          isAnonymous={(() => {
-            try {
-              const eb = typeof o.challenge?.extended_brief === 'string'
-                ? JSON.parse(o.challenge.extended_brief)
-                : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
-              return eb?.is_anonymous === true;
-            } catch { return false; }
-          })()}
-          diagnosticsOpen={o.diagnosticsOpen}
-          setDiagnosticsOpen={o.setDiagnosticsOpen}
-          onReReviewSection={(sectionId) => {
-            o.setDiagnosticsOpen(false);
-            o.handleNavigateToSection(sectionId);
-          }}
-        />
+        {/* RIGHT RAIL (1/4) — freeze hooks lazy-mounted via FreezeForLegalAction wrapper */}
+        <FreezeForLegalAction challengeId={o.challengeId!} userId={o.user?.id}>
+          {(handleFreezeForLegal) => (
+            <CurationRightRail
+              challengeId={o.challengeId!}
+              challengeCurrencyCode={o.challenge?.currency_code ?? 'USD'}
+              phaseStatus={o.challenge.phase_status ?? null}
+              operatingModel={o.challenge.operating_model}
+              isReadOnly={isReadOnly}
+              aiQuality={o.aiQuality}
+              aiQualityLoading={o.aiQualityLoading}
+              onAIQualityAnalysis={o.handleAIQualityAnalysis}
+              challengeCtx={o.challengeCtx}
+              allSectionKeys={GROUPS.flatMap(g => g.sectionKeys).filter(Boolean)}
+              completenessResult={o.completenessResult}
+              completenessCheckDefs={o.completenessCheckDefs}
+              completenessRunning={o.completenessRunning}
+              onRunCompletenessCheck={o.runCompletenessCheck}
+              onNavigateToSection={o.handleNavigateToSection}
+              onOpenContextLibrary={() => o.setContextLibraryOpen(true)}
+              aiReviewLoading={o.aiReviewLoading}
+              onAIReview={o.handleAIReview}
+              onAnalyse={o.handleAnalyse}
+              onGenerateSuggestions={o.handleGenerateSuggestions}
+              pass1Done={o.pass1DoneSession}
+              waveProgress={o.waveProgress}
+              passType={o.currentPassType}
+              onCancelReview={o.cancelReview}
+              budgetShortfall={o.budgetShortfall}
+              curationStore={o.curationStore}
+              onDismissBudgetShortfall={() => o.setBudgetShortfall(null)}
+              onModifyRewardManually={() => {
+                const group = GROUPS.find(g => g.sectionKeys.includes('reward_structure'));
+                if (group) o.setActiveGroup(group.id);
+                o.setBudgetShortfall(null);
+              }}
+              onAcceptBudgetRevision={o.handleAcceptBudgetRevision}
+              phase2Status={o.phase2Status}
+              triageTotalCount={o.triageTotalCount}
+              aiReviews={o.aiReviews}
+              staleSections={o.staleSections}
+              showOnlyStale={o.showOnlyStale}
+              setShowOnlyStale={o.setShowOnlyStale}
+              groups={GROUPS}
+              sectionMap={SECTION_MAP}
+              getSectionDisplayName={getSectionDisplayName}
+              setActiveGroup={o.setActiveGroup}
+              allComplete={o.allComplete}
+              checklistSummary={o.checklistSummary}
+              completedCount={o.completedCount}
+              legalEscrowBlocked={o.legalEscrowBlocked}
+              blockingReason={o.blockingReason}
+              onReReviewStale={o.reReviewStale}
+              setAiReviewLoading={o.setAiReviewLoading}
+              userId={o.user?.id}
+              lockStatus={(o.challenge as any).curation_lock_status ?? 'OPEN'}
+              governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile) ?? 'QUICK'}
+              currentPhase={o.challenge.current_phase}
+              onFreezeForLegal={handleFreezeForLegal}
+              contextLibraryReviewed={o.contextLibraryReviewed}
+              creatorApprovalRequired={(() => {
+                try {
+                  const eb = typeof o.challenge?.extended_brief === 'string'
+                    ? JSON.parse(o.challenge.extended_brief)
+                    : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+                  return eb?.creator_approval_required === true;
+                } catch { return null; }
+              })()}
+              communityCreationAllowed={(() => {
+                try {
+                  const eb = typeof o.challenge?.extended_brief === 'string'
+                    ? JSON.parse(o.challenge.extended_brief)
+                    : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+                  return eb?.community_creation_allowed === true;
+                } catch { return false; }
+              })()}
+              isAnonymous={(() => {
+                try {
+                  const eb = typeof o.challenge?.extended_brief === 'string'
+                    ? JSON.parse(o.challenge.extended_brief)
+                    : (o.challenge?.extended_brief as Record<string, unknown>) ?? {};
+                  return eb?.is_anonymous === true;
+                } catch { return false; }
+              })()}
+              diagnosticsOpen={o.diagnosticsOpen}
+              setDiagnosticsOpen={o.setDiagnosticsOpen}
+              onReReviewSection={(sectionId) => {
+                o.setDiagnosticsOpen(false);
+                o.handleNavigateToSection(sectionId);
+              }}
+            />
+          )}
+        </FreezeForLegalAction>
+
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}
         {(o.challenge as any)?.curation_lock_status === 'FROZEN' &&
