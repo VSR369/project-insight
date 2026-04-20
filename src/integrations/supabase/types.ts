@@ -17119,6 +17119,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      send_to_legal_review: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       start_sla_timer: {
