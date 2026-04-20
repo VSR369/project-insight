@@ -280,7 +280,25 @@ export function getUserFacingMessage(technicalMessage: string, operation: string
   if (lowerMessage.includes('constraint') || lowerMessage.includes('unique') || lowerMessage.includes('foreign key') || lowerMessage.includes('check constraint')) {
     return 'A data constraint prevented this action. Please check your input and try again.';
   }
-  
+
+  // Lifecycle / curation business-rule messages — pass through verbatim when concise
+  // Covers freeze/unfreeze/assemble/legal-review/phase-gate validation messages from RPCs
+  if (
+    lowerMessage.includes('phase') ||
+    lowerMessage.includes('frozen') ||
+    lowerMessage.includes('hash') ||
+    lowerMessage.includes('legal review') ||
+    lowerMessage.includes('curation') ||
+    lowerMessage.includes('lock') ||
+    lowerMessage.includes('already') ||
+    lowerMessage.includes('must be')
+  ) {
+    // Only bubble through if the message is short enough to be user-friendly
+    if (technicalMessage.length > 0 && technicalMessage.length <= 200) {
+      return technicalMessage;
+    }
+  }
+
   // Default message
   return `Failed to ${operation.toLowerCase()}. Please try again or contact support.`;
 }
