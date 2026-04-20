@@ -186,6 +186,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
   }>({ open: false, sectionKey: "", sectionLabel: "", initialComment: "", aiOriginalComments: "" });
 
   // ── Core challenge query (with org type JOIN — eliminates waterfall) ──
+  // 2-min stale: challenge body is autosaved by us → we own invalidation.
   const { data: challengeCore, isLoading } = useQuery({
     queryKey: ["curation-review", challengeId],
     queryFn: async () => {
@@ -198,6 +199,7 @@ export function useCurationPageData(challengeId: string | undefined): CurationPa
       return data as unknown as ChallengeDataCore;
     },
     enabled: !!challengeId,
+    staleTime: 2 * 60_000,
     placeholderData: (prev: ChallengeDataCore | undefined) => prev,
   });
 
