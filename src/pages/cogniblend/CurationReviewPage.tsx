@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -16,11 +16,8 @@ import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptan
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
 import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
-import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
-import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
 import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
-import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
-import { CuratorGuideModal, hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
+import { hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
 import { IncompleteSectionsBanner } from "@/components/cogniblend/curation/IncompleteSectionsBanner";
 import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
 import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
@@ -29,6 +26,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, ChevronsDownUp, ChevronsUpDown, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ── Phase 3: Lazy-load modals/drawers (only render on user interaction) ──
+const ContextLibraryDrawer = lazy(() =>
+  import("@/components/cogniblend/curation/ContextLibraryDrawer").then((m) => ({
+    default: m.ContextLibraryDrawer,
+  })),
+);
+const CuratorGuideModal = lazy(() =>
+  import("@/components/cogniblend/curation/CuratorGuideModal").then((m) => ({
+    default: m.CuratorGuideModal,
+  })),
+);
+const SendForModificationModal = lazy(() =>
+  import("@/components/cogniblend/curation/SendForModificationModal").then((m) => ({
+    default: m.SendForModificationModal,
+  })),
+);
+const PreFlightGateDialog = lazy(() =>
+  import("@/components/cogniblend/curation/PreFlightGateDialog").then((m) => ({
+    default: m.PreFlightGateDialog,
+  })),
+);
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
