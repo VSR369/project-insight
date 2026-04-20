@@ -1,145 +1,152 @@
 
 
-# Plan — S7 Workflow & Visibility Sprint (Lovable-aligned)
+# Plan — S9 (Revised) Workflow Realignment to Configuration
 
-Closes the 11 gaps you listed. Execution order: **S7C → S7A → S7B → S7D**. S7C is the critical path (workflow); S7A/B fix visibility; S7D adds guards and gates the publish button. Every change reuses existing components and stays inside the workspace rules (≤250 lines/file, no DB calls in components, hooks call services, RLS preserved).
+The 4 paths below are the **single source of truth**, derived from `md_lifecycle_phase_config` (Phase 3 owner) + `extended_brief.creator_approval_required` (gate after compliance). Engagement model only changes the Creator-approval gate; **it never changes who does compliance work** — that is governance-mode-driven.
 
----
+## Canonical matrix (matches your corrections + DB config)
 
-## S7C — Workflow Fixes (CRITICAL — Gaps 7, 8) — ~2 days
+```text
+┌──────────────────────────────┬───────────────────┬─────────────────────────────────┐
+│ Engagement × Governance      │ Compliance owner  │ Creator approval before publish │
+├──────────────────────────────┼───────────────────┼─────────────────────────────────┤
+│ MP × STRUCTURED              │ Curator (CU)      │ Always required                 │
+│ MP × CONTROLLED              │ LC + FC           │ Always required                 │
+│ AGG × STRUCTURED             │ Curator (CU)      │ Only if Creator opted in        │
+│ AGG × CONTROLLED             │ LC + FC           │ Only if Creator opted in        │
+│ * × QUICK                    │ Auto (no humans)  │ Never                           │
+└──────────────────────────────┴───────────────────┴─────────────────────────────────┘
+```
 
-The current `complete_legal_review` / `complete_financial_review` RPCs jump *straight to Phase 4* once both compliance flags are true. There is **no Creator approval pause**, and the Creator's `acceptAll` mutation only flips a column — it never moves the phase forward. Result: challenges silently hang.
-
-### S7C-1 — New migration: insert a Creator-approval pause between Phase 3 and Phase 4
-
-New migration `<ts>_creator_approval_pause.sql`:
-
-1. **Helper RPC** `public.request_creator_approval(p_challenge_id uuid, p_user_id uuid)` (SECURITY DEFINER, `search_path = public`):
-   - Pre-conditions: `lc_compliance_complete = true` AND `fc_compliance_complete = true` AND `creator_approval_status` IS DISTINCT FROM `'pending'`/`'approved'`.
-   - Sets `creator_approval_status = 'pending'`, `creator_approval_requested_at = now()`, `phase_status = 'CR_APPROVAL_PENDING'`.
-   - Inserts `audit_trail` row + status-history row (`PENDING_LC_REVIEW` → `PENDING_CREATOR_APPROVAL`).
-   - Inserts `notifications` rows for active CR users on the challenge (deep-link `/cogni/challenges/{id}/creator-review`).
-
-2. **Modify `complete_legal_review` and `complete_financial_review`** (`CREATE OR REPLACE`):
-   - Today: when *both* flags become true → call `complete_phase` → goes to Phase 4.
-   - New behaviour: when both flags are true → call `request_creator_approval` instead. **Phase stays at 3.** Return `{ success:true, phase_advanced:false, awaiting:'creator_approval' }`.
-   - Idempotent: if already `'pending'` or `'approved'`, no-op succeed.
-
-3. **New RPC** `public.creator_finalize_approval(p_challenge_id, p_user_id, p_decision text)` where `p_decision IN ('approved','changes_requested')`:
-   - Validates caller has `CR` role on the challenge.
-   - On `'approved'`: sets `creator_approval_status='approved'`, `creator_approved_at=now()`, `phase_status='READY_TO_PUBLISH'`, then calls `public.complete_phase(...)` to advance to Phase 4 (Publication). Inserts notifications for CU.
-   - On `'changes_requested'`: sets `creator_approval_status='changes_requested'`, `phase_status='CR_CHANGES_REQUESTED'`, `pass3_stale=true`. Notifies CU + LC. Phase stays at 3.
-
-4. **One-shot backfill**: for any challenge currently stuck with `lc_compliance_complete = true AND fc_compliance_complete = true AND current_phase = 3 AND creator_approval_status IS NULL` → call `request_creator_approval` so existing test data lights up.
-
-### S7C-2 — Wire UI to the new RPCs
-
-- `useCreatorReview.ts` (existing): replace the `acceptAll` mutation body — call `creator_finalize_approval(p_decision:'approved')` (single RPC) instead of the direct `update`. Replace `requestRecuration` similarly with `p_decision:'changes_requested'`. Removes the orphaned "approved but stuck" state automatically.
-- `EscrowManagementPage.tsx`: success toast becomes "Escrow confirmed — Creator approval requested" when the RPC returns `awaiting:'creator_approval'`.
-- `LcLegalWorkspacePage.tsx`: same — success toast updated, no behaviour change beyond messaging.
-
-**No application logic moves into the components — all branching stays in the hook/RPC layer.**
+Two universal invariants:
+1. **Pack always returns to Curator first.** Creator never sees raw LC/FC output.
+2. When Creator approval is skipped (AGG opt-out), Curator publishes directly after compliance — no Creator pause.
 
 ---
 
-## S7A — LC Visibility (Gaps 1, 2, 3) — ~3.5 days
+## S9R-A — Database migration `<ts>_workflow_realignment_v2.sql`
 
-LC currently sees a 6-section accordion with no references and no template content. Reuse the **existing PreviewDocument** that Curator/Creator already share — single source of truth.
+### A1. Replace `send_to_legal_review` with governance-aware routing
+- Resolve `governance_mode` first; engagement model is read but only affects the post-compliance gate.
+- **STRUCTURED** (any model): do **not** assign LC/FC. Set `cu_compliance_mode = true` on the challenge. Returns `{ awaiting: 'curator_compliance' }`.
+- **CONTROLLED** (any model): assign LC and FC from the platform pool (current behaviour). Returns `{ awaiting: 'lc_fc_compliance' }`.
+- Spec freeze + CPA assembly stays identical for both paths.
+- Add `cu_compliance_mode boolean default false` column on `challenges` (additive, no breakage).
 
-### S7A-1 — Promote `useChallengeForLC` to full-fidelity loader
+### A2. New RPC `complete_curator_compliance(p_challenge_id, p_user_id)` (STRUCTURED path)
+- Validates caller has `CU` on the challenge AND `governance_mode = 'STRUCTURED'` AND `cu_compliance_mode = true`.
+- Sets `lc_compliance_complete = true` AND `fc_compliance_complete = true` in one shot.
+- Branches on `extended_brief.creator_approval_required`:
+  - `true` → calls `request_creator_approval(...)` → status `'pending'`, phase stays at 3, Creator notified.
+  - `false` (AGG only — MP always true, see A5) → calls `complete_phase(...)` → advances to Phase 4 (publication), Creator NOT notified.
+- Idempotent.
 
-- `src/hooks/cogniblend/useLcLegalData.ts`: replace the narrow `useChallengeForLC` with a thin wrapper around `usePreviewData(challengeId)`. We get challenge + org + legal + escrow + digest + attachments + field rules in one place — same data the Curator/Creator preview already use. No new query duplication.
-- Keep the old `LcChallenge` typed export as an alias for `ChallengeData` so non-Pass-3 callers don't break.
+### A3. Modify `complete_legal_review` and `complete_financial_review` (CONTROLLED path)
+- Top-of-function guard: `RAISE EXCEPTION` if `governance_mode <> 'CONTROLLED'`. Forces STRUCTURED through `complete_curator_compliance`.
+- When both flags true:
+  - Set `creator_approval_status = 'pending_curator_review'` (new sub-state).
+  - Set `phase_status = 'AWAITING_CURATOR_PACK_REVIEW'`.
+  - Notify the **Curator** (NOT the Creator) — message: "Pack ready for your review and forwarding".
+- This ensures LC/FC always hand back to Curator, never directly to Creator.
 
-### S7A-2 — Replace `LcChallengeDetailsCard` with the read-only Preview
+### A4. New RPC `curator_forward_pack_to_creator(p_challenge_id, p_user_id, p_notes)`
+- Caller must be `CU`, `lc_complete AND fc_complete`, status `'pending_curator_review'`.
+- Branches on `extended_brief.creator_approval_required`:
+  - `true` (MP always; AGG when opted in) → set `creator_approval_status = 'pending'`, `phase_status = 'CR_APPROVAL_PENDING'`, notify Creator. Phase stays at 3.
+  - `false` (AGG opt-out only) → call `complete_phase(...)` → advances to Phase 4 immediately, Creator not notified.
+- Inserts `audit_trail` + status-history rows.
+- Single canonical handoff point — Creator approval (or auto-publish) only ever happens through this RPC.
 
-- New thin component `src/components/cogniblend/lc/LcFullChallengePreview.tsx` (<150 lines): renders `<PreviewDocument …>` with `canEditSection={() => false}` and `isGlobalReadOnly={true}`. Wraps in a Card with a "Curated Challenge — Read Only" header and a collapse toggle (defaults to expanded for LC).
-- `LcLegalWorkspacePage.tsx` swaps `<LcChallengeDetailsCard>` → `<LcFullChallengePreview>`. All 33 sections, references, attachments, digest, org context become visible. The page stays a thin orchestrator.
-- Old `LcChallengeDetailsCard.tsx` is deleted (no other callers).
+### A5. Enforce MP = always-Creator-approval at the data layer
+- New `BEFORE INSERT OR UPDATE` trigger `trg_challenges_force_mp_creator_approval` on `challenges`:
+  - If `operating_model = 'MP'` and `governance_mode IN ('STRUCTURED','CONTROLLED')`, force `extended_brief = jsonb_set(extended_brief, '{creator_approval_required}', 'true', true)`.
+- Backfills the same in the migration.
+- Means MP creators cannot opt out, AGG creators can.
 
-### S7A-3 — Document content viewer in `LcAttachedDocsCard`
+### A6. Extend `creator_approval_status` CHECK
+- Add `'pending_curator_review'` to the allowed list. Existing values (`not_required`, `pending`, `approved`, `changes_requested`) preserved.
 
-- Add a "View content" expand button per row.
-- Lazy hook `useLegalDocContent(docId)` (in `useLcLegalData.ts`) fetches `content_html` / `ai_modified_content_html` on demand.
-- Render via the existing `LegalDocumentViewer` component (already contract-styled).
-- Same pattern reused for original platform/org templates that were auto-attached in Phase 2→3 — they're already in `challenge_legal_docs` rows, just hidden behind no UI.
-
----
-
-## S7B — FC Visibility (Gaps 4, 5, 6) — ~3.5 days
-
-### S7B-1 — Full curated-challenge preview on FC page
-
-- New component `src/components/cogniblend/fc/FcChallengeDetailView.tsx` (<150 lines): wraps `PreviewDocument` read-only, exactly like `LcFullChallengePreview` (zero duplication of section logic).
-- `EscrowManagementPage.tsx`: when a row is `isSelected`, render `<FcChallengeDetailView challengeId>` *above* `EscrowDepositForm` inside a collapsible Card. LC-approved legal docs already render inside `PreviewLegalSection` — FC sees them automatically.
-
-### S7B-2 — Recommended-escrow context card
-
-- New `src/components/cogniblend/fc/RecommendedEscrowCard.tsx`: reads from `usePreviewData` (already needed for S7B-1). Surfaces:
-  - Governance mode + engagement model badges (reuse `GovernanceProfileBadge` + `EscrowModeBanner`).
-  - Reward breakdown (platinum/gold/silver from `reward_structure`).
-  - Curator/Creator notes from `extended_brief.escrow_notes` + `extended_brief.recommended_escrow_amount` (read-only).
-  - Currency + rate-card hint pulled from existing `EscrowCalculationDisplay`.
-- Renders directly above the deposit form. No schema change required (fields already exist in `extended_brief`).
-
-### S7B-3 — Mode-aware guidance text on the form
-
-- `EscrowDepositForm.tsx`: accept an optional `governanceMode` prop. Switch banner copy: CONTROLLED ⇒ "Mandatory — challenge cannot publish until escrow funded"; STRUCTURED ⇒ "Optional — Creator opted to fund"; QUICK ⇒ form not shown at all (already filtered upstream).
-
----
-
-## S7D — Guards, Curator Visibility, Publication Gate (Gaps 9, 10, 11) — ~2.5 days
-
-### S7D-1 — Read-only banners after compliance
-
-- `LcLegalWorkspacePage.tsx`: when `challenge.lc_compliance_complete === true`, render a "Legal Review Complete — Read Only" banner via existing `Alert` and pass `isReadOnly` down to `LcPass3ReviewPanel` and `LcAiSuggestionsSection` (both already accept disabled flags). All edit/submit buttons disabled.
-- `EscrowManagementPage.tsx`: when row's escrow `escrow_status === 'FUNDED'`, the form is already hidden — add an explicit "Escrow Confirmed" banner card above the row.
-
-### S7D-2 — Curator visibility of LC/FC results
-
-- `CurationReviewPage.tsx`: add two summary cards in `CurationRightRail` (or below it) — `LegalDocsSummaryCard` and `EscrowStatusCard`. Both pull from `usePreviewData` and render read-only when `lc_compliance_complete` / `fc_compliance_complete` is true. Curator sees attached docs (with view-content) and escrow snapshot exactly as Creator/LC see them.
-- Same components reused: `PreviewLegalSection` and `PreviewEscrowSection`.
-
-### S7D-3 — Tighten publication gate
-
-- `usePublicationReadiness.ts`: extend the `select(...)` to include `creator_approval_status`, `pass3_stale`. Add two checks to the returned `checks[]`:
-  - `creator_approval_status === 'approved'` ⇒ "Creator approval received".
-  - `pass3_stale === false` ⇒ "Pass 3 legal review up to date".
-- `PublicationReadinessPage.tsx` automatically renders them — no other changes needed; `canPublish` already requires `allPassed`.
+### A7. Backfill running data
+- For challenges currently at Phase 3 with STRUCTURED + LC/FC roles assigned: deactivate those `user_challenge_roles` rows (`is_active = false`, audit row `WORKFLOW_REALIGNMENT_REVOKE_STRUCTURED`), set `cu_compliance_mode = true`. Pool counters decremented.
+- For challenges with both flags true and no `creator_approval_status` set: route them through `request_creator_approval` (or `pending_curator_review` for the CONTROLLED ones that haven't yet been picked up by Curator).
 
 ---
 
-## Files touched
+## S9R-B — UI changes (each file ≤250 lines, no Supabase imports)
 
-| Layer | New | Edited | Deleted |
-|---|---|---|---|
-| Migrations | `<ts>_creator_approval_pause.sql` (S7C-1) | — | — |
-| Hooks | — | `useLcLegalData.ts`, `useCreatorReview.ts`, `usePublicationReadiness.ts` | — |
-| LC components | `LcFullChallengePreview.tsx` | `LcAttachedDocsCard.tsx`, `LcLegalWorkspacePage.tsx` | `LcChallengeDetailsCard.tsx` |
-| FC components | `FcChallengeDetailView.tsx`, `RecommendedEscrowCard.tsx` | `EscrowManagementPage.tsx`, `EscrowDepositForm.tsx` | — |
-| Curator | `LegalDocsSummaryCard.tsx`, `EscrowStatusCard.tsx` | `CurationRightRail.tsx` | — |
+### B1. Curator Compliance Tab (STRUCTURED path)
+- New `src/components/cogniblend/curation/CuratorComplianceTab.tsx`: hosts the existing `LcFullChallengePreview` + `LcAttachedDocsCard` + `LcPass3ReviewPanel` + `RecommendedEscrowCard` + `EscrowDepositForm` inside the Curator's `CurationReviewPage`.
+- Visible only when `governance_mode = 'STRUCTURED'` AND `cu_compliance_mode = true`.
+- Submit button calls `useCompleteCuratorCompliance` → `complete_curator_compliance`.
+- Reuses every component already built for LC/FC — zero duplicate render logic.
 
-All files stay <250 lines. No Supabase imports added to components. No RLS changes (the new RPCs are SECURITY DEFINER and validate roles internally, matching the existing complete_*_review pattern).
+### B2. Curator Pack Review Panel (CONTROLLED path)
+- New `src/components/cogniblend/curation/CuratorPackReviewPanel.tsx`: visible when `governance_mode = 'CONTROLLED'` AND `creator_approval_status = 'pending_curator_review'`.
+- Shows read-only `LegalDocsSummaryCard` + `EscrowStatusCard` + Curator notes textarea + two buttons:
+  - **Forward to Creator** (or **Forward & Auto-Publish** when AGG opt-out) → `useCuratorForwardPack`.
+  - **Return to LC/FC** → existing `unfreeze_for_recuration` flow with audit reason.
+- Button label adapts based on `extended_brief.creator_approval_required`.
+
+### B3. LC / FC workspaces — STRUCTURED guard
+- `LcLegalWorkspacePage` + `EscrowManagementPage`: top-of-page guard — if `governance_mode = 'STRUCTURED'`, render an empty-state "Not applicable for Structured governance — Curator handles compliance" with a back link. No queries fired.
+- `LcChallengeQueuePage` + `FcChallengeQueuePage`: filter at query level on `governance_mode = 'CONTROLLED'`.
+- Removes the Phase-3 phase-gate bug entirely (S8-1 absorbed): for CONTROLLED these pages already get challenges in Phase 3, and the submit button gate becomes `current_phase === compliancePhase` resolved from `md_lifecycle_phase_config`.
+
+### B4. `LegalReviewPanel` (Curator right-rail)
+- For STRUCTURED challenges, the "Send to Legal Review" button label becomes **"Open Compliance Tab"** and routes to the new B1 tab in the Curator workspace; the underlying `send_to_legal_review` RPC still fires once on first open (freeze + assemble), but no LC/FC is assigned.
+- For CONTROLLED, behaviour unchanged — assigns LC/FC.
+
+### B5. Creator opt-in toggle (`CreatorApprovalCard`)
+- Disable the toggle when `operating_model = 'MP'` with helper text "Always required for Marketplace challenges".
+- Enable for AGG with confirmation dialog when toggling OFF: "Curator will publish immediately after compliance — you will not see the final pack."
+
+### B6. Notifications
+- LC/FC submit (CONTROLLED) → Curator notified (NOT Creator).
+- Curator forwards (any path with approval=true) → Creator notified.
+- Curator submits compliance with `creator_approval_required=false` (AGG STRUCTURED) OR forwards with same flag (AGG CONTROLLED) → no Creator notification; CR + admins notified "Auto-published".
 
 ---
 
-## What this does NOT touch
+## S9R-C — Hook layer
 
-- AI Pass 1 / Pass 2 / autosave.
-- `complete_phase`, `assemble_cpa`, `freeze_for_legal_review`, `unfreeze_for_recuration`.
-- SPA / PWA gates, `useAudienceClassification`, login routing (already fixed last sprint).
-- Legal Architecture V2 freeze-review-publish.
-- Storage buckets and existing RLS policies.
+| Hook | Change |
+|---|---|
+| `useSendToLegal` | Toast adapts to STRUCTURED ("Compliance assigned to you") vs CONTROLLED ("Routed to LC/FC"). |
+| `useCompleteCuratorCompliance` (new) | Wraps `complete_curator_compliance` RPC. |
+| `useCuratorForwardPack` (new) | Wraps `curator_forward_pack_to_creator`. |
+| `useCreatorReview` | Guard: if `creator_approval_status = 'pending_curator_review'` show `CreatorPackPendingBanner` (Creator should not see approve buttons yet). Existing `acceptAll` / `requestRecuration` continue to call `creator_finalize_approval`. |
+| `usePublicationReadiness` | Skip `creator_approval` gate when `creator_approval_required = false` AND status went `phase 3 → 4` via auto-publish. |
+| `useLcLegalData`, `useEscrowChallenges`, `useLcChallengeQueue`, `useFcChallengeQueue` | Filter at query level on `governance_mode = 'CONTROLLED'`. |
+| `useCompliancePhase` (new tiny selector) | Reads `md_lifecycle_phase_config` to return the compliance phase number for a given mode — used by submit-button gates. |
+
+---
+
+## S9R-D — Files touched
+
+| New | Edited | Deleted |
+|---|---|---|
+| `<ts>_workflow_realignment_v2.sql` | `send_to_legal_review`, `complete_legal_review`, `complete_financial_review`, `request_creator_approval`, `creator_finalize_approval` (single migration) | — |
+| `CuratorComplianceTab.tsx` | `CurationReviewPage.tsx`, `CurationRightRail.tsx`, `LegalReviewPanel.tsx` | — |
+| `CuratorPackReviewPanel.tsx` | `LcLegalWorkspacePage.tsx`, `EscrowManagementPage.tsx`, `LcChallengeQueuePage.tsx`, `FcChallengeQueuePage.tsx` | — |
+| `CreatorPackPendingBanner.tsx` | `useSendToLegal.ts`, `useCreatorReview.ts`, `usePublicationReadiness.ts`, `CreatorApprovalCard.tsx` | — |
+| `useCompleteCuratorCompliance.ts`, `useCuratorForwardPack.ts`, `useCompliancePhase.ts` | `useLcLegalData.ts`, `useEscrowChallenges.ts` | — |
+
+All files ≤250 lines. RPCs are SECURITY DEFINER, validate caller role internally, no RLS changes.
 
 ---
 
 ## Test gates
 
-1. **S7C** — Existing test challenge `25ca71a0…`: backfill flips it to `creator_approval_status='pending'`, Creator's MyChallenges shows "Review & Approve", `acceptAll` advances to Phase 4 and PublicationReadiness lights up.
-2. **S7C** — Fresh CONTROLLED challenge: LC submits → no phase advance, FC funds → no phase advance, Creator approves → Phase 4. STRUCTURED behaves identically.
-3. **S7A** — LC sees all 33 preview sections including extended_brief, references, digest; original templates' content readable.
-4. **S7B** — FC sees full curated challenge above the form, recommended-escrow card, mode-aware guidance.
-5. **S7D** — After LC approval the LC workspace shows read-only banner; after FC funding the FC page shows confirmed banner; Curator sees both summary cards on CurationReviewPage; PublicationReadinessPage now lists the two new gates and blocks publish until both pass.
-6. **Regression** — Quick-mode challenges unaffected (no Creator pause: QUICK skips compliance phase entirely via `md_lifecycle_phase_config`).
-7. **Regression** — Login/SPA/PWA flows unchanged.
+1. **MP × STRUCTURED**: Curator → Open Compliance Tab → Pass 3 + escrow → Submit → status `pending` → Creator approves → Phase 4. LC/FC queues empty for this challenge.
+2. **MP × CONTROLLED**: Curator → Send to LC/FC → both submit → status `pending_curator_review` → Curator clicks Forward → Creator approves → Phase 4.
+3. **AGG × STRUCTURED, opt-in ON**: same as test 1. Opt-in OFF: Submit → Phase 4 directly, no Creator notification.
+4. **AGG × CONTROLLED, opt-in ON**: same as test 2. Opt-in OFF: Curator clicks Forward & Auto-Publish → Phase 4 directly.
+5. **MP toggle disabled**: Creator UI cannot turn off `creator_approval_required` for MP. DB trigger forces it true even on direct UPDATE.
+6. **QUICK**: untouched, still auto-completes Phase 3.
+7. **Backfill**: existing STRUCTURED challenges with stale LC/FC role rows get those rows deactivated; `cu_compliance_mode` flipped true; appears in Curator's Compliance Tab on next visit.
+8. **Phase-gate**: CONTROLLED Submit-to-Curation button enables in Phase 3 (current bug fixed via `useCompliancePhase`).
+
+## Out of scope (untouched)
+
+AI Pass 1/2, Legal Architecture V2 freeze + CPA assembly, QUICK auto-flow, solver audience segmentation, login routing, publication-to-providers logic, RLS policies.
 
