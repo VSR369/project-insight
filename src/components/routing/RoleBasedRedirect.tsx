@@ -42,20 +42,15 @@ export function RoleBasedRedirect() {
       // Check sessionStorage for cached portal preference
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
 
-      // Fetch roles and provider/reviewer/org/cogni records in parallel
-      const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniRolesResult] = await Promise.all([
+      // Fetch roles and provider/reviewer/org/cogni/pool records in parallel
+      const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniRolesResult, poolResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
         supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle(),
         supabase.rpc('get_user_all_challenge_roles', { p_user_id: user.id }),
+        supabase.from('platform_provider_pool').select('role_codes').eq('user_id', user.id).eq('is_active', true),
       ]);
-
-      // Fetch enrollments only if provider exists
-      const providerId = providerResult.data?.id;
-      const enrollmentsResult = providerId
-        ? await supabase.from('provider_industry_enrollments').select('id').eq('provider_id', providerId).limit(1)
-        : { data: [] };
 
       const roles = rolesResult.data;
       const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
@@ -63,20 +58,27 @@ export function RoleBasedRedirect() {
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
       const hasOrgUserRecord = !!orgUserResult.data;
-      const hasCogniRoles = (cogniRolesResult.data as unknown[] | null)?.length ? (cogniRolesResult.data as unknown[]).length > 0 : false;
-      const hasEnrollments = (enrollmentsResult.data?.length || 0) > 0;
+      const challengeRows = (cogniRolesResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+      const poolRows = (poolResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+      const hasCogniRoles = challengeRows.length > 0 || poolRows.length > 0;
+
+      // Workforce signal — pool/challenge membership with workforce SLM codes means
+      // the user belongs to CogniBlend workspace, NOT the provider portal.
+      const WORKFORCE_CODES = new Set(['R8', 'R9', 'R10', 'R10_CR', 'CU', 'ER', 'LC', 'FC', 'CR', 'R3', 'R4']);
+      const isWorkforce =
+        poolRows.some((r) => (r.role_codes ?? []).some((c) => WORKFORCE_CODES.has(c))) ||
+        challengeRows.some((r) => (r.role_codes ?? []).some((c) => WORKFORCE_CODES.has(c)));
 
       // Validate cached portal - user must still have access
       if (cachedPortal) {
         const canAccessCached =
           (cachedPortal === 'admin' && isPlatformAdmin) ||
-          (cachedPortal === 'provider' && hasProviderRecord) ||
+          (cachedPortal === 'provider' && hasProviderRecord && !isWorkforce) ||
           (cachedPortal === 'reviewer' && isPanelReviewer) ||
           (cachedPortal === 'organization' && hasOrgUserRecord) ||
           (cachedPortal === 'cogniblend' && hasCogniRoles);
 
         if (canAccessCached) {
-          // Handle pending reviewer special case
           if (cachedPortal === 'reviewer' && isPendingReviewer) {
             navigate('/reviewer/pending-approval', { replace: true });
             return;
@@ -84,11 +86,11 @@ export function RoleBasedRedirect() {
           navigate(PORTAL_ROUTES[cachedPortal], { replace: true });
           return;
         }
-        // Cached portal no longer valid - clear it
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine portal by role priority: Admin > Reviewer > Organization > CogniBlend > Provider
+      // Determine portal by role priority:
+      // Admin > Reviewer > Organization > CogniBlend (workforce/cogni) > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) {
         targetPortal = 'admin';
@@ -96,7 +98,8 @@ export function RoleBasedRedirect() {
         targetPortal = 'reviewer';
       } else if (hasOrgUserRecord) {
         targetPortal = 'organization';
-      } else if (hasCogniRoles) {
+      } else if (isWorkforce || hasCogniRoles) {
+        // Workforce users (LC/FC/CU/ER/CR) ALWAYS land in CogniBlend, never provider.
         targetPortal = 'cogniblend';
       } else if (hasProviderRecord) {
         targetPortal = 'provider';

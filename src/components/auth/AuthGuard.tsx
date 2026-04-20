@@ -13,7 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import { SpaAcceptanceGate } from '@/components/cogniblend/solver/SpaAcceptanceGate';
 import { useSpaStatus } from '@/hooks/cogniblend/useSpaStatus';
-import { useUserPortalRoles } from '@/hooks/queries/useUserPortalRoles';
+import { useAudienceClassification } from '@/hooks/queries/useAudienceClassification';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -33,11 +33,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [showLegalGate, setShowLegalGate] = useState(!cachedGatePassed);
   const [spaAccepted, setSpaAccepted] = useState(false);
 
-  const { isSolver, isWorkforce, isPlatformAdmin, isLoading: rolesLoading } =
-    useUserPortalRoles(user?.id);
+  const { isPureSolutionProvider, isLoading: rolesLoading } =
+    useAudienceClassification(user?.id);
 
-  // SPA only applies to pure Solvers — never workforce or platform admins.
-  const requiresSpa = isSolver && !isWorkforce && !isPlatformAdmin;
+  // POSITIVE RULE: SPA shows ONLY for pure Solution Providers.
+  // Workforce (LC/FC/CU/ER/CR), platform admins, reviewers, seekers,
+  // and org users never see the SPA.
+  const requiresSpa = isPureSolutionProvider;
 
   const { data: hasSpa, isLoading: spaLoading } = useSpaStatus(requiresSpa ? user?.id : undefined);
 

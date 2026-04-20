@@ -179,14 +179,15 @@ export default function Login() {
 
       // Check sessionStorage first for cached portal
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
-      
-      // Fetch roles and records to validate or determine portal
-      const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniRolesResult] = await Promise.all([
+
+      // Fetch roles and records to validate or determine portal (incl. pool for workforce detection)
+      const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniRolesResult, poolResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
         supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle(),
         supabase.rpc('get_user_all_challenge_roles', { p_user_id: user.id }),
+        supabase.from('platform_provider_pool').select('role_codes').eq('user_id', user.id).eq('is_active', true),
       ]);
 
       const roles = rolesResult.data;
@@ -195,13 +196,19 @@ export default function Login() {
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
       const hasOrgUserRecord = !!orgUserResult.data;
-      const hasCogniRoles = (cogniRolesResult.data as unknown[] | null)?.length ? (cogniRolesResult.data as unknown[]).length > 0 : false;
+      const challengeRows = (cogniRolesResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+      const poolRows = (poolResult.data as Array<{ role_codes?: string[] }> | null) ?? [];
+      const hasCogniRoles = challengeRows.length > 0 || poolRows.length > 0;
+      const WORKFORCE_CODES = new Set(['R8', 'R9', 'R10', 'R10_CR', 'CU', 'ER', 'LC', 'FC', 'CR', 'R3', 'R4']);
+      const isWorkforce =
+        poolRows.some((r) => (r.role_codes ?? []).some((c) => WORKFORCE_CODES.has(c))) ||
+        challengeRows.some((r) => (r.role_codes ?? []).some((c) => WORKFORCE_CODES.has(c)));
 
       // Validate cached portal
       if (cachedPortal) {
         const canAccessCached =
           (cachedPortal === 'admin' && isPlatformAdmin) ||
-          (cachedPortal === 'provider' && hasProviderRecord) ||
+          (cachedPortal === 'provider' && hasProviderRecord && !isWorkforce) ||
           (cachedPortal === 'reviewer' && isPanelReviewer) ||
           (cachedPortal === 'organization' && hasOrgUserRecord) ||
           (cachedPortal === 'cogniblend' && hasCogniRoles);
@@ -217,12 +224,12 @@ export default function Login() {
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine by role priority: Admin > Reviewer > Organization > CogniBlend > Provider
+      // Determine by role priority: Admin > Reviewer > Organization > CogniBlend (workforce) > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) targetPortal = 'admin';
       else if (isPanelReviewer) targetPortal = 'reviewer';
       else if (hasOrgUserRecord) targetPortal = 'organization';
-      else if (hasCogniRoles) targetPortal = 'cogniblend';
+      else if (isWorkforce || hasCogniRoles) targetPortal = 'cogniblend';
       else if (hasProviderRecord) targetPortal = 'provider';
 
       sessionStorage.setItem('activePortal', targetPortal);
