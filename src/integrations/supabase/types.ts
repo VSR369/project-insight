@@ -1541,6 +1541,7 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           reviewer_notes: string | null
+          source_origin: string | null
           status: string | null
           template_version: string | null
           tier: string
@@ -1579,6 +1580,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           reviewer_notes?: string | null
+          source_origin?: string | null
           status?: string | null
           template_version?: string | null
           tier: string
@@ -1617,6 +1619,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           reviewer_notes?: string | null
+          source_origin?: string | null
           status?: string | null
           template_version?: string | null
           tier?: string

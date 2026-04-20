@@ -1,6 +1,6 @@
 /**
  * lcLegalHelpers — Pure constants, types, and helpers for the LC workspace.
- * Extracted from LcLegalWorkspacePage to keep the orchestrator slim.
+ * Trimmed for the unified Pass 3 workflow.
  */
 
 export const IP_MODEL_LABELS: Record<string, string> = {
@@ -10,43 +10,6 @@ export const IP_MODEL_LABELS: Record<string, string> = {
   'IP-JO': 'Joint Ownership — Shared IP between Solution Provider and seeker',
   'IP-NONE': 'No Transfer — Solution Provider retains all IP rights',
 };
-
-export const DOCUMENT_TYPES = [
-  'NDA',
-  'CHALLENGE_TERMS',
-  'IP_ASSIGNMENT',
-  'SOLUTION_LICENSE',
-  'ESCROW_AGREEMENT',
-  'DATA_PROTECTION',
-  'COLLABORATION_AGREEMENT',
-] as const;
-
-export const FILE_UPLOAD_CONFIG = {
-  maxSizeBytes: 10 * 1024 * 1024,
-  maxSizeMB: 10,
-  allowedTypes: [
-    'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  ] as readonly string[],
-  allowedExtensions: ['.pdf', '.docx'] as readonly string[],
-  label: 'Legal Document',
-};
-
-export interface SuggestedDoc {
-  id: string;
-  document_type: string;
-  tier: string;
-  title: string;
-  rationale: string;
-  content_summary: string;
-  priority: 'required' | 'recommended';
-}
-
-export interface DocEditState {
-  content: string;
-  notes: string;
-  file: File | null;
-}
 
 export interface AttachedDoc {
   id: string;
@@ -58,6 +21,8 @@ export interface AttachedDoc {
   lc_review_notes: string | null;
   attached_by: string | null;
   created_at: string;
+  source_origin?: string | null;
+  ai_review_status?: string | null;
 }
 
 export interface RewardTier {
