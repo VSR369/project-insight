@@ -30,7 +30,7 @@ import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgress
 import { AssembledCpaSection } from '@/components/cogniblend/lc/AssembledCpaSection';
 import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
 import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
-import { LcChallengeDetailsCard } from '@/components/cogniblend/lc/LcChallengeDetailsCard';
+import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
 import { LcAiSuggestionsSection } from '@/components/cogniblend/lc/LcAiSuggestionsSection';
 import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
@@ -419,7 +419,7 @@ export default function LcLegalWorkspacePage() {
 
       <WorkflowProgressBanner step={3} />
 
-      <LcChallengeDetailsCard challenge={challenge ?? null} />
+      <LcFullChallengePreview challengeId={challengeId!} />
 
       <AssembledCpaSection challengeId={challengeId!} />
 
