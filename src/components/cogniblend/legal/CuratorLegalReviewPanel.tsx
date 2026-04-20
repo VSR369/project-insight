@@ -171,7 +171,7 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
 
         {review.isLoading && <Skeleton className="h-40 w-full" />}
 
-        {!review.isLoading && review.pass3Status === 'idle' && (
+        {!review.isLoading && review.pass3Status === 'idle' && !readOnly && (
           <div className="space-y-4 rounded-lg border bg-muted/30 p-6 text-center">
             <p className="text-sm text-muted-foreground">
               Run Pass 3 to generate the unified Solution Provider Agreement
@@ -189,6 +189,12 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               Run Pass 3 AI Review
             </Button>
           </div>
+        )}
+
+        {!review.isLoading && review.pass3Status === 'idle' && readOnly && (
+          <p className="text-sm text-muted-foreground italic">
+            The Legal Coordinator has not yet generated the unified agreement.
+          </p>
         )}
 
         {review.isRunning && (
