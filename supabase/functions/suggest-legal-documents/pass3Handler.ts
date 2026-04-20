@@ -97,7 +97,21 @@ interface HandlePass3Args {
   userId: string;
   challengeId: string;
   lovableApiKey: string;
+  /** Classification-only mode: AI slots verbatim source clauses into sections. */
+  arrangeOnly?: boolean;
 }
+
+/** Per-document content cap (chars) — generous to preserve full source clauses. */
+const PER_DOC_CONTENT_CAP = 60_000;
+/** Aggregate cap across ALL source docs (chars) — drop oldest overflow. */
+const TOTAL_SOURCE_CAP = 180_000;
+
+const ORIGIN_LABELS: Record<string, string> = {
+  creator: "Creator",
+  curator: "Curator",
+  lc: "Legal Coordinator",
+  platform_template: "Platform default template",
+};
 
 const CONFIDENCE_RANK: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
 
