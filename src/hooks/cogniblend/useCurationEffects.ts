@@ -37,6 +37,7 @@ export function useCurationEffects({
       hydrationDoneRef.current = true;
       let stored: SectionReview[] = [];
       if (Array.isArray(challenge.ai_section_reviews)) {
+        // Modern shape — no rewrite needed (Phase 5: avoids the doubling-load on legacy challenges)
         stored = normalizeSectionReviews(challenge.ai_section_reviews as unknown as SectionReview[]);
       } else if (challenge.ai_section_reviews && typeof challenge.ai_section_reviews === 'object') {
         const objMap = challenge.ai_section_reviews as Record<string, any>;
@@ -66,20 +67,28 @@ export function useCurationEffects({
     }
   }, [challenge?.ai_section_reviews, aiReviewsLoaded]);
 
-  // ── Content migration effect ──
+  // ── Content migration effect (Phase 5: deferred via idle callback) ──
   const contentMigrationRanRef = useRef(false);
   useEffect(() => {
     if (!challenge || contentMigrationRanRef.current) return;
     contentMigrationRanRef.current = true;
-    const targets = [
-      { dbField: 'problem_statement', content: challenge.problem_statement as string | null },
-      { dbField: 'scope', content: challenge.scope as string | null },
-      { dbField: 'hook', content: challenge.hook as string | null },
-      { dbField: 'description', content: challenge.description as string | null },
-    ];
-    const corrupted = findCorruptedFields(targets);
-    corrupted.forEach(({ dbField, fixed }) => {
-      saveSectionMutationRef.current.mutate({ field: dbField, value: fixed });
-    });
+    const runMigration = () => {
+      const targets = [
+        { dbField: 'problem_statement', content: challenge.problem_statement as string | null },
+        { dbField: 'scope', content: challenge.scope as string | null },
+        { dbField: 'hook', content: challenge.hook as string | null },
+        { dbField: 'description', content: challenge.description as string | null },
+      ];
+      const corrupted = findCorruptedFields(targets);
+      corrupted.forEach(({ dbField, fixed }) => {
+        saveSectionMutationRef.current.mutate({ field: dbField, value: fixed });
+      });
+    };
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    if (typeof ric === 'function') {
+      ric(runMigration, { timeout: 2000 });
+    } else {
+      setTimeout(runMigration, 1500);
+    }
   }, [challenge]);
 }

@@ -9,7 +9,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { CACHE_STABLE } from "@/config/queryCache";
+import { CACHE_STATIC } from "@/config/queryCache";
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from "@/lib/maturityLabels";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -53,7 +53,7 @@ export function useCurationMasterData(): CurationMasterData {
       if (error) return [];
       return data ?? [];
     },
-    ...CACHE_STABLE,
+    ...CACHE_STATIC,
   });
 
   const { data: solverTierRows, isLoading: solverTierLoading } = useQuery({
@@ -67,7 +67,7 @@ export function useCurationMasterData(): CurationMasterData {
       if (error) return [];
       return data ?? [];
     },
-    ...CACHE_STABLE,
+    ...CACHE_STATIC,
   });
 
   const { data: maturityRows, isLoading: maturityLoading } = useQuery({
@@ -81,7 +81,7 @@ export function useCurationMasterData(): CurationMasterData {
       if (error) return [];
       return data ?? [];
     },
-    ...CACHE_STABLE,
+    ...CACHE_STATIC,
   });
 
   const { data: ipModelRows, isLoading: ipModelLoading } = useQuery({
@@ -95,7 +95,7 @@ export function useCurationMasterData(): CurationMasterData {
       if (error || !data || (data as unknown[]).length === 0) return null;
       return data as { id: string; code: string; label: string; description: string | null; display_order: number }[];
     },
-    ...CACHE_STABLE,
+    ...CACHE_STATIC,
   });
 
   const maturityOptions = useMemo<MasterDataOption[]>(() =>

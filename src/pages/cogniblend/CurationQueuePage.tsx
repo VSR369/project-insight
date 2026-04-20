@@ -7,11 +7,12 @@
  * Includes assignment indicators (Assigned to Me / Other / Unassigned).
  */
 
-import { useMemo, useState, useDeferredValue } from "react";
+import { useCallback, useMemo, useState, useDeferredValue } from "react";
 import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { CACHE_STANDARD } from "@/config/queryCache";
 import { useCogniPermissions } from "@/hooks/cogniblend/useCogniPermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentOrg } from "@/hooks/queries/useCurrentOrg";
@@ -185,6 +186,7 @@ export default function CurationQueuePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearch = useDeferredValue(searchQuery);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const organizationId = currentOrg?.organizationId;
@@ -264,49 +266,69 @@ export default function CurationQueuePage() {
         }
       }
 
-      // Step 5: Enrich with SLA status + assignment label
-      const enriched = await Promise.all(
-        (rows as CurationChallenge[]).map(async (ch) => {
-          let sla: SlaStatus | null = null;
-          if (ch.current_phase === 2) {
-            const slaRes = await supabase.rpc("check_sla_status", {
-              p_challenge_id: ch.id,
-              p_phase: 2,
-            });
-            sla = slaRes.error
-              ? null
-              : ((typeof slaRes.data === "string"
-                  ? JSON.parse(slaRes.data)
-                  : slaRes.data) as SlaStatus | null);
-          }
+      // Step 5: Batch SLA status — single query instead of N+1 RPC calls.
+      // Mirrors check_sla_status semantics (status, deadline_at, percentage_used).
+      const { data: timerRows } = await supabase
+        .from("sla_timers")
+        .select("challenge_id, deadline_at, started_at, phase_duration_days, breached_at")
+        .in("challenge_id", challengeIds)
+        .eq("phase", 2)
+        .order("started_at", { ascending: false });
 
-          const assignments = assignmentMap.get(ch.id) ?? [];
-          let assignmentLabel: "mine" | "other" | "unassigned" = "unassigned";
-          let assigneeName: string | null = null;
-          if (assignments.length > 0) {
-            const isMine = assignments.some((a) => a.user_id === user!.id);
-            if (isMine) {
-              assignmentLabel = "mine";
-            } else {
-              assignmentLabel = "other";
-              assigneeName = "Another Curator";
-            }
-          }
+      const slaMap = new Map<string, SlaStatus>();
+      if (timerRows) {
+        for (const t of timerRows) {
+          // First (most recent) timer per challenge wins — matches RPC's ORDER BY started_at DESC LIMIT 1
+          if (slaMap.has(t.challenge_id)) continue;
+          const deadline = new Date(t.deadline_at).getTime();
+          const now = Date.now();
+          const remainingMs = deadline - now;
+          const totalMs = (t.phase_duration_days ?? 5) * 24 * 60 * 60 * 1000;
+          const remainingHours = Math.round((remainingMs / 3_600_000) * 10) / 10;
+          let pctUsed = totalMs > 0 ? 1 - remainingMs / totalMs : 1;
+          if (pctUsed > 1) pctUsed = 1;
+          if (pctUsed < 0) pctUsed = 0;
+          let status: SlaStatus["status"];
+          if (t.breached_at !== null || remainingMs <= 0) status = "BREACHED";
+          else if (pctUsed > 0.75) status = "APPROACHING";
+          else status = "ON_TRACK";
+          slaMap.set(t.challenge_id, {
+            status,
+            // Preserve legacy field shape used by slaIndicator (days_remaining/days_overdue)
+            days_remaining: status === "BREACHED" ? null : Math.max(0, Math.ceil(remainingHours / 24)),
+            days_overdue: status === "BREACHED" ? Math.max(0, Math.ceil(-remainingHours / 24)) : null,
+            percentage_used: pctUsed,
+            deadline_at: t.deadline_at,
+          });
+        }
+      }
 
-          return {
-            ...ch,
-            sla,
-            modificationCycle: "Cycle 1 of 3",
-            assignmentLabel,
-            assigneeName,
-          } satisfies EnrichedCurationChallenge;
-        })
-      );
+      const enriched: EnrichedCurationChallenge[] = (rows as CurationChallenge[]).map((ch) => {
+        const assignments = assignmentMap.get(ch.id) ?? [];
+        let assignmentLabel: "mine" | "other" | "unassigned" = "unassigned";
+        let assigneeName: string | null = null;
+        if (assignments.length > 0) {
+          const isMine = assignments.some((a) => a.user_id === user!.id);
+          if (isMine) {
+            assignmentLabel = "mine";
+          } else {
+            assignmentLabel = "other";
+            assigneeName = "Another Curator";
+          }
+        }
+        return {
+          ...ch,
+          sla: ch.current_phase === 2 ? slaMap.get(ch.id) ?? null : null,
+          modificationCycle: "Cycle 1 of 3",
+          assignmentLabel,
+          assigneeName,
+        } satisfies EnrichedCurationChallenge;
+      });
 
       return enriched;
     },
     enabled: !!user?.id,
-    staleTime: 30_000,
+    ...CACHE_STANDARD,
   });
 
   // ══════════════════════════════════════
@@ -346,7 +368,37 @@ export default function CurationQueuePage() {
   }, [challenges, resolvedTab, deferredSearch]);
 
   // ══════════════════════════════════════
-  // SECTION 5: Conditional returns
+  // SECTION 5a: Prefetch helper (must run before any conditional return — R5)
+  // ══════════════════════════════════════
+  // Same SELECT list & query key as useCurationPageData → cache hit on arrival.
+  const CHALLENGE_CORE_SELECT =
+    "id, title, problem_statement, scope, hook, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, ip_model, maturity_level, domain_tags, currency_code, operating_model, governance_profile, governance_mode_override, current_phase, phase_status, organization_id, curation_lock_status, curation_frozen_at, extended_brief, creator_legal_instructions, ai_section_reviews, visibility, evaluation_method, evaluator_count, solver_audience, industry_segment_id, seeker_organizations!challenges_organization_id_fkey(organization_type_id, organization_name, organization_description, website_url, hq_city, operating_model, organization_types(name))";
+
+  const prefetchChallenge = useCallback(
+    (id: string) => {
+      // 1. Warm the route chunk (saves 300–700ms on cold click).
+      void import("@/pages/cogniblend/CurationReviewPage");
+      // 2. Warm the core challenge query — shared key with useCurationPageData.
+      void queryClient.prefetchQuery({
+        queryKey: ["curation-review", id],
+        queryFn: async () => {
+          const { data, error } = await supabase
+            .from("challenges")
+            .select(CHALLENGE_CORE_SELECT)
+            .eq("id", id)
+            .single();
+          if (error) throw new Error(error.message);
+          return data;
+        },
+        staleTime: 2 * 60_000,
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient],
+  );
+
+  // ══════════════════════════════════════
+  // SECTION 5b: Conditional returns
   // ══════════════════════════════════════
   if (isLoading) {
     return (
@@ -374,6 +426,7 @@ export default function CurationQueuePage() {
   // SECTION 6: Handlers
   // ══════════════════════════════════════
   const handleRowClick = (ch: EnrichedCurationChallenge) => {
+    prefetchChallenge(ch.id);
     navigate(`/cogni/curation/${ch.id}`);
   };
 
@@ -477,6 +530,8 @@ export default function CurationQueuePage() {
                   <TableRow
                     key={ch.id}
                     className="cursor-pointer hover:bg-muted/50"
+                    onMouseEnter={() => prefetchChallenge(ch.id)}
+                    onFocus={() => prefetchChallenge(ch.id)}
                     onClick={() => handleRowClick(ch)}
                   >
                     <TableCell>

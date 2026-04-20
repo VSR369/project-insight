@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -16,11 +16,8 @@ import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptan
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
 import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
-import { SendForModificationModal } from "@/components/cogniblend/curation/SendForModificationModal";
-import { PreFlightGateDialog } from "@/components/cogniblend/curation/PreFlightGateDialog";
 import { FreezeStatusBanner } from "@/components/cogniblend/curation/FreezeStatusBanner";
-import { ContextLibraryDrawer } from "@/components/cogniblend/curation/ContextLibraryDrawer";
-import { CuratorGuideModal, hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
+import { hasSeenGuide } from "@/components/cogniblend/curation/CuratorGuideModal";
 import { IncompleteSectionsBanner } from "@/components/cogniblend/curation/IncompleteSectionsBanner";
 import { GROUPS, SECTION_MAP } from "@/lib/cogniblend/curationSectionDefs";
 import { getSectionDisplayName } from "@/lib/cogniblend/sectionDependencies";
@@ -29,6 +26,28 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, ChevronsDownUp, ChevronsUpDown, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ── Phase 3: Lazy-load modals/drawers (only render on user interaction) ──
+const ContextLibraryDrawer = lazy(() =>
+  import("@/components/cogniblend/curation/ContextLibraryDrawer").then((m) => ({
+    default: m.ContextLibraryDrawer,
+  })),
+);
+const CuratorGuideModal = lazy(() =>
+  import("@/components/cogniblend/curation/CuratorGuideModal").then((m) => ({
+    default: m.CuratorGuideModal,
+  })),
+);
+const SendForModificationModal = lazy(() =>
+  import("@/components/cogniblend/curation/SendForModificationModal").then((m) => ({
+    default: m.SendForModificationModal,
+  })),
+);
+const PreFlightGateDialog = lazy(() =>
+  import("@/components/cogniblend/curation/PreFlightGateDialog").then((m) => ({
+    default: m.PreFlightGateDialog,
+  })),
+);
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
@@ -98,7 +117,16 @@ export default function CurationReviewPage() {
     return <div className="p-6 text-center text-muted-foreground">Challenge not found.</div>;
   }
 
-  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
+  // Phase 4: PWA gate is MP-only — non-MP challenges never wait on the query.
+  if (opModel === 'MP' && pwaLoading) {
+    return (
+      <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
+        <Skeleton className="h-7 w-64" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+  if (opModel === 'MP' && !hasPwa && !pwaAccepted) {
     return (
       <div className="p-6 max-w-2xl mx-auto">
         <PwaAcceptanceGate userId={o.user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
@@ -386,40 +414,52 @@ export default function CurationReviewPage() {
           )}
       </div>
 
-      {/* ═══ MODALS & OVERLAYS ═══ */}
-      <CuratorGuideModal
-        challengeId={o.challengeId!}
-        open={guideOpen}
-        onOpenChange={setGuideOpen}
-        onNavigateToSection={o.handleNavigateToSection}
-      />
-      <SendForModificationModal
-        open={o.lockedSendState.open}
-        onOpenChange={(open) => o.setLockedSendState(prev => ({ ...prev, open }))}
-        challengeId={o.challengeId!}
-        sectionKey={o.lockedSendState.sectionKey}
-        sectionLabel={o.lockedSendState.sectionLabel}
-        initialComment={o.lockedSendState.initialComment}
-        aiOriginalComments={o.lockedSendState.aiOriginalComments}
-      />
+      {/* ═══ MODALS & OVERLAYS (lazy-loaded — only mount when needed) ═══ */}
+      {guideOpen && (
+        <Suspense fallback={null}>
+          <CuratorGuideModal
+            challengeId={o.challengeId!}
+            open={guideOpen}
+            onOpenChange={setGuideOpen}
+            onNavigateToSection={o.handleNavigateToSection}
+          />
+        </Suspense>
+      )}
+      {o.lockedSendState.open && (
+        <Suspense fallback={null}>
+          <SendForModificationModal
+            open={o.lockedSendState.open}
+            onOpenChange={(open) => o.setLockedSendState(prev => ({ ...prev, open }))}
+            challengeId={o.challengeId!}
+            sectionKey={o.lockedSendState.sectionKey}
+            sectionLabel={o.lockedSendState.sectionLabel}
+            initialComment={o.lockedSendState.initialComment}
+            aiOriginalComments={o.lockedSendState.aiOriginalComments}
+          />
+        </Suspense>
+      )}
 
-      <PreFlightGateDialog
-        result={o.preFlightResult}
-        open={o.preFlightDialogOpen}
-        onOpenChange={o.setPreFlightDialogOpen}
-        onGoToSection={o.handlePreFlightGoToSection}
-        onProceed={async () => {
-          o.setPreFlightDialogOpen(false);
-          await o.runAnalyseFlow();
-        }}
-        groups={GROUPS}
-        sectionMap={SECTION_MAP}
-        groupProgress={o.groupProgress}
-        challenge={o.challenge}
-        legalDocs={o.legalDocs}
-        legalDetails={o.legalDetails}
-        escrowRecord={o.escrowRecord}
-      />
+      {o.preFlightDialogOpen && (
+        <Suspense fallback={null}>
+          <PreFlightGateDialog
+            result={o.preFlightResult}
+            open={o.preFlightDialogOpen}
+            onOpenChange={o.setPreFlightDialogOpen}
+            onGoToSection={o.handlePreFlightGoToSection}
+            onProceed={async () => {
+              o.setPreFlightDialogOpen(false);
+              await o.runAnalyseFlow();
+            }}
+            groups={GROUPS}
+            sectionMap={SECTION_MAP}
+            groupProgress={o.groupProgress}
+            challenge={o.challenge}
+            legalDocs={o.legalDocs}
+            legalDetails={o.legalDetails}
+            escrowRecord={o.escrowRecord}
+          />
+        </Suspense>
+      )}
 
       {o.guidedMode && (
         <div className="fixed bottom-6 right-6 z-50">
@@ -430,14 +470,16 @@ export default function CurationReviewPage() {
         </div>
       )}
 
-      {o.challengeId && (
-        <ContextLibraryDrawer
-          challengeId={o.challengeId}
-          challengeTitle={o.challenge?.title}
-          open={o.contextLibraryOpen}
-          onOpenChange={o.setContextLibraryOpen}
-          onConfirmReview={o.handleContextLibraryConfirm}
-        />
+      {o.challengeId && o.contextLibraryOpen && (
+        <Suspense fallback={null}>
+          <ContextLibraryDrawer
+            challengeId={o.challengeId}
+            challengeTitle={o.challenge?.title}
+            open={o.contextLibraryOpen}
+            onOpenChange={o.setContextLibraryOpen}
+            onConfirmReview={o.handleContextLibraryConfirm}
+          />
+        </Suspense>
       )}
     </div>
   );
