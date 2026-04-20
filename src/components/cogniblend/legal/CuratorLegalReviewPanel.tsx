@@ -33,6 +33,8 @@ import '@/styles/legal-document.css';
 
 export interface CuratorLegalReviewPanelProps {
   challengeId: string;
+  /** When true, editor is non-editable, action buttons hidden, blue banner shown. */
+  readOnly?: boolean;
 }
 
 const CONFIDENCE_VARIANT: Record<
@@ -66,12 +68,13 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
   return found;
 }
 
-export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanelProps) {
+export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: CuratorLegalReviewPanelProps) {
   const review = useCuratorLegalReview(challengeId);
   const [editedHtml, setEditedHtml] = useState<string>('');
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
+  const isLocked = readOnly || review.isPass3Accepted;
 
   const editor = useEditor(
     {
@@ -83,7 +86,7 @@ export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanel
         buildHeadingGuard(review.protectedHeadings),
       ],
       content: '',
-      editable: !review.isPass3Accepted,
+      editable: !isLocked,
       onUpdate: ({ editor: e }) => setEditedHtml(e.getHTML()),
     },
     [protectedNormalized.join('|')],
@@ -124,11 +127,11 @@ export function CuratorLegalReviewPanel({ challengeId }: CuratorLegalReviewPanel
     }
   }, [editor, review.unifiedDocHtml]);
 
-  // Toggle editability when the document is accepted.
+  // Toggle editability when locked (accepted or read-only mode).
   useEffect(() => {
     if (!editor) return;
-    editor.setEditable(!review.isPass3Accepted);
-  }, [editor, review.isPass3Accepted]);
+    editor.setEditable(!isLocked);
+  }, [editor, isLocked]);
 
   const handleUpload = (html: string) => {
     if (!editor) return;
