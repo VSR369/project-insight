@@ -114,7 +114,7 @@ export interface CurationSectionListProps {
 
 /* ── Component ── */
 
-export function CurationSectionList(props: CurationSectionListProps) {
+function CurationSectionListImpl(props: CurationSectionListProps) {
   const {
     challenge, activeGroupDef, activeGroup,
     showOnlyStale, staleKeySet, staleCountByGroup, setShowOnlyStale,
@@ -191,3 +191,8 @@ export function CurationSectionList(props: CurationSectionListProps) {
     </>
   );
 }
+
+/**
+ * Memoized export — see CurationHeaderBar for rationale.
+ */
+export const CurationSectionList = React.memo(CurationSectionListImpl);
