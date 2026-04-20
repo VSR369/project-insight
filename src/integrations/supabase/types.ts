@@ -2219,6 +2219,7 @@ export type Database = {
           creator_escrow_comments: string | null
           creator_legal_instructions: string | null
           creator_snapshot: Json | null
+          cu_compliance_mode: boolean
           curation_frozen_at: string | null
           curation_frozen_by: string | null
           curation_lock_status: string
@@ -2319,6 +2320,7 @@ export type Database = {
           creator_escrow_comments?: string | null
           creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
+          cu_compliance_mode?: boolean
           curation_frozen_at?: string | null
           curation_frozen_by?: string | null
           curation_lock_status?: string
@@ -2419,6 +2421,7 @@ export type Database = {
           creator_escrow_comments?: string | null
           creator_legal_instructions?: string | null
           creator_snapshot?: Json | null
+          cu_compliance_mode?: boolean
           curation_frozen_at?: string | null
           curation_frozen_by?: string | null
           curation_lock_status?: string
@@ -16608,6 +16611,10 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_otps: { Args: never; Returns: number }
+      complete_curator_compliance: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       complete_financial_review: {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
@@ -16631,6 +16638,10 @@ export type Database = {
           p_reason?: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      curator_forward_pack_to_creator: {
+        Args: { p_challenge_id: string; p_notes?: string; p_user_id: string }
         Returns: Json
       }
       delete_questions_by_specialities: {
