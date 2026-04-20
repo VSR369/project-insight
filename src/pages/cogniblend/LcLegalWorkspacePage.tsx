@@ -417,6 +417,17 @@ export default function LcLegalWorkspacePage() {
         </div>
       </div>
 
+      {/* S7D-1: read-only banner once LC has marked compliance complete */}
+      {challenge?.lc_compliance_complete && (
+        <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <AlertTitle>Legal Review Complete — Read Only</AlertTitle>
+          <AlertDescription className="text-emerald-800 dark:text-emerald-300">
+            You have submitted your legal review for this challenge. No further edits are required from you.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <WorkflowProgressBanner step={3} />
 
       <LcFullChallengePreview challengeId={challengeId!} />
@@ -533,14 +544,19 @@ export default function LcLegalWorkspacePage() {
           </div>
           <Button
             onClick={handleSubmitToCuration}
-            disabled={submitting || totalAccepted === 0 || challenge?.current_phase !== 2}
+            disabled={
+              submitting
+              || totalAccepted === 0
+              || challenge?.current_phase !== 2
+              || !!challenge?.lc_compliance_complete
+            }
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : (
               <Send className="h-4 w-4 mr-2" />
             )}
-            Submit to Curation
+            {challenge?.lc_compliance_complete ? 'Already Submitted' : 'Submit to Curation'}
           </Button>
         </CardContent>
       </Card>

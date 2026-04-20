@@ -116,7 +116,9 @@ export function usePublicationReadiness(challengeId: string | undefined) {
           maturity_level, phase_schedule, complexity_parameters,
           complexity_score, complexity_level, ip_model,
           visibility, eligibility, governance_profile,
-          current_phase, master_status, lc_review_required
+          current_phase, master_status, lc_review_required,
+          creator_approval_status, pass3_stale,
+          lc_compliance_complete, fc_compliance_complete
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
@@ -176,6 +178,38 @@ export function usePublicationReadiness(challengeId: string | undefined) {
             ? `${lcUnapproved} doc(s) pending LC approval`
             : 'All docs LC-approved',
           passed: lcUnapproved === 0,
+        });
+      }
+
+      // S7D-3: Creator-approval gate (CONTROLLED + STRUCTURED). QUICK mode
+      // skips Phase 3 entirely so creator_approval_status will be null —
+      // we only enforce when the value is set or expected.
+      const creatorApprovalStatus = c.creator_approval_status as string | null;
+      const lcDone = !!c.lc_compliance_complete;
+      const fcDone = !!c.fc_compliance_complete;
+      const creatorPauseExpected = !isQuick && (lcDone || fcDone);
+      if (creatorPauseExpected) {
+        const approved = creatorApprovalStatus === 'approved';
+        checks.push({
+          id: 'creator_approval',
+          label: 'Creator approval received',
+          detail: approved
+            ? 'Creator approved the challenge'
+            : `Creator approval status: ${creatorApprovalStatus ?? 'not requested'}`,
+          passed: approved,
+        });
+      }
+
+      // S7D-3: Pass 3 freshness — block publish when Creator edits invalidated legal review
+      const pass3Stale = !!c.pass3_stale;
+      if (!isQuick) {
+        checks.push({
+          id: 'pass3_fresh',
+          label: 'Pass 3 legal review up to date',
+          detail: pass3Stale
+            ? 'Creator edits have invalidated the legal review — re-run required'
+            : 'Legal review is current',
+          passed: !pass3Stale,
         });
       }
 
