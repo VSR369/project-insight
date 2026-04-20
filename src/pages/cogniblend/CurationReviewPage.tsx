@@ -9,6 +9,30 @@ import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
+
+// Phase 4: lazy-mount freeze hooks — only initialized when right rail commits.
+function FreezeForLegalAction({
+  challengeId,
+  userId,
+  children,
+}: {
+  challengeId: string;
+  userId: string | undefined;
+  children: (handler: () => Promise<void>) => React.ReactNode;
+}) {
+  const freezeMut = useFreezeForLegalReview(challengeId);
+  const assembleMut = useAssembleCpa(challengeId);
+  const handler = async () => {
+    if (!userId) return;
+    try {
+      await freezeMut.mutateAsync(userId);
+      await assembleMut.mutateAsync(userId);
+    } catch {
+      /* errors handled by individual mutation onError */
+    }
+  };
+  return <>{children(handler)}</>;
+}
 import { CuratorCpaReviewPanel } from "@/components/cogniblend/curation/CuratorCpaReviewPanel";
 import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
