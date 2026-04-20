@@ -494,22 +494,23 @@ export async function handlePass3({
 
     const priorCount = (priorRow?.pass3_run_count as number | null) ?? 0;
 
-    // 7) Delete prior ai_suggested / stale UNIFIED_SPA rows for this challenge
+    // 7) Delete prior ai_suggested / stale / arranged_only UNIFIED_SPA rows for this challenge
     await supabaseAdmin
       .from("challenge_legal_docs")
       .delete()
       .eq("challenge_id", challengeId)
       .eq("document_type", DOCUMENT_TYPE)
-      .in("ai_review_status", ["ai_suggested", "stale"]);
+      .in("ai_review_status", ["ai_suggested", "stale", "arranged_only"]);
 
-    // 8) Insert new unified row
+    // 8) Insert new unified row. Sentinel value 'arranged_only' marks classification-only output.
+    const aiReviewStatus = arrangeOnly ? "arranged_only" : "ai_suggested";
     const { error: insertErr } = await supabaseAdmin.from("challenge_legal_docs").insert({
       challenge_id: challengeId,
       document_type: DOCUMENT_TYPE,
       document_name: DOCUMENT_NAME,
       tier: TIER,
       status: "ai_suggested",
-      ai_review_status: "ai_suggested",
+      ai_review_status: aiReviewStatus,
       content: result.unified_document_html,
       content_html: result.unified_document_html,
       ai_modified_content_html: result.unified_document_html,
