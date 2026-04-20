@@ -25,6 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Banknote, CheckCircle2, Lock } from 'lucide-react';
 import { EscrowDepositForm, escrowFormSchema, type EscrowFormValues } from './EscrowDepositForm';
+import { FcChallengeDetailView } from '@/components/cogniblend/fc/FcChallengeDetailView';
+import { RecommendedEscrowCard } from '@/components/cogniblend/fc/RecommendedEscrowCard';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
+import type { GovernanceMode } from '@/lib/governanceMode';
 
 interface EscrowChallenge {
   challenge_id: string;
