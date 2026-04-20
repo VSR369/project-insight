@@ -293,8 +293,8 @@ export default function Login() {
       if (session?.session?.user) {
         const userId = session.session.user.id;
         
-        // Fetch roles, provider record, reviewer record, and enrollments in parallel
-        const [rolesResult, providerResult, reviewerResult, orgUserResult] = await Promise.all([
+        // Fetch roles, provider record, reviewer record, org, cogni roles, pool in parallel
+        const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniLoginResult, poolLoginResult] = await Promise.all([
           supabase
             .from('user_roles')
             .select('role')
@@ -315,11 +315,14 @@ export default function Login() {
             .eq('user_id', userId)
             .eq('is_active', true)
             .limit(1)
-            .maybeSingle()
+            .maybeSingle(),
+          supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId }),
+          supabase
+            .from('platform_provider_pool')
+            .select('role_codes')
+            .eq('user_id', userId)
+            .eq('is_active', true),
         ]);
-        
-        // Also check cogni roles
-        const cogniLoginResult = await supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId });
         
         const roles = rolesResult.data;
         const providerRecord = providerResult.data;
