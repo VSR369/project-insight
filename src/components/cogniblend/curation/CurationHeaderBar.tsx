@@ -84,7 +84,7 @@ export interface CurationHeaderBarProps {
   onOpenGuide?: () => void;
 }
 
-export function CurationHeaderBar({
+function CurationHeaderBarImpl({
   challengeId,
   challengeTitle,
   governanceProfile,
@@ -327,3 +327,10 @@ export function CurationHeaderBar({
     </>
   );
 }
+
+/**
+ * Memoized export — re-renders only when its props (shallow-equal) change.
+ * Phase A of orchestrator decomposition: prevents UI-state churn in the
+ * page from cascading into the header bar.
+ */
+export const CurationHeaderBar = React.memo(CurationHeaderBarImpl);

@@ -85,7 +85,7 @@ export interface CurationRightRailProps {
   onReReviewSection?: (sectionId: string) => void;
 }
 
-export function CurationRightRail(props: CurationRightRailProps) {
+function CurationRightRailImpl(props: CurationRightRailProps) {
   const { diagnosticsOpen, setDiagnosticsOpen } = props;
 
   const {
@@ -294,3 +294,8 @@ export function CurationRightRail(props: CurationRightRailProps) {
     </div>
   );
 }
+
+/**
+ * Memoized export — see CurationHeaderBar for rationale.
+ */
+export const CurationRightRail = React.memo(CurationRightRailImpl);
