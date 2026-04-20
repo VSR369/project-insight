@@ -1,102 +1,102 @@
 
-## Permanent fix plan — SPA only for pure Solution Providers
 
-### Confirmation
-Yes — the **Solver/Solution Provider Platform Agreement must appear only for pure Solution Providers**.  
-It must **not** appear for Legal Coordinator, Finance Coordinator, Curator, Expert Reviewer, Creator, Platform Admin, Reviewer, Seeker, or Org users.
+## 5 Whys Root Cause Analysis — "Failed to assemble CPA"
 
-The screenshot confirms the current bug: an LC path is still being treated as provider-only and the SPA gate is firing.
+**Symptom (from console logs):**
+```
+record "v_geo" is not assigned yet — code 55000
+operation: assemble_cpa, challenge_id: 25ca71a0-…
+```
 
-### Why the current fix is not fully permanent
-I re-checked the code and found 3 issues:
+| # | Why? | Answer |
+|---|---|---|
+| 1 | Why does Send-to-Legal fail? | The `assemble_cpa` RPC throws Postgres error `55000`. |
+| 2 | Why error 55000? | Code references `v_geo.region_name` and `v_geo.laws` when the `v_geo` RECORD was never populated. |
+| 3 | Why was `v_geo` never populated? | The `SELECT … INTO v_geo FROM geography_context gc JOIN countries co …` returns **zero rows** for this org (no `hq_country_id` match, or no matching geography_context row). |
+| 4 | Why does the existing safety net fail? | The `EXCEPTION WHEN OTHERS THEN v_geo := NULL` block is never entered — `SELECT … INTO` does **not** raise an exception when zero rows are returned; it leaves the RECORD **un-assigned** (no tuple structure). Assigning `NULL` to an un-typed RECORD doesn't help either — the next field-access still trips error 55000. |
+| 5 | Why was this not caught earlier? | The function was tested with seeded orgs that had `hq_country_id` populated and a matching `geography_context` row. Real curated challenges (incl. challenge `25ca71a0…`) hit the empty-result path that was never exercised. |
 
-1. **`AuthGuard` still uses a negative rule**
-   - Current logic: `isSolver && !isWorkforce && !isPlatformAdmin`
-   - That is too broad. It can still show SPA for hybrid accounts that are not “pure providers”.
+**Root cause (one line):**  
+PL/pgSQL `RECORD` cannot be safely null-coalesced. The function reads `v_geo.region_name` even when no geography row exists, raising 55000 and aborting the entire assembly — so no CPA is written, no freeze is published, LC/FC see nothing.
 
-2. **`useUserPortalRoles` has only a partial workforce pool fix**
-   - It checks pool codes `R8`, `R9`, `R10` only.
-   - That is incomplete/inconsistent with your role architecture, which already maps workforce roles through `roleCodeMapping.constants.ts`.
+This has nothing to do with preview data freshness — the curated content **is** current; the assembly aborts before it can be persisted.
 
-3. **Login + root redirect still use separate role logic**
-   - `Login.tsx` and `RoleBasedRedirect.tsx` still do their own parallel queries.
-   - They do **not** use the same audience classification as `AuthGuard`.
-   - So a pool-based LC/FC user can still be routed into provider flow first, which is how this bug can keep resurfacing.
+---
 
-### Safe permanent solution
-#### Phase 1 — Create one shared audience classifier
-Create a single shared hook/service for portal/legal gating decisions.
+## Permanent Fix — Single migration, single function, no UI/RLS/AI ripple
 
-It should classify:
-- `isPureSolutionProvider`
-- `isWorkforce`
-- `isPlatformAdmin`
-- `isReviewer`
-- `isSeeker`
-- `isOrgUser`
-- `hasCogniAccess`
+### Strategy
+Replace the unsafe `RECORD` pattern with **scalar variables** that default to safe fallbacks. Same logic, same output schema, same callers — just bullet-proof against missing geography.
 
-Sources:
-- `user_roles`
-- `solution_providers`
-- `org_users`
-- `get_user_all_challenge_roles`
-- `platform_provider_pool.role_codes`
+### SQL change (one new migration)
 
-Important:
-- Normalize pool role codes using the existing role mapping conventions, not hardcoded partial values.
-- Keep all DB access in hooks/services, not components.
+```sql
+CREATE OR REPLACE FUNCTION public.assemble_cpa(p_challenge_id uuid, p_user_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $function$
+DECLARE
+  -- … unchanged …
+  v_geo_region TEXT := 'Applicable jurisdiction';   -- ← scalar with default
+  v_geo_laws   TEXT := 'As per applicable regulations';
+BEGIN
+  -- … unchanged up to geography lookup …
 
-#### Phase 2 — Tighten SPA gate in `AuthGuard`
-Update SPA gating to a **positive** rule:
+  BEGIN
+    SELECT gc.region_name,
+           array_to_string(gc.data_privacy_laws, ', ')
+      INTO v_geo_region, v_geo_laws
+    FROM geography_context gc
+    JOIN countries co ON gc.country_codes @> ARRAY[co.code]
+    WHERE co.id = v_org.hq_country_id
+    LIMIT 1;
+    -- If 0 rows: defaults retained. No exception, no record-not-assigned.
+  EXCEPTION WHEN OTHERS THEN
+    -- table missing or any other failure → keep defaults
+    NULL;
+  END;
 
-- SPA shows only when `isPureSolutionProvider === true`
-- Workforce users continue to use **PWA** where applicable
-- PMA flow stays unchanged
+  -- Replace every v_geo.region_name → v_geo_region
+  -- Replace every v_geo.laws        → v_geo_laws
+  -- (3 occurrences total: lines 214, 215, 255)
 
-This avoids brittle “exclude these roles” logic and prevents future regressions when new non-provider roles are added.
+  -- … rest of function unchanged …
+END;
+$function$;
+```
 
-#### Phase 3 — Make login/redirect use the same source of truth
-Refactor:
-- `src/pages/Login.tsx`
-- `src/components/routing/RoleBasedRedirect.tsx`
+That's the only structural change. Everything else (variable assembly, INSERT into `challenge_legal_docs`, audit_trail row, return shape) stays byte-identical.
 
-So they consume the same audience classification as `AuthGuard`.
+### Why this is the minimal, correct fix
+- Scalars have a defined NULL state; `COALESCE` works correctly on them.
+- Defaults are applied **before** the SELECT, so even if the SELECT writes nothing, the variables are valid.
+- No schema change, no new table, no RLS edit, no migration to data.
+- `assemble_cpa` is called from exactly one place (`useAssembleCpa` → `LegalReviewPanel` "Send to Legal"). Output contract unchanged → no client/UI change required.
 
-Result:
-- LC/FC pool users land in CogniBlend workspace, not provider-first flow
-- SPA no longer appears during login/role switching for workforce accounts
-- Navigation behavior stays the same for real providers
+### What this does NOT touch
+- AI Pass 1 / Pass 2 / autosave — untouched.
+- Curation lifecycle (`complete_phase`, `freeze_for_legal_review`, `unfreeze_for_recuration`) — untouched.
+- RLS, RPCs other than `assemble_cpa` — untouched.
+- Preview page, curation queue, LC/FC queues — untouched.
+- SPA / PWA / role classification (just shipped) — untouched.
+- `challenge_legal_docs` rows already in the table — untouched.
 
-### What I will not change
-- No DB schema changes
-- No RLS changes
-- No RPC changes
-- No AI Pass 1 / Pass 2 changes
-- No autosave changes
-- No curation lifecycle changes
-- No role-switcher UX redesign
-- No route-specific hacks like “hide SPA on `/cogni/lc-queue`” because that would be brittle, not permanent
+### Reuse-of-Preview-data question
+Verified: Preview reads from the same `challenges` row + `challenge_legal_docs` + `escrow_records` + `challenge_attachments` that `assemble_cpa` already consumes. There is **no staleness gap** — the data is the same row. The "Preview is fresh" intuition is correct; the assembly *was already* using the latest row but crashing on geography lookup. So no preview-snapshot plumbing is needed; fixing `v_geo` makes the existing flow pass through cleanly with the latest curated content + linked attachments.
 
-### Files to touch
-- `src/hooks/queries/useUserPortalRoles.ts` or a new shared auth audience hook/service
-- `src/components/auth/AuthGuard.tsx`
-- `src/pages/Login.tsx`
-- `src/components/routing/RoleBasedRedirect.tsx`
+### Test gates (after migration deploys)
+1. Open challenge `25ca71a0-3880-4338-99b3-e157f2b88b3b` → Curation Workspace.
+2. Click **Freeze for Legal Review** → toast `Challenge frozen for legal review`. DB: `curation_lock_status='FROZEN'`.
+3. Click **Assemble CPA** → toast `CPA assembled successfully`. DB: a new row in `challenge_legal_docs` where `is_assembled=true`, `document_type='CPA_<MODE>'`, `content` populated with curated title/scope/IP/prize/jurisdiction (defaulted gracefully if no geography row).
+4. Open `/cogni/curation/<id>/preview` → CPA section renders the assembled content.
+5. Login as **Legal Coordinator** → CPA appears in LC queue with status `pending_review` (or `approved` for QUICK mode).
+6. Login as **Finance Coordinator** → escrow + assembled doc visible in FC queue (CONTROLLED only).
+7. Repeat for a challenge **with** geography_context populated → jurisdiction/governing_law fields show real values, not defaults (regression check).
+8. AI Pass 1 + Pass 2 + autosave smoke test on a different challenge (no regression).
 
-### Expected result after fix
-- Pure Solution Provider → SPA appears if not yet accepted
-- LC / FC / CU / ER / CR → no SPA
-- Platform Admin / Reviewer / Seeker / Org user → no SPA
-- Hybrid accounts → SPA only if they are truly provider-only in audience classification
-- Workforce PWA behavior remains intact on MP pages
+### Files touched
+| File | Change |
+|---|---|
+| `supabase/migrations/<new_timestamp>_fix_assemble_cpa_v_geo.sql` | New migration — `CREATE OR REPLACE FUNCTION public.assemble_cpa(...)` with scalar geography vars |
 
-### Regression checks
-1. Login as LC → no SPA, lands in Cogni workspace
-2. Login as FC → no SPA, lands in Cogni workspace
-3. Switch to LC role from inside Cogni shell → no SPA
-4. Pure Solution Provider with no SPA acceptance → SPA still appears
-5. MP workforce pages still show PWA where required
-6. Root redirect and cached portal behavior remain correct
+**No application code, no hooks, no components touched.** Single migration, fully reversible by re-running the prior migration.
 
-This is the safest permanent fix because it removes duplicated role logic and makes **one shared classification** drive SPA gating, portal routing, and login behavior consistently.
