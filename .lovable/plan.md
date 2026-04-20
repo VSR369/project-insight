@@ -1,144 +1,80 @@
 
 
-## Production-Readiness Plan — Curation Module
+## Status of Production-Readiness Plan
 
-Two distinct issues, **sequenced safely** to avoid touching AI Pass 1 / Pass 2 / autosave / RLS plumbing:
+**Verified by re-reading code:**
 
-1. **P0 blocker**: "Send to Legal" still fails — root cause is NOT permissions or `digest()`, it's `audit_trail.method='RPC'` rejected by trigger (allowed values: `HUMAN`, `AUTO_COMPLETE`, `SYSTEM`).
-2. **Perf**: Curation Queue → Detail open is slow & janky.
-
-Delivered in **5 sequential phases**, each independently shippable, fully reversible, zero impact on AI workflows.
-
----
-
-### Phase 0 — Unblock "Send to Legal" (DB only, ~10 min)
-
-**Root cause** (confirmed in migration `20260419184841…`):
-```sql
-INSERT INTO audit_trail (... method ...) VALUES (..., 'RPC', ...);
-```
-But trigger `validate_audit_trail_method` rejects anything ≠ `HUMAN | AUTO_COMPLETE | SYSTEM`. The freeze succeeds at the UPDATE step, then the audit insert raises P0001 → entire transaction rolls back → user sees toast.
-
-**Fix**: One migration that recreates the 5 RPCs replacing `method = 'RPC'` with `method = 'HUMAN'` (a Curator clicked the button → semantically correct):
-- `freeze_for_legal_review`
-- `unfreeze_for_recuration`
-- `assemble_cpa`
-- `complete_legal_review`
-- `complete_financial_review`
-
-Audit each function source first to confirm the offending line(s), then apply.
-
-**Impact**: Zero ripple — function bodies otherwise unchanged. AI flows untouched. Test by clicking "Send to Legal" on `25ca71a0…`.
-
----
-
-### Phase 1 — Queue page: prefetch on hover/click + N+1 fix (~30 min, 1 file)
-
-File: `src/pages/cogniblend/CurationQueuePage.tsx`
-
-1. **Prefetch the route chunk on row hover** — `onMouseEnter={() => import('@/pages/cogniblend/CurationReviewPage')}` saves 300–700 ms cold-click.
-2. **Prefetch the challenge core query on hover/click** using the **same query key as `useCurationPageData`** (`['curation-review', id]`) so the cache is shared.
-3. **Replace N+1 SLA loop** (line 268) with one `sla_timers` batch query using `.in('challenge_id', ids)`. Build SLA map client-side. Identical output shape (`SlaStatus`).
-
-**Impact**: Pure read-side perf. No write, no schema, no AI touch. Existing queue rendering unchanged.
-**Risk**: Low — SLA shape preserved 1:1; if `sla_timers` row absent, fall back to `null` (same as today).
-
----
-
-### Phase 2 — Master data: global cache tier (~20 min, 1 hook)
-
-File: `src/hooks/cogniblend/useCurationMasterData.ts`
-
-- All 4 master-data queries already use `CACHE_STABLE` (5 min stale / 30 min gc). **Promote them to `CACHE_STATIC`** (30 min stale / 60 min gc) since these tables change at most weekly via admin UI.
-- Verify same keys (`master-complexity-levels`, `master-solver-eligibility-tiers`, `master-solution-maturity`, `master-ip-models`) are reused by other admin pages — if yes, they all benefit from the warmer cache. If admin edit pages exist, those mutations already invalidate by key, so freshness is preserved post-edit.
-
-**Impact**: Eliminates 4 refetches per detail open after first session warm-up. Zero functional change.
-**Ripple**: Verified — admin master-data hooks already invalidate on mutation, so staler cache stays correct.
-
----
-
-### Phase 3 — Lazy-load modals & drawers (~30 min, 1 file)
-
-File: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-Convert these to `React.lazy()` + `<Suspense fallback={null}>`:
-- `ContextLibraryDrawer`
-- `CuratorGuideModal` (keep `hasSeenGuide` import as a normal named export — don't lazy that helper)
-- `SendForModificationModal`
-- `PreFlightGateDialog`
-
-Each only renders on user interaction → safe to defer. Static helpers (`hasSeenGuide`) remain eagerly imported.
-
-**Impact**: Smaller initial JS chunk for `/cogni/curation/:id`, faster TTI.
-**Risk**: Very low — `Suspense fallback={null}` means the modal momentarily shows nothing on first open (~50 ms) which is imperceptible since it's already mid-animation.
-
----
-
-### Phase 4 — PWA gate non-blocking + freeze hook lazy mount (~20 min, 1 file)
-
-File: `src/pages/cogniblend/CurationReviewPage.tsx`
-
-1. **Don't block first paint on PWA query** for non-MP challenges. Today: `usePwaStatus` is called with `undefined` for non-MP, which is fine, but the conditional render still waits on `pwaLoading`. Tighten the gate to:
-   ```ts
-   if (opModel === 'MP' && pwaLoading) return <Skeleton…/>;
-   if (opModel === 'MP' && !hasPwa && !pwaAccepted) return <PwaAcceptanceGate…/>;
-   ```
-   so non-MP challenges (the vast majority) never wait on this query.
-2. **Lazy-mount freeze hooks** — wrap `useFreezeForLegalReview` + `useAssembleCpa` invocation inside the `CurationRightRail`'s freeze panel (a small child component) instead of always on the page. Saves two `useQueryClient` subscriptions on every page mount.
-
-**Impact**: Eliminates one of the two "popcorn" repaint sources. Freeze button still works identically.
-
----
-
-### Phase 5 — Increase challenge-detail staleTime + cleanup (~15 min, 2 files)
-
-Files: `useCurationPageData.ts`, `useCurationEffects.ts`
-
-1. Add `...CACHE_FREQUENT` (30s/5min) to `curation-review` core query (currently no explicit staleTime → falls back to global `CACHE_FREQUENT` which is fine; make explicit for clarity).
-2. Bump `curation-review` core to `2 * 60_000` stale per BRD recommendation — challenge body is autosaved by us, so we own invalidation already.
-3. Wrap the `findCorruptedFields` content-migration effect (`useCurationEffects.ts:69–84`) in `requestIdleCallback(…, {timeout: 2000})` so it never blocks first paint. Mutations themselves unchanged — only their scheduling.
-4. Skip the legacy `ai_section_reviews` rewrite when value is already `Array.isArray(...)` (modern shape) — avoids the doubling-load on legacy challenges.
-
-**Impact**: Removes hidden write storms on mount. AI Pass 1/2 logic untouched (those mutations are triggered only by user clicks on the AI panel, not by hydration).
-
----
-
-### Cross-cutting safety
-
-| Concern | Mitigation |
-|---|---|
-| AI Pass 1 / Pass 2 | Zero changes to `useAIReview`, `useGenerateSuggestions`, `handleAnalyse`, wave runner, or any AI hook |
-| Autosave | Untouched — `saveSectionMutation` only modified to *skip* a redundant pre-write, not change semantics |
-| RLS / RPC bodies | Only Phase 0 touches RPCs (5 functions, single token swap). No other SQL changes |
-| Curation lifecycle | `complete_phase`, freeze/unfreeze, CPA assembly all preserved; only the audit `method` literal changes |
-| Read-only mode | Phase 4 PWA gate change preserves all four states (loading / gated / accepted / non-MP) |
-| Section list rendering | `CurationSectionList`, `CurationChecklistPanel`, `CurationRightRail` not modified |
-
-### Test gates between phases
-
-After **each** phase:
-1. Click row → navigate to `/cogni/curation/25ca71a0…` → page loads, sections render, checklist displays.
-2. Run AI Pass 1 (Analyse) on one section → suggestions appear.
-3. Run AI Pass 2 (Generate) → suggestion HTML applied.
-4. Edit a section → autosave indicator → reload → change persisted.
-5. (Phase 0 only) Click "Send to Legal" → toast `Challenge frozen for legal review` → `curation_lock_status='FROZEN'` in DB.
-
-### Files touched (total)
-
-| Phase | Files | LOC delta |
+| Phase | Status | Evidence |
 |---|---|---|
-| 0 | 1 SQL migration | +200 (5 functions recreated) |
-| 1 | `CurationQueuePage.tsx` | +20 / −15 |
-| 2 | `useCurationMasterData.ts` | +4 / −4 |
-| 3 | `CurationReviewPage.tsx` | +12 / −4 |
-| 4 | `CurationReviewPage.tsx` | +10 / −5 |
-| 5 | `useCurationPageData.ts`, `useCurationEffects.ts` | +15 / −5 |
+| 0 — Audit `method='HUMAN'` migration | ✅ Done | Migration `20260420050859_…` exists; "Send to Legal" unblocked |
+| 1 — Queue prefetch + N+1 SLA fix | ✅ Done | `CurationQueuePage.tsx` lines 270–274 batch `sla_timers`, lines 380–383 prefetch chunk + query, lines 533–534 `onMouseEnter`/`onFocus` |
+| 2 — Master data → `CACHE_STATIC` | ✅ Done | `useCurationMasterData.ts` line 12 imports `CACHE_STATIC` and applies it to all 4 queries |
+| 3 — Lazy modals/drawers | ✅ Done | `CurationReviewPage.tsx` lines 30–50 lazy-load `ContextLibraryDrawer`, `CuratorGuideModal`, `SendForModificationModal`, `PreFlightGateDialog` |
+| 4 — PWA gate + freeze hook lazy-mount | ⚠️ **Partial** — PWA gate done (lines 120–135), but **freeze hooks still mounted at page level** (lines 54–55) |
+| 5 — staleTime + idleCallback + skip legacy rewrite | ✅ Done | `useCurationPageData.ts` line 202 (`staleTime: 2*60_000`), `useCurationEffects.ts` lines 39–41 (modern shape skip), lines 87–92 (`requestIdleCallback`) |
 
-All files remain under R1's 250-line guidance for new additions; existing oversize files (queue 536, page 444, orchestrator 417) are **not** refactored in this sprint to avoid regression risk — flagged for a later decomposition sprint.
+**Outstanding work: Phase 4 part 2 only.**
 
-### Order of execution (strict)
+---
 
-`Phase 0 → verify Send to Legal works → Phase 1 → smoke test → Phase 2 → smoke test → Phase 3 → smoke test → Phase 4 → smoke test → Phase 5 → final regression`
+## Plan — Complete Phase 4 (lazy-mount freeze hooks)
 
-Each phase is a separate commit, separately reversible.
+### Goal
+Move `useFreezeForLegalReview` + `useAssembleCpa` out of `CurationReviewPage` (always mounted) into a small inner component that only mounts when the right rail's freeze panel actually renders. Eliminates 2 `useQueryClient()` subscriptions + 2 mutation observer registrations on every page mount.
+
+### Single file: `src/pages/cogniblend/CurationReviewPage.tsx`
+
+**Change 1** — Remove top-level mounts (lines 10, 54–55, 64–70):
+- Delete `import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions"`
+- Delete `const freezeMut = useFreezeForLegalReview(...)`, `const assembleMut = useAssembleCpa(...)`
+- Delete `handleFreezeForLegal` function
+
+**Change 2** — Add a tiny inner wrapper component (~20 lines, same file, top-of-file before `CurationReviewPage`):
+```tsx
+function FreezeForLegalAction({
+  challengeId, userId, children,
+}: {
+  challengeId: string;
+  userId: string | undefined;
+  children: (handler: () => Promise<void>) => React.ReactNode;
+}) {
+  const freezeMut = useFreezeForLegalReview(challengeId);
+  const assembleMut = useAssembleCpa(challengeId);
+  const handler = async () => {
+    if (!userId) return;
+    try {
+      await freezeMut.mutateAsync(userId);
+      await assembleMut.mutateAsync(userId);
+    } catch { /* handled in onError */ }
+  };
+  return <>{children(handler)}</>;
+}
+```
+
+**Change 3** — Wrap the right-rail call site (around line 363) using render-prop pattern so `onFreezeForLegal` continues to receive a stable callable:
+```tsx
+<FreezeForLegalAction challengeId={o.challengeId!} userId={o.user?.id}>
+  {(handleFreezeForLegal) => (
+    <CurationRightRail
+      …existing props…
+      onFreezeForLegal={handleFreezeForLegal}
+    />
+  )}
+</FreezeForLegalAction>
+```
+
+### Impact
+- `useFreezeForLegalReview` / `useAssembleCpa` only initialize **after** the page passes loading/PWA gates and the right-rail subtree commits → matches the original Phase 4 spec.
+- "Send to Legal" button behavior identical: same RPC chain, same toast, same query invalidations.
+- Zero changes to `CurationRightRail` props contract, AI hooks, autosave, RLS, or any RPC.
+
+### Risk
+Very low — mechanical refactor confined to one file. Render-prop preserves the exact handler signature `CurationRightRail` already consumes.
+
+### Test gate (after Phase 4 closes)
+1. Open `/cogni/curation/25ca71a0…` → page loads, right rail visible.
+2. Click "Send to Legal" → toast `Challenge frozen for legal review` → DB `curation_lock_status='FROZEN'`.
+3. AI Pass 1 + Pass 2 + autosave smoke test (regression check).
+
+After this, **all 5 phases close** and the curation module is production-ready per the approved plan.
 
