@@ -47,11 +47,17 @@ export default function FcChallengeQueuePage() {
       const results: FcQueueItem[] = [];
       for (const cid of ids) {
         const [chRes, escRes] = await Promise.all([
-          supabase.from('challenges').select('id, title, reward_structure, current_phase, fc_compliance_complete, created_at').eq('id', cid).single(),
+          supabase.from('challenges').select('id, title, reward_structure, current_phase, fc_compliance_complete, governance_profile, governance_mode_override, created_at').eq('id', cid).single(),
           supabase.from('escrow_records').select('escrow_status').eq('challenge_id', cid).maybeSingle(),
         ]);
         if (!chRes.data) continue;
         const ch = chRes.data;
+        // S9R guard: STRUCTURED governance is handled by the Curator — skip.
+        const gov = ((ch as Record<string, unknown>).governance_mode_override
+          ?? (ch as Record<string, unknown>).governance_profile
+          ?? '') as string;
+        const govUpper = gov.toUpperCase();
+        if (govUpper === 'STRUCTURED' || govUpper === 'QUICK') continue;
         if (ch.fc_compliance_complete || (ch.current_phase ?? 0) < 3) continue;
         const rs = ch.reward_structure as Record<string, unknown> | null;
         const total = Number(rs?.platinum_award ?? rs?.budget_max ?? 0);

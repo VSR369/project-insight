@@ -21,10 +21,20 @@ export default function LcChallengeQueuePage() {
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
 
-  // Filter to challenges where user holds LC role
+  // Filter to challenges where user holds LC role.
+  // S9R guard: STRUCTURED governance handles compliance via the Curator —
+  // LC is only applicable for CONTROLLED / ENTERPRISE.
   const lcChallenges = useMemo(() => {
     if (!challengeRows) return [];
-    let list = challengeRows.filter((row) => row.role_codes?.includes('LC') && row.current_phase >= 2);
+    let list = challengeRows.filter((row) => {
+      const gov = (row.governance_mode ?? '').toUpperCase();
+      return (
+        row.role_codes?.includes('LC') &&
+        row.current_phase >= 2 &&
+        gov !== 'STRUCTURED' &&
+        gov !== 'QUICK'
+      );
+    });
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
       list = list.filter((c) => (c.challenge_title ?? '').toLowerCase().includes(q));

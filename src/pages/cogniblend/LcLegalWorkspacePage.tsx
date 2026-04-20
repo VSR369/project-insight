@@ -394,6 +394,32 @@ export default function LcLegalWorkspacePage() {
     );
   }
 
+  // S9R guard: STRUCTURED governance is handled entirely by the Curator.
+  // LC must not act on these challenges — show empty state with back link.
+  const challengeRecord = challenge as unknown as Record<string, unknown> | null;
+  const govProfile = ((challengeRecord?.governance_mode_override
+    ?? challengeRecord?.governance_profile
+    ?? '') as string);
+  const govUpper = govProfile.toUpperCase();
+  if (govUpper === 'STRUCTURED' || govUpper === 'QUICK') {
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <Card>
+          <CardContent className="py-10 text-center">
+            <Shield className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-lg font-semibold text-foreground">Not applicable for {govUpper.charAt(0) + govUpper.slice(1).toLowerCase()} governance</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+              The Curator handles legal compliance for {govUpper.toLowerCase()} challenges. Legal Coordinator review is only required for Controlled or Enterprise governance modes.
+            </p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/lc-queue')}>
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to LC Queue
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const visibleSuggestions = aiSuggestions ?? [];
   const hasSuggestions = visibleSuggestions.length > 0;
   const totalAccepted = attachedDocs?.length ?? 0;

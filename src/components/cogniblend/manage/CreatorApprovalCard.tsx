@@ -27,14 +27,16 @@ export function CreatorApprovalCard({
   extendedBrief,
   userId,
 }: CreatorApprovalCardProps) {
-  // Only show for AGG model in Phase 1 or 2
-  if (operatingModel !== 'AGG' || !currentPhase || currentPhase > 2) return null;
+  // Hooks must run unconditionally — derive values first, gate render after.
+  const isMarketplace = operatingModel === 'MP';
+  const isAggregator = operatingModel === 'AGG';
 
   const parsedBrief = typeof extendedBrief === 'string'
     ? (() => { try { return JSON.parse(extendedBrief); } catch { return {}; } })()
     : (extendedBrief as Record<string, unknown>) ?? {};
 
-  const initialValue = parsedBrief?.creator_approval_required === true;
+  // For MP, the value is forced true server-side regardless of stored value.
+  const initialValue = isMarketplace ? true : parsedBrief?.creator_approval_required === true;
   const [enabled, setEnabled] = useState(initialValue);
   const queryClient = useQueryClient();
 
@@ -51,7 +53,7 @@ export function CreatorApprovalCard({
       queryClient.invalidateQueries({ queryKey: ['manage-challenge', challengeId] });
       toast.success(newValue
         ? 'Creator approval enabled — you will be asked to approve before publication.'
-        : 'Creator approval disabled — the Curator can publish after reviews are complete.');
+        : 'Creator approval disabled — the Curator will publish after reviews are complete.');
     },
     onError: (error: Error) => {
       setEnabled(!enabled); // revert
@@ -63,6 +65,9 @@ export function CreatorApprovalCard({
     setEnabled(checked);
     mutation.mutate(checked);
   };
+
+  // Show for MP and AGG in Phase 1 or 2.
+  if ((!isMarketplace && !isAggregator) || !currentPhase || currentPhase > 2) return null;
 
   return (
     <Card>
@@ -77,12 +82,19 @@ export function CreatorApprovalCard({
           <p className="text-sm text-foreground">
             Require your approval before this challenge is published?
           </p>
-          <Switch checked={enabled} onCheckedChange={handleToggle} disabled={mutation.isPending} />
+          <Switch
+            checked={isMarketplace ? true : enabled}
+            onCheckedChange={handleToggle}
+            disabled={isMarketplace || mutation.isPending}
+            aria-label="Require creator approval before publication"
+          />
         </div>
         <p className="text-xs text-muted-foreground">
-          {enabled
-            ? 'You will receive an approval request once all reviews are done. Publication requires your sign-off.'
-            : 'The Curator can publish after legal and financial reviews are complete.'}
+          {isMarketplace
+            ? 'Always required for Marketplace challenges — Creator approval is mandatory before publication.'
+            : enabled
+              ? 'You will receive an approval request once all reviews are done. Publication requires your sign-off.'
+              : 'The Curator will publish immediately after compliance is complete — you will not see the final pack.'}
         </p>
       </CardContent>
     </Card>
