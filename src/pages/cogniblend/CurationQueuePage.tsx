@@ -530,6 +530,8 @@ export default function CurationQueuePage() {
                   <TableRow
                     key={ch.id}
                     className="cursor-pointer hover:bg-muted/50"
+                    onMouseEnter={() => prefetchChallenge(ch.id)}
+                    onFocus={() => prefetchChallenge(ch.id)}
                     onClick={() => handleRowClick(ch)}
                   >
                     <TableCell>
