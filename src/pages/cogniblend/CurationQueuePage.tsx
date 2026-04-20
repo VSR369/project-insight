@@ -393,9 +393,37 @@ export default function CurationQueuePage() {
   }
 
   // ══════════════════════════════════════
-  // SECTION 6: Handlers
+  // SECTION 6: Handlers + prefetch
   // ══════════════════════════════════════
+  // Same SELECT list & query key as useCurationPageData → cache hit on arrival.
+  const CHALLENGE_CORE_SELECT =
+    "id, title, problem_statement, scope, hook, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, ip_model, maturity_level, domain_tags, currency_code, operating_model, governance_profile, governance_mode_override, current_phase, phase_status, organization_id, curation_lock_status, curation_frozen_at, extended_brief, creator_legal_instructions, ai_section_reviews, visibility, evaluation_method, evaluator_count, solver_audience, industry_segment_id, seeker_organizations!challenges_organization_id_fkey(organization_type_id, organization_name, organization_description, website_url, hq_city, operating_model, organization_types(name))";
+
+  const prefetchChallenge = useCallback(
+    (id: string) => {
+      // 1. Warm the route chunk (saves 300–700ms on cold click).
+      void import("@/pages/cogniblend/CurationReviewPage");
+      // 2. Warm the core challenge query — shared key with useCurationPageData.
+      void queryClient.prefetchQuery({
+        queryKey: ["curation-review", id],
+        queryFn: async () => {
+          const { data, error } = await supabase
+            .from("challenges")
+            .select(CHALLENGE_CORE_SELECT)
+            .eq("id", id)
+            .single();
+          if (error) throw new Error(error.message);
+          return data;
+        },
+        staleTime: 2 * 60_000,
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient],
+  );
+
   const handleRowClick = (ch: EnrichedCurationChallenge) => {
+    prefetchChallenge(ch.id);
     navigate(`/cogni/curation/${ch.id}`);
   };
 
