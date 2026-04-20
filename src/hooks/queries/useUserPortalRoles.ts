@@ -23,10 +23,11 @@ export interface UserPortalRoles {
 }
 
 const WORKFORCE_CODES = new Set(['CR', 'CU', 'ER', 'LC', 'FC']);
+const POOL_WORKFORCE_CODES = new Set(['R8', 'R9', 'R10']);
 
 export function useUserPortalRoles(userId: string | undefined): UserPortalRoles {
   const { data, isLoading } = useQuery({
-    queryKey: ['user-portal-roles', userId],
+    queryKey: ['user-portal-roles', userId, 'v2'],
     queryFn: async () => {
       if (!userId) {
         return {
@@ -39,12 +40,17 @@ export function useUserPortalRoles(userId: string | undefined): UserPortalRoles 
         };
       }
 
-      const [rolesRes, providerRes, orgRes, challengeRolesRes] = await Promise.all([
+      const [rolesRes, providerRes, orgRes, challengeRolesRes, poolRes] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', userId),
         supabase.from('solution_providers').select('id').eq('user_id', userId).limit(1),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (supabase.from('org_users') as any).select('id').eq('user_id', userId).limit(1),
         supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId }),
+        supabase
+          .from('platform_provider_pool')
+          .select('role_codes')
+          .eq('user_id', userId)
+          .eq('is_active', true),
       ]);
 
       const roles = (rolesRes.data ?? []).map((r) => r.role);
@@ -64,6 +70,17 @@ export function useUserPortalRoles(userId: string | undefined): UserPortalRoles 
             }
           }
           if (isWorkforce) break;
+        }
+      }
+
+      // Org-level workforce: users in platform_provider_pool with FC/LC/CU/ER
+      // codes count as workforce even without an active challenge assignment.
+      if (!isWorkforce && !poolRes.error) {
+        for (const row of (poolRes.data ?? []) as Array<{ role_codes?: string[] }>) {
+          if ((row.role_codes ?? []).some((c) => POOL_WORKFORCE_CODES.has(c))) {
+            isWorkforce = true;
+            break;
+          }
         }
       }
 
