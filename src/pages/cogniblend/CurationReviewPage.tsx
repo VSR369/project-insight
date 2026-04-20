@@ -75,8 +75,6 @@ const PreFlightGateDialog = lazy(() =>
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
-  const freezeMut = useFreezeForLegalReview(o.challengeId ?? '');
-  const assembleMut = useAssembleCpa(o.challengeId ?? '');
   const [pwaAccepted, setPwaAccepted] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => !hasSeenGuide(o.challengeId ?? ''));
 
@@ -85,13 +83,6 @@ export default function CurationReviewPage() {
     opModel === 'MP' ? o.user?.id : undefined
   );
 
-  const handleFreezeForLegal = async () => {
-    if (!o.user?.id) return;
-    try {
-      await freezeMut.mutateAsync(o.user.id);
-      await assembleMut.mutateAsync(o.user.id);
-    } catch { /* errors handled by individual mutation onError */ }
-  };
 
   // Warn before navigating away during active wave execution
   useEffect(() => {
