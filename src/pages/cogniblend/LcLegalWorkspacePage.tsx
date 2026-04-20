@@ -396,11 +396,10 @@ export default function LcLegalWorkspacePage() {
 
   // S9R guard: STRUCTURED governance is handled entirely by the Curator.
   // LC must not act on these challenges — show empty state with back link.
-  const govProfile = (
-    (challenge as Record<string, unknown> | null)?.governance_mode_override
-    ?? (challenge as Record<string, unknown> | null)?.governance_profile
-    ?? ''
-  ) as string;
+  const challengeRecord = challenge as unknown as Record<string, unknown> | null;
+  const govProfile = ((challengeRecord?.governance_mode_override
+    ?? challengeRecord?.governance_profile
+    ?? '') as string);
   const govUpper = govProfile.toUpperCase();
   if (govUpper === 'STRUCTURED' || govUpper === 'QUICK') {
     return (
