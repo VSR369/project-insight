@@ -414,40 +414,52 @@ export default function CurationReviewPage() {
           )}
       </div>
 
-      {/* ═══ MODALS & OVERLAYS ═══ */}
-      <CuratorGuideModal
-        challengeId={o.challengeId!}
-        open={guideOpen}
-        onOpenChange={setGuideOpen}
-        onNavigateToSection={o.handleNavigateToSection}
-      />
-      <SendForModificationModal
-        open={o.lockedSendState.open}
-        onOpenChange={(open) => o.setLockedSendState(prev => ({ ...prev, open }))}
-        challengeId={o.challengeId!}
-        sectionKey={o.lockedSendState.sectionKey}
-        sectionLabel={o.lockedSendState.sectionLabel}
-        initialComment={o.lockedSendState.initialComment}
-        aiOriginalComments={o.lockedSendState.aiOriginalComments}
-      />
+      {/* ═══ MODALS & OVERLAYS (lazy-loaded — only mount when needed) ═══ */}
+      {guideOpen && (
+        <Suspense fallback={null}>
+          <CuratorGuideModal
+            challengeId={o.challengeId!}
+            open={guideOpen}
+            onOpenChange={setGuideOpen}
+            onNavigateToSection={o.handleNavigateToSection}
+          />
+        </Suspense>
+      )}
+      {o.lockedSendState.open && (
+        <Suspense fallback={null}>
+          <SendForModificationModal
+            open={o.lockedSendState.open}
+            onOpenChange={(open) => o.setLockedSendState(prev => ({ ...prev, open }))}
+            challengeId={o.challengeId!}
+            sectionKey={o.lockedSendState.sectionKey}
+            sectionLabel={o.lockedSendState.sectionLabel}
+            initialComment={o.lockedSendState.initialComment}
+            aiOriginalComments={o.lockedSendState.aiOriginalComments}
+          />
+        </Suspense>
+      )}
 
-      <PreFlightGateDialog
-        result={o.preFlightResult}
-        open={o.preFlightDialogOpen}
-        onOpenChange={o.setPreFlightDialogOpen}
-        onGoToSection={o.handlePreFlightGoToSection}
-        onProceed={async () => {
-          o.setPreFlightDialogOpen(false);
-          await o.runAnalyseFlow();
-        }}
-        groups={GROUPS}
-        sectionMap={SECTION_MAP}
-        groupProgress={o.groupProgress}
-        challenge={o.challenge}
-        legalDocs={o.legalDocs}
-        legalDetails={o.legalDetails}
-        escrowRecord={o.escrowRecord}
-      />
+      {o.preFlightDialogOpen && (
+        <Suspense fallback={null}>
+          <PreFlightGateDialog
+            result={o.preFlightResult}
+            open={o.preFlightDialogOpen}
+            onOpenChange={o.setPreFlightDialogOpen}
+            onGoToSection={o.handlePreFlightGoToSection}
+            onProceed={async () => {
+              o.setPreFlightDialogOpen(false);
+              await o.runAnalyseFlow();
+            }}
+            groups={GROUPS}
+            sectionMap={SECTION_MAP}
+            groupProgress={o.groupProgress}
+            challenge={o.challenge}
+            legalDocs={o.legalDocs}
+            legalDetails={o.legalDetails}
+            escrowRecord={o.escrowRecord}
+          />
+        </Suspense>
+      )}
 
       {o.guidedMode && (
         <div className="fixed bottom-6 right-6 z-50">
@@ -458,14 +470,16 @@ export default function CurationReviewPage() {
         </div>
       )}
 
-      {o.challengeId && (
-        <ContextLibraryDrawer
-          challengeId={o.challengeId}
-          challengeTitle={o.challenge?.title}
-          open={o.contextLibraryOpen}
-          onOpenChange={o.setContextLibraryOpen}
-          onConfirmReview={o.handleContextLibraryConfirm}
-        />
+      {o.challengeId && o.contextLibraryOpen && (
+        <Suspense fallback={null}>
+          <ContextLibraryDrawer
+            challengeId={o.challengeId}
+            challengeTitle={o.challenge?.title}
+            open={o.contextLibraryOpen}
+            onOpenChange={o.setContextLibraryOpen}
+            onConfirmReview={o.handleContextLibraryConfirm}
+          />
+        </Suspense>
       )}
     </div>
   );
