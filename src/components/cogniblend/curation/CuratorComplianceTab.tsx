@@ -2,10 +2,7 @@
  * CuratorComplianceTab — STRUCTURED-path workspace where the Curator
  * performs both legal and financial compliance work in-page.
  *
- * Reuses every component originally built for LC/FC (Pass-3, AI suggestions,
- * Add-Document form, Attached docs, Escrow recommendation) so the experience
- * is identical. Visible only when:
- *   governance_mode = 'STRUCTURED' AND cu_compliance_mode = true
+ * Unified Pass 3 flow: Source upload → Pass 3 → Attached docs.
  */
 
 import { useEffect, useState } from 'react';
@@ -18,12 +15,11 @@ import { Loader2, ShieldCheck, FileText, Banknote, Sparkles } from 'lucide-react
 
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
 import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
-import { LcAiSuggestionsSection } from '@/components/cogniblend/lc/LcAiSuggestionsSection';
-import { LcAddDocumentForm } from '@/components/cogniblend/lc/LcAddDocumentForm';
+import { LcSourceDocUpload } from '@/components/cogniblend/lc/LcSourceDocUpload';
 import { RecommendedEscrowCard } from '@/components/cogniblend/fc/RecommendedEscrowCard';
 
 import { useCompleteCuratorCompliance } from '@/hooks/cogniblend/useCompleteCuratorCompliance';
-import { useAttachedLegalDocs, usePersistedSuggestions } from '@/hooks/cogniblend/useLcLegalData';
+import { useAttachedLegalDocs } from '@/hooks/cogniblend/useLcLegalData';
 import { useLcLegalActions } from '@/hooks/cogniblend/useLcLegalActions';
 import { supabase } from '@/integrations/supabase/client';
 import { logWarning } from '@/lib/errorHandler';
@@ -54,7 +50,6 @@ export function CuratorComplianceTab({
   const [activeTab, setActiveTab] = useState<'legal' | 'finance'>('legal');
   const completeMut = useCompleteCuratorCompliance(challengeId);
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
-  const { data: aiSuggestions, isLoading: suggestionsLoading } = usePersistedSuggestions(challengeId);
 
   const actions = useLcLegalActions({
     challengeId,
@@ -63,11 +58,10 @@ export function CuratorComplianceTab({
   });
 
   // Auto-seed default templates the first time a Structured Curator opens the tab
-  // (idempotent on the backend; only inserts when no rows exist).
   useEffect(() => {
     if (governanceMode !== 'STRUCTURED' || !cuComplianceMode) return;
-    if (attachedLoading || suggestionsLoading) return;
-    const hasAny = (attachedDocs?.length ?? 0) > 0 || (aiSuggestions?.length ?? 0) > 0;
+    if (attachedLoading) return;
+    const hasAny = (attachedDocs?.length ?? 0) > 0;
     if (hasAny) return;
     supabase
       .rpc('seed_default_legal_docs', {
@@ -89,12 +83,9 @@ export function CuratorComplianceTab({
     governanceMode,
     cuComplianceMode,
     attachedLoading,
-    suggestionsLoading,
     attachedDocs?.length,
-    aiSuggestions?.length,
   ]);
 
-  // Visibility: STRUCTURED + cu_compliance_mode only
   if (governanceMode !== 'STRUCTURED' || !cuComplianceMode) {
     return null;
   }
@@ -102,10 +93,6 @@ export function CuratorComplianceTab({
   const bothComplete = lcComplete && fcComplete;
   const isAwaitingDownstream = bothComplete &&
     (creatorApprovalStatus === 'pending' || creatorApprovalStatus === 'approved');
-
-  const visibleSuggestions = aiSuggestions ?? [];
-  const hasSuggestions = visibleSuggestions.length > 0;
-  const totalAccepted = attachedDocs?.length ?? 0;
 
   const handleSubmit = () => {
     completeMut.mutate(userId);
@@ -130,8 +117,8 @@ export function CuratorComplianceTab({
           </AlertTitle>
           <AlertDescription className="text-xs">
             STRUCTURED governance does not assign separate Legal or Financial
-            Counsels. Use the tabs below to review and attach legal documents
-            and confirm escrow, then submit when both are ready.
+            Counsels. Upload source legal documents, run Pass 3 to generate the
+            unified agreement, and confirm escrow.
           </AlertDescription>
         </Alert>
 
@@ -162,54 +149,14 @@ export function CuratorComplianceTab({
           </TabsList>
 
           <TabsContent value="legal" className="space-y-3 pt-3">
+            <LcSourceDocUpload challengeId={challengeId} sourceOrigin="curator" />
             <LcPass3ReviewPanel challengeId={challengeId} />
-
             <LcAttachedDocsCard
               docs={attachedDocs}
               isLoading={attachedLoading}
               currentUserId={userId}
               onDelete={(id) => actions.deleteDocMutation.mutate(id)}
               isDeleting={actions.deleteDocMutation.isPending}
-            />
-
-            <LcAiSuggestionsSection
-              isLC={true}
-              generating={actions.generating}
-              generateError={actions.generateError}
-              hasSuggestions={hasSuggestions}
-              totalAccepted={totalAccepted}
-              suggestionsLoading={suggestionsLoading}
-              visibleSuggestions={visibleSuggestions}
-              onGenerate={actions.handleGenerate}
-              getDocEdit={actions.getDocEdit}
-              updateDocEdit={actions.updateDocEdit}
-              initDocContent={actions.initDocContent}
-              onAccept={(doc) => actions.acceptDocMutation.mutate(doc)}
-              onSaveContent={actions.handleSaveContent}
-              onDismiss={(id) => actions.dismissSuggestionMutation.mutate(id)}
-              isAccepting={actions.acceptDocMutation.isPending}
-              savingContent={actions.savingContent}
-              openCards={actions.openCards}
-              onToggleCard={actions.toggleCard}
-            />
-
-            <LcAddDocumentForm
-              open={actions.showAddForm}
-              onOpenChange={actions.setShowAddForm}
-              title={actions.newDocTitle}
-              onTitleChange={actions.setNewDocTitle}
-              docType={actions.newDocType}
-              onDocTypeChange={actions.setNewDocType}
-              tier={actions.newDocTier}
-              onTierChange={actions.setNewDocTier}
-              content={actions.newDocContent}
-              onContentChange={actions.setNewDocContent}
-              notes={actions.newDocNotes}
-              onNotesChange={actions.setNewDocNotes}
-              file={actions.newDocFile}
-              onFileChange={actions.setNewDocFile}
-              onSubmit={actions.handleAddNewDoc}
-              submitting={actions.addingDoc}
             />
           </TabsContent>
 
