@@ -27,12 +27,9 @@ export function CreatorApprovalCard({
   extendedBrief,
   userId,
 }: CreatorApprovalCardProps) {
-  // Show for MP and AGG in Phase 1 or 2.
-  // - MP: always required (DB trigger enforces); switch is locked ON.
-  // - AGG: Creator opt-in/out.
-  if ((operatingModel !== 'AGG' && operatingModel !== 'MP') || !currentPhase || currentPhase > 2) return null;
-
+  // Hooks must run unconditionally — derive values first, gate render after.
   const isMarketplace = operatingModel === 'MP';
+  const isAggregator = operatingModel === 'AGG';
 
   const parsedBrief = typeof extendedBrief === 'string'
     ? (() => { try { return JSON.parse(extendedBrief); } catch { return {}; } })()
@@ -56,7 +53,7 @@ export function CreatorApprovalCard({
       queryClient.invalidateQueries({ queryKey: ['manage-challenge', challengeId] });
       toast.success(newValue
         ? 'Creator approval enabled — you will be asked to approve before publication.'
-        : 'Creator approval disabled — the Curator can publish after reviews are complete.');
+        : 'Creator approval disabled — the Curator will publish after reviews are complete.');
     },
     onError: (error: Error) => {
       setEnabled(!enabled); // revert
@@ -68,6 +65,9 @@ export function CreatorApprovalCard({
     setEnabled(checked);
     mutation.mutate(checked);
   };
+
+  // Show for MP and AGG in Phase 1 or 2.
+  if ((!isMarketplace && !isAggregator) || !currentPhase || currentPhase > 2) return null;
 
   return (
     <Card>
