@@ -43,7 +43,9 @@ export default function LcChallengeQueuePage() {
   }, [challengeRows, deferredSearch]);
 
   const handleOpenWorkspace = (challengeId: string) => {
-    navigate(`/cogni/challenges/${challengeId}/legal`);
+    // F1: route to the real Legal Coordinator workspace (Pass-3 + AI suggestions),
+    // not the legacy template-attach view.
+    navigate(`/cogni/challenges/${challengeId}/lc-legal`);
   };
 
   if (isLoading) {

@@ -17122,6 +17122,10 @@ export type Database = {
         Args: { p_role1: string; p_role2: string }
         Returns: boolean
       }
+      seed_default_legal_docs: {
+        Args: { p_challenge_id: string; p_user_id?: string }
+        Returns: Json
+      }
       select_reviewers_weighted: {
         Args: {
           p_end_at: string

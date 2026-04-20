@@ -429,6 +429,7 @@ export default function CurationReviewPage() {
             lcComplete={(o.challenge as any).lc_compliance_complete === true}
             fcComplete={(o.challenge as any).fc_compliance_complete === true}
             creatorApprovalStatus={(o.challenge as any).creator_approval_status ?? null}
+            maturityLevel={(o.challenge as any).maturity_level ?? null}
           />
         )}
 
