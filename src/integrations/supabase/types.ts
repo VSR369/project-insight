@@ -16624,6 +16624,15 @@ export type Database = {
         Args: { p_action: string; p_notes?: string; p_verification_id: string }
         Returns: Json
       }
+      creator_finalize_approval: {
+        Args: {
+          p_challenge_id: string
+          p_decision: string
+          p_reason?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       delete_questions_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
@@ -17071,6 +17080,10 @@ export type Database = {
       refresh_performance_metrics: { Args: never; Returns: undefined }
       release_to_queue: {
         Args: { p_reason?: string; p_verification_id: string }
+        Returns: Json
+      }
+      request_creator_approval: {
+        Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
       }
       request_reassignment: {

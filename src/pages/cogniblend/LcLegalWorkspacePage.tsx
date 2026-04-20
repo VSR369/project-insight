@@ -30,7 +30,7 @@ import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgress
 import { AssembledCpaSection } from '@/components/cogniblend/lc/AssembledCpaSection';
 import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
 import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
-import { LcChallengeDetailsCard } from '@/components/cogniblend/lc/LcChallengeDetailsCard';
+import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
 import { LcAiSuggestionsSection } from '@/components/cogniblend/lc/LcAiSuggestionsSection';
 import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
@@ -317,7 +317,8 @@ export default function LcLegalWorkspacePage() {
         success: boolean;
         phase_advanced: boolean;
         current_phase: number;
-        message: string;
+        message?: string;
+        awaiting?: string;
         error?: string;
       };
       if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
@@ -326,10 +327,16 @@ export default function LcLegalWorkspacePage() {
       queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
       queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-lc-detail', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-preview', challengeId] });
 
-      const msg = result.phase_advanced
-        ? 'Legal review complete — challenge advanced to Curation'
-        : 'Legal review complete — waiting for financial compliance';
+      // S7C-2: surface the new Creator-approval pause when both compliance
+      // flags are now true. Otherwise we are still waiting on FC.
+      const msg = result.awaiting === 'creator_approval'
+        ? 'Legal review complete — Creator approval requested'
+        : result.phase_advanced
+          ? 'Legal review complete — challenge advanced to next phase'
+          : 'Legal review complete — waiting for financial compliance';
       toast.success(msg);
       if (result.phase_advanced) navigate('/cogni/dashboard');
     } catch (err) {
@@ -412,7 +419,7 @@ export default function LcLegalWorkspacePage() {
 
       <WorkflowProgressBanner step={3} />
 
-      <LcChallengeDetailsCard challenge={challenge ?? null} />
+      <LcFullChallengePreview challengeId={challengeId!} />
 
       <AssembledCpaSection challengeId={challengeId!} />
 

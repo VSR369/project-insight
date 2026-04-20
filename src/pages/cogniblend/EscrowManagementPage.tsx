@@ -25,6 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Banknote, CheckCircle2, Lock } from 'lucide-react';
 import { EscrowDepositForm, escrowFormSchema, type EscrowFormValues } from './EscrowDepositForm';
+import { FcChallengeDetailView } from '@/components/cogniblend/fc/FcChallengeDetailView';
+import { RecommendedEscrowCard } from '@/components/cogniblend/fc/RecommendedEscrowCard';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
+import type { GovernanceMode } from '@/lib/governanceMode';
 
 interface EscrowChallenge {
   challenge_id: string;
@@ -36,6 +40,7 @@ interface EscrowChallenge {
   currency: string;
   bank_name: string | null;
   deposit_reference: string | null;
+  governance_mode: GovernanceMode;
 }
 
 function maskAccountNumber(raw: string): string {
@@ -76,7 +81,7 @@ export default function EscrowManagementPage() {
       const results: EscrowChallenge[] = [];
       for (const cid of challengeIds) {
         const [challengeRes, escrowRes] = await Promise.all([
-          supabase.from('challenges').select('id, title, reward_structure').eq('id', cid).single(),
+          supabase.from('challenges').select('id, title, reward_structure, governance_profile, governance_mode_override').eq('id', cid).single(),
           supabase.from('escrow_records').select('id, escrow_status, deposit_amount, bank_name, deposit_reference, currency').eq('challenge_id', cid).maybeSingle(),
         ]);
         if (!challengeRes.data) continue;
@@ -89,6 +94,10 @@ export default function EscrowManagementPage() {
           rewardTotal = p + g + s;
           if (rewardTotal === 0) rewardTotal = Number(rs.budget_max ?? rs.budget_min ?? 0);
         }
+        const govMode = resolveGovernanceMode(
+          (challengeRes.data as Record<string, unknown>).governance_mode_override as string | null
+            ?? (challengeRes.data as Record<string, unknown>).governance_profile as string | null,
+        );
         results.push({
           challenge_id: cid, challenge_title: challengeRes.data.title,
           escrow_id: escrowRes.data?.id ?? null, escrow_status: escrowRes.data?.escrow_status ?? null,
@@ -96,6 +105,7 @@ export default function EscrowManagementPage() {
           currency: (escrowRes.data as any)?.currency ?? 'USD',
           bank_name: (escrowRes.data as any)?.bank_name ?? null,
           deposit_reference: (escrowRes.data as any)?.deposit_reference ?? null,
+          governance_mode: govMode,
         });
       }
       return results;
@@ -201,16 +211,24 @@ export default function EscrowManagementPage() {
         );
       })();
 
-      // Call complete_financial_review RPC to set fc_compliance_complete and potentially advance phase
+      // Call complete_financial_review RPC to set fc_compliance_complete and
+      // potentially trigger Creator-approval pause (S7C).
       try {
-        const { error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
+        const { data: rpcData, error: rpcError } = await (supabase.rpc as Function)('complete_financial_review', {
           p_challenge_id: variables.challengeId,
           p_user_id: user?.id,
         });
         if (rpcError) {
           toast.warning('Escrow saved but financial review completion failed — please contact support.');
         } else {
-          toast.success('Financial compliance confirmed — phase may auto-advance.');
+          const r = rpcData as { awaiting?: string; phase_advanced?: boolean } | null;
+          if (r?.awaiting === 'creator_approval') {
+            toast.success('Escrow confirmed — Creator approval requested');
+          } else if (r?.phase_advanced) {
+            toast.success('Financial compliance confirmed — challenge advanced.');
+          } else {
+            toast.success('Financial compliance confirmed — waiting for legal review.');
+          }
         }
       } catch {
         toast.warning('Escrow saved but could not trigger phase advancement.');
@@ -309,15 +327,26 @@ export default function EscrowManagementPage() {
                   )}
                   {isFunded && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
                 </div>
+                {isFunded && (
+                  <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Escrow Confirmed — read-only.
+                  </div>
+                )}
                 {isSelected && !isFunded && (
-                  <EscrowDepositForm
-                    form={form}
-                    onSubmit={handleSubmit}
-                    isPending={confirmEscrow.isPending}
-                    proofFile={proofFile}
-                    onProofFileChange={setProofFile}
-                    proofUploading={proofUploading}
-                  />
+                  <div className="mt-4 space-y-4">
+                    <FcChallengeDetailView challengeId={ch.challenge_id} />
+                    <RecommendedEscrowCard challengeId={ch.challenge_id} />
+                    <EscrowDepositForm
+                      form={form}
+                      onSubmit={handleSubmit}
+                      isPending={confirmEscrow.isPending}
+                      proofFile={proofFile}
+                      onProofFileChange={setProofFile}
+                      proofUploading={proofUploading}
+                      governanceMode={ch.governance_mode}
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>

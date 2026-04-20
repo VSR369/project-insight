@@ -135,16 +135,19 @@ export function useCreatorReview(challengeId: string | undefined) {
 
   const acceptAll = useMutation({
     mutationFn: async () => {
-      if (!challengeId) throw new Error('Missing challenge id');
-      const updates = await withUpdatedBy({
-        creator_approval_status: 'approved',
-        creator_approved_at: new Date().toISOString(),
+      if (!challengeId || !user?.id) throw new Error('Missing challenge or user');
+      // S7C-2: Use creator_finalize_approval RPC — sets approval, advances
+      // Phase 3 → Phase 4 (Publication), and notifies Curator(s) atomically.
+      const { data, error } = await supabase.rpc('creator_finalize_approval', {
+        p_challenge_id: challengeId,
+        p_user_id: user.id,
+        p_decision: 'approved',
       });
-      const { error } = await supabase
-        .from('challenges')
-        .update(updates)
-        .eq('id', challengeId);
       if (error) throw new Error(error.message);
+      const result = data as unknown as { success: boolean; error?: string } | null;
+      if (!result?.success) {
+        throw new Error(result?.error ?? 'Creator approval failed');
+      }
     },
     onSuccess: () => {
       if (challengeId && user?.id) {
@@ -243,16 +246,20 @@ export function useCreatorReview(challengeId: string | undefined) {
 
   const requestRecuration = useMutation({
     mutationFn: async (reason: string) => {
-      if (!challengeId) throw new Error('Missing challenge id');
-      const updates = await withUpdatedBy({
-        creator_approval_status: 'changes_requested',
-        creator_approval_notes: reason,
+      if (!challengeId || !user?.id) throw new Error('Missing challenge or user');
+      // S7C-2: Use creator_finalize_approval RPC — sets pass3_stale,
+      // notifies Curator + LC, and keeps phase at compliance.
+      const { data, error } = await supabase.rpc('creator_finalize_approval', {
+        p_challenge_id: challengeId,
+        p_user_id: user.id,
+        p_decision: 'changes_requested',
+        p_reason: reason,
       });
-      const { error } = await supabase
-        .from('challenges')
-        .update(updates)
-        .eq('id', challengeId);
       if (error) throw new Error(error.message);
+      const result = data as unknown as { success: boolean; error?: string } | null;
+      if (!result?.success) {
+        throw new Error(result?.error ?? 'Re-curation request failed');
+      }
     },
     onSuccess: (_data, reason) => {
       if (challengeId && user?.id) {
