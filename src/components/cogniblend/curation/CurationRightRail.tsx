@@ -19,6 +19,8 @@ import { WaveProgressPanel } from "@/components/cogniblend/curation/WaveProgress
 import { BudgetRevisionPanel } from "@/components/cogniblend/curation/BudgetRevisionPanel";
 import { CompletenessChecklistCard } from "@/components/cogniblend/curation/CompletenessChecklistCard";
 import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
+import { LegalDocsSummaryCard } from "@/components/cogniblend/curation/LegalDocsSummaryCard";
+import { EscrowStatusCard } from "@/components/cogniblend/curation/EscrowStatusCard";
 import { AIQualityCard, AIReviewSummaryCard, CompletionBanner } from "./RightRailCards";
 import type { BudgetShortfallResult } from "@/lib/cogniblend/budgetShortfallDetection";
 import type { GroupDef, AIQualitySummary } from "@/lib/cogniblend/curationTypes";
@@ -287,6 +289,10 @@ function CurationRightRailImpl(props: CurationRightRailProps) {
       )}
 
       <AIQualityCard aiQuality={aiQuality} aiQualityLoading={aiQualityLoading} onAnalyze={onAIQualityAnalysis} />
+
+      {/* S7D-2: read-only LC/FC summaries — render only after compliance flags flip */}
+      <LegalDocsSummaryCard challengeId={challengeId} />
+      <EscrowStatusCard challengeId={challengeId} />
 
       {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
