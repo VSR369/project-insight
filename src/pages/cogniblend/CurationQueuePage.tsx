@@ -368,32 +368,7 @@ export default function CurationQueuePage() {
   }, [challenges, resolvedTab, deferredSearch]);
 
   // ══════════════════════════════════════
-  // SECTION 5: Conditional returns
-  // ══════════════════════════════════════
-  if (isLoading) {
-    return (
-      <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-10 w-80" />
-        <div className="space-y-2">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!canSeeCurationQueue) {
-    return (
-      <div className="p-6 text-center text-muted-foreground">
-        You do not have the Curator (CU) role required to access this page.
-      </div>
-    );
-  }
-
-  // ══════════════════════════════════════
-  // SECTION 6: Handlers + prefetch
+  // SECTION 5a: Prefetch helper (must run before any conditional return — R5)
   // ══════════════════════════════════════
   // Same SELECT list & query key as useCurationPageData → cache hit on arrival.
   const CHALLENGE_CORE_SELECT =
@@ -422,6 +397,34 @@ export default function CurationQueuePage() {
     [queryClient],
   );
 
+  // ══════════════════════════════════════
+  // SECTION 5b: Conditional returns
+  // ══════════════════════════════════════
+  if (isLoading) {
+    return (
+      <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-10 w-80" />
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!canSeeCurationQueue) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        You do not have the Curator (CU) role required to access this page.
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════
+  // SECTION 6: Handlers
+  // ══════════════════════════════════════
   const handleRowClick = (ch: EnrichedCurationChallenge) => {
     prefetchChallenge(ch.id);
     navigate(`/cogni/curation/${ch.id}`);
