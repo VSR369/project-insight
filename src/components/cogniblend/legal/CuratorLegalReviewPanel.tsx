@@ -157,6 +157,18 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {readOnly && (
+          <Alert className="border-primary/30 bg-primary/5">
+            <Lock className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-primary">View-only — Approved by Legal Coordinator</AlertTitle>
+            <AlertDescription>
+              {review.reviewedAt
+                ? `Legal documents were approved by the Legal Coordinator on ${new Date(review.reviewedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}. The Curator view is read-only.`
+                : 'Legal documents are owned by the Legal Coordinator. The Curator view is read-only.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {review.isLoading && <Skeleton className="h-40 w-full" />}
 
         {!review.isLoading && review.pass3Status === 'idle' && (
