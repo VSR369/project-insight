@@ -1,0 +1,153 @@
+/**
+ * CuratorComplianceTab — STRUCTURED-path workspace where the Curator
+ * performs both legal and financial compliance work in-page.
+ *
+ * Reuses every component originally built for LC/FC so the experience
+ * is identical. Visible only when:
+ *   governance_mode = 'STRUCTURED' AND cu_compliance_mode = true
+ *
+ * Note: this component is mounted inside the existing CurationReviewPage,
+ * not as a separate route, so the Curator stays in the same workspace.
+ */
+
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, ShieldCheck, FileText, Banknote, Sparkles } from 'lucide-react';
+
+import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
+import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
+import { RecommendedEscrowCard } from '@/components/cogniblend/fc/RecommendedEscrowCard';
+
+import { useCompleteCuratorCompliance } from '@/hooks/cogniblend/useCompleteCuratorCompliance';
+import { useAttachedLegalDocs } from '@/hooks/cogniblend/useLcLegalData';
+
+interface CuratorComplianceTabProps {
+  challengeId: string;
+  userId: string;
+  operatingModel: string | null;
+  governanceMode: string;
+  cuComplianceMode: boolean;
+  lcComplete: boolean;
+  fcComplete: boolean;
+  creatorApprovalStatus: string | null;
+}
+
+export function CuratorComplianceTab({
+  challengeId,
+  userId,
+  operatingModel,
+  governanceMode,
+  cuComplianceMode,
+  lcComplete,
+  fcComplete,
+  creatorApprovalStatus,
+}: CuratorComplianceTabProps) {
+  const [activeTab, setActiveTab] = useState<'legal' | 'finance'>('legal');
+  const completeMut = useCompleteCuratorCompliance(challengeId);
+  const { data: attachedDocs } = useAttachedLegalDocs(challengeId);
+
+  // Visibility: STRUCTURED + cu_compliance_mode only
+  if (governanceMode !== 'STRUCTURED' || !cuComplianceMode) {
+    return null;
+  }
+
+  const bothComplete = lcComplete && fcComplete;
+  const isAwaitingDownstream = bothComplete &&
+    (creatorApprovalStatus === 'pending' || creatorApprovalStatus === 'approved');
+
+  const handleSubmit = () => {
+    completeMut.mutate(userId);
+  };
+
+  return (
+    <Card className="border-primary/30">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          Curator Compliance Workspace
+          <Badge variant="outline" className="ml-auto text-xs">
+            {operatingModel} · {governanceMode}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Alert>
+          <Sparkles className="h-4 w-4" />
+          <AlertTitle className="text-sm font-semibold">
+            You own legal and financial review for this challenge
+          </AlertTitle>
+          <AlertDescription className="text-xs">
+            STRUCTURED governance does not assign separate Legal or Financial
+            Counsels. Use the tabs below to review and attach legal documents
+            and confirm escrow, then submit when both are ready.
+          </AlertDescription>
+        </Alert>
+
+        {isAwaitingDownstream && (
+          <Alert className="border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30">
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <AlertTitle className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+              Compliance complete
+            </AlertTitle>
+            <AlertDescription className="text-xs text-emerald-800 dark:text-emerald-300">
+              {creatorApprovalStatus === 'pending'
+                ? 'Pack forwarded — waiting for Creator approval.'
+                : 'Pack approved — challenge advancing to publication.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'legal' | 'finance')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="legal" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Legal Review
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="gap-1.5">
+              <Banknote className="h-3.5 w-3.5" />
+              Financial Review
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="legal" className="space-y-3 pt-3">
+            <LcPass3ReviewPanel challengeId={challengeId} />
+            <LcAttachedDocsCard
+              docs={attachedDocs}
+              isLoading={false}
+              currentUserId={userId}
+              onDelete={() => { /* read-only summary in this context */ }}
+              isDeleting={false}
+            />
+          </TabsContent>
+
+          <TabsContent value="finance" className="space-y-3 pt-3">
+            <RecommendedEscrowCard challengeId={challengeId} />
+            <p className="text-xs text-muted-foreground">
+              Confirm the escrow deposit on the Escrow Management page, or simply
+              attest below that funding is in place.
+            </p>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex justify-end pt-2 border-t">
+          <Button
+            onClick={handleSubmit}
+            disabled={completeMut.isPending || isAwaitingDownstream}
+            size="default"
+          >
+            {completeMut.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <ShieldCheck className="h-4 w-4 mr-2" />
+            )}
+            {isAwaitingDownstream ? 'Compliance Complete' : 'Submit Compliance & Forward'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

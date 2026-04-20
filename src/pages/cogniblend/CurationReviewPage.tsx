@@ -34,6 +34,8 @@ function FreezeForLegalAction({
   return <>{children(handler)}</>;
 }
 import { CuratorCpaReviewPanel } from "@/components/cogniblend/curation/CuratorCpaReviewPanel";
+import { CuratorComplianceTab } from "@/components/cogniblend/curation/CuratorComplianceTab";
+import { CuratorPackReviewPanel } from "@/components/cogniblend/curation/CuratorPackReviewPanel";
 import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
 import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
 import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
@@ -415,6 +417,32 @@ export default function CurationReviewPage() {
           )}
         </FreezeForLegalAction>
 
+
+        {/* S9R: Curator Compliance Tab — STRUCTURED + cu_compliance_mode */}
+        {o.user?.id && o.challengeId && (o.challenge as any)?.cu_compliance_mode && (
+          <CuratorComplianceTab
+            challengeId={o.challengeId}
+            userId={o.user.id}
+            operatingModel={o.challenge.operating_model}
+            governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile ?? 'STRUCTURED').toUpperCase()}
+            cuComplianceMode={(o.challenge as any).cu_compliance_mode === true}
+            lcComplete={(o.challenge as any).lc_compliance_complete === true}
+            fcComplete={(o.challenge as any).fc_compliance_complete === true}
+            creatorApprovalStatus={(o.challenge as any).creator_approval_status ?? null}
+          />
+        )}
+
+        {/* S9R: Curator Pack Review Panel — CONTROLLED + pending_curator_review */}
+        {o.user?.id && o.challengeId && (o.challenge as any)?.creator_approval_status === 'pending_curator_review' && (
+          <CuratorPackReviewPanel
+            challengeId={o.challengeId}
+            userId={o.user.id}
+            operatingModel={o.challenge.operating_model}
+            governanceMode={((o.challenge as any).governance_mode_override ?? o.challenge.governance_profile ?? 'CONTROLLED').toUpperCase()}
+            creatorApprovalStatus={(o.challenge as any).creator_approval_status ?? null}
+            extendedBrief={o.challenge.extended_brief}
+          />
+        )}
 
         {/* STRUCTURED + FROZEN: curator-led CPA review panel */}
         {(o.challenge as any)?.curation_lock_status === 'FROZEN' &&
