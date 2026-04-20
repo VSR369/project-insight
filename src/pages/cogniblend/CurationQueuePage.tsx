@@ -7,11 +7,12 @@
  * Includes assignment indicators (Assigned to Me / Other / Unassigned).
  */
 
-import { useMemo, useState, useDeferredValue } from "react";
+import { useCallback, useMemo, useState, useDeferredValue } from "react";
 import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { CACHE_STANDARD } from "@/config/queryCache";
 import { useCogniPermissions } from "@/hooks/cogniblend/useCogniPermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentOrg } from "@/hooks/queries/useCurrentOrg";
