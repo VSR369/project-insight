@@ -25,8 +25,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
-import { Loader2, Building2 } from 'lucide-react';
+import { Loader2, Building2, ShieldAlert, Info } from 'lucide-react';
 import { z } from 'zod';
+import type { GovernanceMode } from '@/lib/governanceMode';
 
 const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const SWIFT_RE = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
@@ -69,6 +70,8 @@ interface EscrowDepositFormProps {
   proofFile: File | null;
   onProofFileChange: (file: File | null) => void;
   proofUploading: boolean;
+  /** S7B-3: governance mode drives the guidance banner. */
+  governanceMode?: GovernanceMode;
 }
 
 export function EscrowDepositForm({
@@ -78,9 +81,31 @@ export function EscrowDepositForm({
   proofFile,
   onProofFileChange,
   proofUploading,
+  governanceMode,
 }: EscrowDepositFormProps) {
+  const isControlled = governanceMode === 'CONTROLLED';
   return (
     <div className="mt-4 pt-4 border-t">
+      {governanceMode && (
+        <div
+          className={`mb-3 rounded-md border px-3 py-2 text-xs flex items-start gap-2 ${
+            isControlled
+              ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300'
+              : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300'
+          }`}
+        >
+          {isControlled ? (
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          ) : (
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          )}
+          <span>
+            {isControlled
+              ? 'Mandatory — challenge cannot publish until escrow is funded for the full reward total.'
+              : 'Optional — Creator opted into escrow for this Structured challenge.'}
+          </span>
+        </div>
+      )}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -327,15 +327,26 @@ export default function EscrowManagementPage() {
                   )}
                   {isFunded && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
                 </div>
+                {isFunded && (
+                  <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Escrow Confirmed — read-only.
+                  </div>
+                )}
                 {isSelected && !isFunded && (
-                  <EscrowDepositForm
-                    form={form}
-                    onSubmit={handleSubmit}
-                    isPending={confirmEscrow.isPending}
-                    proofFile={proofFile}
-                    onProofFileChange={setProofFile}
-                    proofUploading={proofUploading}
-                  />
+                  <div className="mt-4 space-y-4">
+                    <FcChallengeDetailView challengeId={ch.challenge_id} />
+                    <RecommendedEscrowCard challengeId={ch.challenge_id} />
+                    <EscrowDepositForm
+                      form={form}
+                      onSubmit={handleSubmit}
+                      isPending={confirmEscrow.isPending}
+                      proofFile={proofFile}
+                      onProofFileChange={setProofFile}
+                      proofUploading={proofUploading}
+                      governanceMode={ch.governance_mode}
+                    />
+                  </div>
                 )}
               </CardContent>
             </Card>
