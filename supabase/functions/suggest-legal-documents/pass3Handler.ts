@@ -155,6 +155,7 @@ function buildSystemPrompt(
   engagement: "MARKETPLACE" | "AGGREGATOR",
   governance: "QUICK" | "STRUCTURED" | "CONTROLLED",
   tier: TierComplexity,
+  arrangeOnly: boolean,
 ): string {
   const sectionInstructions = sections
     .map((s, idx) => {
@@ -168,6 +169,35 @@ function buildSystemPrompt(
       }`;
     })
     .join("\n\n");
+
+  if (arrangeOnly) {
+    // Classification-only mode — verbatim slotting, no content generation.
+    const sectionList = sections
+      .map((s, i) => `${i + 1}. ${s.section_title} [key: ${s.section_key}]`)
+      .join("\n");
+    return `You are a legal document ARRANGER, not a content generator. You will receive uploaded source legal documents and a fixed list of section_keys for the unified Solution Provider Agreement.
+
+Engagement model: ${engagement}
+Governance mode: ${governance}
+
+## STRICT SLOTTING RULES (MANDATORY)
+1. For each clause/paragraph in the source documents, identify the BEST-FIT section_key from the list and place the clause there VERBATIM.
+2. Preserve the original wording exactly — do NOT enhance, summarize, paraphrase, or rewrite.
+3. Do NOT generate any new content. Do NOT invent sections or section_keys.
+4. Do NOT duplicate the same clause across multiple sections — pick the single best fit.
+5. If a clause does not fit any section cleanly, place it under the closest "general provisions" / "miscellaneous" section and set requires_human_review=true for that section.
+6. Sections with NO matching source content remain empty with placeholder: <p><em>(No source content provided for this section. Please add or run Pass 3 AI Review to generate.)</em></p>
+7. Wrap the entire output in <div class="legal-doc">...</div>. Each section uses <h2>{Section Title}</h2>. Preserve original numbering inside <ol><li>...</li></ol> when possible.
+8. Always set confidence="medium" or "low". Never "high" — this is unreviewed slotting, not legal drafting.
+
+## Sections (in order)
+${sectionList}
+
+Call the generate_unified_spa tool with:
+- unified_document_html: the complete HTML, sections in the order given, with verbatim source clauses slotted under each.
+- sections[]: one entry per section_key with section_html (just that section), changes_summary ("Slotted from {source filename}" or "(empty)"), confidence (medium|low), regulatory_flags ([]), requires_human_review (true if the clause was a poor fit or this section is empty).
+- overall_summary: 2-3 sentences listing which source documents were used and which sections remain empty.`;
+  }
 
   return `You are a senior legal counsel drafting a unified Solution Provider Agreement (SPA) for a global open innovation platform.
 
@@ -184,8 +214,17 @@ You will produce a SINGLE unified HTML document containing every section listed 
 - Definitions use: <p><strong>"Term"</strong> means ...</p>
 - No <html>, <head>, or <body> tags. No markdown. HTML only.
 
+## Source-document slotting rules (MANDATORY)
+1. Source documents (uploaded by Creator/Curator/LC/Platform) are AUTHORITATIVE — prefer their wording verbatim where possible.
+2. For each clause in a source document, place it in the best-fit section_key from the list below.
+3. Do NOT duplicate the same clause across multiple sections — pick the single best fit.
+4. Do NOT invent sections or section_keys outside the provided list.
+5. Where a source clause overlaps with the section's system_prompt requirements, MERGE intelligently — keep source wording, fill gaps with section requirements.
+6. Where source documents conflict, prefer the most recent (later created_at) and flag the conflict in changes_summary.
+7. Sections with no relevant source content: generate fresh from the section system_prompt, grounded in challenge facts.
+8. Reference the SPECIFIC challenge facts (title, IP model, reward amounts and currency, data resources, phase schedule, organization name) — never use generic placeholders like [INSERT NAME].
+
 ## Grounding rules (MANDATORY)
-- Reference SPECIFIC challenge facts (title, IP model, reward amounts and currency, data resources, phase schedule, organization name) — never use generic placeholders like [INSERT NAME].
 - Where a section's required_context_keys are not present in the challenge context, state the assumption explicitly inside the clause.
 - Do NOT invent regulatory frameworks. Only cite frameworks listed for that section's applicable jurisdiction.
 ${
