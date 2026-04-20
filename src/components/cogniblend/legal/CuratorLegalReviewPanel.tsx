@@ -12,7 +12,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Loader2, Shield, Sparkles, RefreshCw, CheckCircle2, Save } from 'lucide-react';
+import { Loader2, Shield, Sparkles, RefreshCw, CheckCircle2, Save, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
