@@ -186,6 +186,7 @@ export default function CurationQueuePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearch = useDeferredValue(searchQuery);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const organizationId = currentOrg?.organizationId;
