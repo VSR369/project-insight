@@ -556,6 +556,38 @@ export async function handlePass3({
     const aiConfidence = lowestConfidence(result.sections);
     const aiFlags = dedupeFlags(result.sections);
 
+    // Fidelity check (organize mode only): for each non-placeholder section,
+    // verify its first ~80 chars appear in the concatenated source-doc text.
+    // Append "unverified_source_match" flag + force human review on miss.
+    if (organizeOnly) {
+      const normalize = (s: string) =>
+        s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+      const sourceCorpus = normalize(
+        (existingDocs ?? [])
+          .map((d) => String(d.content_html ?? d.content_summary ?? ""))
+          .join(" "),
+      );
+      const PLACEHOLDER_FRAGMENT = "no source content provided for this section";
+      const unverifiedSections: string[] = [];
+      for (const sec of result.sections) {
+        const txt = normalize(sec.section_html ?? "");
+        if (!txt || txt.includes(PLACEHOLDER_FRAGMENT)) continue;
+        const probe = txt.slice(0, 80);
+        if (probe.length < 20) continue;
+        const window = probe.slice(0, 30);
+        if (!sourceCorpus.includes(window)) {
+          unverifiedSections.push(sec.section_key);
+          sec.requires_human_review = true;
+        }
+      }
+      if (unverifiedSections.length > 0) {
+        aiFlags.push("unverified_source_match");
+        console.warn(
+          `[pass3 organize] unverified source match: ${unverifiedSections.join(", ")}`,
+        );
+      }
+    }
+
     // 6) Read prior pass3_run_count for THIS unified doc (if any)
     const { data: priorRow } = await supabaseAdmin
       .from("challenge_legal_docs")
