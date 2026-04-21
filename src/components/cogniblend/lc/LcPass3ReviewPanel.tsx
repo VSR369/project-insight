@@ -56,18 +56,12 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
 }
 
 export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
-  const pendingHighlightAgainst = useRef<string | null>(null);
-  const [highlightActive, setHighlightActive] = useState(false);
-  const review = useLcPass3Review(challengeId, {
-    onRegenerateComplete: (prevHtml, outcome) => {
-      if (outcome === 'changed') {
-        pendingHighlightAgainst.current = prevHtml;
-      } else {
-        pendingHighlightAgainst.current = null;
-      }
-    },
-  });
   const [editedHtml, setEditedHtml] = useState<string>('');
+  const armRef = { current: null as null | ((p: string, o: 'changed' | 'unchanged') => void) };
+
+  const review = useLcPass3Review(challengeId, {
+    onRegenerateComplete: (prevHtml, outcome) => armRef.current?.(prevHtml, outcome),
+  });
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
   const editor = useEditor(
@@ -85,6 +79,14 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
     },
     [protectedNormalized.join('|')],
   );
+
+  const diff = useLcPass3DiffHighlight({
+    editor,
+    unifiedDocHtml: review.unifiedDocHtml,
+    isPass3Accepted: review.isPass3Accepted,
+    setEditedHtml,
+  });
+  armRef.current = diff.armRegenerate;
 
   useEffect(() => {
     if (!editor || protectedNormalized.length === 0) return;
@@ -110,43 +112,6 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
       view.setProps({ dispatchTransaction: original });
     };
   }, [editor, protectedNormalized.join('|')]);
-
-  useEffect(() => {
-    if (!editor) return;
-    const incoming = review.unifiedDocHtml;
-    if (!incoming) return;
-    // Strip any incoming spans first so we never re-stack diff highlights
-    // when the row is reloaded.
-    const cleanIncoming = stripDiffSpans(incoming);
-    if (cleanIncoming === editor.getHTML()) return;
-
-    const prev = pendingHighlightAgainst.current;
-    if (prev) {
-      const annotated = annotateAdditions(stripDiffSpans(prev), cleanIncoming);
-      editor.commands.setContent(annotated, { emitUpdate: false });
-      setEditedHtml(cleanIncoming); // store CLEAN html for save/accept
-      setHighlightActive(annotated !== cleanIncoming);
-      pendingHighlightAgainst.current = null;
-    } else {
-      editor.commands.setContent(cleanIncoming, { emitUpdate: false });
-      setEditedHtml(cleanIncoming);
-      setHighlightActive(false);
-    }
-  }, [editor, review.unifiedDocHtml]);
-
-  // When LC accepts, clear the highlighted state visually (CSS handles colour
-  // override too, but clearing the flag hides the "Showing changes" pill).
-  useEffect(() => {
-    if (review.isPass3Accepted && highlightActive) setHighlightActive(false);
-  }, [review.isPass3Accepted, highlightActive]);
-
-  const clearHighlights = () => {
-    if (!editor) return;
-    const clean = stripDiffSpans(editor.getHTML());
-    editor.commands.setContent(clean, { emitUpdate: false });
-    setEditedHtml(clean);
-    setHighlightActive(false);
-  };
 
   useEffect(() => {
     if (!editor) return;
