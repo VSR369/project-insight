@@ -524,14 +524,12 @@ export async function handlePass3({
     const priorCount = (priorRow?.pass3_run_count as number | null) ?? 0;
 
     // 7) Delete prior ai_suggested / stale / organized UNIFIED_SPA rows for this challenge.
-    //    'arranged_only' is the legacy value (backfilled to 'organized' by migration); keep
-    //    in the IN-list defensively in case any old row slipped through.
     await supabaseAdmin
       .from("challenge_legal_docs")
       .delete()
       .eq("challenge_id", challengeId)
       .eq("document_type", DOCUMENT_TYPE)
-      .in("ai_review_status", ["ai_suggested", "stale", "organized", "arranged_only"]);
+      .in("ai_review_status", ["ai_suggested", "stale", "organized"]);
 
     // 8) Insert new unified row. Status 'organized' marks no-AI-enhancement output.
     const aiReviewStatus = organizeOnly ? "organized" : "ai_suggested";

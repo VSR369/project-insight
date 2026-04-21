@@ -6,11 +6,8 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { AlertCircle, ArrowLeft, Loader2, Send, Shield } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Shield } from 'lucide-react';
 
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
@@ -26,7 +23,7 @@ import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgress
 import { LcLegalSubmitFooter } from '@/components/cogniblend/lc/LcLegalSubmitFooter';
 import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
-import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
+import { LcUnifiedAgreementCard } from '@/components/cogniblend/lc/LcUnifiedAgreementCard';
 import { LcSourceDocUpload } from '@/components/cogniblend/lc/LcSourceDocUpload';
 import { LcLegalStepIndicator } from '@/components/cogniblend/lc/LcLegalStepIndicator';
 
@@ -35,13 +32,13 @@ import {
   useChallengeForLC,
 } from '@/hooks/cogniblend/useLcLegalData';
 import { useLcLegalActions } from '@/hooks/cogniblend/useLcLegalActions';
+import { useLcLegalSubmit } from '@/hooks/cogniblend/useLcLegalSubmit';
 import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 
 export default function LcLegalWorkspacePage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const { data: roles } = useUserChallengeRoles(user?.id, challengeId);
   const { data: challenge, isLoading: challengeLoading } = useChallengeForLC(challengeId);
@@ -52,17 +49,15 @@ export default function LcLegalWorkspacePage() {
     opModel === 'MP' ? user?.id : undefined,
   );
   const [pwaAccepted, setPwaAccepted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [gateFailures, setGateFailures] = useState<string[]>([]);
 
-  const actions = useLcLegalActions({
+  const actions = useLcLegalActions({ challengeId, userId: user?.id });
+  const pass3 = useLcPass3Review(challengeId);
+  const { submit, submitting, gateFailures } = useLcLegalSubmit({
     challengeId,
     userId: user?.id,
   });
 
-  const pass3 = useLcPass3Review(challengeId);
-  // Derive 1/2/3 step from Pass 3 status. Step 1 = nothing generated yet,
-  // Step 2 = draft exists (ai_suggested OR organized), Step 3 = LC accepted.
+  // Step 1 = nothing generated yet, Step 2 = draft exists, Step 3 = LC accepted.
   const currentStep: 1 | 2 | 3 = pass3.isPass3Accepted
     ? 3
     : pass3.pass3Status === 'completed' || pass3.pass3Status === 'organized'
@@ -71,60 +66,6 @@ export default function LcLegalWorkspacePage() {
 
   const isLC = roles?.includes('LC') ?? false;
   const hasAccess = isLC || (roles?.includes('CR') ?? false);
-
-  const handleSubmitToCuration = async () => {
-    if (!challengeId || !user?.id) return;
-    setSubmitting(true);
-    setGateFailures([]);
-    try {
-      const { data: gateResult } = await supabase.rpc('validate_gate_02', {
-        p_challenge_id: challengeId,
-      });
-      const gate = gateResult as unknown as { passed: boolean; failures: string[] } | null;
-      if (!gate?.passed) {
-        const failures = gate?.failures ?? ['Unknown validation failure'];
-        setGateFailures(failures);
-        toast.error(`Cannot advance: ${failures.join(', ')}`);
-        return;
-      }
-
-      const { data: reviewResult, error } = await supabase.rpc('complete_legal_review', {
-        p_challenge_id: challengeId,
-        p_user_id: user.id,
-      });
-      if (error) throw new Error(error.message);
-
-      const result = reviewResult as unknown as {
-        success: boolean;
-        phase_advanced: boolean;
-        current_phase: number;
-        message?: string;
-        awaiting?: string;
-        error?: string;
-      };
-      if (!result?.success) throw new Error(result?.error ?? 'Legal review RPC failed');
-
-      queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
-      queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
-      queryClient.invalidateQueries({ queryKey: ['curation-queue'] });
-      queryClient.invalidateQueries({ queryKey: ['challenge-lc-detail', challengeId] });
-      queryClient.invalidateQueries({ queryKey: ['challenge-preview', challengeId] });
-
-      const msg = result.awaiting === 'creator_approval'
-        ? 'Legal review complete — Creator approval requested'
-        : result.phase_advanced
-          ? 'Legal review complete — challenge advanced to next phase'
-          : 'Legal review complete — waiting for financial compliance';
-      toast.success(msg);
-      if (result.phase_advanced) navigate('/cogni/dashboard');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to submit';
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (challengeLoading) {
     return (
@@ -233,7 +174,13 @@ export default function LcLegalWorkspacePage() {
         <LcSourceDocUpload challengeId={challengeId!} sourceOrigin="lc" />
       )}
 
-      {isLC && <LcPass3ReviewPanel challengeId={challengeId!} />}
+      {isLC && (
+        <LcUnifiedAgreementCard
+          challengeId={challengeId!}
+          isAccepted={pass3.isPass3Accepted}
+          reviewedAt={pass3.reviewedAt}
+        />
+      )}
 
       <LcAttachedDocsCard
         docs={attachedDocs}
@@ -266,7 +213,7 @@ export default function LcLegalWorkspacePage() {
         currentPhase={challenge?.current_phase}
         lcComplianceComplete={challenge?.lc_compliance_complete}
         submitting={submitting}
-        onSubmit={handleSubmitToCuration}
+        onSubmit={submit}
       />
     </div>
   );

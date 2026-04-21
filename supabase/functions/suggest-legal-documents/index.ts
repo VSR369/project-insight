@@ -6,9 +6,9 @@
  * supported flow is generating ONE unified Solution Provider Agreement (SPA)
  * grounded in the full unified context + uploaded SOURCE_DOC rows.
  *
- * Optional `arrange_only=true` runs the AI in classification-only mode: it
- * places clauses from uploaded source documents verbatim into the matching
- * SPA section_keys without enhancing or generating new content.
+ * Optional `organize_only=true` runs the AI in organize-and-merge mode: it
+ * deduplicates and harmonises clauses from uploaded source documents into the
+ * matching SPA section_keys without generating new substantive content.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -47,9 +47,8 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    // Accept both `organize_only` (canonical) and legacy `arrange_only` for safety.
-    const { challenge_id, pass3_mode, organize_only, arrange_only } = body ?? {};
-    const organizeOnly = organize_only === true || arrange_only === true;
+    const { challenge_id, pass3_mode, organize_only } = body ?? {};
+    const organizeOnly = organize_only === true;
 
     if (!challenge_id) {
       return new Response(
