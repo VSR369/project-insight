@@ -91,13 +91,9 @@ export function useLcPass3Regenerate({
         const snap = getCurrentDoc();
         guardAccepted(snap);
         const prevHtml = snap.unifiedDocHtml ?? '';
-        // Refresh the auth session so the edge function receives a valid JWT
-        // (avoids 401 "session_not_found" when the local token is stale).
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          throw new Error('Your session has expired. Please sign in again.');
-        }
-        await supabase.auth.refreshSession();
+        // Ensure the auth token is valid + refreshed before invoking the
+        // edge function (avoids 401 "session_not_found" on stale tokens).
+        await ensureFreshSession();
         const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
           body: { challenge_id: challengeId, pass3_mode: true },
         });
