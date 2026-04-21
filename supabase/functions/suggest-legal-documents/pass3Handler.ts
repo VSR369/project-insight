@@ -440,13 +440,36 @@ export async function handlePass3({
       );
     }
 
+    // Hard-fail organize mode when NO source doc has extractable text
+    // (e.g. only PDFs were uploaded — PDF text extraction is not yet enabled).
+    if (organizeOnly) {
+      const anyExtractable = (existingDocs ?? []).some((d) => {
+        const html = typeof d.content_html === "string" ? d.content_html.trim() : "";
+        const summary = typeof d.content_summary === "string" ? d.content_summary.trim() : "";
+        return html.length > 0 || summary.length > 0;
+      });
+      if (!anyExtractable) {
+        return jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "NO_EXTRACTABLE_SOURCE",
+              message:
+                "Organize requires at least one source document with extractable text. PDF text extraction is not yet enabled — please upload a .docx or .txt version, or run AI Pass 3 instead.",
+            },
+          },
+          400,
+        );
+      }
+    }
+
     // 5) Resolve org pricing tier and build prompts.
     const tier = await resolveOrgTier(
       supabaseAdmin,
       (context.challenge.organization_id as string | null | undefined) ?? null,
     );
     const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, organizeOnly);
-    const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
+    const userPrompt = buildUserPrompt(context, sections, existingDocs ?? [], organizeOnly);
 
     // Tier may bump max_tokens (use highest configured value across sections).
     // Organize mode produces less new content — cap lower for determinism + cost.
