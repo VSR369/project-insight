@@ -142,6 +142,15 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
     cleanEdited.trim().length > 0 &&
     cleanEdited !== cleanUnified;
 
+  const sourceDocsQuery = useSourceDocs(review.challengeId ?? undefined);
+  const sourceDocNames = (sourceDocsQuery.data ?? [])
+    .map((d) => d.document_name)
+    .filter((n): n is string => !!n);
+  const isOrganizedOutput = review.aiReviewStatus === 'organized';
+  const hasUnverifiedSourceMatch = (review.regulatoryFlags ?? []).includes(
+    'unverified_source_match',
+  );
+
   return (
     <Card>
       <CardHeader>
