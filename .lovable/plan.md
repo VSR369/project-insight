@@ -1,103 +1,119 @@
 
 
-# Plan — Fix: "Organize & Merge" wrongly triggers full Pass 3 AI run
+# Plan — Stop "Re-run Pass 3" from being the only regenerate button inside the editor
 
-## Bug confirmed
+## 5-Whys analysis (evidence-based)
 
-Clicking **Organize & Merge** on the LC legal workspace ends up running the full **Re-run Pass 3** flow. The two operations are conceptually distinct:
+I inspected the live DB row, the edge function logs, the session replay, and every component on the path. **The Organize action is, in fact, running Organize end-to-end** — the system is behaviorally correct. The bug is a **UX confusion bug**, not a wiring bug.
 
-- **Organize & Merge** → AI runs in *organize-only* mode: deduplicates and harmonises clauses from uploaded SOURCE_DOCs verbatim into matching SPA section_keys. **No new substantive content.** Status becomes `organized`.
-- **Run/Re-run Pass 3** → AI runs in *full generation* mode: merges, enhances, fills gaps, rewrites in legal voice. Status becomes `ai_suggested`.
+| Why | Finding |
+|---|---|
+| **Why 1.** When the user clicked **Organize**, did Pass 3 run on the server? | **No.** Edge function logs show ONE invocation at 13:27 with the Organize prompt. The DB row written at 13:28 has `ai_review_status='organized'`. |
+| **Why 2.** Why does the user perceive "Pass 3 ran"? | The session replay shows the dialog said "Organize & Merge", the progress bar said "Organizing & merging…", and the success toast said "Source documents organized & merged". So far correct. **But the editor's bottom action row shows ONE big button labelled "Re-run Pass 3"** as the only regenerate option. After Organize completes the user's eyes land on that button and they read it as "Pass 3 is being / was run". |
+| **Why 3.** Why is "Re-run Pass 3" the only button at the bottom of the editor? | `Pass3EditorBody.tsx` (line 107-118) has a single `ConfirmRegenerateDialog` wired to `onRerun` — which the parent always wires to `review.runPass3()`. There is no Organize counterpart at the bottom. |
+| **Why 4.** Why does that bottom button's confirm dialog reinforce the confusion? | The bottom dialog has **no `mode` prop**, so `ConfirmRegenerateDialog` falls back to `mode='pass3'`. Even if the user just ran Organize, clicking that bottom button shows the **Pass 3** confirmation copy. |
+| **Why 5. (root cause)** Why was the editor bottom never updated when we added the dual Organize / Pass 3 model? | When we split the two flows (handler in regenerate hook, dialog mode prop, page-level button pair, stale-banner button pair), the **bottom-of-editor regenerate row was missed**. It's still the single legacy "Re-run Pass 3" button, with no Organize sibling and no `mode` on its dialog. |
 
-They MUST stay separated end-to-end (UI label, mutation called, edge-function payload, resulting status, toast text, progress label).
+## What's actually broken
 
-## Root cause (verified in code)
+`Pass3EditorBody.tsx`:
+- Has **one** regenerate button labelled *"Re-run Pass 3"* always wired to `onRerun → runPass3()`.
+- Its `<ConfirmRegenerateDialog>` has no `mode` prop → defaults to `pass3` copy.
+- After the user has just run **Organize**, the only visible regenerate button beneath the document still says "Re-run Pass 3" — which makes the user think Pass 3 is what runs. There is no way to **Re-organize** from inside the editor without scrolling back up or waiting for the stale banner.
 
-Three independent issues conspire so that Organize ends up running Pass 3:
+What's NOT broken (verified):
+- Page-level Organize / Run AI Pass 3 buttons in `LcSourceDocUpload` are correctly wired to two separate handlers (`onOrganizeOnly → organizePass3`, `onRunPass3 → runPass3`) with correct dialog modes.
+- Stale-banner buttons in `Pass3StatusStrip` are correctly wired to `onReorganize` and `onRerunAi` with correct dialog modes.
+- `useLcPass3Regenerate` invokes the edge function with the correct payloads (`organize_only: true` only for Organize).
+- The edge function writes `ai_review_status='organized'` for Organize, `'ai_suggested'` for Pass 3.
+- The status strip correctly shows "Organized & Merged from sources" after Organize.
 
-### Cause 1 — Page-level Organize button calls the wrong mutation
+## Fix — Two regenerate buttons at the bottom of the editor, both labelled clearly
 
-`LcLegalWorkspacePage` hoists `useLcPass3Review` (good) but the page-level Organize button in `LcSourceDocUpload` is wired to the same handler that triggers `runPass3()` instead of `organizePass3()`. Need to confirm the exact prop/handler name in `LcSourceDocUpload` and fix the wiring so the page passes two distinct callbacks: `onRunPass3 → review.runPass3()` and `onOrganize → review.organizePass3()`.
+### A. `Pass3EditorBody.tsx` — replace the single `onRerun` button with two
 
-### Cause 2 — Stale-banner "Re-organize" inside the panel calls runPass3
+Add a sibling **Organize & Merge** button next to the existing **Re-run Pass 3** button. Each gets its own confirm dialog with the correct `mode`.
 
-In `Pass3ReviewHeader` (or its stale-alert subcomponent), the **Re-organize** button has been pointed at the same `onRerunPass3` handler that runs the full Pass 3. It must call a separate `onReorganize` prop bound to `organizePass3()`.
-
-### Cause 3 — Progress label always says "AI is enhancing the unified agreement…"
-
-`Pass3ProgressBar` decides its label from `isOrganizing` vs `isRunning`. Because Cause 1/2 routed everything through `runPass3`, `isOrganizing` is always `false` → the bar shows the Pass 3 label even when the user clicked Organize, reinforcing the impression that "Organize runs Pass 3". Once Causes 1+2 are fixed the label resolves correctly, but we'll also add an explicit assertion: the `Pass3ProgressBar` is the only place that derives the label, and it consumes booleans from the single shared `useLcPass3Review` instance — no other source.
-
-## Fix
-
-### A. Two distinct handlers, all the way down
-
-In `LcLegalWorkspacePage`:
-
+New props (additive — no breaking change to other callers):
 ```ts
-const handleRunPass3 = () => review.runPass3();         // full AI generation
-const handleOrganize = () => review.organizePass3();    // organize-only
+onReorganize: () => void;   // wired to organizePass3
+isOrganizing: boolean;      // distinct loading state for the Organize button
 ```
 
-Pass BOTH down to `LcSourceDocUpload` and to `LcUnifiedAgreementCard` → `LcPass3ReviewPanel` → `Pass3ReviewHeader`. No component receives a single shared "regenerate" callback.
+Render in the bottom action row:
+```tsx
+<ConfirmRegenerateDialog
+  onConfirm={onRerun}
+  skipConfirm={!hasDraft}
+  isDirty={isDirty}
+  disabled={isRunning || isOrganizing || isSaving || isAccepting}
+  mode="pass3"
+  trigger={<Button variant="outline" className="gap-2"><Sparkles className="h-4 w-4"/>Re-run AI Pass 3</Button>}
+/>
+<ConfirmRegenerateDialog
+  onConfirm={onReorganize}
+  skipConfirm={!hasDraft}
+  isDirty={isDirty}
+  disabled={isRunning || isOrganizing || isSaving || isAccepting}
+  mode="organize"
+  trigger={<Button variant="outline" className="gap-2"><FileText className="h-4 w-4"/>Re-organize (No AI)</Button>}
+/>
+```
 
-### B. Wire the buttons to the correct handler
+The existing **Re-run Pass 3** button gets `mode="pass3"` explicitly (instead of falling back), and a `Sparkles` icon to match the page-level Pass 3 button.
 
-- `LcSourceDocUpload`: **Run AI Pass 3** button → `onRunPass3`. **Organize & Merge** button → `onOrganize`. Remove any shared `onRegenerate` prop.
-- `Pass3ReviewHeader` (and any stale-banner subcomponent): **Re-run Pass 3** button → `onRerunPass3`. **Re-organize** button → `onReorganize`. Two distinct props, two distinct confirmation dialogs (the existing confirm dialog gets a `mode: 'pass3' | 'organize'` prop so the warning text reads correctly: *"Re-running Pass 3 will replace the agreement with a freshly AI-generated version…"* vs *"Organize & Merge will rebuild the agreement verbatim from your uploaded source documents…"*).
+### B. `LcPass3ReviewPanel.tsx` — pass the Organize handler down
 
-### C. Confirmation dialog wording matches the action
+Wire the new prop:
+```tsx
+<Pass3EditorBody
+  ...
+  onRerun={() => review.runPass3()}
+  onReorganize={() => review.organizeOnly()}
+  isRunning={review.isRunning}
+  isOrganizing={review.isOrganizing}
+/>
+```
 
-`ConfirmRegenerateDialog` already exists. Add a `mode: 'pass3' | 'organize'` prop and switch the title + body copy + confirm button label accordingly. The dialog must visually show the user which of the two operations they're about to run.
+This re-uses the **single shared** `useLcPass3Review` instance hoisted on the page, so the editor-bottom buttons use the same mutations as the page-level and stale-banner buttons. Loading state, progress bar, diff highlight, and "no changes" toast all flow through the existing single source of truth.
 
-### D. Toast + progress label always reflect the action that was clicked
+### C. Defensive: explicit `mode` everywhere
 
-- `useLcPass3Regenerate.runPass3.onSuccess` → success toast: *"Legal AI review completed"*.
-- `useLcPass3Regenerate.organizePass3.onSuccess` → success toast: *"Source documents organized & merged"*.
-- `Pass3ProgressBar` label is decided by `isOrganizing` first, then `isRunning` (current logic is correct — it just wasn't being reached). Verified.
+Audit every `<ConfirmRegenerateDialog>` instance (page-level, stale banner, editor bottom) to ensure every one passes an explicit `mode` prop. Remove the `mode='pass3'` default from `ConfirmRegenerateDialog` so a future missing prop becomes a TypeScript error rather than a silent confusion bug.
 
-### E. Edge function payload sanity check
-
-`useLcPass3Regenerate.organizePass3` already invokes `suggest-legal-documents` with `{ pass3_mode: true, organize_only: true }` and `runPass3` invokes it with `{ pass3_mode: true }` (no `organize_only`). The edge function's `handlePass3` branches correctly on `organizeOnly`. **No edge function change needed** — the bug is purely in client wiring.
-
-### F. Defensive guard at the mutation layer
-
-Add an invariant inside `useLcPass3Regenerate`: log a warning (via `logWarning`) if both `runPass3` and `organizePass3` are pending simultaneously — this should never happen and indicates a wiring regression. Cheap insurance against future drift.
+`ConfirmRegenerateDialog.tsx`: change `mode?: ConfirmRegenerateMode` (default `'pass3'`) to **`mode: ConfirmRegenerateMode`** (required, no default).
 
 ## Files touched
 
-1. **`src/pages/cogniblend/LcLegalWorkspacePage.tsx`** — define two distinct handlers; pass both down via two props (`onRunPass3`, `onOrganize`).
-2. **`src/components/cogniblend/lc/LcSourceDocUpload.tsx`** — replace any shared regenerate prop with `onRunPass3` + `onOrganize`; wire each button to its own handler + its own confirm-dialog mode.
-3. **`src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx`** — forward `onRerunPass3` + `onReorganize` props down to the panel.
-4. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — accept and forward both handlers to `Pass3ReviewHeader`.
-5. **`src/components/cogniblend/lc/Pass3ReviewHeader.tsx`** (and any stale-banner subcomponent) — wire the **Re-run Pass 3** button to `onRerunPass3` and the **Re-organize** button to `onReorganize`; pass correct `mode` to the confirm dialog.
-6. **`src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx`** — add `mode: 'pass3' | 'organize'`; switch title/body/confirm-button copy.
-7. **`src/hooks/cogniblend/useLcPass3Regenerate.ts`** — add the defensive `logWarning` if both mutations pend simultaneously. No behavioural change to existing payloads.
+1. **`src/components/cogniblend/lc/Pass3EditorBody.tsx`** — add `onReorganize` + `isOrganizing` props; add the second confirm dialog + button; give the existing button explicit `mode="pass3"` and a `Sparkles` icon.
+2. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — pass `onReorganize={() => review.organizeOnly()}` and `isOrganizing={review.isOrganizing}` to `Pass3EditorBody`.
+3. **`src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx`** — make `mode` a required prop (remove default), so any future missing-mode wiring fails at compile time.
 
 No DB migration. No edge function change. No new dependency. Every touched file stays ≤ 250 lines (R1).
 
 ## Behaviour after fix
 
-| Button clicked | Mutation fired | Edge fn payload | Confirm dialog text | Progress label | Resulting status | Success toast |
-|---|---|---|---|---|---|---|
-| **Run AI Pass 3** (page or stale-banner) | `runPass3` | `{ pass3_mode: true }` | *"Re-run Pass 3 will replace the agreement with a freshly AI-generated version…"* | *"AI is enhancing the unified agreement…"* | `ai_suggested` | *"Legal AI review completed"* |
-| **Organize & Merge** (page) / **Re-organize** (stale-banner) | `organizePass3` | `{ pass3_mode: true, organize_only: true }` | *"Organize & Merge will rebuild the agreement verbatim from your uploaded source documents…"* | *"Organizing & merging source documents…"* | `organized` | *"Source documents organized & merged"* |
+| Surface | Buttons visible | Each button shows |
+|---|---|---|
+| **Source-doc card (top of page)** | Run AI Pass 3 · Organize & Merge | Correct dialog mode, correct mutation |
+| **Stale banner inside panel** | Re-run AI Pass 3 · Re-organize | Correct dialog mode, correct mutation |
+| **Bottom of editor (NEW)** | Re-run AI Pass 3 · Re-organize (No AI) · Save · Accept | Correct dialog mode, correct mutation |
 
-Red diff highlighting and the "No changes…" info toast continue to work for both flows because they're driven by the shared `armRegenerate` callback regardless of which mutation ran.
+A user editing the document who wants to re-trigger Organize no longer has to scroll up. A user who clicks the bottom "Re-organize" button gets the correct Organize confirmation copy and the Organize mutation runs (not Pass 3). The Sparkles vs FileText icon difference matches the page-level pair, reinforcing the conceptual split.
 
 ## Verification
 
-1. Click **Organize & Merge** on the page → confirm dialog says "Organize & Merge…"; progress bar says "Organizing & merging source documents…"; on completion toast says "Source documents organized & merged"; DB row's `ai_review_status = 'organized'`.
-2. Click **Run AI Pass 3** on the page → confirm dialog says "Re-run Pass 3…"; progress bar says "AI is enhancing the unified agreement…"; toast says "Legal AI review completed"; DB row's `ai_review_status = 'ai_suggested'`.
-3. Same outcomes when triggered from the stale-banner inside the panel (Re-organize vs Re-run Pass 3).
-4. Edge-function logs for `suggest-legal-documents` show `organize_only: true` only when Organize was clicked, and absent/false when Pass 3 was clicked.
-5. Red highlights + "No changes…" info toast still work for both flows.
-6. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
+1. Click **Organize & Merge** on the page → dialog says "Organize & Merge?", progress says "Organizing & merging…", toast says "Source documents organized & merged", DB row `ai_review_status='organized'`.
+2. With the editor showing the organized draft, click the **bottom "Re-organize (No AI)"** button → dialog says "Organize & Merge?", progress says "Organizing & merging…", toast says "Source documents organized & merged", DB row `ai_review_status='organized'` (run_count incremented).
+3. Click the **bottom "Re-run AI Pass 3"** button → dialog says "Re-run AI Pass 3?", progress says "AI is enhancing the unified agreement…", toast says "Legal AI review completed", DB row `ai_review_status='ai_suggested'`.
+4. Red diff highlights and "No changes…" toast continue to work for both editor-bottom buttons (they use the same shared review state).
+5. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
+6. After making `mode` required on `ConfirmRegenerateDialog`, the TypeScript compiler verifies every call site provides one.
 
 ## Out of scope
 
-- Changing the regenerate-from-SOURCE_DOC architecture.
-- Edge function changes.
-- DB migrations.
-- Renaming statuses or columns.
+- Renaming statuses, columns, or mutations.
+- Edge function changes (none needed — server is correct).
+- DB migration.
 - Character-level diff or persisting highlights across reloads.
 
