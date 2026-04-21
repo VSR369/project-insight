@@ -222,6 +222,10 @@ export default function LcLegalWorkspacePage() {
         </Alert>
       )}
 
+      <div className="rounded-lg border bg-card p-3">
+        <LcLegalStepIndicator currentStep={currentStep} />
+      </div>
+
       <WorkflowProgressBanner step={3} />
 
       <LcFullChallengePreview challengeId={challengeId!} />
