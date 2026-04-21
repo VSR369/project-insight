@@ -3,7 +3,7 @@
  * Mirrors CuratorLegalReviewPanel; uses useLcPass3Review for data access.
  */
 import { useEffect, useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
