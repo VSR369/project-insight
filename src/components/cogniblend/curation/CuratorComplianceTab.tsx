@@ -163,7 +163,7 @@ export function CuratorComplianceTab({
               hasDraft={review.pass3Status !== 'idle' && !review.isPass3Accepted}
             />
 
-            <LcPass3ReviewPanel challengeId={challengeId} />
+            <LcPass3ReviewPanel review={review} />
             <LcAttachedDocsCard
               docs={attachedDocs}
               isLoading={attachedLoading}
