@@ -7,13 +7,15 @@ import mammoth from 'mammoth';
 export const SOURCE_DOC_CONFIG = {
   maxSizeBytes: 10 * 1024 * 1024,
   maxSizeMB: 10,
+  // PDF temporarily disabled — text extraction is not yet implemented and
+  // accepting PDFs leads to silently-empty source documents (see plan).
   allowedTypes: [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain',
-    'application/pdf',
   ] as readonly string[],
-  allowedExtensions: ['.docx', '.txt', '.pdf'] as readonly string[],
+  allowedExtensions: ['.docx', '.txt'] as readonly string[],
   label: 'Source Legal Document',
+  helperText: 'DOCX or TXT only — PDF support is coming soon.',
 };
 
 export type SourceOrigin = 'creator' | 'curator' | 'lc' | 'platform_template';

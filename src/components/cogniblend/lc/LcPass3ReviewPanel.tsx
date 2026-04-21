@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3DiffHighlight } from '@/hooks/cogniblend/useLcPass3DiffHighlight';
 import type { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
+import { useSourceDocs } from '@/hooks/queries/useSourceDocs';
 import { type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
@@ -141,6 +142,15 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
     cleanEdited.trim().length > 0 &&
     cleanEdited !== cleanUnified;
 
+  const sourceDocsQuery = useSourceDocs(review.challengeId ?? undefined);
+  const sourceDocNames = (sourceDocsQuery.data ?? [])
+    .map((d) => d.document_name)
+    .filter((n): n is string => !!n);
+  const isOrganizedOutput = review.aiReviewStatus === 'organized';
+  const hasUnverifiedSourceMatch = (review.regulatoryFlags ?? []).includes(
+    'unverified_source_match',
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -223,6 +233,9 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               onReorganize={() => review.organizeOnly()}
               onSave={() => review.saveEdits(cleanEdited)}
               onAccept={() => review.acceptPass3()}
+              isOrganizedOutput={isOrganizedOutput}
+              sourceDocNames={sourceDocNames}
+              hasUnverifiedSourceMatch={hasUnverifiedSourceMatch}
             />
           </>
         )}

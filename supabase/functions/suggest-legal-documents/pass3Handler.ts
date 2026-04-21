@@ -173,29 +173,31 @@ function buildSystemPrompt(
     .join("\n\n");
 
   if (organizeOnly) {
-    // ORGANIZE MODE — Merge & deduplicate uploaded source clauses into the
-    // configured sections WITHOUT generating new substantive content.
+    // ORGANIZE MODE — STRICT source-only. The user prompt withholds the
+    // challenge brief / industry pack / geo pack so the model CANNOT invent
+    // clauses from them. Only the section list + verbatim source documents
+    // are supplied.
     const sectionList = sections
       .map((s, i) => `${i + 1}. ${s.section_title} [key: ${s.section_key}]`)
       .join("\n");
-    return `You are a senior legal document organizer. You will receive source documents uploaded by Creator, Curator, and/or Legal Coordinator, and a fixed list of section_keys for the unified Solution Provider Agreement.
+    return `You are a senior legal document organizer. Your ONLY inputs are (a) a fixed list of section_keys for the unified Solution Provider Agreement, and (b) source documents uploaded by Creator, Curator, and/or Legal Coordinator.
 
 Engagement model: ${engagement}
 Governance mode: ${governance}
 
-Your job: produce ONE clean, integrated, professional legal document with the sections below — by reorganizing, deduplicating, and harmonizing what was uploaded. NEVER generate new substantive content.
+You are NOT given the challenge brief, organization profile, industry pack, geographic regulatory pack, or any pricing/reward facts. You MUST NOT invent or infer such content.
 
-## ORGANIZE MODE — Mandatory rules
-1. Read every clause/paragraph from ALL source documents.
-2. For each clause, identify the BEST-FIT section_key from the list and place it there.
-3. When MULTIPLE source documents contain clauses covering the SAME topic (e.g., two confidentiality clauses from two uploads): MERGE them into ONE coherent clause that preserves the strongest protections from each source. Use the wording from the most recent / most detailed source as the base. Do NOT include both versions side-by-side.
-4. HARMONIZE language across sections so the document reads as ONE professional legal document, not a patchwork of writing styles.
-5. Maintain proper legal numbering (1.1, 1.2, etc.) across the entire document.
-6. Do NOT generate new substantive content. Only reorganize, merge, and harmonize what was uploaded.
-7. If NO source content exists for a section, include the section heading with this exact placeholder paragraph: <p><em>(No source content provided for this section. Add content manually or run AI Pass 3 to generate.)</em></p>
-8. Do NOT duplicate content across sections. Pick the single best fit.
-9. Do NOT invent new sections beyond the configured list.
-10. The output must read as a FINAL terms sheet a Solution Provider would sign — professional, clean, seamless.
+## ORGANIZE MODE — Hard rules (any violation = failure)
+1. Every sentence in \`unified_document_html\` and every \`section_html\` MUST be a near-verbatim quote, paraphrase, or merge of text taken DIRECTLY from the supplied source documents. If you cannot trace a sentence back to a source document, DO NOT include it.
+2. Read every clause/paragraph from ALL source documents and place each in its BEST-FIT section_key.
+3. When multiple sources cover the same topic, MERGE into ONE clause that preserves the strongest protections — keep the wording of the most recent / most detailed source as the base. Never include both versions side-by-side.
+4. HARMONIZE pronouns, defined terms, and tense so the document reads as ONE professional legal document, not a patchwork. Light editing for grammar, capitalisation, defined-term consistency, and clause numbering is permitted. Substantive rewriting is NOT.
+5. Maintain proper legal numbering (1.1, 1.2, etc.) across the document.
+6. If NO source content covers a section, output ONLY this exact placeholder for that section's \`section_html\` and inside \`unified_document_html\` under that heading: <h2>{Section Title}</h2><p><em>(No source content provided for this section. Add content manually or run AI Pass 3 to generate.)</em></p>
+7. Do NOT duplicate content across sections — pick the single best fit.
+8. Do NOT invent new sections beyond the configured list.
+9. Do NOT add regulatory citations, statute names, monetary amounts, party names, jurisdictions, or technical specifications that are not present verbatim in the source documents.
+10. If the source documents collectively contain no legal-style clauses (e.g., they are operational/technical docs), the correct output is a document where MOST sections are the placeholder above. That is the expected, correct behaviour — do NOT back-fill from your own legal knowledge.
 
 ## Output formatting (MANDATORY)
 - Wrap the entire document in: <div class="legal-doc">...</div>
@@ -208,8 +210,8 @@ ${sectionList}
 ## Output schema
 Call the generate_unified_spa tool with:
 - unified_document_html: the COMPLETE merged HTML, sections in the order above, with the placeholder paragraph for any section that has no source content.
-- sections[]: one entry per section_key with section_html (just that section), changes_summary (e.g. "Merged from {source A} and {source B}" or "(no source content — placeholder)"), confidence (medium|low — never high; this is organize mode, not legal drafting), regulatory_flags ([]), requires_human_review (true if multiple sources were merged or the section is empty).
-- overall_summary: 2-3 sentences listing which source documents were merged and which sections remain placeholder-only.`;
+- sections[]: one entry per section_key with section_html (just that section), changes_summary that MUST either name the source document(s) the content came from (e.g. "Merged from M&M Strategic Blueprint §2.1 and Legal Architecture Requirements §4") OR say exactly "(no source content — placeholder)", confidence (medium|low — never high), regulatory_flags ([]), requires_human_review (true if multiple sources were merged, the section is a placeholder, or you had to harmonise conflicting wording).
+- overall_summary: 2-3 sentences naming which source documents were merged and which sections remain placeholder-only. Do NOT mention any fact that is not in the source documents.`;
   }
 
   return `You are a senior legal counsel drafting a unified Solution Provider Agreement (SPA) for a global open innovation platform.
@@ -262,6 +264,7 @@ function buildUserPrompt(
   context: Awaited<ReturnType<typeof buildUnifiedContext>>,
   sections: SectionConfigRow[],
   existingDocs: Record<string, unknown>[],
+  organizeOnly = false,
 ): string {
   const challengeSlim = {
     title: context.challenge.title,
@@ -320,6 +323,36 @@ function buildUserPrompt(
     });
   }
 
+  const sourceDocsBlock = sourceSlim.length > 0
+    ? sourceSlim
+        .map(
+          (d) =>
+            `### ${String(d.document_name ?? "(untitled)")} (uploaded by: ${String(d.uploaded_by ?? "Unknown")})\n${
+              String(d.content_html ?? d.content_summary ?? "(content pending extraction)")
+            }`,
+        )
+        .join("\n\n---\n\n")
+    : "(none)";
+
+  const sectionListBlock = sections
+    .map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`)
+    .join("\n");
+
+  if (organizeOnly) {
+    // STRICT source-only — withhold challenge brief, org, industry pack, geo pack.
+    return `Organize the supplied source documents into the unified Solution Provider Agreement.
+
+NOTE: The challenge brief, organization profile, industry pack, and geographic regulatory pack are intentionally WITHHELD in organize mode. Use ONLY the source documents below — do not invent content from any other source.
+
+## Source documents (uploaded by Creator / Curator / Legal Coordinator)
+${sourceDocsBlock}
+
+## Section list (in order)
+${sectionListBlock}
+
+Produce a single unified HTML document. Sections without source coverage MUST use the placeholder paragraph specified in the system prompt. Every clause you emit MUST be traceable to one of the source documents above.`;
+  }
+
   return `Generate the unified Solution Provider Agreement for the following challenge.
 
 ## Challenge
@@ -335,21 +368,10 @@ ${context.industryPack ? JSON.stringify(context.industryPack, null, 2) : "(none)
 ${context.geoContext ? JSON.stringify(context.geoContext, null, 2) : "(none)"}
 
 ## Source documents (uploaded by Creator / Curator / Legal Coordinator)
-${
-  sourceSlim.length > 0
-    ? sourceSlim
-        .map(
-          (d) =>
-            `### ${String(d.document_name ?? "(untitled)")} (uploaded by: ${String(d.uploaded_by ?? "Unknown")})\n${
-              String(d.content_html ?? d.content_summary ?? "(content pending extraction)")
-            }`,
-        )
-        .join("\n\n---\n\n")
-    : "(none — generate from scratch using the section system prompts)"
-}
+${sourceSlim.length > 0 ? sourceDocsBlock : "(none — generate from scratch using the section system prompts)"}
 
 ## Section list (in order)
-${sections.map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`).join("\n")}
+${sectionListBlock}
 
 Generate a single unified HTML document covering every section above, in order, grounded in the challenge facts.`;
 }
@@ -418,13 +440,36 @@ export async function handlePass3({
       );
     }
 
+    // Hard-fail organize mode when NO source doc has extractable text
+    // (e.g. only PDFs were uploaded — PDF text extraction is not yet enabled).
+    if (organizeOnly) {
+      const anyExtractable = (existingDocs ?? []).some((d) => {
+        const html = typeof d.content_html === "string" ? d.content_html.trim() : "";
+        const summary = typeof d.content_summary === "string" ? d.content_summary.trim() : "";
+        return html.length > 0 || summary.length > 0;
+      });
+      if (!anyExtractable) {
+        return jsonResponse(
+          {
+            success: false,
+            error: {
+              code: "NO_EXTRACTABLE_SOURCE",
+              message:
+                "Organize requires at least one source document with extractable text. PDF text extraction is not yet enabled — please upload a .docx or .txt version, or run AI Pass 3 instead.",
+            },
+          },
+          400,
+        );
+      }
+    }
+
     // 5) Resolve org pricing tier and build prompts.
     const tier = await resolveOrgTier(
       supabaseAdmin,
       (context.challenge.organization_id as string | null | undefined) ?? null,
     );
     const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, organizeOnly);
-    const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
+    const userPrompt = buildUserPrompt(context, sections, existingDocs ?? [], organizeOnly);
 
     // Tier may bump max_tokens (use highest configured value across sections).
     // Organize mode produces less new content — cap lower for determinism + cost.
@@ -510,6 +555,38 @@ export async function handlePass3({
     const result = JSON.parse(toolCall.function.arguments) as UnifiedAIResult;
     const aiConfidence = lowestConfidence(result.sections);
     const aiFlags = dedupeFlags(result.sections);
+
+    // Fidelity check (organize mode only): for each non-placeholder section,
+    // verify its first ~80 chars appear in the concatenated source-doc text.
+    // Append "unverified_source_match" flag + force human review on miss.
+    if (organizeOnly) {
+      const normalize = (s: string) =>
+        s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+      const sourceCorpus = normalize(
+        (existingDocs ?? [])
+          .map((d) => String(d.content_html ?? d.content_summary ?? ""))
+          .join(" "),
+      );
+      const PLACEHOLDER_FRAGMENT = "no source content provided for this section";
+      const unverifiedSections: string[] = [];
+      for (const sec of result.sections) {
+        const txt = normalize(sec.section_html ?? "");
+        if (!txt || txt.includes(PLACEHOLDER_FRAGMENT)) continue;
+        const probe = txt.slice(0, 80);
+        if (probe.length < 20) continue;
+        const window = probe.slice(0, 30);
+        if (!sourceCorpus.includes(window)) {
+          unverifiedSections.push(sec.section_key);
+          sec.requires_human_review = true;
+        }
+      }
+      if (unverifiedSections.length > 0) {
+        aiFlags.push("unverified_source_match");
+        console.warn(
+          `[pass3 organize] unverified source match: ${unverifiedSections.join(", ")}`,
+        );
+      }
+    }
 
     // 6) Read prior pass3_run_count for THIS unified doc (if any)
     const { data: priorRow } = await supabaseAdmin
