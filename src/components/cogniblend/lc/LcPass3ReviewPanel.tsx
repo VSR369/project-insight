@@ -251,72 +251,20 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               </span>
             </div>
 
-            {!review.isPass3Accepted && (
-              <div className="flex flex-wrap items-center gap-2">
-                <LegalDocEditorToolbar editor={editor} />
-                <LegalDocQuickInserts editor={editor} />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-4 lg:flex-row">
-              <Pass3SectionNavWrapper
-                containerRef={editorContainerRef}
-                contentKey={review.unifiedDocHtml.length}
-                isAccepted={review.isPass3Accepted}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="legal-doc-page" ref={editorContainerRef}>
-                  <div className="legal-doc">
-                    <EditorContent editor={editor} />
-                  </div>
-                </div>
-                {review.isPass3Accepted && (
-                  <Pass3AttributionBadge
-                    reviewerUserId={review.reviewerUserId}
-                    reviewedAt={review.reviewedAt}
-                  />
-                )}
-              </div>
-            </div>
-
-            {!review.isPass3Accepted && (
-              <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => review.runPass3()}
-                  disabled={review.isRunning || review.isSaving || review.isAccepting}
-                  className="gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Re-run Pass 3
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => review.saveEdits(editedHtml)}
-                  disabled={review.isSaving || review.isAccepting || !editedHtml}
-                  className="gap-2"
-                >
-                  {review.isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  Save Draft
-                </Button>
-                <Button
-                  onClick={() => review.acceptPass3()}
-                  disabled={review.isAccepting || review.isSaving}
-                  className="gap-2"
-                >
-                  {review.isAccepting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Accept Legal Documents
-                </Button>
-              </div>
-            )}
+            <Pass3EditorBody
+              editor={editor}
+              unifiedDocHtml={review.unifiedDocHtml}
+              isPass3Accepted={review.isPass3Accepted}
+              reviewerUserId={review.reviewerUserId}
+              reviewedAt={review.reviewedAt}
+              editedHtml={editedHtml}
+              isRunning={review.isRunning}
+              isSaving={review.isSaving}
+              isAccepting={review.isAccepting}
+              onRerun={() => review.runPass3()}
+              onSave={() => review.saveEdits(editedHtml)}
+              onAccept={() => review.acceptPass3()}
+            />
           </>
         )}
       </CardContent>
