@@ -52,6 +52,10 @@ export function CuratorComplianceTab({
   const [activeTab, setActiveTab] = useState<'legal' | 'finance'>('legal');
   const completeMut = useCompleteCuratorCompliance(challengeId);
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
+  const review = useLcPass3Review(challengeId);
+  const { data: sourceDocs } = useSourceDocs(challengeId);
+  const sourceDocCount = sourceDocs?.length ?? 0;
+  const reviewBusy = review.isRunning || review.isOrganizing;
 
   const actions = useLcLegalActions({
     challengeId,
@@ -152,6 +156,40 @@ export function CuratorComplianceTab({
 
           <TabsContent value="legal" className="space-y-3 pt-3">
             <LcSourceDocUpload challengeId={challengeId} sourceOrigin="curator" />
+
+            {!review.isPass3Accepted && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 px-3 py-3">
+                <p className="text-sm font-medium text-foreground">
+                  {sourceDocCount > 0
+                    ? `${sourceDocCount} source document${sourceDocCount === 1 ? '' : 's'} ready to process`
+                    : 'No source documents — AI will draft from challenge context'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={review.runPass3}
+                    disabled={reviewBusy}
+                    className="gap-1.5"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Run AI Pass 3 (Merge + Enhance)
+                  </Button>
+                  {sourceDocCount > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={review.organizeOnly}
+                      disabled={reviewBusy}
+                      className="gap-1.5"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Organize &amp; Merge (No AI)
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <LcPass3ReviewPanel challengeId={challengeId} />
             <LcAttachedDocsCard
               docs={attachedDocs}
