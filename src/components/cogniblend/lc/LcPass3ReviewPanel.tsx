@@ -2,14 +2,14 @@
  * LcPass3ReviewPanel — Pass 3 (Legal AI Review) UI for the Legal Coordinator.
  * Mirrors CuratorLegalReviewPanel; uses useLcPass3Review for data access.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
-import { CheckCircle2, Loader2, RefreshCw, Save, Shield, Sparkles } from 'lucide-react';
+import { Loader2, RefreshCw, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,12 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3Review, type Pass3Confidence } from '@/hooks/cogniblend/useLcPass3Review';
-import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
-import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
-
-import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
-import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
 import { Pass3StatusStrip, type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
+import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 
