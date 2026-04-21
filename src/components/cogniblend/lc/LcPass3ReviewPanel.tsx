@@ -213,12 +213,14 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               reviewedAt={review.reviewedAt}
               editedHtml={cleanEdited}
               isRunning={review.isRunning}
+              isOrganizing={review.isOrganizing}
               isSaving={review.isSaving}
               isAccepting={review.isAccepting}
               isDirty={isDirty}
               highlightActive={diff.highlightActive && !review.isPass3Accepted}
               onClearHighlights={diff.clearHighlights}
               onRerun={() => review.runPass3()}
+              onReorganize={() => review.organizeOnly()}
               onSave={() => review.saveEdits(cleanEdited)}
               onAccept={() => review.acceptPass3()}
             />
