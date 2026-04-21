@@ -15,7 +15,7 @@ import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyLcApproved } from '@/lib/cogniblend/workflowNotifications';
 import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
 
-export type Pass3Status = 'idle' | 'running' | 'completed' | 'error';
+export type Pass3Status = 'idle' | 'running' | 'completed' | 'organized' | 'accepted' | 'error';
 export type Pass3Confidence = 'high' | 'medium' | 'low' | null;
 
 export interface Pass3Document {
@@ -184,7 +184,41 @@ export function useLcPass3Review(challengeId: string | undefined) {
       handleMutationError(e, { operation: 'run_pass3', component: 'useLcPass3Review' }),
   });
 
-  const saveEdits = useMutation({
+  const organizePass3 = useMutation({
+    mutationFn: async () => {
+      if (!challengeId) throw new Error('Missing challenge id');
+      const { data, error } = await supabase.functions.invoke(
+        'suggest-legal-documents',
+        {
+          body: {
+            challenge_id: challengeId,
+            pass3_mode: true,
+            organize_only: true,
+          },
+        },
+      );
+      if (error) throw new Error(error.message ?? 'Edge function call failed');
+      if (data && (data as { success?: boolean }).success === false) {
+        const msg = (data as { error?: { message?: string } })?.error?.message;
+        throw new Error(msg ?? 'Organize & merge failed');
+      }
+      return data;
+    },
+    onSuccess: async () => {
+      if (challengeId) {
+        await supabase
+          .from('challenges')
+          .update({ pass3_stale: false } as never)
+          .eq('id', challengeId);
+      }
+      invalidateAll();
+      toast.success('Source documents organized & merged');
+    },
+    onError: (e) =>
+      handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Review' }),
+  });
+
+
     mutationFn: async (html: string) => {
       const docId = query.data?.id;
       if (!docId) throw new Error('No legal document to save');
