@@ -66,10 +66,22 @@ export function Pass3EditorBody({
       )}
 
       {highlightActive && !isPass3Accepted && (
-        <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
-          <div className="flex items-center gap-2 text-destructive">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Showing changes from previous version (highlighted in red).</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+            <div className="flex items-center gap-1.5 font-medium text-destructive">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Changes from previous version</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-sm bg-destructive/15 ring-1 ring-destructive/40" />
+              <span>Red = added or enhanced</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-6 rounded-sm bg-muted ring-1 ring-muted-foreground/40 line-through text-[8px] text-center text-muted-foreground leading-3">
+                abc
+              </span>
+              <span>Strikethrough = removed</span>
+            </div>
           </div>
           {onClearHighlights && (
             <Button

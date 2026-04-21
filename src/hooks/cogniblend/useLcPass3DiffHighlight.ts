@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/react';
-import { annotateAdditions, stripDiffSpans } from '@/lib/cogniblend/legal/diffHighlight';
+import { annotateDiff, stripDiffSpans } from '@/lib/cogniblend/legal/diffHighlight';
 
 export interface UseLcPass3DiffHighlightArgs {
   editor: Editor | null;
@@ -41,7 +41,7 @@ export function useLcPass3DiffHighlight({
     if (!prev && cleanIncoming === editor.getHTML()) return;
 
     if (prev) {
-      const annotated = annotateAdditions(stripDiffSpans(prev), cleanIncoming);
+      const annotated = annotateDiff(stripDiffSpans(prev), cleanIncoming);
       editor.commands.setContent(annotated, { emitUpdate: false });
       setEditedHtml(cleanIncoming);
       setHighlightActive(annotated !== cleanIncoming);

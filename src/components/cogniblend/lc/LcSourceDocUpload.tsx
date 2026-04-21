@@ -4,18 +4,12 @@
  * user sees them next to the live document count at the decision point.
  */
 import { useRef, useState } from 'react';
-import {
-  FileText,
-  Loader2,
-  Sparkles,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ConfirmRegenerateDialog } from '@/components/cogniblend/lc/ConfirmRegenerateDialog';
+import { LcSourceDocActions } from '@/components/cogniblend/lc/LcSourceDocActions';
 import {
   useSourceDocs,
   useUploadSourceDoc,
@@ -225,62 +219,17 @@ export function LcSourceDocUpload({
         )}
 
         {showActions && (
-          <div className="border-t pt-3 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              AI Pass 3 merges all uploaded source documents from Creator,
-              Curator, and you with the curated challenge context, then drafts
-              a single seamless agreement for the Solution Provider to sign.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {onRunPass3 && (
-                <ConfirmRegenerateDialog
-                  onConfirm={onRunPass3}
-                  skipConfirm={!hasDraft}
-                  isDirty={isDirty}
-                  disabled={isBusy || pass3Busy}
-                  mode="pass3"
-                  trigger={
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="gap-1.5"
-                    >
-                      {isRunningPass3 ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                      )}
-                      {runLabel}
-                    </Button>
-                  }
-                />
-              )}
-              {onOrganizeOnly && (
-                <ConfirmRegenerateDialog
-                  onConfirm={onOrganizeOnly}
-                  skipConfirm={!hasDraft}
-                  isDirty={isDirty}
-                  disabled={isBusy || pass3Busy}
-                  mode="organize"
-                  trigger={
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                    >
-                      {isOrganizing ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
-                      {organizeLabel}
-                    </Button>
-                  }
-                />
-              )}
-            </div>
-          </div>
+          <LcSourceDocActions
+            onRunPass3={onRunPass3}
+            onOrganizeOnly={onOrganizeOnly}
+            isRunningPass3={isRunningPass3}
+            isOrganizing={isOrganizing}
+            hasDraft={hasDraft}
+            isDirty={isDirty}
+            disabled={isBusy || pass3Busy}
+            runLabel={runLabel}
+            organizeLabel={organizeLabel}
+          />
         )}
       </CardContent>
     </Card>
