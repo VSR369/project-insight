@@ -72,6 +72,9 @@ export function useUploadSourceDoc() {
         storagePath = path;
       }
 
+      // status: 'uploaded' is the canonical SOURCE_DOC lifecycle entry value.
+      // Permitted by trigger trg_challenge_legal_docs_validate (see migration
+      // 20260421* — fix_challenge_legal_doc_status_trigger).
       const { error: insErr } = await supabase.from('challenge_legal_docs').insert({
         challenge_id: challengeId,
         document_type: 'SOURCE_DOC',
