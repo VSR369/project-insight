@@ -133,9 +133,6 @@ interface OrganizeArgs {
  * Calls the Pass 3 edge function in organize_only mode — AI dedupes and
  * harmonises uploaded source clauses into the configured sections WITHOUT
  * generating new substantive content (empty sections render a placeholder).
- *
- * Backwards-compatible alias `useArrangeIntoSections` is preserved below for
- * any callers not yet migrated.
  */
 export function useOrganizeAndMerge() {
   const qc = useQueryClient();
