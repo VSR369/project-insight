@@ -22,6 +22,7 @@ import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuic
 import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
 import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
 import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
+import { Pass3StatusStrip, type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 
