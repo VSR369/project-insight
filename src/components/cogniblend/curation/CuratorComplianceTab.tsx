@@ -160,6 +160,7 @@ export function CuratorComplianceTab({
               onOrganizeOnly={review.isPass3Accepted ? undefined : review.organizeOnly}
               pass3Busy={reviewBusy}
               hasGenerated={review.pass3Status !== 'idle'}
+              hasDraft={review.pass3Status !== 'idle' && !review.isPass3Accepted}
             />
 
             <LcPass3ReviewPanel challengeId={challengeId} />
