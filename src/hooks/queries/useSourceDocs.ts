@@ -142,6 +142,7 @@ export function useOrganizeAndMerge() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ challengeId }: OrganizeArgs) => {
+      await ensureFreshSession();
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         {
