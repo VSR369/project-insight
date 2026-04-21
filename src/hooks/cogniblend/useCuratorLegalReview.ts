@@ -177,6 +177,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
   const runPass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
+      await ensureFreshSession();
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         { body: { challenge_id: challengeId, pass3_mode: true } },
