@@ -323,6 +323,36 @@ function buildUserPrompt(
     });
   }
 
+  const sourceDocsBlock = sourceSlim.length > 0
+    ? sourceSlim
+        .map(
+          (d) =>
+            `### ${String(d.document_name ?? "(untitled)")} (uploaded by: ${String(d.uploaded_by ?? "Unknown")})\n${
+              String(d.content_html ?? d.content_summary ?? "(content pending extraction)")
+            }`,
+        )
+        .join("\n\n---\n\n")
+    : "(none)";
+
+  const sectionListBlock = sections
+    .map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`)
+    .join("\n");
+
+  if (organizeOnly) {
+    // STRICT source-only — withhold challenge brief, org, industry pack, geo pack.
+    return `Organize the supplied source documents into the unified Solution Provider Agreement.
+
+NOTE: The challenge brief, organization profile, industry pack, and geographic regulatory pack are intentionally WITHHELD in organize mode. Use ONLY the source documents below — do not invent content from any other source.
+
+## Source documents (uploaded by Creator / Curator / Legal Coordinator)
+${sourceDocsBlock}
+
+## Section list (in order)
+${sectionListBlock}
+
+Produce a single unified HTML document. Sections without source coverage MUST use the placeholder paragraph specified in the system prompt. Every clause you emit MUST be traceable to one of the source documents above.`;
+  }
+
   return `Generate the unified Solution Provider Agreement for the following challenge.
 
 ## Challenge
@@ -338,21 +368,10 @@ ${context.industryPack ? JSON.stringify(context.industryPack, null, 2) : "(none)
 ${context.geoContext ? JSON.stringify(context.geoContext, null, 2) : "(none)"}
 
 ## Source documents (uploaded by Creator / Curator / Legal Coordinator)
-${
-  sourceSlim.length > 0
-    ? sourceSlim
-        .map(
-          (d) =>
-            `### ${String(d.document_name ?? "(untitled)")} (uploaded by: ${String(d.uploaded_by ?? "Unknown")})\n${
-              String(d.content_html ?? d.content_summary ?? "(content pending extraction)")
-            }`,
-        )
-        .join("\n\n---\n\n")
-    : "(none — generate from scratch using the section system prompts)"
-}
+${sourceSlim.length > 0 ? sourceDocsBlock : "(none — generate from scratch using the section system prompts)"}
 
 ## Section list (in order)
-${sections.map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`).join("\n")}
+${sectionListBlock}
 
 Generate a single unified HTML document covering every section above, in order, grounded in the challenge facts.`;
 }
