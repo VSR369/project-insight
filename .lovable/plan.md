@@ -1,68 +1,133 @@
 
 
-# Plan — Drop legacy unique constraint blocking multiple SOURCE_DOC uploads
+# Plan — Permanent fix for all Consolidate / Enhance / Edit / Accept scenarios (revised)
 
-## Root cause (confirmed)
+## Reviewer's correction — verified against live DB
 
-The legacy unique constraint `uq_challenge_legal_docs_type_tier` on `(challenge_id, document_type, tier)` is still on `challenge_legal_docs`. It was designed for the old per-document flow (one NDA, one CHALLENGE_TERMS, one IP_ASSIGNMENT per challenge). The new unified workflow requires **multiple `SOURCE_DOC` rows per challenge**, so the second upload always fails.
+The reviewer was working from migration files alone. Live DB inspection confirms:
 
-A previous attempt tried to replace this with a partial unique index, but the original constraint is still present in the live schema — that's why the error persists.
+- `uq_challenge_legal_docs_type_tier` (the legacy broad constraint) is **gone** — the migration just applied (`20260421104230_…sql`) dropped it.
+- `uq_challenge_legal_docs_unified_per_tier` **exists** as a partial unique index: `(challenge_id, document_type, tier) WHERE document_type <> 'SOURCE_DOC'`.
 
-## Fix — single DB migration, no code changes
+This partial index is a **superset** of the reviewer's proposed `WHERE document_type = 'UNIFIED_SPA'` index — it enforces uniqueness for `UNIFIED_SPA` (the only invariant we need today) **and** for any other future non-SOURCE_DOC document type. No additional migration is needed.
 
-Create one new migration:
+**Fix C stands as written. No DB change in this plan.**
 
-```sql
--- Drop the legacy unique constraint that blocks multiple SOURCE_DOC uploads.
--- The new unified workflow uses document_type='SOURCE_DOC' for ALL uploaded
--- source documents, so multiple rows per (challenge_id, document_type, tier)
--- are required.
-ALTER TABLE public.challenge_legal_docs
-  DROP CONSTRAINT IF EXISTS uq_challenge_legal_docs_type_tier;
+## Verified problem map
 
--- Also drop any duplicate index left behind by the previous attempt so we
--- can re-create the partial unique index cleanly.
-DROP INDEX IF EXISTS public.uq_challenge_legal_docs_unified_per_tier;
+| # | Scenario | Today | Risk |
+|---|---|---|---|
+| 1 | Enhance → Consolidate | Replaces enhanced with consolidated | Correct, but silent |
+| 2 | Consolidate → Enhance | Replaces consolidated with enhanced | Correct |
+| 3 | Edit → Re-run (either) | **LC edits silently lost** | **Critical** |
+| 4 | Edit → Upload → Re-run | Edits lost, new doc included | **Critical** |
+| 5 | Accepted → editor locked | Buttons disabled | Safe |
+| 6 | Accepted → upload → stale banner shows | Re-run could attempt second `UNIFIED_SPA` | **Minor risk** (DB index now backstops) |
 
--- Keep one UNIFIED_SPA per (challenge, tier); allow unlimited SOURCE_DOC rows.
-CREATE UNIQUE INDEX uq_challenge_legal_docs_unified_per_tier
-  ON public.challenge_legal_docs (challenge_id, document_type, tier)
-  WHERE document_type <> 'SOURCE_DOC';
+Both `Consolidate` and `Enhance with AI` always read **only** SOURCE_DOC rows + curated context, then replace the `UNIFIED_SPA`. They never read the editor draft. That's the root of the remaining issues.
+
+## Decision
+
+Stay with the **simple, deterministic** model:
+
+- SOURCE_DOC rows = single source of truth for inputs.
+- UNIFIED_SPA = always-regenerable output.
+- LC edits live only in the editor draft. They are protected by a **confirmation dialog** before any action that would discard them.
+- After Accept, every regenerative action is hard-disabled at the UI **and** mutation layers.
+- DB partial index already prevents a second `UNIFIED_SPA` row.
+
+## Fixes
+
+### Fix A — Confirm before destructive regenerate (Scenarios 3 & 4)
+
+Use shadcn `AlertDialog` (project standard, accessible).
+
+Affected entry points:
+- **Re-run Pass 3** in `src/components/cogniblend/lc/Pass3EditorBody.tsx`
+- **Re-organize** in `src/components/cogniblend/lc/Pass3ReviewHeader.tsx`
+- **Consolidate** / **Enhance with AI** entry buttons in `src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx` (whichever surfaces them)
+
+Behaviour:
+- Dialog only when `unifiedDocHtml` is non-empty AND status ∈ {`organized`, `ai_suggested`}.
+- Title: *"Replace current draft?"*
+- Body (when editor is dirty): *"This will regenerate the agreement from your uploaded source documents. Any manual edits in the editor will be discarded."*
+- Body (when not dirty): *"Regenerate the agreement from the latest source documents?"*
+- Buttons: `Cancel` (default) / `Regenerate` (destructive variant).
+- First-time Consolidate/Enhance from `idle` status → no dialog.
+
+Implementation:
+- New presentational component `src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx` (≤ 60 lines) wrapping `AlertDialog`. Reused by all call sites — keeps each parent ≤ 250 lines.
+- Each call site: `<ConfirmRegenerateDialog trigger={<Button…/>} onConfirm={onAction} skipConfirm={!hasDraft} isDirty={editorDirtySinceLoad} />`.
+
+### Fix B — Hide stale UI and lock regeneration after Accept (Scenario 6)
+
+In `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`:
+
+```tsx
+<Pass3ReviewHeader
+  ...
+  isStale={review.isStale && !review.isPass3Accepted}
+  isBusy={review.isBusy || review.isPass3Accepted}
+  ...
+/>
 ```
 
-Why both statements:
-- `DROP CONSTRAINT IF EXISTS` removes the old hard constraint that's still blocking inserts.
-- `DROP INDEX IF EXISTS` + `CREATE UNIQUE INDEX` makes the migration idempotent if the partial index from the previous attempt landed (or didn't).
-- The partial index preserves the only invariant we still want: a single `UNIFIED_SPA` per challenge + tier.
+In `src/hooks/cogniblend/useLcPass3Mutations.ts`, add a guard at the top of both `runPass3` and `organizePass3` mutationFns:
 
-## What is NOT changing
+```ts
+if (currentDoc?.ai_review_status === 'accepted') {
+  throw new Error('Legal documents have already been accepted and cannot be regenerated.');
+}
+```
 
-- No component changes (`LcSourceDocUpload`, `LcUnifiedAgreementCard`, `LcPass3ReviewPanel`, `Pass3EditorBody`, etc.).
-- No hook changes (`useSourceDocs`, `useUploadSourceDoc`, `useOrganizeAndMerge`).
-- No edge function changes (`suggest-legal-documents` already supports `organize_only` mode).
-- No status trigger changes (`enforce_legal_doc_status` already accepts `uploaded`/`organized`/`accepted`/`ai_suggested`).
-- No `ai_review_status` check-constraint changes (already accepts `organized`).
-- No UI restructure (two-tab layout from the previous step stays as-is).
+Belt-and-braces — UI hides the button, mutation refuses the call, and the DB partial index would refuse a second `UNIFIED_SPA` insert as the final backstop.
+
+### Fix C — DB single-row guarantee (already in place)
+
+Partial unique index `uq_challenge_legal_docs_unified_per_tier` on `(challenge_id, document_type, tier) WHERE document_type <> 'SOURCE_DOC'` — verified live. **No migration needed.**
+
+### Fix D — Dirty-state-aware dialog copy
+
+- Track `editorDirtySinceLoad` by comparing the editor's current HTML against the last persisted `ai_modified_content_html` (already exposed by the autosave hook; expose a boolean if not).
+- `ConfirmRegenerateDialog` shows the "edits will be discarded" copy only when `isDirty === true`. Otherwise the softer "regenerate from latest source documents?" copy. Avoids dialog fatigue.
 
 ## Files touched
 
-- `supabase/migrations/<new>_drop_legacy_unique_allow_multiple_source_docs.sql` — the SQL above.
+1. `src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx` — new (≤ 60 lines).
+2. `src/components/cogniblend/lc/Pass3EditorBody.tsx` — wrap Re-run button.
+3. `src/components/cogniblend/lc/Pass3ReviewHeader.tsx` — wrap Re-organize button.
+4. `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` — pass guarded `isStale` / `isBusy`.
+5. `src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx` — wrap Consolidate / Enhance entry buttons (if surfaced here).
+6. `src/hooks/cogniblend/useLcPass3Mutations.ts` — `accepted` guard in both mutations; expose `editorDirtySinceLoad` if not already available.
+
+All files stay ≤ 250 lines (R1). No DB migration. No edge function change. No new dependencies.
+
+## NOT changing
+
+- The "always regenerate from SOURCE_DOC rows" architecture (intentional and correct).
+- The two-tab layout.
+- DB schema (partial unique index already in place).
+- `suggest-legal-documents` edge function.
+- QUICK auto-accept path, Pass 1, Pass 2, `complete_legal_review` RPC.
+- Any naming or terminology.
 
 ## Verification
 
-1. Upload doc #1 → succeeds.
-2. Upload doc #2 → **succeeds** (this is the regression fix).
-3. Upload doc #3 → succeeds; all three appear in the source list.
-4. Click **Consolidate uploaded documents** → unified draft renders in the editor (`ai_review_status = organized`).
-5. Click **Enhance with AI (optional)** → editor updates (`ai_review_status = ai_suggested`).
-6. Click **Accept Legal Documents** → `accepted`, banner appears.
-7. Attempt to insert a second `UNIFIED_SPA` for the same `(challenge_id, tier)` → still rejected by the partial unique index (invariant preserved).
-8. `npx tsc --noEmit` — unchanged, no code touched.
+1. Fresh challenge → Consolidate → no dialog (idle), draft appears.
+2. Edit a clause → click Consolidate → dialog with "edits will be discarded"; Cancel keeps edits; Regenerate replaces.
+3. Edit → click Enhance with AI → same dialog, same behaviour.
+4. Enhance → without editing, click Consolidate → softer dialog ("regenerate from latest source documents?").
+5. Upload a new SOURCE_DOC while editing → stale banner shows; Re-run Consolidate dialog warns about edits.
+6. Accept → all regeneration buttons disabled, stale banner hidden, editor locked.
+7. Manual mutation invocation after accept (e.g. via stale React Query cache) → mutation throws and toasts the error; DB partial index also blocks a duplicate `UNIFIED_SPA`.
+8. Solution Provider preview reads `content_html` of the single accepted `UNIFIED_SPA` row — single source of truth at signing.
+9. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
 
 ## Out of scope
 
-- Renaming `document_type` enum values.
-- Any change to Pass 1 / Pass 2 / `complete_legal_review` RPC.
-- Any change to QUICK auto-accept path.
-- Any frontend change — explicitly avoided per the user's instruction.
+- Feeding the editor draft back into the AI (preserves predictability).
+- Per-section diff/merge UI.
+- URL/localStorage persistence of the active workspace tab.
+- Renaming statuses or DB columns.
+- Any further DB migration (verified unnecessary).
 
