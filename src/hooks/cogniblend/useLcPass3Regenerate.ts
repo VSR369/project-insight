@@ -187,21 +187,25 @@ export function useLcPass3Regenerate({
       invalidate();
       reportOutcome(prevHtml, newHtml, 'Source documents organized & merged');
     },
-    onError: (e) =>
-      handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Regenerate' }),
+    onError: (e) => {
+      mutexRef.current = false;
+      handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Regenerate' });
+    },
   });
 
-  // Defensive invariant: the two regenerate flows must never run concurrently.
-  // If they ever pend together, a wiring regression has crossed the streams.
+  // Belt-and-braces: the synchronous mutexRef should make concurrent pending
+  // impossible, but if both ever appear pending we cancel the organize run
+  // (Pass 3 is the more expensive, more user-impactful operation to preserve).
   useEffect(() => {
     if (runPass3.isPending && organizePass3.isPending) {
-      logWarning('Pass 3 run and organize mutations are pending simultaneously', {
-        operation: 'pass3_regenerate_invariant',
+      logWarning('Pass 3 and organize running simultaneously — cancelling organize', {
+        operation: 'pass3_mutex_violation',
         component: 'useLcPass3Regenerate',
         additionalData: { challengeId },
       });
+      organizePass3.reset();
     }
-  }, [runPass3.isPending, organizePass3.isPending, challengeId]);
+  }, [runPass3.isPending, organizePass3.isPending, challengeId, organizePass3]);
 
   return { runPass3, organizePass3 };
 }
