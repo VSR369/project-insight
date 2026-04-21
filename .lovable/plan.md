@@ -1,83 +1,85 @@
 
 
-# Plan — Finish wiring the diff extensions so removed content shows as strikethrough
+# Plan — Fix the legal-doc side-nav so clicking a section actually scrolls to it
 
-## Why you can't see strikethroughs today
+## Root causes (confirmed in code + DB)
 
-`src/components/cogniblend/lc/Pass3EditorExtensions.ts` exists and exports the three custom extensions (`ParagraphWithClass`, `HeadingWithClass`, `DiffAddedMark`), and `src/styles/legal-document.css` already styles `.legal-diff-removed` (muted box, line-through, "− REMOVED" badge) and `.legal-diff-removed-section` (trailing dashed panel). The diff utility correctly emits both classes.
+I queried the current `UNIFIED_SPA` row for this challenge — the editor HTML correctly contains `<h2>1. Definitions & Interpretation</h2>`, `<h2>2. Engagement Terms</h2>`, … in the same order as `LEGAL_SECTIONS`. So the *content* is fine. The navigation breaks for these reasons:
 
-But `LcPass3ReviewPanel.tsx` still mounts the editor with **plain `StarterKit`** — its built-in Paragraph and Heading nodes have no `class` attribute defined, so when `editor.commands.setContent(annotated)` runs, TipTap parses the HTML and silently drops every `class="legal-diff-removed"` and `class="legal-diff-added"` on `<p>` / `<h1-h6>`, plus every `<span class="legal-diff-added">` wrapper. The annotated HTML reaches the editor; the markup is then thrown away during parse; you see plain text (and removed paragraphs that match existing ones get visually deduped, looking like "they disappeared").
+1. **One-shot, racy tagging.** `Pass3SectionNavWrapper` tags `<h2>` elements with `data-section` on a single 50 ms timer keyed on `unifiedDocHtml.length`. The diff hook calls `editor.commands.setContent(annotated, { emitUpdate: false })` *after* that timer fires (and again on every Re-organize / Re-run / Clear). ProseMirror rebuilds the DOM and the `data-section` attributes are wiped → subsequent clicks call `containerRef.current.querySelector('[data-section="engagement"]')` → returns `null` → no scroll, no error, silent failure.
+2. **Positional index→section mapping is brittle.** Tagging walks H2s in DOM order and pairs index `i` with `LEGAL_SECTIONS[i]`. Any extra H2 inside a trailing `<section class="legal-diff-removed-section">` (or a missing/renamed H2 from an Organize run that produced fewer sections) shifts the entire mapping silently. Some nav items then point to the wrong heading or to none.
+3. **No live observation.** Once tags are gone (after a diff swap, after `clearHighlights`, after editor `setEditable` toggles trigger a repaint), nothing re-tags. Subsequent clicks fail forever.
+4. **`scrollIntoView` may no-op inside the editor's overflow context.** `EditorContent` mounts a `.ProseMirror` element; the LC workspace puts the editor in a card with constrained overflow. Native `scrollIntoView({ block: 'start' })` works in most browsers, but with `behavior:'smooth'` inside nested overflow containers it can be ignored. Safer to compute the heading's top relative to `window` and call `window.scrollTo({ top, behavior:'smooth' })`.
 
-## Single fix — wire the three extensions into the editor
+## Fix — single-file change, tag-by-text + live observer + robust scroll
 
-**File:** `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`
+**File:** `src/components/cogniblend/legal/Pass3SectionNavWrapper.tsx` (full rewrite, stays ≤ 100 lines).
 
-1. Add a static (non-lazy) import:
-   ```ts
-   import {
-     ParagraphWithClass,
-     HeadingWithClass,
-     DiffAddedMark,
-   } from './Pass3EditorExtensions';
-   ```
-2. In the existing `useEditor({ extensions: [...] })` call, replace `StarterKit` with `StarterKit.configure({ paragraph: false, heading: false })` and insert the three custom extensions **before** any other extensions that depend on Paragraph/Heading (e.g. `TextAlign`):
-   ```ts
-   extensions: [
-     StarterKit.configure({ paragraph: false, heading: false }),
-     ParagraphWithClass,
-     HeadingWithClass,
-     DiffAddedMark,
-     Underline,
-     TextAlign.configure({ types: ['heading', 'paragraph'] }),
-     Placeholder.configure({ placeholder: '…' }),
-     buildHeadingGuard(review.protectedHeadings),
-   ]
-   ```
-3. No other changes in the panel. Keep the file ≤ 250 lines (add 4 lines, remove 1).
+### Behaviour
 
-That's the entire code change. Everything else (diff utility output, CSS, `stripDiffSpans` on save/accept, the provenance strip, the delta-aware toast) is already in place from the prior plan.
+1. **Tag by text match, not by index.**
+   For each `LEGAL_SECTIONS[i]`, scan all H2s under `containerRef.current` and pick the first one whose normalized text matches the section label using the same `looseFingerprint` pattern the diff util uses (lowercase, collapse whitespace, strip leading enumeration like `"1."`, `"1.1"`, `"Section 4 –"`). This makes the mapping survive AI runs that prepend numbering, drop sections, or add an extra H2 in the removed-section panel.
+   - H2s inside `.legal-diff-removed-section` are excluded from the scan (those are *removed* clauses, not real sections).
+   - If a section label doesn't find a match, the corresponding nav item still renders but `onSectionChange` short-circuits with a quiet `toast.info("This section isn't present in the current draft.")` instead of doing nothing.
+2. **Re-tag whenever the editor DOM changes.**
+   - Replace the one-shot `setTimeout` with a `MutationObserver` on `containerRef.current` watching `childList` + `subtree`.
+   - Debounce re-tagging to ~30 ms (rAF coalesced) so a burst of TipTap mutations triggers at most one re-tag.
+   - Also re-run on `contentKey` change (kept as a hint for the very first render before the observer attaches).
+   - Disconnect the observer on unmount.
+3. **Robust scroll.**
+   - Look up the tagged element. If not found, fall back to the text-match scan once more (in case the observer hasn't fired yet) before giving up.
+   - Compute target `top = el.getBoundingClientRect().top + window.scrollY - 88` (88 px ≈ sticky header offset; defined as a local `SCROLL_OFFSET_PX` constant) and call `window.scrollTo({ top, behavior:'smooth' })`. Falls back to `el.scrollIntoView({ block:'start' })` if `window.scrollTo` is unavailable.
+   - Update `activeSection` only after we know the element exists; otherwise leave the previous active state.
+4. **Active-section tracking on scroll.** Add a lightweight `IntersectionObserver` on the tagged H2s with `rootMargin: '-100px 0px -60% 0px'`. As the user scrolls the document, the side nav highlights the section currently at the top of the viewport. Disconnect on unmount and re-attach on re-tag.
+5. **Status logic unchanged.** Per-section `LegalSectionStatus` continues to come from `isAccepted` (`approved` vs `ai_modified`).
 
-## Mount-safety check
+### Code shape (sketch — final file ≈ 95 lines)
 
-After the edit:
-- Reload `/cogni/challenges/{id}/lc-legal` — no schema errors in the console.
-- DevTools: confirm the editor DOM contains live `<p class="legal-diff-removed">…</p>` and `<span class="legal-diff-added">…</span>` after a Re-organize / Re-run. (Before the fix, these classes are absent from the rendered DOM even though they exist in the HTML passed to `setContent`.)
+```ts
+const SCROLL_OFFSET_PX = 88;
 
-If TipTap throws *"Schema is missing node type 'paragraph'"* at mount, it means `ParagraphWithClass` isn't being registered before `StarterKit.configure({paragraph:false})` evaluates — the static import + explicit array order above prevents this.
+function normalize(text: string): string { /* same as looseFingerprint */ }
 
-## Behaviour after fix (using the row currently in your DB)
+function tagHeadings(root: HTMLElement): Map<string, HTMLElement> {
+  const found = new Map<string, HTMLElement>();
+  const allH2 = Array.from(root.querySelectorAll('h2')).filter(
+    (h) => !h.closest('.legal-diff-removed-section'),
+  );
+  for (const section of LEGAL_SECTIONS) {
+    const target = normalize(section.label);
+    const match = allH2.find((h) => normalize(h.textContent ?? '').includes(target));
+    if (match) {
+      match.setAttribute('data-section', section.id);
+      found.set(section.id, match as HTMLElement);
+    }
+  }
+  return found;
+}
+```
 
-The current `organized` row contains 6 placeholder sections + 4 sections drawn from the DOCX. After wiring the extensions:
-
-1. **Re-run AI Pass 3** → editor will show:
-   - Red `<span>` insertions inside each section that AI Pass 3 expands beyond the placeholder.
-   - For each old placeholder paragraph the AI replaces, the placeholder shows above the new clause as **struck-through, muted, with a "− REMOVED" badge**.
-   - Toast: *"Re-run AI Pass 3 complete — N paragraphs added, M removed."*
-2. **Re-organize again** → reverse direction; AI-Pass-3 clauses that aren't in the new merge appear as struck-through removed blocks (or grouped in the trailing *"Removed in this version"* panel if their `<h2>` heading no longer exists in the merge).
-3. **Clear** → all red and strikethrough markings vanish; document content intact.
-4. **Save Draft** → DB row contains zero `legal-diff-*` substrings (`stripDiffSpans` already runs in `useLcPass3Mutations.saveEdits`).
-5. **Accept Legal Documents** → `.is-accepted` rule hides removed blocks and neutralises additions; clean signed contract.
+`useEffect` wires the `MutationObserver` (debounced via `requestAnimationFrame`) and the `IntersectionObserver` together; both rebuild from the latest `tagHeadings` result.
 
 ## Files touched
 
 | File | Change |
 |---|---|
-| `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | Add 3-line import + reconfigure StarterKit + insert 3 custom extensions in the `useEditor` array |
+| `src/components/cogniblend/legal/Pass3SectionNavWrapper.tsx` | Replace one-shot positional tagging with text-match tagging + MutationObserver + IntersectionObserver + robust window-scroll; quiet toast for missing sections |
 
-No DB migration. No edge function change. No new dependency (`@tiptap/extension-paragraph` and `@tiptap/extension-heading` were installed in the previous step).
+No DB / migration / edge-function changes. No other components touched (the wrapper's public props stay the same). File stays ≤ 250 lines (target ≈ 95).
 
 ## Verification
 
-1. `npx tsc --noEmit` passes.
-2. Load LC Legal page → no console errors → editor renders the current `organized` content as before (no markings yet, because no new run has been triggered post-wiring).
-3. Click **Re-run AI Pass 3** → red insertions visible **and** strikethrough removed blocks visible (or trailing "Removed in this version" panel) → toast shows the add/remove count.
-4. DOM inspection: `document.querySelectorAll('.legal-diff-added').length > 0` and `.legal-diff-removed` (or `.legal-diff-removed-section`) present.
-5. **Save Draft** → query `challenge_legal_docs.ai_modified_content_html` → no `legal-diff-` substring.
-6. File size: `LcPass3ReviewPanel.tsx` stays ≤ 250 lines.
+1. Reload `/cogni/challenges/25ca71a0-…/lc-legal`. Without clicking anything, DevTools: `document.querySelectorAll('[data-section]')` returns an element for every section that exists in the current draft (10–11 for the current row).
+2. Click **2. Engagement Terms** in the side nav → page smooth-scrolls so the "2. Engagement Terms" H2 is just below the sticky header. Repeat for sections 3–11.
+3. Click **Re-organize** (or **Re-run AI Pass 3**) → editor content swaps → click any section → still scrolls (proves the MutationObserver re-tagged after `setContent`).
+4. Click **Clear** highlights → click any section → still scrolls (proves re-tag survives the clear path).
+5. Scroll the document manually — the active side-nav item updates as different sections enter the viewport.
+6. If the AI ever produces a draft missing a section (e.g., placeholder removed), clicking that section shows a quiet toast and leaves the active item unchanged instead of failing silently.
+7. `npx tsc --noEmit` passes; `Pass3SectionNavWrapper.tsx` ≤ 100 lines.
 
 ## Out of scope
 
-- Real PDF text extraction (would unblock the `legal_architecture_requirements.md.pdf` source so the 6 placeholder sections become populated — separate ~80-line `pdfjs-dist` change; flag if you want it as a follow-up).
-- Word-level intra-paragraph diff.
-- Any server-side / prompt change — server is already producing the right organize output.
+- Restructuring section IDs / labels.
+- Replacing the side-nav component (`LegalDocSectionNav`) — its API is unchanged.
+- Cross-document section navigation (only the unified SPA is in scope).
 
