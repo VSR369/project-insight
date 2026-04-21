@@ -8,7 +8,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Extension } from '@tiptap/core';
+import { Extension } from '@tiptap/react';
 import { CheckCircle2, Loader2, RefreshCw, Save, Shield, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -247,11 +247,6 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <LegalDocEditorToolbar editor={editor} />
                 <LegalDocQuickInserts editor={editor} />
-                <LegalDocUploadHandler
-                  onContentUploaded={handleUpload}
-                  hasExistingContent={!!review.unifiedDocHtml}
-                  disabled={review.isSaving || review.isAccepting}
-                />
               </div>
             )}
 
