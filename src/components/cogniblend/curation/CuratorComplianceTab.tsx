@@ -21,6 +21,8 @@ import { RecommendedEscrowCard } from '@/components/cogniblend/fc/RecommendedEsc
 import { useCompleteCuratorCompliance } from '@/hooks/cogniblend/useCompleteCuratorCompliance';
 import { useAttachedLegalDocs } from '@/hooks/cogniblend/useLcLegalData';
 import { useLcLegalActions } from '@/hooks/cogniblend/useLcLegalActions';
+import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
+import { useSourceDocs } from '@/hooks/queries/useSourceDocs';
 import { supabase } from '@/integrations/supabase/client';
 import { logWarning } from '@/lib/errorHandler';
 

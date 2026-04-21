@@ -26,7 +26,7 @@ import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgress
 import { LcLegalSubmitFooter } from '@/components/cogniblend/lc/LcLegalSubmitFooter';
 import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
-import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
+import { LcUnifiedAgreementCard } from '@/components/cogniblend/lc/LcUnifiedAgreementCard';
 import { LcSourceDocUpload } from '@/components/cogniblend/lc/LcSourceDocUpload';
 import { LcLegalStepIndicator } from '@/components/cogniblend/lc/LcLegalStepIndicator';
 
@@ -233,7 +233,13 @@ export default function LcLegalWorkspacePage() {
         <LcSourceDocUpload challengeId={challengeId!} sourceOrigin="lc" />
       )}
 
-      {isLC && <LcPass3ReviewPanel challengeId={challengeId!} />}
+      {isLC && (
+        <LcUnifiedAgreementCard
+          challengeId={challengeId!}
+          isAccepted={pass3.isPass3Accepted}
+          reviewedAt={pass3.reviewedAt}
+        />
+      )}
 
       <LcAttachedDocsCard
         docs={attachedDocs}
