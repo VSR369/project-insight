@@ -47,7 +47,9 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { challenge_id, pass3_mode, arrange_only } = body ?? {};
+    // Accept both `organize_only` (canonical) and legacy `arrange_only` for safety.
+    const { challenge_id, pass3_mode, organize_only, arrange_only } = body ?? {};
+    const organizeOnly = organize_only === true || arrange_only === true;
 
     if (!challenge_id) {
       return new Response(
@@ -80,7 +82,7 @@ serve(async (req) => {
       userId: user.id,
       challengeId: challenge_id,
       lovableApiKey: LOVABLE_API_KEY,
-      arrangeOnly: arrange_only === true,
+      organizeOnly,
     });
   } catch (error) {
     console.error("suggest-legal-documents error:", error);
