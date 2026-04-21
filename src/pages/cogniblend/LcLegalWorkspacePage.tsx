@@ -23,18 +23,19 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
-import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
-import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
+import { LcLegalSubmitFooter } from '@/components/cogniblend/lc/LcLegalSubmitFooter';
 import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
 import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
 import { LcSourceDocUpload } from '@/components/cogniblend/lc/LcSourceDocUpload';
+import { LcLegalStepIndicator } from '@/components/cogniblend/lc/LcLegalStepIndicator';
 
 import {
   useAttachedLegalDocs,
   useChallengeForLC,
 } from '@/hooks/cogniblend/useLcLegalData';
 import { useLcLegalActions } from '@/hooks/cogniblend/useLcLegalActions';
+import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 
 export default function LcLegalWorkspacePage() {
   const { id: challengeId } = useParams<{ id: string }>();
@@ -58,6 +59,15 @@ export default function LcLegalWorkspacePage() {
     challengeId,
     userId: user?.id,
   });
+
+  const pass3 = useLcPass3Review(challengeId);
+  // Derive 1/2/3 step from Pass 3 status. Step 1 = nothing generated yet,
+  // Step 2 = draft exists (ai_suggested OR organized), Step 3 = LC accepted.
+  const currentStep: 1 | 2 | 3 = pass3.isPass3Accepted
+    ? 3
+    : pass3.pass3Status === 'completed' || pass3.pass3Status === 'organized'
+      ? 2
+      : 1;
 
   const isLC = roles?.includes('LC') ?? false;
   const hasAccess = isLC || (roles?.includes('CR') ?? false);
@@ -211,6 +221,10 @@ export default function LcLegalWorkspacePage() {
         </Alert>
       )}
 
+      <div className="rounded-lg border bg-card p-3">
+        <LcLegalStepIndicator currentStep={currentStep} />
+      </div>
+
       <WorkflowProgressBanner step={3} />
 
       <LcFullChallengePreview challengeId={challengeId!} />
@@ -245,39 +259,15 @@ export default function LcLegalWorkspacePage() {
         </div>
       )}
 
-      <Card>
-        <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">
-              {totalAccepted} legal document{totalAccepted !== 1 ? 's' : ''} on file
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {challenge?.current_phase !== 2
-                ? `Challenge is currently at Phase ${challenge?.current_phase ?? '?'}. It must be at Phase 2 before LC can submit to curation.`
-                : 'Run Pass 3 and accept the unified agreement before submitting.'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <LcReturnToCurator challengeId={challengeId!} userId={user?.id ?? ''} disabled={submitting} />
-            <LcApproveAction challengeId={challengeId!} userId={user?.id ?? ''} disabled={submitting} />
-          </div>
-          <Button
-            onClick={handleSubmitToCuration}
-            disabled={
-              submitting
-              || challenge?.current_phase !== 2
-              || !!challenge?.lc_compliance_complete
-            }
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Send className="h-4 w-4 mr-2" />
-            )}
-            {challenge?.lc_compliance_complete ? 'Already Submitted' : 'Submit to Curation'}
-          </Button>
-        </CardContent>
-      </Card>
+      <LcLegalSubmitFooter
+        challengeId={challengeId!}
+        userId={user?.id ?? ''}
+        totalAccepted={totalAccepted}
+        currentPhase={challenge?.current_phase}
+        lcComplianceComplete={challenge?.lc_compliance_complete}
+        submitting={submitting}
+        onSubmit={handleSubmitToCuration}
+      />
     </div>
   );
 }

@@ -2,14 +2,14 @@
  * LcPass3ReviewPanel — Pass 3 (Legal AI Review) UI for the Legal Coordinator.
  * Mirrors CuratorLegalReviewPanel; uses useLcPass3Review for data access.
  */
-import { useEffect, useRef, useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEffect, useState } from 'react';
+import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
-import { CheckCircle2, Loader2, RefreshCw, Save, Shield, Sparkles } from 'lucide-react';
+import { Loader2, RefreshCw, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,11 +17,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3Review, type Pass3Confidence } from '@/hooks/cogniblend/useLcPass3Review';
-import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
-import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
-import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
-import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
-import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
+import { Pass3StatusStrip, type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
+import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { cn } from '@/lib/utils';
 import '@/styles/legal-document.css';
 
@@ -63,7 +60,6 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
 export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
   const review = useLcPass3Review(challengeId);
   const [editedHtml, setEditedHtml] = useState<string>('');
-  const editorContainerRef = useRef<HTMLDivElement>(null);
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
   const editor = useEditor(
@@ -202,11 +198,23 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
           </Alert>
         )}
 
-        {review.pass3Status === 'completed' && !review.isRunning && (
+        {(review.pass3Status === 'completed' || review.pass3Status === 'organized' || review.pass3Status === 'accepted') && !review.isRunning && (
           <>
-            {review.isStale && (
-              <Pass3StaleAlert description="Creator made edits. Click 'Re-run Pass 3' to update legal documents." />
-            )}
+            <Pass3StatusStrip
+              status={
+                (review.pass3Status === 'accepted'
+                  ? 'accepted'
+                  : review.pass3Status === 'organized'
+                    ? 'organized'
+                    : 'ai_suggested') as Pass3StatusKind
+              }
+              runCount={review.runCount}
+              reviewedAt={review.reviewedAt}
+              isStale={review.isStale}
+              onRerunAi={() => review.runPass3()}
+              onReorganize={() => review.organizeOnly()}
+              isBusy={review.isRunning || review.isOrganizing}
+            />
             {review.changesSummary && (
               <Alert>
                 <AlertTitle className="flex items-center gap-2">
@@ -243,77 +251,20 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               </span>
             </div>
 
-            {!review.isPass3Accepted && (
-              <div className="flex flex-wrap items-center gap-2">
-                <LegalDocEditorToolbar editor={editor} />
-                <LegalDocQuickInserts editor={editor} />
-                <LegalDocUploadHandler
-                  onContentUploaded={handleUpload}
-                  hasExistingContent={!!review.unifiedDocHtml}
-                  disabled={review.isSaving || review.isAccepting}
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-4 lg:flex-row">
-              <Pass3SectionNavWrapper
-                containerRef={editorContainerRef}
-                contentKey={review.unifiedDocHtml.length}
-                isAccepted={review.isPass3Accepted}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="legal-doc-page" ref={editorContainerRef}>
-                  <div className="legal-doc">
-                    <EditorContent editor={editor} />
-                  </div>
-                </div>
-                {review.isPass3Accepted && (
-                  <Pass3AttributionBadge
-                    reviewerUserId={review.reviewerUserId}
-                    reviewedAt={review.reviewedAt}
-                  />
-                )}
-              </div>
-            </div>
-
-            {!review.isPass3Accepted && (
-              <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => review.runPass3()}
-                  disabled={review.isRunning || review.isSaving || review.isAccepting}
-                  className="gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Re-run Pass 3
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => review.saveEdits(editedHtml)}
-                  disabled={review.isSaving || review.isAccepting || !editedHtml}
-                  className="gap-2"
-                >
-                  {review.isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  Save Draft
-                </Button>
-                <Button
-                  onClick={() => review.acceptPass3()}
-                  disabled={review.isAccepting || review.isSaving}
-                  className="gap-2"
-                >
-                  {review.isAccepting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Accept Legal Documents
-                </Button>
-              </div>
-            )}
+            <Pass3EditorBody
+              editor={editor}
+              unifiedDocHtml={review.unifiedDocHtml}
+              isPass3Accepted={review.isPass3Accepted}
+              reviewerUserId={review.reviewerUserId}
+              reviewedAt={review.reviewedAt}
+              editedHtml={editedHtml}
+              isRunning={review.isRunning}
+              isSaving={review.isSaving}
+              isAccepting={review.isAccepting}
+              onRerun={() => review.runPass3()}
+              onSave={() => review.saveEdits(editedHtml)}
+              onAccept={() => review.acceptPass3()}
+            />
           </>
         )}
       </CardContent>
