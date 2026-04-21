@@ -1,132 +1,111 @@
 
-# Plan — Fix source legal document upload and restore the LC legal flow
 
-## What is actually broken
+# Plan — Allow multiple source uploads + simplify the LC legal UX
 
-Two separate issues are causing the current behavior:
+## What's broken today
 
-1. **Upload still fails in the database**
-   - The new function `public.enforce_legal_doc_status()` exists and correctly allows:
-     `uploaded, organized, accepted, APPROVED`
-   - But the live table trigger on `challenge_legal_docs` is still bound to the **old** function:
-     `trg_challenge_legal_docs_validate()`
-   - That old trigger still allows only:
-     `ATTACHED, TRIGGERED, SIGNED, EXPIRED, ai_suggested`
-   - Result: uploads still fail with:
-     `Invalid status: uploaded`
+1. **2nd upload fails with "row already exists"**
+   - The DB has a UNIQUE constraint `uq_challenge_legal_docs_type_tier` on `(challenge_id, document_type, tier)`.
+   - Every `SOURCE_DOC` is inserted with `tier = 'TIER_1'`.
+   - First upload succeeds; second one violates the unique key.
+   - This constraint was designed for the *single* `UNIFIED_SPA` row, not for multiple `SOURCE_DOC` uploads.
 
-2. **No source docs are visible because none were saved**
-   - For challenge `25ca71a0-3880-4338-99b3-e157f2b88b3b`, the DB currently contains only:
-     - one `UNIFIED_SPA`
-   - It contains **zero** `SOURCE_DOC` rows
-   - So the upload card correctly shows nothing from Creator / Curator / LC yet
+2. **UI complexity**
+   - Two cards for one workflow ("Source Legal Documents" + "Pass 3 — AI Legal Review") with two actions on the upload card and three more in the editor.
+   - Naming "Pass 3 — AI Legal Review" is jargon.
+   - Unclear that "Re-organize" = consolidate uploads and "Run AI" = enhance the same content.
 
-## Confirmed current state
+## Fix — two parts
 
-- The UI code for the upload card is present:
-  - `LcSourceDocUpload.tsx` already shows the bottom action area for:
-    - `Run AI Pass 3 (Merge + Enhance)`
-    - `Organize & Merge (No AI)`
-- The Pass 3 panel now tells users to use the buttons in the upload card
-- The footer file no longer contains `Approve Legal Compliance`
-- The database function update was only **partially** applied: function replaced, trigger not redirected
+### Part A — Database
 
-## Required implementation
+New migration: relax the unique constraint so multiple SOURCE_DOC rows are allowed per challenge, while still enforcing one UNIFIED_SPA per tier.
 
-### A. Fix the real DB trigger
-Create a new migration that does one of these cleanly:
+```sql
+ALTER TABLE public.challenge_legal_docs
+  DROP CONSTRAINT IF EXISTS uq_challenge_legal_docs_type_tier;
 
-**Preferred**
-- `CREATE OR REPLACE FUNCTION public.trg_challenge_legal_docs_validate()` so it allows:
-  - `ATTACHED`
-  - `TRIGGERED`
-  - `SIGNED`
-  - `EXPIRED`
-  - `ai_suggested`
-  - `uploaded`
-  - `organized`
-  - `accepted`
-  - `APPROVED`
+-- One UNIFIED_SPA per (challenge, tier) — but unlimited SOURCE_DOC uploads.
+CREATE UNIQUE INDEX uq_challenge_legal_docs_unified_per_tier
+  ON public.challenge_legal_docs (challenge_id, document_type, tier)
+  WHERE document_type <> 'SOURCE_DOC';
+```
 
-This is the safest fix because the existing trigger already points to this function.
+No other DB changes required — `ai_review_status` already accepts `organized`/`accepted`/`ai_suggested`.
 
-**Alternative**
-- Drop and recreate the trigger so it uses `enforce_legal_doc_status()`
+### Part B — UI consolidation (LC workspace)
 
-Either approach is fine, but only one source of truth should remain afterward.
+**Goal:** one card, one editor, one obvious action.
 
-### B. Remove the dead duplicate validator
-After A, clean up the redundant validator path so there is no future mismatch:
-- keep **one** status-validation function for `challenge_legal_docs`
-- document in the migration why this is the canonical source-doc + unified-doc status set
+Layout after the change:
 
-### C. Verify the LC page reflects the intended workflow
-No architecture rewrite is needed; just verify/finalize the already-added UX:
+```text
+┌─ Step 1 — Source Legal Documents ───────────────────────┐
+│  [Add Documents]  .docx, .txt, .pdf · max 10 MB         │
+│  • Creator: terms_v2.docx                               │
+│  • Curator: addendum.docx                               │
+│  • LC:      mnm_blueprint.docx           [delete]       │
+└─────────────────────────────────────────────────────────┘
 
-1. **Step 1**
-   - Upload source legal docs from LC
-   - show inherited Creator/Curator docs when present
+┌─ Step 2 — Legal Review ─────────────────────────────────┐
+│  [ Consolidate uploaded documents ]   ← primary         │
+│  [ Enhance with AI (optional) ]       ← secondary       │
+│  ───────────────────────────────────────────────────    │
+│  <TipTap editor — unified agreement live here>          │
+│  ───────────────────────────────────────────────────    │
+│  [Save Draft]   [Accept Legal Documents]   ← only two   │
+└─────────────────────────────────────────────────────────┘
+```
 
-2. **Decision point in same card**
-   - `Organize & Merge (No AI)`
-   - `Run AI Pass 3 (Merge + Enhance)`
+Concrete changes:
 
-3. **Step 2**
-   - Unified agreement appears in the Pass 3 review/editor area
+1. **`LcSourceDocUpload.tsx`**
+   - Remove the `onRunPass3` / `onOrganizeOnly` props and the bottom action area.
+   - It becomes a pure upload + list card.
 
-4. **Step 3**
-   - LC accepts inside the unified agreement editor
+2. **`LcPass3ReviewPanel.tsx`** → rename header to **"Legal Review"** (drop "Pass 3 — AI").
+   - Add a top action row inside the card with two buttons:
+     - **`Consolidate uploaded documents`** (primary) → calls `organizeOnly()`. Re-labels to **`Re-consolidate`** once a draft exists.
+     - **`Enhance with AI (optional)`** (secondary) → calls `runPass3()`. Re-labels to **`Re-enhance with AI`** once a draft exists.
+   - Tooltip / helper text: *"Consolidate merges all uploaded documents into one streamlined agreement. AI enhance rewrites it using the full challenge context."*
+   - Remove the now-redundant `Re-run Pass 3` button from `Pass3EditorBody`. Keep only `Save Draft` and `Accept Legal Documents`.
+   - Remove the existing `Pass3ReviewHeader` "Re-run / Re-organize" buttons (they're now in the card header) — keep the AI summary, confidence, regulatory chips.
 
-5. **Final action**
-   - `Submit to Curation` advances the challenge back to Curator
+3. **`LcLegalWorkspacePage.tsx`**
+   - Stop passing `onRunPass3` / `onOrganizeOnly` to `LcSourceDocUpload`.
+   - Keep step indicator: Step 1 = no draft, Step 2 = draft, Step 3 = accepted.
 
-### D. Small code cleanup while touching this area
-1. In `useSourceDocs.ts`
-   - add a brief comment that `status: 'uploaded'` is intentional and supported by the challenge legal-doc trigger
-2. Remove the `as any` on the insert if possible with a typed insert payload
-3. Keep query invalidations as-is
+4. **`Pass3EditorBody.tsx`**
+   - Remove the bottom "Re-run Pass 3" button.
+   - Footer keeps `Save Draft` + `Accept Legal Documents` only.
 
-### E. Verification after implementation
-Run these checks:
+5. **No backend logic change** — `organizeOnly` already merges Creator + Curator + LC source docs without AI; `runPass3` already enhances with AI. Both already feed the same editor row.
 
-1. Upload a `.docx`, `.txt`, and `.pdf` on:
-   `/cogni/challenges/25ca71a0-3880-4338-99b3-e157f2b88b3b/lc-legal`
-   - each should save successfully
-   - each should create a `SOURCE_DOC` row
+## Files touched
 
-2. Confirm the upload card now shows the uploaded docs immediately
+- `supabase/migrations/<new>_allow_multiple_source_docs.sql` — drop old unique, add partial unique excluding SOURCE_DOC.
+- `src/components/cogniblend/lc/LcSourceDocUpload.tsx` — remove action props + bottom action block.
+- `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` — rename to "Legal Review", add Consolidate / Enhance buttons inside card.
+- `src/components/cogniblend/lc/Pass3EditorBody.tsx` — drop the Re-run button.
+- `src/components/cogniblend/lc/Pass3ReviewHeader.tsx` — drop the duplicate Rerun/Reorganize buttons (the chips/summary stay).
+- `src/components/cogniblend/lc/Pass3StatusStrip.tsx` — if its only buttons were `onRerunAi` / `onReorganize`, simplify or inline; verify after edit.
+- `src/pages/cogniblend/LcLegalWorkspacePage.tsx` — drop the action props passed to `LcSourceDocUpload`.
+- `src/components/cogniblend/curation/CuratorComplianceTab.tsx` — same prop cleanup so STRUCTURED Curator path stays consistent.
 
-3. Confirm `Legal Documents` list shows:
-   - source docs as `Source Input`
-   - unified SPA as `Final Agreement`
+## Verification
 
-4. Confirm the two action buttons are visible in the source-doc card
+1. Upload 3 different `.docx` files in a row — all succeed and appear in the list.
+2. Click **Consolidate uploaded documents** → unified agreement appears in the editor, status `organized`.
+3. Click **Enhance with AI (optional)** → unified agreement updates, status `ai_suggested`.
+4. Edit, click **Save Draft** → autosaved.
+5. Click **Accept Legal Documents** → status `accepted`, banner appears.
+6. Click **Submit to Curation** → success toast, returned to Curator.
+7. STRUCTURED Curator legal tab still works (same buttons in its panel).
+8. `npx tsc --noEmit` passes.
 
-5. Click `Organize & Merge`
-   - unified agreement updates
-   - status becomes `organized`
+## Out of scope
 
-6. Click `Run AI Pass 3`
-   - unified agreement updates
-   - status becomes `ai_suggested`
+- Renaming `document_type` enum values.
+- Touching Pass 1 / Pass 2 / `complete_legal_review` RPC.
+- Any change to the QUICK auto-accept path.
 
-7. Accept the unified agreement
-   - status becomes `accepted`
-   - LC approval banner appears
-
-8. Click `Submit to Curation`
-   - success toast says it is handed back to Curator
-
-## Files to touch
-
-- `supabase/migrations/<new>_fix_challenge_legal_doc_status_trigger.sql`
-- `src/hooks/queries/useSourceDocs.ts`
-
-Possibly, only if cleanup is needed after verification:
-- `src/components/cogniblend/lc/LcSourceDocUpload.tsx`
-- `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`
-- `src/components/cogniblend/lc/LcLegalSubmitFooter.tsx`
-
-## Why this is the right fix
-
-The visible UI problem is downstream of a DB trigger mismatch, not a missing React feature. The app is already trying to save `SOURCE_DOC` rows and already has the intended LC actions in the upload card. Once the trigger is corrected, the missing documents and downstream workflow should start behaving as designed.
