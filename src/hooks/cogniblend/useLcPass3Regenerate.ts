@@ -2,7 +2,7 @@
  * useLcPass3Regenerate — Pass 3 regenerate mutations (run + organize).
  * Extracted from useLcPass3Mutations to keep that hook ≤ 250 lines (R1).
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
