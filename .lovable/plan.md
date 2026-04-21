@@ -1,120 +1,87 @@
 
 
-# Plan — "No-change" toast + red diff highlighting for regenerated content
+# Plan — Fix invisible Organize action: single shared review state + progress + diff visibility
 
-## Why the editor sometimes appears unchanged
+## Root cause (verified)
 
-The Consolidate / Re-run pipeline always regenerates and overwrites the `UNIFIED_SPA` row, but the **rendered HTML can be byte-for-byte (or near-identical) to what was already there** — especially when:
-- The same source docs are fed in twice with no edits.
-- Organize-only mode produces deterministic output (temperature 0.1).
-- AI returns the same merged structure.
+Two separate `useLcPass3Review` instances exist:
 
-Today the UI silently swaps the same content back in — the user sees no visible change and assumes the action did nothing. We need to (a) detect "no meaningful change" and (b) make real changes visible.
+- **Page** (`LcLegalWorkspacePage`): owns the buttons in `LcSourceDocUpload` (Run AI Pass 3 / Organize & Merge). No `onRegenerateComplete` callback.
+- **Panel** (`LcPass3ReviewPanel` rendered inside `LcUnifiedAgreementCard`): owns the editor + diff hook, with its own `onRegenerateComplete` arm callback.
 
-## Two behaviours to add
+Consequence when user clicks **Organize** at the top of the page:
+1. The page-hook's `organizePass3` mutation fires.
+2. The panel-hook is a *different* `useMutation` instance — its `isPending` stays `false`. **Panel shows no loader, no progress.**
+3. The page-hook's `onRegenerateComplete` is `undefined` — diff hook is never armed. Even after the row is refetched, **no red highlight appears**.
+4. React Query cache *does* invalidate (same key) so the editor content eventually swaps in silently — looking like "nothing happened" because the swap is byte-identical or visually the same.
 
-### 1. Detect "no meaningful change" → toast instead of silent swap
+## Fix — One source of truth
 
-After Consolidate / Re-run / Enhance returns, compare the new `unifiedDocHtml` against the previous one (snapshot taken **before** the mutation):
+### 1. Hoist `useLcPass3Review` into the page, pass everything down
 
-- Normalize both (strip whitespace runs, collapse `\n`, ignore attribute order on safe tags).
-- If the normalized strings are equal:
-  - Show toast: *"No changes — the regenerated document is identical to the current draft."*
-  - Suppress the success toast ("Source documents organized & merged" / "Legal AI review completed") to avoid mixed signalling.
-  - Editor content is left untouched.
-- Else: proceed normally and trigger the red-diff highlight (below).
+`LcLegalWorkspacePage` already calls `useLcPass3Review`. Make it the **only** instance:
 
-Implementation site: `useLcPass3Mutations.ts` already runs `onSuccess`. We capture `prevHtml` from `getCurrentDoc()` (extend the snapshot to expose `unifiedDocHtml`) before invoking the edge function, then compare against the freshly-fetched row inside `onSuccess`.
+- Add `onRegenerateComplete` to that single call. Store the callback in a ref that the panel registers via a new prop.
+- Pass the live `pass3` object (or the precise fields needed) into both `LcSourceDocUpload` and `LcUnifiedAgreementCard`.
+- `LcPass3ReviewPanel` accepts the shared `pass3` snapshot as a prop instead of calling the hook itself.
 
-### 2. Red diff highlighting for changed content
+### 2. Wire the diff-arm callback through the shared instance
 
-Visually mark every clause that differs between `prevHtml` (pre-regenerate) and the new `unifiedDocHtml`.
+- `LcPass3ReviewPanel` exposes its `armRegenerate` upward via a new prop `onRegisterArm: (fn) => void` (set once on mount).
+- `LcLegalWorkspacePage` stores the registered function in a `useRef` and forwards it as `onRegenerateComplete` to the single `useLcPass3Review` call.
+- Result: regardless of which button fires the mutation (page-level or stale-banner inside the panel), the same arm callback runs → red highlight always appears on substantive changes; "No changes…" info toast always appears on identical regenerations.
 
-**Approach (pragmatic, no heavy diff library):**
+### 3. Visible progress in the panel during Organize / Pass 3
 
-- Add a small utility `src/lib/cogniblend/legal/diffHighlight.ts` that:
-  - Parses both HTML strings via `DOMParser`.
-  - Walks block-level nodes (`p`, `li`, `h2`, `h3`, `h4`, `blockquote`, `td`) in document order.
-  - For each new block, computes a normalized text fingerprint (lowercased, whitespace-collapsed).
-  - If a block's fingerprint did NOT exist in the previous doc's fingerprint set, wrap its inner HTML with `<span class="legal-diff-added">…</span>`.
-  - Returns the annotated HTML.
-- This is content-level, not character-level — fits the legal-doc context where users care about clause-level changes, not punctuation churn.
+Currently the panel only shows the loader when `pass3Status === 'running'`, which depends on `runPass3.isPending || organizePass3.isPending` from the *panel's own* hook instance. With Fix 1 this becomes correct, but also:
 
-**Where to apply:**
+- Show a **`<Progress>`-style indeterminate bar** at the top of the panel while `isRunning || isOrganizing`, with a sub-line "Organizing & merging source documents…" or "AI is enhancing the unified agreement…" depending on which mutation is active.
+- Disable buttons everywhere (`pass3Busy = isRunning || isOrganizing`) — already done in `LcSourceDocUpload`, will now be coherent.
 
-- `LcPass3ReviewPanel.tsx`: store a `pendingHighlightAgainst: string | null` ref that's set to the pre-regenerate HTML when a Consolidate/Re-run mutation starts.
-- When `review.unifiedDocHtml` updates after the mutation:
-  - If `pendingHighlightAgainst` is set and new HTML ≠ old HTML, run `annotateAdditions(prevHtml, newHtml)` and call `editor.commands.setContent(annotated, { emitUpdate: false })`.
-  - Persist the **un-annotated** HTML to state for `editedHtml` so saves/accepts never store the `<span class="legal-diff-added">` markup.
-  - Clear `pendingHighlightAgainst`.
-- A subtle "Showing changes from previous version" pill renders in `Pass3ReviewHeader` while highlights are active, with a `Clear highlights` button.
+### 4. Tighten the diff hook so it never silently no-ops on real changes
 
-**CSS** in `src/styles/legal-document.css`:
+Small hardening (defensive after Fix 1 is in place):
 
-```css
-.legal-doc .legal-diff-added {
-  color: hsl(var(--destructive));
-  background-color: hsl(var(--destructive) / 0.06);
-  border-radius: 2px;
-  padding: 0 2px;
-}
-.legal-doc.is-accepted .legal-diff-added {
-  color: inherit;
-  background-color: transparent;
-  padding: 0;
-}
-```
+- When `armRegenerate` is called with `outcome='changed'`, also force `setHighlightActive(true)` if `annotateAdditions` produced any annotation, *and* always run the editor `setContent` with the annotated HTML even if `cleanIncoming === editor.getHTML()` (this byte-equal short-circuit is the only path that can swallow a real diff when prev/next text matched but ordering changed).
+- When `outcome='unchanged'`, the existing "No changes — identical to current draft" info toast continues to fire from `useLcPass3Regenerate.reportOutcome`. No change needed there once Fix 1 is in.
 
-The `is-accepted` class is added to the `.legal-doc` wrapper in `Pass3EditorBody` whenever `isPass3Accepted` is true — this guarantees red turns to black on Accept without touching the underlying HTML.
+### 5. Toast timing
 
-### 3. Stripping highlights on Save / Accept (data integrity)
-
-Even though we never put the spans into editor state we control, a defensive `stripDiffSpans(html)` step runs inside `saveEdits` and `acceptPass3` mutationFns to scrub any `legal-diff-added` span from the HTML before it hits Postgres. The DB always stores clean, signable content.
-
-### 4. Highlights survive only the current session
-
-Highlights are session-only (in-memory). On page reload, the editor loads `unifiedDocHtml` clean (no spans, no comparison). This avoids stale cross-version diffs and keeps the DB pristine.
+`reportOutcome` toasts BEFORE the React Query invalidation finishes the refetch. Move the toast call so it fires inside `onSuccess` *after* the latest row is fetched (the code already awaits `fetchLatestUnified` before invalidating — toast call comes right after that, which is correct). No structural change; verify only.
 
 ## Files touched
 
-1. **`src/lib/cogniblend/legal/diffHighlight.ts`** — new (~80 lines). `annotateAdditions(prev, next)` + `stripDiffSpans(html)` + `htmlEqualsNormalized(a, b)`.
-2. **`src/styles/legal-document.css`** — add the two `.legal-diff-added` rules and the `is-accepted` override.
-3. **`src/hooks/cogniblend/useLcPass3Mutations.ts`** — capture `prevHtml` before mutation; in `onSuccess` re-read the new HTML, compare via `htmlEqualsNormalized`, suppress success toast and emit info toast on no-change. Strip diff spans in `saveEdits` + `acceptPass3` payloads.
-4. **`src/hooks/cogniblend/useLcPass3Review.ts`** — extend `getCurrentDoc()` snapshot with current `unifiedDocHtml`; expose a `lastRegenerateOutcome: 'changed' | 'unchanged' | null` flag (small addition, stays under 250 lines).
-5. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — track `pendingHighlightAgainst`, run `annotateAdditions` on next-content arrival, drive `is-accepted` class via prop to `Pass3EditorBody`. Stay ≤ 250 lines (pull the highlight effect into `useLcPass3DiffHighlight.ts` if needed).
-6. **`src/components/cogniblend/lc/Pass3EditorBody.tsx`** — accept `isAccepted` prop already present; add `is-accepted` class on the `.legal-doc` wrapper. Add a small "Showing changes" pill + Clear button slot.
-7. **`src/components/cogniblend/lc/Pass3ReviewHeader.tsx`** — optional: surface the "Showing changes from previous version" pill (delegated from parent via prop), with a small `X` to clear.
+1. **`src/pages/cogniblend/LcLegalWorkspacePage.tsx`** — pass shared `pass3` + `armRef` down; remove duplicate hook usage.
+2. **`src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx`** — accept `pass3` and `onRegisterArm` props; forward to `LcPass3ReviewPanel`.
+3. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — accept `pass3` snapshot + `onRegisterArm` props instead of calling `useLcPass3Review`; register the diff hook's `armRegenerate` once on mount; render new progress bar.
+4. **`src/components/cogniblend/lc/Pass3ProgressBar.tsx`** *(new, ≤ 50 lines)* — small indeterminate progress + status sub-line component using existing `<Progress>`.
+5. **`src/hooks/cogniblend/useLcPass3DiffHighlight.ts`** — remove the `cleanIncoming === editor.getHTML()` early return when `pendingHighlightAgainst.current` is set, so a real arm always renders annotations.
 
-No DB migration. No edge function change. No new dependency. All files remain ≤ 250 lines (R1).
+No DB migration. No edge function change. No new dependency. All files stay ≤ 250 lines (R1).
 
-## Behaviour matrix after this change
+## Behaviour after fix
 
-| Action | Resulting content differs? | Toast | Editor visual |
-|---|---|---|---|
-| Consolidate (first time, idle) | n/a (no prior) | "Source documents organized & merged" | Plain |
-| Consolidate again, identical output | No | **"No changes — the regenerated document is identical to the current draft."** | Unchanged |
-| Consolidate again, content differs | Yes | "Source documents organized & merged" | New content; **changed clauses in red** |
-| Re-run Pass 3, content differs | Yes | "Legal AI review completed" | New content; **changed clauses in red** |
-| Re-run Pass 3, identical output | No | **"No changes…"** info toast | Unchanged |
-| LC edits a clause, autosaves | n/a | "Legal document saved" | Edits as plain text (no red — edits aren't AI changes) |
-| LC clicks Accept | n/a | "Legal documents approved" | **All red turns to black** via `.is-accepted` class |
-| Page reload after Accept | n/a | — | Plain black (DB has no span markup) |
+| Action | Visible during | Visible after |
+|---|---|---|
+| Click **Organize & Merge** (page button), substantive change | Indeterminate progress bar + "Organizing & merging source documents…" | Editor updates; **changed clauses in red**; "Source documents organized & merged" toast |
+| Click **Organize & Merge**, identical output | Same progress bar | Editor unchanged; **"No changes — the regenerated document is identical to the current draft."** info toast |
+| Click **Run AI Pass 3** (page button), substantive change | Progress bar + "AI is enhancing the unified agreement…" | Editor updates; red highlights; "Legal AI review completed" toast |
+| Click **Re-organize** from stale banner inside panel | Same progress bar in same panel | Same as above |
+| LC clicks **Accept** | Existing accept flow | All red turns black via `.is-accepted` |
+| Page reload | — | Plain black (DB has no diff spans) |
 
 ## Verification
 
-1. Fresh challenge, upload two docs, click Consolidate → draft appears, no red highlights (first generation).
-2. Click Consolidate again with no upload changes → info toast *"No changes…"*; success toast does NOT appear; editor content unchanged.
-3. Upload a third doc, click Consolidate → success toast; new clauses pulled from the third doc render in red; existing clauses remain black.
-4. Edit a red clause manually → red span removed by editor on input; autosave persists clean HTML.
-5. Click Re-run Pass 3 with substantive change → success toast; AI-rewritten clauses render in red.
-6. Click Accept → all red text turns black instantly; DB row contains zero `legal-diff-added` spans (verified via Supabase read).
-7. Reload page → editor shows clean black content.
-8. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
+1. Hard reload the LC workspace, click Organize → progress bar appears within 100ms; ≤ 30s later editor renders; if content changed, clauses are red; if not, info toast says "No changes…".
+2. Same outcome when clicking Re-organize from the stale alert inside the panel.
+3. Same outcome for Run AI Pass 3 (both entry points).
+4. Click Accept → red turns to black instantly; DB row contains zero `legal-diff-added` spans.
+5. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
 
 ## Out of scope
 
-- Character-level diff (would require `diff-match-patch` and add weight for marginal gain).
-- Showing deletions inline (red strikethrough of removed clauses) — adds clutter for the legal-review use case; can be added later if requested.
-- Persisting highlights across reloads or across users.
+- Character-level diff.
+- Persisting highlights across reloads.
 - Changing the regenerate-from-SOURCE_DOC architecture.
+- Renaming statuses or DB columns.
 
