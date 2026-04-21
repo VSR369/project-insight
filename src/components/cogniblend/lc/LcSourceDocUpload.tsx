@@ -237,55 +237,80 @@ export function LcSourceDocUpload({
               Curator, and you with the curated challenge context, then drafts
               a single seamless agreement for the Solution Provider to sign.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {onRunPass3 && (
-                <ConfirmRegenerateDialog
-                  onConfirm={onRunPass3}
-                  skipConfirm={!hasDraft}
-                  isDirty={isDirty}
-                  disabled={isBusy || pass3Busy}
-                  mode="pass3"
-                  trigger={
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="gap-1.5"
-                    >
-                      {isRunningPass3 ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                      )}
-                      {runLabel}
-                    </Button>
-                  }
-                />
-              )}
-              {onOrganizeOnly && (
-                <ConfirmRegenerateDialog
-                  onConfirm={onOrganizeOnly}
-                  skipConfirm={!hasDraft}
-                  isDirty={isDirty}
-                  disabled={isBusy || pass3Busy}
-                  mode="organize"
-                  trigger={
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                    >
-                      {isOrganizing ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
-                      {organizeLabel}
-                    </Button>
-                  }
-                />
-              )}
-            </div>
+            <TooltipProvider delayDuration={200}>
+              <div className="flex flex-wrap gap-2">
+                {onRunPass3 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <ConfirmRegenerateDialog
+                          onConfirm={onRunPass3}
+                          skipConfirm={!hasDraft}
+                          isDirty={isDirty}
+                          disabled={isBusy || pass3Busy}
+                          mode="pass3"
+                          trigger={
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="gap-1.5"
+                            >
+                              {isRunningPass3 ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Sparkles className="h-3.5 w-3.5" />
+                              )}
+                              {runLabel}
+                            </Button>
+                          }
+                        />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Full AI legal pass — drafts and rewrites the unified
+                      agreement using your sources, the challenge context, and
+                      the regulatory packs configured for this challenge. Can
+                      add and remove clauses. Status becomes “AI-suggested”.
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {onOrganizeOnly && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <ConfirmRegenerateDialog
+                          onConfirm={onOrganizeOnly}
+                          skipConfirm={!hasDraft}
+                          isDirty={isDirty}
+                          disabled={isBusy || pass3Busy}
+                          mode="organize"
+                          trigger={
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="gap-1.5"
+                            >
+                              {isOrganizing ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <FileText className="h-3.5 w-3.5" />
+                              )}
+                              {organizeLabel}
+                            </Button>
+                          }
+                        />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs">
+                      Cleans and merges clauses from your uploaded source
+                      documents into the unified agreement. No new wording is
+                      generated. Status becomes “organized”.
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </TooltipProvider>
           </div>
         )}
       </CardContent>
