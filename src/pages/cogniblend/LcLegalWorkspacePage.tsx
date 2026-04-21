@@ -23,8 +23,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
-import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
-import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
+import { LcLegalSubmitFooter } from '@/components/cogniblend/lc/LcLegalSubmitFooter';
 import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
 import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
@@ -260,39 +259,15 @@ export default function LcLegalWorkspacePage() {
         </div>
       )}
 
-      <Card>
-        <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">
-              {totalAccepted} legal document{totalAccepted !== 1 ? 's' : ''} on file
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {challenge?.current_phase !== 2
-                ? `Challenge is currently at Phase ${challenge?.current_phase ?? '?'}. It must be at Phase 2 before LC can submit to curation.`
-                : 'Run Pass 3 and accept the unified agreement before submitting.'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <LcReturnToCurator challengeId={challengeId!} userId={user?.id ?? ''} disabled={submitting} />
-            <LcApproveAction challengeId={challengeId!} userId={user?.id ?? ''} disabled={submitting} />
-          </div>
-          <Button
-            onClick={handleSubmitToCuration}
-            disabled={
-              submitting
-              || challenge?.current_phase !== 2
-              || !!challenge?.lc_compliance_complete
-            }
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Send className="h-4 w-4 mr-2" />
-            )}
-            {challenge?.lc_compliance_complete ? 'Already Submitted' : 'Submit to Curation'}
-          </Button>
-        </CardContent>
-      </Card>
+      <LcLegalSubmitFooter
+        challengeId={challengeId!}
+        userId={user?.id ?? ''}
+        totalAccepted={totalAccepted}
+        currentPhase={challenge?.current_phase}
+        lcComplianceComplete={challenge?.lc_compliance_complete}
+        submitting={submitting}
+        onSubmit={handleSubmitToCuration}
+      />
     </div>
   );
 }
