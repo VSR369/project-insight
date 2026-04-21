@@ -234,6 +234,7 @@ export function LcSourceDocUpload({
                   skipConfirm={!hasDraft}
                   isDirty={isDirty}
                   disabled={isBusy || pass3Busy}
+                  mode="pass3"
                   trigger={
                     <Button
                       type="button"
@@ -256,6 +257,7 @@ export function LcSourceDocUpload({
                   skipConfirm={!hasDraft}
                   isDirty={isDirty}
                   disabled={isBusy || pass3Busy}
+                  mode="organize"
                   trigger={
                     <Button
                       type="button"

@@ -2,11 +2,12 @@
  * useLcPass3Regenerate — Pass 3 regenerate mutations (run + organize).
  * Extracted from useLcPass3Mutations to keep that hook ≤ 250 lines (R1).
  */
+import { useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { handleMutationError } from '@/lib/errorHandler';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { htmlEqualsNormalized } from '@/lib/cogniblend/legal/diffHighlight';
 
 const PASS3_KEY = (challengeId: string | undefined) =>
@@ -168,6 +169,18 @@ export function useLcPass3Regenerate({
     onError: (e) =>
       handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Regenerate' }),
   });
+
+  // Defensive invariant: the two regenerate flows must never run concurrently.
+  // If they ever pend together, a wiring regression has crossed the streams.
+  useEffect(() => {
+    if (runPass3.isPending && organizePass3.isPending) {
+      logWarning('Pass 3 run and organize mutations are pending simultaneously', {
+        operation: 'pass3_regenerate_invariant',
+        component: 'useLcPass3Regenerate',
+        additionalData: { challengeId },
+      });
+    }
+  }, [runPass3.isPending, organizePass3.isPending, challengeId]);
 
   return { runPass3, organizePass3 };
 }
