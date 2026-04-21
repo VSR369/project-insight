@@ -218,7 +218,7 @@ export function useLcPass3Review(challengeId: string | undefined) {
       handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Review' }),
   });
 
-
+  const saveEdits = useMutation({
     mutationFn: async (html: string) => {
       const docId = query.data?.id;
       if (!docId) throw new Error('No legal document to save');
