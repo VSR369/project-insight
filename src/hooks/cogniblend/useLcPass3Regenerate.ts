@@ -53,6 +53,7 @@ export function useLcPass3Regenerate({
 }: UseLcPass3RegenerateArgs) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const mutexRef = useRef(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: PASS3_KEY(challengeId) });
