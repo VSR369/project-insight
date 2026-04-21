@@ -5,7 +5,7 @@
 import { useRef, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { EditorContent } from '@tiptap/react';
-import { CheckCircle2, FileText, Loader2, Save, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileText, Loader2, Save, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
@@ -32,6 +32,12 @@ export interface Pass3EditorBodyProps {
   onReorganize: () => void;
   onSave: () => void;
   onAccept: () => void;
+  /** When the loaded UNIFIED_SPA was produced by Re-organize (no AI). */
+  isOrganizedOutput?: boolean;
+  /** Names of source documents that fed the organize merge. */
+  sourceDocNames?: string[];
+  /** True if the server flagged any clause as not traceable to source docs. */
+  hasUnverifiedSourceMatch?: boolean;
 }
 
 export function Pass3EditorBody({
