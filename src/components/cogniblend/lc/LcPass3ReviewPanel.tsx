@@ -233,6 +233,9 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               onReorganize={() => review.organizeOnly()}
               onSave={() => review.saveEdits(cleanEdited)}
               onAccept={() => review.acceptPass3()}
+              isOrganizedOutput={isOrganizedOutput}
+              sourceDocNames={sourceDocNames}
+              hasUnverifiedSourceMatch={hasUnverifiedSourceMatch}
             />
           </>
         )}
