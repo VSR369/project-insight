@@ -14,6 +14,10 @@ import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyLcApproved } from '@/lib/cogniblend/workflowNotifications';
 import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
+import {
+  htmlEqualsNormalized,
+  stripDiffSpans,
+} from '@/lib/cogniblend/legal/diffHighlight';
 
 const PASS3_KEY = (challengeId: string | undefined) =>
   ['pass3-legal-review', challengeId] as const;
