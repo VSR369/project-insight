@@ -12,6 +12,11 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
+import {
+  ParagraphWithClass,
+  HeadingWithClass,
+  DiffAddedMark,
+} from '@/components/cogniblend/lc/Pass3EditorExtensions';
 import { Loader2, RefreshCw, Shield, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -68,7 +73,10 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
   const editor = useEditor(
     {
       extensions: [
-        StarterKit,
+        StarterKit.configure({ paragraph: false, heading: false }),
+        ParagraphWithClass,
+        HeadingWithClass,
+        DiffAddedMark,
         Underline,
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
@@ -143,7 +151,13 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
     cleanEdited !== cleanUnified;
 
   const sourceDocsQuery = useSourceDocs(review.challengeId ?? undefined);
-  const sourceDocNames = (sourceDocsQuery.data ?? [])
+  const allSourceDocs = sourceDocsQuery.data ?? [];
+  const sourceDocNames = allSourceDocs
+    .filter((d) => !!d.content_html && d.content_html.trim().length > 0)
+    .map((d) => d.document_name)
+    .filter((n): n is string => !!n);
+  const skippedSourceDocNames = allSourceDocs
+    .filter((d) => !d.content_html || d.content_html.trim().length === 0)
     .map((d) => d.document_name)
     .filter((n): n is string => !!n);
   const isOrganizedOutput = review.aiReviewStatus === 'organized';
@@ -235,7 +249,9 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               onAccept={() => review.acceptPass3()}
               isOrganizedOutput={isOrganizedOutput}
               sourceDocNames={sourceDocNames}
+              skippedSourceDocNames={skippedSourceDocNames}
               hasUnverifiedSourceMatch={hasUnverifiedSourceMatch}
+              aiChangesSummary={review.changesSummary ?? ''}
             />
           </>
         )}
