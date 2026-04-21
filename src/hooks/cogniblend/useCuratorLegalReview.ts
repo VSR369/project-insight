@@ -15,6 +15,7 @@ import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyCurationComplete } from '@/lib/cogniblend/workflowNotifications';
+import { ensureFreshSession } from '@/lib/cogniblend/ensureFreshSession';
 
 const STALE_KEY = (challengeId: string | undefined) =>
   ['pass3-stale', challengeId] as const;
