@@ -33,7 +33,14 @@ const STALE_KEY = (challengeId: string | undefined) =>
 const OP_MODEL_KEY = (challengeId: string | undefined) =>
   ['challenge-operating-model', challengeId] as const;
 
-export function useLcPass3Review(challengeId: string | undefined) {
+export interface UseLcPass3ReviewOptions {
+  onRegenerateComplete?: (prevHtml: string, outcome: 'changed' | 'unchanged') => void;
+}
+
+export function useLcPass3Review(
+  challengeId: string | undefined,
+  options?: UseLcPass3ReviewOptions,
+) {
   const query = useQuery({
     queryKey: PASS3_KEY(challengeId),
     enabled: !!challengeId,
