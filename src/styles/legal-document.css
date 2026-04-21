@@ -192,6 +192,20 @@
   text-decoration: underline;
 }
 
+/* Diff highlights — applied after a Consolidate / Re-run when clauses change.
+   Cleared visually (not in HTML) once the document is accepted. */
+.legal-doc .legal-diff-added {
+  color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 0.06);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.legal-doc.is-accepted .legal-diff-added {
+  color: inherit;
+  background-color: transparent;
+  padding: 0;
+}
+
 @media print {
   .legal-doc {
     font-size: 12pt;

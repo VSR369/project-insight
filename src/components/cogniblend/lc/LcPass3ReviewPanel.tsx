@@ -20,9 +20,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
+import { useLcPass3DiffHighlight } from '@/hooks/cogniblend/useLcPass3DiffHighlight';
 import { type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
+import { stripDiffSpans } from '@/lib/cogniblend/legal/diffHighlight';
 import '@/styles/legal-document.css';
 
 export interface LcPass3ReviewPanelProps {
@@ -54,8 +56,12 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
 }
 
 export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
-  const review = useLcPass3Review(challengeId);
   const [editedHtml, setEditedHtml] = useState<string>('');
+  const armRef = { current: null as null | ((p: string, o: 'changed' | 'unchanged') => void) };
+
+  const review = useLcPass3Review(challengeId, {
+    onRegenerateComplete: (prevHtml, outcome) => armRef.current?.(prevHtml, outcome),
+  });
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
   const editor = useEditor(
@@ -73,6 +79,14 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
     },
     [protectedNormalized.join('|')],
   );
+
+  const diff = useLcPass3DiffHighlight({
+    editor,
+    unifiedDocHtml: review.unifiedDocHtml,
+    isPass3Accepted: review.isPass3Accepted,
+    setEditedHtml,
+  });
+  armRef.current = diff.armRegenerate;
 
   useEffect(() => {
     if (!editor || protectedNormalized.length === 0) return;
@@ -101,14 +115,6 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
 
   useEffect(() => {
     if (!editor) return;
-    if (review.unifiedDocHtml && review.unifiedDocHtml !== editor.getHTML()) {
-      editor.commands.setContent(review.unifiedDocHtml, { emitUpdate: false });
-      setEditedHtml(review.unifiedDocHtml);
-    }
-  }, [editor, review.unifiedDocHtml]);
-
-  useEffect(() => {
-    if (!editor) return;
     editor.setEditable(!review.isPass3Accepted);
   }, [editor, review.isPass3Accepted]);
 
@@ -125,10 +131,12 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
         ? 'organized'
         : 'ai_suggested';
 
+  const cleanUnified = stripDiffSpans(review.unifiedDocHtml ?? '');
+  const cleanEdited = stripDiffSpans(editedHtml ?? '');
   const isDirty =
     !review.isPass3Accepted &&
-    editedHtml.trim().length > 0 &&
-    editedHtml !== review.unifiedDocHtml;
+    cleanEdited.trim().length > 0 &&
+    cleanEdited !== cleanUnified;
 
   return (
     <Card>
@@ -201,13 +209,15 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               isPass3Accepted={review.isPass3Accepted}
               reviewerUserId={review.reviewerUserId}
               reviewedAt={review.reviewedAt}
-              editedHtml={editedHtml}
+              editedHtml={cleanEdited}
               isRunning={review.isRunning}
               isSaving={review.isSaving}
               isAccepting={review.isAccepting}
               isDirty={isDirty}
+              highlightActive={diff.highlightActive && !review.isPass3Accepted}
+              onClearHighlights={diff.clearHighlights}
               onRerun={() => review.runPass3()}
-              onSave={() => review.saveEdits(editedHtml)}
+              onSave={() => review.saveEdits(cleanEdited)}
               onAccept={() => review.acceptPass3()}
             />
           </>
