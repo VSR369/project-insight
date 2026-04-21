@@ -34,10 +34,14 @@ export interface Pass3EditorBodyProps {
   onAccept: () => void;
   /** When the loaded UNIFIED_SPA was produced by Re-organize (no AI). */
   isOrganizedOutput?: boolean;
-  /** Names of source documents that fed the organize merge. */
+  /** Names of source documents that contributed extracted text. */
   sourceDocNames?: string[];
+  /** Names of source documents whose text could not be extracted (e.g. PDFs). */
+  skippedSourceDocNames?: string[];
   /** True if the server flagged any clause as not traceable to source docs. */
   hasUnverifiedSourceMatch?: boolean;
+  /** Server-generated `ai_changes_summary` for the current unified doc. */
+  aiChangesSummary?: string;
 }
 
 export function Pass3EditorBody({
@@ -60,7 +64,9 @@ export function Pass3EditorBody({
   onAccept,
   isOrganizedOutput = false,
   sourceDocNames = [],
+  skippedSourceDocNames = [],
   hasUnverifiedSourceMatch = false,
+  aiChangesSummary = '',
 }: Pass3EditorBodyProps) {
   const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const hasDraft = unifiedDocHtml.trim().length > 0;
@@ -76,23 +82,45 @@ export function Pass3EditorBody({
 
       {isOrganizedOutput && !isPass3Accepted && (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            <FileText className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              Organize merged content from {sourceDocNames.length} source
-              document{sourceDocNames.length === 1 ? '' : 's'}
-              {sourceDocNames.length > 0 ? `: ${sourceDocNames.join(', ')}` : ''}.
-              No new wording was generated.
-            </span>
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-1">
+            <div className="flex items-start gap-2">
+              <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Organize merged content from {sourceDocNames.length} source
+                document{sourceDocNames.length === 1 ? '' : 's'}
+                {sourceDocNames.length > 0 ? `: ${sourceDocNames.join(', ')}` : ''}.
+                No new wording was generated.
+              </span>
+            </div>
+            {skippedSourceDocNames.length > 0 && (
+              <div className="pl-5 text-[11px] italic">
+                {skippedSourceDocNames.length} source
+                {skippedSourceDocNames.length === 1 ? ' had' : 's had'} no
+                extractable text and {skippedSourceDocNames.length === 1 ? 'was' : 'were'}{' '}
+                skipped: {skippedSourceDocNames.join(', ')}.
+              </div>
+            )}
           </div>
           {hasUnverifiedSourceMatch && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                Some clauses could not be traced back to your uploaded sources.
-                Review carefully or re-upload more complete source documents
-                before accepting.
-              </span>
+            <div className="space-y-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Some clauses could not be traced back to your uploaded sources.
+                  Review carefully or re-upload more complete source documents
+                  before accepting.
+                </span>
+              </div>
+              {aiChangesSummary.trim().length > 0 && (
+                <details className="pl-5">
+                  <summary className="cursor-pointer text-[11px] font-medium underline-offset-2 hover:underline">
+                    View AI summary
+                  </summary>
+                  <p className="mt-1 whitespace-pre-wrap text-[11px] text-destructive/90">
+                    {aiChangesSummary}
+                  </p>
+                </details>
+              )}
             </div>
           )}
         </div>

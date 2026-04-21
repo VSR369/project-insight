@@ -1,21 +1,18 @@
 /**
  * diffHighlight — clause-level diff annotation for legal documents.
  *
- * Used by the LC Pass 3 panel to mark added AND removed clauses after a
- * Consolidate / Re-run. Block-level (paragraph/list-item/heading)
- * fingerprinting — sufficient for legal review where clauses, not chars,
- * are the meaningful unit.
+ * Block-level (paragraph/list-item/heading) fingerprinting — the meaningful
+ * unit for legal review. Visual markers:
+ *   - `legal-diff-added`            — newly inserted blocks (red)
+ *   - `legal-diff-removed`          — re-injected dropped blocks (strike) anchored under matching <h2>
+ *   - `legal-diff-removed-section`  — trailing group for orphan removed blocks (no matching <h2>)
  *
- * Two visual markers:
- *   - `legal-diff-added`   — wraps inner HTML of newly inserted blocks (red)
- *   - `legal-diff-removed` — re-injected blocks that were dropped (strike)
- *
- * All exports are pure / SSR-safe (DOMParser is browser-only; functions
- * gracefully no-op when `typeof window === 'undefined'`).
+ * SSR-safe: DOMParser usage is browser-guarded.
  */
 
 const DIFF_ADDED_CLASS = 'legal-diff-added';
 const DIFF_REMOVED_CLASS = 'legal-diff-removed';
+const DIFF_REMOVED_SECTION_CLASS = 'legal-diff-removed-section';
 const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, td';
 
 function getParser(): DOMParser | null {
@@ -27,12 +24,26 @@ function fingerprint(text: string): string {
   return text.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/**
+ * Extra-tolerant fingerprint: also strips leading list/section numbering
+ * like "1.", "1.1", "(a)", "(iii)", "Section 4 –", "Article II:" so that
+ * "1.1 Definitions" and "Definitions" don't appear as different blocks.
+ */
+function looseFingerprint(text: string): string {
+  let t = fingerprint(text);
+  // Strip leading enumerations (numbers, dotted, lettered, roman, "section/article/clause N")
+  t = t.replace(
+    /^(?:(?:section|article|clause|part)\s+)?(?:\(?[ivxlcdm0-9a-z]+\)?[.):\-\s]+){1,4}/i,
+    '',
+  );
+  return t.trim();
+}
+
 function serialize(doc: Document): string {
   return doc.body.innerHTML;
 }
 
 function findPrecedingH2(el: Element): Element | null {
-  // Walk up + back to find the nearest preceding <h2>.
   let cursor: Element | null = el;
   while (cursor) {
     let sibling: Element | null = cursor.previousElementSibling;
@@ -55,13 +66,16 @@ function findH2ByText(doc: Document, text: string): Element | null {
   return null;
 }
 
+function collectBlocks(doc: Document): Element[] {
+  return Array.from(doc.body.querySelectorAll(BLOCK_SELECTOR));
+}
+
 /**
- * Compare `prev` and `next`. Mark blocks present in `next` but not in `prev`
- * with `legal-diff-added`, and re-inject blocks present in `prev` but not
- * in `next` as `legal-diff-removed` blocks anchored under the matching
- * `<h2>` section heading (or at the top as fallback).
- *
- * If `prev` is empty, returns `next` unchanged (first generation).
+ * Compare `prev` and `next`. Mark added blocks in `next` with
+ * `legal-diff-added` and re-inject removed blocks (in `prev` but not in
+ * `next`) anchored under their original <h2> where possible. Orphans
+ * (no matching <h2>) are grouped into a trailing section so reviewers
+ * see them in one obvious place.
  */
 export function annotateDiff(prev: string, next: string): string {
   const parser = getParser();
@@ -73,25 +87,32 @@ export function annotateDiff(prev: string, next: string): string {
 
   // Build prev fingerprint → element map (keep first occurrence per fp).
   const prevByFp = new Map<string, Element>();
-  prevDoc.body.querySelectorAll(BLOCK_SELECTOR).forEach((el) => {
+  const prevLooseFps = new Set<string>();
+  collectBlocks(prevDoc).forEach((el) => {
     const fp = fingerprint(el.textContent ?? '');
     if (fp && !prevByFp.has(fp)) prevByFp.set(fp, el);
+    const loose = looseFingerprint(el.textContent ?? '');
+    if (loose) prevLooseFps.add(loose);
   });
 
-  // Collect next fingerprints.
+  // Collect next fingerprints (strict + loose).
   const nextFps = new Set<string>();
-  nextDoc.body.querySelectorAll(BLOCK_SELECTOR).forEach((el) => {
+  const nextLooseFps = new Set<string>();
+  collectBlocks(nextDoc).forEach((el) => {
     const fp = fingerprint(el.textContent ?? '');
     if (fp) nextFps.add(fp);
+    const loose = looseFingerprint(el.textContent ?? '');
+    if (loose) nextLooseFps.add(loose);
   });
 
-  // Mark ADDED blocks in next (not present in prev).
-  nextDoc.body.querySelectorAll(BLOCK_SELECTOR).forEach((el) => {
+  // Mark ADDED blocks in next (not present in prev under either fingerprint).
+  collectBlocks(nextDoc).forEach((el) => {
     const fp = fingerprint(el.textContent ?? '');
     if (!fp) return;
     if (prevByFp.has(fp)) return;
+    const loose = looseFingerprint(el.textContent ?? '');
+    if (loose && prevLooseFps.has(loose)) return;
     if (el.querySelector(`span.${DIFF_ADDED_CLASS}`)) return;
-    // Skip headings — adding a wrapper inside <h2> looks awkward.
     if (/^H[1-6]$/.test(el.tagName)) {
       el.classList.add(DIFF_ADDED_CLASS);
       return;
@@ -103,12 +124,13 @@ export function annotateDiff(prev: string, next: string): string {
     el.appendChild(span);
   });
 
-  // Inject REMOVED blocks (in prev but not in next) as struck-through markers,
-  // anchored under their original section heading where possible.
-  const firstNextBlock = nextDoc.body.querySelector(BLOCK_SELECTOR);
+  // Inject REMOVED blocks. Anchor under matching <h2> when possible; otherwise
+  // collect into a trailing section so they aren't dumped at the top.
+  const orphanRemoved: Element[] = [];
   prevByFp.forEach((prevEl, fp) => {
     if (nextFps.has(fp)) return;
-    // Skip headings — a removed section heading would clutter the navigator.
+    const loose = looseFingerprint(prevEl.textContent ?? '');
+    if (loose && nextLooseFps.has(loose)) return;
     if (/^H[1-6]$/.test(prevEl.tagName)) return;
 
     const removedEl = nextDoc.createElement(prevEl.tagName.toLowerCase());
@@ -123,31 +145,32 @@ export function annotateDiff(prev: string, next: string): string {
         return;
       }
     }
-    if (firstNextBlock && firstNextBlock.parentNode) {
-      firstNextBlock.parentNode.insertBefore(removedEl, firstNextBlock);
-    } else {
-      nextDoc.body.appendChild(removedEl);
-    }
+    orphanRemoved.push(removedEl);
   });
+
+  if (orphanRemoved.length > 0) {
+    const section = nextDoc.createElement('section');
+    section.className = DIFF_REMOVED_SECTION_CLASS;
+    section.setAttribute('data-removed-count', String(orphanRemoved.length));
+    orphanRemoved.forEach((el) => section.appendChild(el));
+    nextDoc.body.appendChild(section);
+  }
 
   return serialize(nextDoc);
 }
 
-/**
- * Backwards-compatible alias. Older call sites import `annotateAdditions`;
- * routing them through `annotateDiff` keeps behaviour consistent.
- */
+/** Backwards-compatible alias. */
 export function annotateAdditions(prev: string, next: string): string {
   return annotateDiff(prev, next);
 }
 
 /**
- * Remove every diff marker from HTML:
- *  - unwrap `span.legal-diff-added` (preserve inner content)
- *  - remove `class="legal-diff-added"` from headings (added inline)
- *  - delete `.legal-diff-removed` elements entirely
- *
- * Used defensively before persisting HTML so diff markup never reaches storage.
+ * Strip every diff marker from HTML. Used defensively before persisting so
+ * diff markup never reaches storage. Removes:
+ *  - `span.legal-diff-added` (unwrap, keep inner content)
+ *  - `legal-diff-added` class on headings
+ *  - `legal-diff-removed` blocks (delete entirely)
+ *  - `legal-diff-removed-section` containers (delete entirely)
  */
 export function stripDiffSpans(html: string): string {
   const parser = getParser();
@@ -166,16 +189,17 @@ export function stripDiffSpans(html: string): string {
     if (el.getAttribute('class') === '') el.removeAttribute('class');
   });
 
-  doc.body.querySelectorAll(`.${DIFF_REMOVED_CLASS}`).forEach((el) => {
-    el.parentNode?.removeChild(el);
-  });
+  doc.body
+    .querySelectorAll(`.${DIFF_REMOVED_CLASS}, .${DIFF_REMOVED_SECTION_CLASS}`)
+    .forEach((el) => {
+      el.parentNode?.removeChild(el);
+    });
 
   return serialize(doc);
 }
 
 /**
  * Compare two HTML strings ignoring whitespace and diff markers.
- * Returns true when the rendered, semantically meaningful content matches.
  */
 export function htmlEqualsNormalized(a: string, b: string): boolean {
   const normalize = (s: string) =>
@@ -185,4 +209,81 @@ export function htmlEqualsNormalized(a: string, b: string): boolean {
       .trim()
       .toLowerCase();
   return normalize(a) === normalize(b);
+}
+
+/**
+ * Count block-level additions and removals between `prev` and `next` for
+ * delta-aware UX (toasts, banners). Pure counts — does not mutate HTML.
+ */
+export function summarizeBlockDiff(
+  prev: string,
+  next: string,
+): { added: number; removed: number } {
+  const parser = getParser();
+  if (!parser) return { added: 0, removed: 0 };
+  if (!prev || !prev.trim()) {
+    // First generation — count next blocks as additions.
+    const nextDoc = parser.parseFromString(next ?? '', 'text/html');
+    const added = collectBlocks(nextDoc).filter(
+      (el) => !!fingerprint(el.textContent ?? '') && !/^H[1-6]$/.test(el.tagName),
+    ).length;
+    return { added, removed: 0 };
+  }
+
+  const prevDoc = parser.parseFromString(stripDiffSpans(prev), 'text/html');
+  const nextDoc = parser.parseFromString(stripDiffSpans(next ?? ''), 'text/html');
+
+  const prevFps = new Set<string>();
+  const prevLoose = new Set<string>();
+  collectBlocks(prevDoc).forEach((el) => {
+    if (/^H[1-6]$/.test(el.tagName)) return;
+    const fp = fingerprint(el.textContent ?? '');
+    if (fp) prevFps.add(fp);
+    const loose = looseFingerprint(el.textContent ?? '');
+    if (loose) prevLoose.add(loose);
+  });
+
+  const nextFps = new Set<string>();
+  const nextLoose = new Set<string>();
+  collectBlocks(nextDoc).forEach((el) => {
+    if (/^H[1-6]$/.test(el.tagName)) return;
+    const fp = fingerprint(el.textContent ?? '');
+    if (fp) nextFps.add(fp);
+    const loose = looseFingerprint(el.textContent ?? '');
+    if (loose) nextLoose.add(loose);
+  });
+
+  let added = 0;
+  nextFps.forEach((fp) => {
+    if (prevFps.has(fp)) return;
+    // Skip if loose match exists (numbering-only changes).
+    // Find the loose form for this fp by re-scanning is overkill; use heuristic:
+    // if the loose set sizes differ a lot, fall through.
+    added += 1;
+  });
+
+  let removed = 0;
+  prevFps.forEach((fp) => {
+    if (nextFps.has(fp)) return;
+    removed += 1;
+  });
+
+  // Apply loose-match dampening: subtract intersection-of-loose-fps that aren't strict matches.
+  let looseOverlap = 0;
+  prevLoose.forEach((l) => {
+    if (nextLoose.has(l)) looseOverlap += 1;
+  });
+  // Best-effort cap so we never report negative counts.
+  const strictOverlap = (() => {
+    let n = 0;
+    prevFps.forEach((fp) => {
+      if (nextFps.has(fp)) n += 1;
+    });
+    return n;
+  })();
+  const looseOnly = Math.max(0, looseOverlap - strictOverlap);
+  added = Math.max(0, added - looseOnly);
+  removed = Math.max(0, removed - looseOnly);
+
+  return { added, removed };
 }
