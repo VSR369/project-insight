@@ -214,8 +214,8 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               isSaving={review.isSaving}
               isAccepting={review.isAccepting}
               isDirty={isDirty}
-              highlightActive={highlightActive && !review.isPass3Accepted}
-              onClearHighlights={clearHighlights}
+              highlightActive={diff.highlightActive && !review.isPass3Accepted}
+              onClearHighlights={diff.clearHighlights}
               onRerun={() => review.runPass3()}
               onSave={() => review.saveEdits(cleanEdited)}
               onAccept={() => review.acceptPass3()}
