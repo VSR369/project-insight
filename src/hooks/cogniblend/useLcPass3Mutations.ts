@@ -66,11 +66,13 @@ export function useLcPass3Mutations({
   const runPass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
-      if (getCurrentDoc().ai_review_status === 'accepted') {
+      const snap = getCurrentDoc();
+      if (snap.ai_review_status === 'accepted') {
         throw new Error(
           'Legal documents have already been accepted and cannot be regenerated.',
         );
       }
+      const prevHtml = snap.unifiedDocHtml ?? '';
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         { body: { challenge_id: challengeId, pass3_mode: true } },
@@ -80,9 +82,10 @@ export function useLcPass3Mutations({
         const msg = (data as { error?: { message?: string } })?.error?.message;
         throw new Error(msg ?? 'Pass 3 generation failed');
       }
-      return data;
+      return { data, prevHtml };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ prevHtml }) => {
+      let newHtml = '';
       if (challengeId) {
         await supabase
           .from('challenges')
@@ -91,13 +94,17 @@ export function useLcPass3Mutations({
 
         const { data: existing } = await supabase
           .from('challenge_legal_docs')
-          .select('id, version_history, pass3_run_count, content_html')
+          .select('id, version_history, pass3_run_count, content_html, ai_modified_content_html')
           .eq('challenge_id', challengeId)
           .eq('document_type', 'UNIFIED_SPA')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
         if (existing?.id && user?.id) {
+          newHtml =
+            (existing.ai_modified_content_html as string | null) ??
+            (existing.content_html as string | null) ??
+            '';
           const entry = {
             version: ((existing.pass3_run_count as number | null) ?? 0),
             timestamp: new Date().toISOString(),
@@ -115,7 +122,13 @@ export function useLcPass3Mutations({
         }
       }
       invalidateAll();
-      toast.success('Legal AI review completed');
+      const unchanged = !!prevHtml && htmlEqualsNormalized(prevHtml, newHtml);
+      if (unchanged) {
+        toast.info('No changes — the regenerated document is identical to the current draft.');
+      } else {
+        toast.success('Legal AI review completed');
+      }
+      onRegenerateComplete?.(prevHtml, unchanged ? 'unchanged' : 'changed');
     },
     onError: (e) =>
       handleMutationError(e, { operation: 'run_pass3', component: 'useLcPass3Mutations' }),
@@ -124,11 +137,13 @@ export function useLcPass3Mutations({
   const organizePass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
-      if (getCurrentDoc().ai_review_status === 'accepted') {
+      const snap = getCurrentDoc();
+      if (snap.ai_review_status === 'accepted') {
         throw new Error(
           'Legal documents have already been accepted and cannot be regenerated.',
         );
       }
+      const prevHtml = snap.unifiedDocHtml ?? '';
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         {
@@ -144,17 +159,37 @@ export function useLcPass3Mutations({
         const msg = (data as { error?: { message?: string } })?.error?.message;
         throw new Error(msg ?? 'Organize & merge failed');
       }
-      return data;
+      return { data, prevHtml };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ prevHtml }) => {
+      let newHtml = '';
       if (challengeId) {
         await supabase
           .from('challenges')
           .update({ pass3_stale: false } as never)
           .eq('id', challengeId);
+
+        const { data: latest } = await supabase
+          .from('challenge_legal_docs')
+          .select('content_html, ai_modified_content_html')
+          .eq('challenge_id', challengeId)
+          .eq('document_type', 'UNIFIED_SPA')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        newHtml =
+          (latest?.ai_modified_content_html as string | null) ??
+          (latest?.content_html as string | null) ??
+          '';
       }
       invalidateAll();
-      toast.success('Source documents organized & merged');
+      const unchanged = !!prevHtml && htmlEqualsNormalized(prevHtml, newHtml);
+      if (unchanged) {
+        toast.info('No changes — the regenerated document is identical to the current draft.');
+      } else {
+        toast.success('Source documents organized & merged');
+      }
+      onRegenerateComplete?.(prevHtml, unchanged ? 'unchanged' : 'changed');
     },
     onError: (e) =>
       handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Mutations' }),
