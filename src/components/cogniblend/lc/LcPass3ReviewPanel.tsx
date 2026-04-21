@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3DiffHighlight } from '@/hooks/cogniblend/useLcPass3DiffHighlight';
 import type { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
+import { useSourceDocs } from '@/hooks/queries/useSourceDocs';
 import { type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
