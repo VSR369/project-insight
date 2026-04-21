@@ -112,7 +112,10 @@ export function useLcPass3Review(challengeId: string | undefined) {
       pass3_run_count: query.data?.pass3_run_count ?? 0,
       version_history: query.data?.version_history,
       ai_review_status: query.data?.ai_review_status ?? null,
+      unifiedDocHtml:
+        query.data?.ai_modified_content_html ?? query.data?.content_html ?? '',
     }),
+    onRegenerateComplete: options?.onRegenerateComplete,
   });
 
   const doc = query.data ?? null;
