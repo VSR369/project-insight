@@ -5,14 +5,14 @@
  * Header chips/summary live in Pass3ReviewHeader; editor + nav in
  * Pass3EditorBody. This panel orchestrates state + composition only.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
-import { Loader2, RefreshCw, Shield, CheckCircle2 } from 'lucide-react';
+import { Loader2, RefreshCw, Shield, CheckCircle2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 import { type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
+import { annotateAdditions, stripDiffSpans } from '@/lib/cogniblend/legal/diffHighlight';
 import '@/styles/legal-document.css';
 
 export interface LcPass3ReviewPanelProps {
