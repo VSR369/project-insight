@@ -21,6 +21,8 @@ import {
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+export type ConfirmRegenerateMode = 'pass3' | 'organize';
+
 export interface ConfirmRegenerateDialogProps {
   trigger: ReactElement<{ onClick?: (e: React.MouseEvent) => void; disabled?: boolean }>;
   onConfirm: () => void;
@@ -31,7 +33,31 @@ export interface ConfirmRegenerateDialogProps {
   /** Disables the trigger entirely. */
   disabled?: boolean;
   confirmLabel?: string;
+  /** Which operation will be confirmed — drives title + body copy. */
+  mode?: ConfirmRegenerateMode;
 }
+
+const COPY: Record<
+  ConfirmRegenerateMode,
+  { title: string; bodyDirty: string; bodyClean: string; confirm: string }
+> = {
+  pass3: {
+    title: 'Re-run AI Pass 3?',
+    bodyDirty:
+      'Re-running Pass 3 will replace the agreement with a freshly AI-generated version that merges, enhances and rewrites clauses in legal voice. Any manual edits in the editor will be discarded.',
+    bodyClean:
+      'Re-run Pass 3 to regenerate the agreement with the AI merging, enhancing and rewriting clauses from your source documents and challenge context.',
+    confirm: 'Re-run Pass 3',
+  },
+  organize: {
+    title: 'Organize & Merge?',
+    bodyDirty:
+      'Organize & Merge will rebuild the agreement verbatim from your uploaded source documents — no AI rewriting. Any manual edits in the editor will be discarded.',
+    bodyClean:
+      'Organize & Merge will deduplicate and harmonise clauses from your uploaded source documents into the agreement, verbatim — no AI rewriting.',
+    confirm: 'Organize & Merge',
+  },
+};
 
 export function ConfirmRegenerateDialog({
   trigger,
@@ -39,7 +65,8 @@ export function ConfirmRegenerateDialog({
   skipConfirm = false,
   isDirty = false,
   disabled = false,
-  confirmLabel = 'Regenerate',
+  confirmLabel,
+  mode = 'pass3',
 }: ConfirmRegenerateDialogProps) {
   const [open, setOpen] = useState(false);
 
@@ -64,11 +91,9 @@ export function ConfirmRegenerateDialog({
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace current draft?</AlertDialogTitle>
+            <AlertDialogTitle>{COPY[mode].title}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isDirty
-                ? 'This will regenerate the agreement from your uploaded source documents. Any manual edits in the editor will be discarded.'
-                : 'Regenerate the agreement from the latest source documents?'}
+              {isDirty ? COPY[mode].bodyDirty : COPY[mode].bodyClean}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -80,7 +105,7 @@ export function ConfirmRegenerateDialog({
                 onConfirm();
               }}
             >
-              {confirmLabel}
+              {confirmLabel ?? COPY[mode].confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

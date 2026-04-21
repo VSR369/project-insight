@@ -102,6 +102,7 @@ export function Pass3StatusStrip({
                   onConfirm={onRerunAi}
                   isDirty={isDirty}
                   disabled={isBusy}
+                  mode="pass3"
                   trigger={
                     <Button size="sm" variant="outline" className="gap-1.5">
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -115,6 +116,7 @@ export function Pass3StatusStrip({
                   onConfirm={onReorganize}
                   isDirty={isDirty}
                   disabled={isBusy}
+                  mode="organize"
                   trigger={
                     <Button size="sm" variant="ghost" className="gap-1.5">
                       <FileText className="h-3.5 w-3.5" />
