@@ -15,6 +15,7 @@ import { withUpdatedBy } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyCurationComplete } from '@/lib/cogniblend/workflowNotifications';
+import { ensureFreshSession } from '@/lib/cogniblend/ensureFreshSession';
 
 const STALE_KEY = (challengeId: string | undefined) =>
   ['pass3-stale', challengeId] as const;
@@ -177,6 +178,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
   const runPass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
+      await ensureFreshSession();
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         { body: { challenge_id: challengeId, pass3_mode: true } },

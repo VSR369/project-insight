@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError, handleQueryError } from '@/lib/errorHandler';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
+import { ensureFreshSession } from '@/lib/cogniblend/ensureFreshSession';
 import {
   parseFileToHtml,
   validateSourceFile,
@@ -141,6 +142,7 @@ export function useOrganizeAndMerge() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ challengeId }: OrganizeArgs) => {
+      await ensureFreshSession();
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         {
