@@ -143,6 +143,7 @@ export function useLcPass3Review(
   const protectedHeadings = isAGG ? ['ANTI-DISINTERMEDIATION'] : [];
 
   return {
+    challengeId: challengeId ?? null,
     pass3Status,
     aiReviewStatus: status,
     unifiedDocHtml,
