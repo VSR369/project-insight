@@ -1,14 +1,13 @@
 /**
- * LcSourceDocUpload — Upload + list of source legal documents.
- *
- * Pure presentation. Action buttons (Run Pass 3 / Organize & Merge) live in the
- * parent page (LcLegalWorkspacePage / CuratorComplianceTab) so the user sees
- * them next to the live document count at the decision point.
+ * LcSourceDocUpload — Upload + list of source legal documents, with optional
+ * Pass 3 / Organize & Merge action buttons rendered at the bottom so the
+ * user sees them next to the live document count at the decision point.
  */
 import { useRef, useState } from 'react';
 import {
   FileText,
   Loader2,
+  Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -33,12 +32,24 @@ export interface LcSourceDocUploadProps {
   /** The role uploading new docs from this card. */
   sourceOrigin: SourceOrigin;
   disabled?: boolean;
+  /** When provided, renders a Run AI Pass 3 button at the bottom of the card. */
+  onRunPass3?: () => void;
+  /** When provided, renders an Organize & Merge button alongside Run Pass 3. */
+  onOrganizeOnly?: () => void;
+  /** Disables both action buttons while a Pass 3 mutation is pending. */
+  pass3Busy?: boolean;
+  /** Re-labels the buttons as "Re-run" / "Re-organize" once a draft exists. */
+  hasGenerated?: boolean;
 }
 
 export function LcSourceDocUpload({
   challengeId,
   sourceOrigin,
   disabled = false,
+  onRunPass3,
+  onOrganizeOnly,
+  pass3Busy = false,
+  hasGenerated = false,
 }: LcSourceDocUploadProps) {
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +87,13 @@ export function LcSourceDocUpload({
   const inheritedDocs = sourceList.filter(
     (d) => d.source_origin && d.source_origin !== sourceOrigin,
   );
+  const showActions = !!onRunPass3 || !!onOrganizeOnly;
+  const runLabel = hasGenerated
+    ? 'Re-run AI Pass 3'
+    : 'Run AI Pass 3 (Merge + Enhance)';
+  const organizeLabel = hasGenerated
+    ? 'Re-organize (No AI)'
+    : 'Organize & Merge (No AI)';
 
   return (
     <Card>
@@ -193,6 +211,47 @@ export function LcSourceDocUpload({
             {inheritedDocs.length !== 1 ? 's' : ''} inherited from earlier roles
             (read-only here).
           </p>
+        )}
+
+        {showActions && (
+          <div className="border-t pt-3 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              AI Pass 3 merges all uploaded source documents from Creator,
+              Curator, and you with the curated challenge context, then drafts
+              a single seamless agreement for the Solution Provider to sign.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {onRunPass3 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onRunPass3}
+                  disabled={isBusy || pass3Busy}
+                  className="gap-1.5"
+                >
+                  {pass3Busy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {runLabel}
+                </Button>
+              )}
+              {onOrganizeOnly && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onOrganizeOnly}
+                  disabled={isBusy || pass3Busy}
+                  className="gap-1.5"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  {organizeLabel}
+                </Button>
+              )}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

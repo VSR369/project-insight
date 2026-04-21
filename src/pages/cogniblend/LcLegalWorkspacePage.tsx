@@ -171,7 +171,14 @@ export default function LcLegalWorkspacePage() {
       <LcFullChallengePreview challengeId={challengeId!} />
 
       {isLC && !challenge?.lc_compliance_complete && (
-        <LcSourceDocUpload challengeId={challengeId!} sourceOrigin="lc" />
+        <LcSourceDocUpload
+          challengeId={challengeId!}
+          sourceOrigin="lc"
+          onRunPass3={pass3.runPass3}
+          onOrganizeOnly={pass3.organizeOnly}
+          pass3Busy={pass3.isRunning || pass3.isOrganizing}
+          hasGenerated={pass3.pass3Status !== 'idle'}
+        />
       )}
 
       {isLC && (
