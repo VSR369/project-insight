@@ -269,7 +269,11 @@ export function LcSourceDocUpload({
                       variant="outline"
                       className="gap-1.5"
                     >
-                      <FileText className="h-3.5 w-3.5" />
+                      {isOrganizing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5" />
+                      )}
                       {organizeLabel}
                     </Button>
                   }
