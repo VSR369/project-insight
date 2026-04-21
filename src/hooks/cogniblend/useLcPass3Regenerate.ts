@@ -82,18 +82,27 @@ export function useLcPass3Regenerate({
   const runPass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
-      const snap = getCurrentDoc();
-      guardAccepted(snap);
-      const prevHtml = snap.unifiedDocHtml ?? '';
-      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
-        body: { challenge_id: challengeId, pass3_mode: true },
-      });
-      if (error) throw new Error(error.message ?? 'Edge function call failed');
-      if (data && (data as { success?: boolean }).success === false) {
-        const msg = (data as { error?: { message?: string } })?.error?.message;
-        throw new Error(msg ?? 'Pass 3 generation failed');
+      if (mutexRef.current) {
+        toast.info('Another operation is already in progress. Please wait.');
+        throw new Error('Concurrent mutation blocked by mutex');
       }
-      return { prevHtml };
+      mutexRef.current = true;
+      try {
+        const snap = getCurrentDoc();
+        guardAccepted(snap);
+        const prevHtml = snap.unifiedDocHtml ?? '';
+        const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
+          body: { challenge_id: challengeId, pass3_mode: true },
+        });
+        if (error) throw new Error(error.message ?? 'Edge function call failed');
+        if (data && (data as { success?: boolean }).success === false) {
+          const msg = (data as { error?: { message?: string } })?.error?.message;
+          throw new Error(msg ?? 'Pass 3 generation failed');
+        }
+        return { prevHtml };
+      } finally {
+        mutexRef.current = false;
+      }
     },
     onSuccess: async ({ prevHtml }) => {
       let newHtml = '';
