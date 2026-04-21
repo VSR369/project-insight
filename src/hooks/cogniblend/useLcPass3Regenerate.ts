@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { htmlEqualsNormalized } from '@/lib/cogniblend/legal/diffHighlight';
+import { ensureFreshSession } from '@/lib/cogniblend/ensureFreshSession';
 
 const PASS3_KEY = (challengeId: string | undefined) =>
   ['pass3-legal-review', challengeId] as const;
