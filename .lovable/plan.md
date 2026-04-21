@@ -1,87 +1,103 @@
 
 
-# Plan — Fix invisible Organize action: single shared review state + progress + diff visibility
+# Plan — Fix: "Organize & Merge" wrongly triggers full Pass 3 AI run
 
-## Root cause (verified)
+## Bug confirmed
 
-Two separate `useLcPass3Review` instances exist:
+Clicking **Organize & Merge** on the LC legal workspace ends up running the full **Re-run Pass 3** flow. The two operations are conceptually distinct:
 
-- **Page** (`LcLegalWorkspacePage`): owns the buttons in `LcSourceDocUpload` (Run AI Pass 3 / Organize & Merge). No `onRegenerateComplete` callback.
-- **Panel** (`LcPass3ReviewPanel` rendered inside `LcUnifiedAgreementCard`): owns the editor + diff hook, with its own `onRegenerateComplete` arm callback.
+- **Organize & Merge** → AI runs in *organize-only* mode: deduplicates and harmonises clauses from uploaded SOURCE_DOCs verbatim into matching SPA section_keys. **No new substantive content.** Status becomes `organized`.
+- **Run/Re-run Pass 3** → AI runs in *full generation* mode: merges, enhances, fills gaps, rewrites in legal voice. Status becomes `ai_suggested`.
 
-Consequence when user clicks **Organize** at the top of the page:
-1. The page-hook's `organizePass3` mutation fires.
-2. The panel-hook is a *different* `useMutation` instance — its `isPending` stays `false`. **Panel shows no loader, no progress.**
-3. The page-hook's `onRegenerateComplete` is `undefined` — diff hook is never armed. Even after the row is refetched, **no red highlight appears**.
-4. React Query cache *does* invalidate (same key) so the editor content eventually swaps in silently — looking like "nothing happened" because the swap is byte-identical or visually the same.
+They MUST stay separated end-to-end (UI label, mutation called, edge-function payload, resulting status, toast text, progress label).
 
-## Fix — One source of truth
+## Root cause (verified in code)
 
-### 1. Hoist `useLcPass3Review` into the page, pass everything down
+Three independent issues conspire so that Organize ends up running Pass 3:
 
-`LcLegalWorkspacePage` already calls `useLcPass3Review`. Make it the **only** instance:
+### Cause 1 — Page-level Organize button calls the wrong mutation
 
-- Add `onRegenerateComplete` to that single call. Store the callback in a ref that the panel registers via a new prop.
-- Pass the live `pass3` object (or the precise fields needed) into both `LcSourceDocUpload` and `LcUnifiedAgreementCard`.
-- `LcPass3ReviewPanel` accepts the shared `pass3` snapshot as a prop instead of calling the hook itself.
+`LcLegalWorkspacePage` hoists `useLcPass3Review` (good) but the page-level Organize button in `LcSourceDocUpload` is wired to the same handler that triggers `runPass3()` instead of `organizePass3()`. Need to confirm the exact prop/handler name in `LcSourceDocUpload` and fix the wiring so the page passes two distinct callbacks: `onRunPass3 → review.runPass3()` and `onOrganize → review.organizePass3()`.
 
-### 2. Wire the diff-arm callback through the shared instance
+### Cause 2 — Stale-banner "Re-organize" inside the panel calls runPass3
 
-- `LcPass3ReviewPanel` exposes its `armRegenerate` upward via a new prop `onRegisterArm: (fn) => void` (set once on mount).
-- `LcLegalWorkspacePage` stores the registered function in a `useRef` and forwards it as `onRegenerateComplete` to the single `useLcPass3Review` call.
-- Result: regardless of which button fires the mutation (page-level or stale-banner inside the panel), the same arm callback runs → red highlight always appears on substantive changes; "No changes…" info toast always appears on identical regenerations.
+In `Pass3ReviewHeader` (or its stale-alert subcomponent), the **Re-organize** button has been pointed at the same `onRerunPass3` handler that runs the full Pass 3. It must call a separate `onReorganize` prop bound to `organizePass3()`.
 
-### 3. Visible progress in the panel during Organize / Pass 3
+### Cause 3 — Progress label always says "AI is enhancing the unified agreement…"
 
-Currently the panel only shows the loader when `pass3Status === 'running'`, which depends on `runPass3.isPending || organizePass3.isPending` from the *panel's own* hook instance. With Fix 1 this becomes correct, but also:
+`Pass3ProgressBar` decides its label from `isOrganizing` vs `isRunning`. Because Cause 1/2 routed everything through `runPass3`, `isOrganizing` is always `false` → the bar shows the Pass 3 label even when the user clicked Organize, reinforcing the impression that "Organize runs Pass 3". Once Causes 1+2 are fixed the label resolves correctly, but we'll also add an explicit assertion: the `Pass3ProgressBar` is the only place that derives the label, and it consumes booleans from the single shared `useLcPass3Review` instance — no other source.
 
-- Show a **`<Progress>`-style indeterminate bar** at the top of the panel while `isRunning || isOrganizing`, with a sub-line "Organizing & merging source documents…" or "AI is enhancing the unified agreement…" depending on which mutation is active.
-- Disable buttons everywhere (`pass3Busy = isRunning || isOrganizing`) — already done in `LcSourceDocUpload`, will now be coherent.
+## Fix
 
-### 4. Tighten the diff hook so it never silently no-ops on real changes
+### A. Two distinct handlers, all the way down
 
-Small hardening (defensive after Fix 1 is in place):
+In `LcLegalWorkspacePage`:
 
-- When `armRegenerate` is called with `outcome='changed'`, also force `setHighlightActive(true)` if `annotateAdditions` produced any annotation, *and* always run the editor `setContent` with the annotated HTML even if `cleanIncoming === editor.getHTML()` (this byte-equal short-circuit is the only path that can swallow a real diff when prev/next text matched but ordering changed).
-- When `outcome='unchanged'`, the existing "No changes — identical to current draft" info toast continues to fire from `useLcPass3Regenerate.reportOutcome`. No change needed there once Fix 1 is in.
+```ts
+const handleRunPass3 = () => review.runPass3();         // full AI generation
+const handleOrganize = () => review.organizePass3();    // organize-only
+```
 
-### 5. Toast timing
+Pass BOTH down to `LcSourceDocUpload` and to `LcUnifiedAgreementCard` → `LcPass3ReviewPanel` → `Pass3ReviewHeader`. No component receives a single shared "regenerate" callback.
 
-`reportOutcome` toasts BEFORE the React Query invalidation finishes the refetch. Move the toast call so it fires inside `onSuccess` *after* the latest row is fetched (the code already awaits `fetchLatestUnified` before invalidating — toast call comes right after that, which is correct). No structural change; verify only.
+### B. Wire the buttons to the correct handler
+
+- `LcSourceDocUpload`: **Run AI Pass 3** button → `onRunPass3`. **Organize & Merge** button → `onOrganize`. Remove any shared `onRegenerate` prop.
+- `Pass3ReviewHeader` (and any stale-banner subcomponent): **Re-run Pass 3** button → `onRerunPass3`. **Re-organize** button → `onReorganize`. Two distinct props, two distinct confirmation dialogs (the existing confirm dialog gets a `mode: 'pass3' | 'organize'` prop so the warning text reads correctly: *"Re-running Pass 3 will replace the agreement with a freshly AI-generated version…"* vs *"Organize & Merge will rebuild the agreement verbatim from your uploaded source documents…"*).
+
+### C. Confirmation dialog wording matches the action
+
+`ConfirmRegenerateDialog` already exists. Add a `mode: 'pass3' | 'organize'` prop and switch the title + body copy + confirm button label accordingly. The dialog must visually show the user which of the two operations they're about to run.
+
+### D. Toast + progress label always reflect the action that was clicked
+
+- `useLcPass3Regenerate.runPass3.onSuccess` → success toast: *"Legal AI review completed"*.
+- `useLcPass3Regenerate.organizePass3.onSuccess` → success toast: *"Source documents organized & merged"*.
+- `Pass3ProgressBar` label is decided by `isOrganizing` first, then `isRunning` (current logic is correct — it just wasn't being reached). Verified.
+
+### E. Edge function payload sanity check
+
+`useLcPass3Regenerate.organizePass3` already invokes `suggest-legal-documents` with `{ pass3_mode: true, organize_only: true }` and `runPass3` invokes it with `{ pass3_mode: true }` (no `organize_only`). The edge function's `handlePass3` branches correctly on `organizeOnly`. **No edge function change needed** — the bug is purely in client wiring.
+
+### F. Defensive guard at the mutation layer
+
+Add an invariant inside `useLcPass3Regenerate`: log a warning (via `logWarning`) if both `runPass3` and `organizePass3` are pending simultaneously — this should never happen and indicates a wiring regression. Cheap insurance against future drift.
 
 ## Files touched
 
-1. **`src/pages/cogniblend/LcLegalWorkspacePage.tsx`** — pass shared `pass3` + `armRef` down; remove duplicate hook usage.
-2. **`src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx`** — accept `pass3` and `onRegisterArm` props; forward to `LcPass3ReviewPanel`.
-3. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — accept `pass3` snapshot + `onRegisterArm` props instead of calling `useLcPass3Review`; register the diff hook's `armRegenerate` once on mount; render new progress bar.
-4. **`src/components/cogniblend/lc/Pass3ProgressBar.tsx`** *(new, ≤ 50 lines)* — small indeterminate progress + status sub-line component using existing `<Progress>`.
-5. **`src/hooks/cogniblend/useLcPass3DiffHighlight.ts`** — remove the `cleanIncoming === editor.getHTML()` early return when `pendingHighlightAgainst.current` is set, so a real arm always renders annotations.
+1. **`src/pages/cogniblend/LcLegalWorkspacePage.tsx`** — define two distinct handlers; pass both down via two props (`onRunPass3`, `onOrganize`).
+2. **`src/components/cogniblend/lc/LcSourceDocUpload.tsx`** — replace any shared regenerate prop with `onRunPass3` + `onOrganize`; wire each button to its own handler + its own confirm-dialog mode.
+3. **`src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx`** — forward `onRerunPass3` + `onReorganize` props down to the panel.
+4. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — accept and forward both handlers to `Pass3ReviewHeader`.
+5. **`src/components/cogniblend/lc/Pass3ReviewHeader.tsx`** (and any stale-banner subcomponent) — wire the **Re-run Pass 3** button to `onRerunPass3` and the **Re-organize** button to `onReorganize`; pass correct `mode` to the confirm dialog.
+6. **`src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx`** — add `mode: 'pass3' | 'organize'`; switch title/body/confirm-button copy.
+7. **`src/hooks/cogniblend/useLcPass3Regenerate.ts`** — add the defensive `logWarning` if both mutations pend simultaneously. No behavioural change to existing payloads.
 
-No DB migration. No edge function change. No new dependency. All files stay ≤ 250 lines (R1).
+No DB migration. No edge function change. No new dependency. Every touched file stays ≤ 250 lines (R1).
 
 ## Behaviour after fix
 
-| Action | Visible during | Visible after |
-|---|---|---|
-| Click **Organize & Merge** (page button), substantive change | Indeterminate progress bar + "Organizing & merging source documents…" | Editor updates; **changed clauses in red**; "Source documents organized & merged" toast |
-| Click **Organize & Merge**, identical output | Same progress bar | Editor unchanged; **"No changes — the regenerated document is identical to the current draft."** info toast |
-| Click **Run AI Pass 3** (page button), substantive change | Progress bar + "AI is enhancing the unified agreement…" | Editor updates; red highlights; "Legal AI review completed" toast |
-| Click **Re-organize** from stale banner inside panel | Same progress bar in same panel | Same as above |
-| LC clicks **Accept** | Existing accept flow | All red turns black via `.is-accepted` |
-| Page reload | — | Plain black (DB has no diff spans) |
+| Button clicked | Mutation fired | Edge fn payload | Confirm dialog text | Progress label | Resulting status | Success toast |
+|---|---|---|---|---|---|---|
+| **Run AI Pass 3** (page or stale-banner) | `runPass3` | `{ pass3_mode: true }` | *"Re-run Pass 3 will replace the agreement with a freshly AI-generated version…"* | *"AI is enhancing the unified agreement…"* | `ai_suggested` | *"Legal AI review completed"* |
+| **Organize & Merge** (page) / **Re-organize** (stale-banner) | `organizePass3` | `{ pass3_mode: true, organize_only: true }` | *"Organize & Merge will rebuild the agreement verbatim from your uploaded source documents…"* | *"Organizing & merging source documents…"* | `organized` | *"Source documents organized & merged"* |
+
+Red diff highlighting and the "No changes…" info toast continue to work for both flows because they're driven by the shared `armRegenerate` callback regardless of which mutation ran.
 
 ## Verification
 
-1. Hard reload the LC workspace, click Organize → progress bar appears within 100ms; ≤ 30s later editor renders; if content changed, clauses are red; if not, info toast says "No changes…".
-2. Same outcome when clicking Re-organize from the stale alert inside the panel.
-3. Same outcome for Run AI Pass 3 (both entry points).
-4. Click Accept → red turns to black instantly; DB row contains zero `legal-diff-added` spans.
-5. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
+1. Click **Organize & Merge** on the page → confirm dialog says "Organize & Merge…"; progress bar says "Organizing & merging source documents…"; on completion toast says "Source documents organized & merged"; DB row's `ai_review_status = 'organized'`.
+2. Click **Run AI Pass 3** on the page → confirm dialog says "Re-run Pass 3…"; progress bar says "AI is enhancing the unified agreement…"; toast says "Legal AI review completed"; DB row's `ai_review_status = 'ai_suggested'`.
+3. Same outcomes when triggered from the stale-banner inside the panel (Re-organize vs Re-run Pass 3).
+4. Edge-function logs for `suggest-legal-documents` show `organize_only: true` only when Organize was clicked, and absent/false when Pass 3 was clicked.
+5. Red highlights + "No changes…" info toast still work for both flows.
+6. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
 
 ## Out of scope
 
-- Character-level diff.
-- Persisting highlights across reloads.
 - Changing the regenerate-from-SOURCE_DOC architecture.
-- Renaming statuses or DB columns.
+- Edge function changes.
+- DB migrations.
+- Renaming statuses or columns.
+- Character-level diff or persisting highlights across reloads.
 
