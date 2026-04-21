@@ -3,7 +3,7 @@
  * Supports: info, warning, success, danger variants.
  */
 
-import { Node, mergeAttributes } from '@tiptap/react';
+import { Node, mergeAttributes } from '@tiptap/core';
 
 export type CalloutType = 'info' | 'warning' | 'success' | 'danger';
 

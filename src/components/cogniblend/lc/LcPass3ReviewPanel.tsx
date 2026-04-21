@@ -8,7 +8,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
-import { Extension } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import { CheckCircle2, Loader2, RefreshCw, Save, Shield, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
