@@ -53,7 +53,7 @@ export function CuratorComplianceTab({
   const completeMut = useCompleteCuratorCompliance(challengeId);
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
   const review = useLcPass3Review(challengeId);
-  const reviewBusy = review.isRunning || review.isOrganizing;
+  
 
   const actions = useLcLegalActions({
     challengeId,
