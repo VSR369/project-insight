@@ -41,7 +41,7 @@ export const ROLE_NAV_RELEVANCE: Record<string, string[]> = {
   CR: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
   CU: ['/cogni/curation', '/cogni/dashboard'],
   ER: ['/cogni/review', '/cogni/evaluation', '/cogni/dashboard'],
-  LC: ['/cogni/lc-queue', '/cogni/legal', '/cogni/legal-review', '/cogni/dashboard'],
+  LC: ['/cogni/lc-queue', '/cogni/legal', '/cogni/dashboard'],
   FC: ['/cogni/escrow', '/cogni/payments', '/cogni/dashboard'],
 };
 
