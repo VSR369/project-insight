@@ -5,13 +5,14 @@
 import { useRef, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { EditorContent } from '@tiptap/react';
-import { CheckCircle2, Loader2, RefreshCw, Save } from 'lucide-react';
+import { CheckCircle2, Loader2, RefreshCw, Save, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
 import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
 import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
 import { ConfirmRegenerateDialog } from '@/components/cogniblend/lc/ConfirmRegenerateDialog';
+import { cn } from '@/lib/utils';
 
 export interface Pass3EditorBodyProps {
   editor: Editor | null;
@@ -24,6 +25,8 @@ export interface Pass3EditorBodyProps {
   isSaving: boolean;
   isAccepting: boolean;
   isDirty: boolean;
+  highlightActive?: boolean;
+  onClearHighlights?: () => void;
   onRerun: () => void;
   onSave: () => void;
   onAccept: () => void;
@@ -40,6 +43,8 @@ export function Pass3EditorBody({
   isSaving,
   isAccepting,
   isDirty,
+  highlightActive = false,
+  onClearHighlights,
   onRerun,
   onSave,
   onAccept,
