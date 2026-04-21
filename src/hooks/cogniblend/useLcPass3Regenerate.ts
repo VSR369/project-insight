@@ -170,5 +170,17 @@ export function useLcPass3Regenerate({
       handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Regenerate' }),
   });
 
+  // Defensive invariant: the two regenerate flows must never run concurrently.
+  // If they ever pend together, a wiring regression has crossed the streams.
+  useEffect(() => {
+    if (runPass3.isPending && organizePass3.isPending) {
+      logWarning('Pass 3 run and organize mutations are pending simultaneously', {
+        operation: 'pass3_regenerate_invariant',
+        component: 'useLcPass3Regenerate',
+        metadata: { challengeId },
+      });
+    }
+  }, [runPass3.isPending, organizePass3.isPending, challengeId]);
+
   return { runPass3, organizePass3 };
 }
