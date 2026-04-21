@@ -158,11 +158,7 @@ export function useLcPass3Regenerate({
         const snap = getCurrentDoc();
         guardAccepted(snap);
         const prevHtml = snap.unifiedDocHtml ?? '';
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          throw new Error('Your session has expired. Please sign in again.');
-        }
-        await supabase.auth.refreshSession();
+        await ensureFreshSession();
         const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
           body: {
             challenge_id: challengeId,
