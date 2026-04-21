@@ -293,9 +293,11 @@ export function useLcPass3Review(challengeId: string | undefined) {
   const isPass3Accepted = status === 'accepted';
 
   let pass3Status: Pass3Status = 'idle';
-  if (runPass3.isPending) pass3Status = 'running';
-  else if (runPass3.isError && !doc) pass3Status = 'error';
-  else if (status === 'ai_suggested' || status === 'accepted') pass3Status = 'completed';
+  if (runPass3.isPending || organizePass3.isPending) pass3Status = 'running';
+  else if ((runPass3.isError || organizePass3.isError) && !doc) pass3Status = 'error';
+  else if (status === 'accepted') pass3Status = 'accepted';
+  else if (status === 'organized') pass3Status = 'organized';
+  else if (status === 'ai_suggested') pass3Status = 'completed';
 
   const unifiedDocHtml =
     doc?.ai_modified_content_html ?? doc?.content_html ?? '';
@@ -305,6 +307,7 @@ export function useLcPass3Review(challengeId: string | undefined) {
 
   return {
     pass3Status,
+    aiReviewStatus: status,
     unifiedDocHtml,
     changesSummary: doc?.ai_changes_summary ?? '',
     confidence: doc?.ai_confidence ?? null,
@@ -312,13 +315,17 @@ export function useLcPass3Review(challengeId: string | undefined) {
     runCount: doc?.pass3_run_count ?? 0,
     isLoading: query.isLoading,
     isRunning: runPass3.isPending,
+    isOrganizing: organizePass3.isPending,
     isSaving: saveEdits.isPending,
     isAccepting: acceptPass3.isPending,
-    error: runPass3.error instanceof Error ? runPass3.error.message : null,
+    error:
+      (runPass3.error instanceof Error ? runPass3.error.message : null) ??
+      (organizePass3.error instanceof Error ? organizePass3.error.message : null),
     isPass3Accepted,
     isPass3Complete: isPass3Accepted,
     isStale: staleQuery.data === true,
     runPass3: () => runPass3.mutate(),
+    organizeOnly: () => organizePass3.mutate(),
     saveEdits: (html: string) => saveEdits.mutate(html),
     acceptPass3: () => acceptPass3.mutate(),
     // Sprint 6B additions
