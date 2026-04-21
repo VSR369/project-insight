@@ -165,10 +165,12 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
         ? 'organized'
         : 'ai_suggested';
 
+  const cleanUnified = stripDiffSpans(review.unifiedDocHtml ?? '');
+  const cleanEdited = stripDiffSpans(editedHtml ?? '');
   const isDirty =
     !review.isPass3Accepted &&
-    editedHtml.trim().length > 0 &&
-    editedHtml !== review.unifiedDocHtml;
+    cleanEdited.trim().length > 0 &&
+    cleanEdited !== cleanUnified;
 
   return (
     <Card>
@@ -241,13 +243,15 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               isPass3Accepted={review.isPass3Accepted}
               reviewerUserId={review.reviewerUserId}
               reviewedAt={review.reviewedAt}
-              editedHtml={editedHtml}
+              editedHtml={cleanEdited}
               isRunning={review.isRunning}
               isSaving={review.isSaving}
               isAccepting={review.isAccepting}
               isDirty={isDirty}
+              highlightActive={highlightActive && !review.isPass3Accepted}
+              onClearHighlights={clearHighlights}
               onRerun={() => review.runPass3()}
-              onSave={() => review.saveEdits(editedHtml)}
+              onSave={() => review.saveEdits(cleanEdited)}
               onAccept={() => review.acceptPass3()}
             />
           </>
