@@ -334,8 +334,19 @@ ${context.industryPack ? JSON.stringify(context.industryPack, null, 2) : "(none)
 ## Geographic / regulatory context
 ${context.geoContext ? JSON.stringify(context.geoContext, null, 2) : "(none)"}
 
-## Source documents (uploaded by Creator/Curator/LC — merge into appropriate sections, prefer wording verbatim)
-${sourceSlim.length > 0 ? JSON.stringify(sourceSlim, null, 2) : "(none — generate from scratch using the section system prompts)"}
+## Source documents (uploaded by Creator / Curator / Legal Coordinator)
+${
+  sourceSlim.length > 0
+    ? sourceSlim
+        .map(
+          (d) =>
+            `### ${String(d.document_name ?? "(untitled)")} (uploaded by: ${String(d.uploaded_by ?? "Unknown")})\n${
+              String(d.content_html ?? d.content_summary ?? "(content pending extraction)")
+            }`,
+        )
+        .join("\n\n---\n\n")
+    : "(none — generate from scratch using the section system prompts)"
+}
 
 ## Section list (in order)
 ${sections.map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`).join("\n")}
@@ -348,7 +359,7 @@ export async function handlePass3({
   userId,
   challengeId,
   lovableApiKey,
-  arrangeOnly = false,
+  organizeOnly = false,
 }: HandlePass3Args): Promise<Response> {
   try {
     // 1) Build unified context
@@ -400,9 +411,9 @@ export async function handlePass3({
       .neq("document_type", DOCUMENT_TYPE)
       .order("created_at", { ascending: true });
 
-    if (arrangeOnly && (!existingDocs || existingDocs.length === 0)) {
+    if (organizeOnly && (!existingDocs || existingDocs.length === 0)) {
       return jsonResponse(
-        { success: false, error: { code: "NO_SOURCE_DOCS", message: "Arrange-only mode requires at least one uploaded source document." } },
+        { success: false, error: { code: "NO_SOURCE_DOCS", message: "Organize mode requires at least one uploaded source document." } },
         400,
       );
     }
@@ -412,19 +423,22 @@ export async function handlePass3({
       supabaseAdmin,
       (context.challenge.organization_id as string | null | undefined) ?? null,
     );
-    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, arrangeOnly);
+    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, organizeOnly);
     const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
 
     // Tier may bump max_tokens (use highest configured value across sections).
-    const maxTokens = Math.max(
-      16384,
-      ...sections.map((s) => Number(s.max_tokens ?? 0)).filter((n) => n > 0),
-    );
+    // Organize mode produces less new content — cap lower for determinism + cost.
+    const maxTokens = organizeOnly
+      ? 12_288
+      : Math.max(
+          16_384,
+          ...sections.map((s) => Number(s.max_tokens ?? 0)).filter((n) => n > 0),
+        );
 
     const aiResp = await callAIWithFallback(lovableApiKey, {
       max_tokens: maxTokens,
-      // Lower temperature in arrange-only mode for deterministic slotting.
-      temperature: arrangeOnly ? 0.1 : 0.3,
+      // Lower temperature in organize mode for deterministic merging.
+      temperature: organizeOnly ? 0.1 : 0.3,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -509,16 +523,18 @@ export async function handlePass3({
 
     const priorCount = (priorRow?.pass3_run_count as number | null) ?? 0;
 
-    // 7) Delete prior ai_suggested / stale / arranged_only UNIFIED_SPA rows for this challenge
+    // 7) Delete prior ai_suggested / stale / organized UNIFIED_SPA rows for this challenge.
+    //    'arranged_only' is the legacy value (backfilled to 'organized' by migration); keep
+    //    in the IN-list defensively in case any old row slipped through.
     await supabaseAdmin
       .from("challenge_legal_docs")
       .delete()
       .eq("challenge_id", challengeId)
       .eq("document_type", DOCUMENT_TYPE)
-      .in("ai_review_status", ["ai_suggested", "stale", "arranged_only"]);
+      .in("ai_review_status", ["ai_suggested", "stale", "organized", "arranged_only"]);
 
-    // 8) Insert new unified row. Sentinel value 'arranged_only' marks classification-only output.
-    const aiReviewStatus = arrangeOnly ? "arranged_only" : "ai_suggested";
+    // 8) Insert new unified row. Status 'organized' marks no-AI-enhancement output.
+    const aiReviewStatus = organizeOnly ? "organized" : "ai_suggested";
     const { error: insertErr } = await supabaseAdmin.from("challenge_legal_docs").insert({
       challenge_id: challengeId,
       document_type: DOCUMENT_TYPE,
