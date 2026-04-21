@@ -11,6 +11,7 @@ import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEdi
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
 import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
 import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
+import { ConfirmRegenerateDialog } from '@/components/cogniblend/lc/ConfirmRegenerateDialog';
 
 export interface Pass3EditorBodyProps {
   editor: Editor | null;
@@ -22,6 +23,7 @@ export interface Pass3EditorBodyProps {
   isRunning: boolean;
   isSaving: boolean;
   isAccepting: boolean;
+  isDirty: boolean;
   onRerun: () => void;
   onSave: () => void;
   onAccept: () => void;
@@ -37,11 +39,13 @@ export function Pass3EditorBody({
   isRunning,
   isSaving,
   isAccepting,
+  isDirty,
   onRerun,
   onSave,
   onAccept,
 }: Pass3EditorBodyProps) {
   const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
+  const hasDraft = unifiedDocHtml.trim().length > 0;
 
   return (
     <>
@@ -75,15 +79,18 @@ export function Pass3EditorBody({
 
       {!isPass3Accepted && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
-          <Button
-            variant="outline"
-            onClick={onRerun}
+          <ConfirmRegenerateDialog
+            onConfirm={onRerun}
+            skipConfirm={!hasDraft}
+            isDirty={isDirty}
             disabled={isRunning || isSaving || isAccepting}
-            className="gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Re-run Pass 3
-          </Button>
+            trigger={
+              <Button variant="outline" className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Re-run Pass 3
+              </Button>
+            }
+          />
           <Button
             variant="outline"
             onClick={onSave}
