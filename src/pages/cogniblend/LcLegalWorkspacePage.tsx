@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
@@ -168,34 +169,45 @@ export default function LcLegalWorkspacePage() {
 
       <WorkflowProgressBanner step={3} />
 
-      <LcFullChallengePreview challengeId={challengeId!} />
+      <Tabs defaultValue="legal" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="legal">Legal Review</TabsTrigger>
+          <TabsTrigger value="challenge">Curated Challenge</TabsTrigger>
+        </TabsList>
 
-      {isLC && !challenge?.lc_compliance_complete && (
-        <LcSourceDocUpload
-          challengeId={challengeId!}
-          sourceOrigin="lc"
-          onRunPass3={pass3.runPass3}
-          onOrganizeOnly={pass3.organizeOnly}
-          pass3Busy={pass3.isRunning || pass3.isOrganizing}
-          hasGenerated={pass3.pass3Status !== 'idle'}
-        />
-      )}
+        <TabsContent value="legal" className="space-y-6 mt-4">
+          {isLC && !challenge?.lc_compliance_complete && (
+            <LcSourceDocUpload
+              challengeId={challengeId!}
+              sourceOrigin="lc"
+              onRunPass3={pass3.runPass3}
+              onOrganizeOnly={pass3.organizeOnly}
+              pass3Busy={pass3.isRunning || pass3.isOrganizing}
+              hasGenerated={pass3.pass3Status !== 'idle'}
+            />
+          )}
 
-      {isLC && (
-        <LcUnifiedAgreementCard
-          challengeId={challengeId!}
-          isAccepted={pass3.isPass3Accepted}
-          reviewedAt={pass3.reviewedAt}
-        />
-      )}
+          {isLC && (
+            <LcUnifiedAgreementCard
+              challengeId={challengeId!}
+              isAccepted={pass3.isPass3Accepted}
+              reviewedAt={pass3.reviewedAt}
+            />
+          )}
 
-      <LcAttachedDocsCard
-        docs={attachedDocs}
-        isLoading={attachedLoading}
-        currentUserId={user?.id}
-        onDelete={(id) => actions.deleteDocMutation.mutate(id)}
-        isDeleting={actions.deleteDocMutation.isPending}
-      />
+          <LcAttachedDocsCard
+            docs={attachedDocs}
+            isLoading={attachedLoading}
+            currentUserId={user?.id}
+            onDelete={(id) => actions.deleteDocMutation.mutate(id)}
+            isDeleting={actions.deleteDocMutation.isPending}
+          />
+        </TabsContent>
+
+        <TabsContent value="challenge" className="mt-4">
+          <LcFullChallengePreview challengeId={challengeId!} />
+        </TabsContent>
+      </Tabs>
 
       <Separator />
 
