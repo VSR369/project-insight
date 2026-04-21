@@ -60,7 +60,6 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
 export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
   const review = useLcPass3Review(challengeId);
   const [editedHtml, setEditedHtml] = useState<string>('');
-  const editorContainerRef = useRef<HTMLDivElement>(null);
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
   const editor = useEditor(
