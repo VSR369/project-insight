@@ -33,6 +33,7 @@ interface CurrentDocSnapshot {
   id: string | null;
   pass3_run_count: number;
   version_history: unknown;
+  ai_review_status?: string | null;
 }
 
 export interface UseLcPass3MutationsArgs {
@@ -53,6 +54,11 @@ export function useLcPass3Mutations({ challengeId, getCurrentDoc }: UseLcPass3Mu
   const runPass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
+      if (getCurrentDoc().ai_review_status === 'accepted') {
+        throw new Error(
+          'Legal documents have already been accepted and cannot be regenerated.',
+        );
+      }
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         { body: { challenge_id: challengeId, pass3_mode: true } },
@@ -106,6 +112,11 @@ export function useLcPass3Mutations({ challengeId, getCurrentDoc }: UseLcPass3Mu
   const organizePass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
+      if (getCurrentDoc().ai_review_status === 'accepted') {
+        throw new Error(
+          'Legal documents have already been accepted and cannot be regenerated.',
+        );
+      }
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         {
