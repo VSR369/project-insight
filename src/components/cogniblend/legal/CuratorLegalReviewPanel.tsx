@@ -21,7 +21,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCuratorLegalReview, type Pass3Confidence } from '@/hooks/cogniblend/useCuratorLegalReview';
 import { LegalDocEditorToolbar } from './LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from './LegalDocQuickInserts';
-import { LegalDocUploadHandler } from './LegalDocUploadHandler';
 import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
 import { Pass3SectionNavWrapper } from './Pass3SectionNavWrapper';
 import { Pass3AttributionBadge } from './Pass3AttributionBadge';
@@ -279,11 +278,6 @@ export function CuratorLegalReviewPanel({ challengeId, readOnly = false }: Curat
               <div className="flex flex-wrap items-center gap-2">
                 <LegalDocEditorToolbar editor={editor} />
                 <LegalDocQuickInserts editor={editor} />
-                <LegalDocUploadHandler
-                  onContentUploaded={handleUpload}
-                  hasExistingContent={!!review.unifiedDocHtml}
-                  disabled={review.isSaving || review.isAccepting}
-                />
               </div>
             )}
 
