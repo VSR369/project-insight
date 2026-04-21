@@ -58,6 +58,9 @@ export function Pass3EditorBody({
   onReorganize,
   onSave,
   onAccept,
+  isOrganizedOutput = false,
+  sourceDocNames = [],
+  hasUnverifiedSourceMatch = false,
 }: Pass3EditorBodyProps) {
   const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const hasDraft = unifiedDocHtml.trim().length > 0;
@@ -68,6 +71,30 @@ export function Pass3EditorBody({
         <div className="flex flex-wrap items-center gap-2">
           <LegalDocEditorToolbar editor={editor} />
           <LegalDocQuickInserts editor={editor} />
+        </div>
+      )}
+
+      {isOrganizedOutput && !isPass3Accepted && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <FileText className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              Organize merged content from {sourceDocNames.length} source
+              document{sourceDocNames.length === 1 ? '' : 's'}
+              {sourceDocNames.length > 0 ? `: ${sourceDocNames.join(', ')}` : ''}.
+              No new wording was generated.
+            </span>
+          </div>
+          {hasUnverifiedSourceMatch && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Some clauses could not be traced back to your uploaded sources.
+                Review carefully or re-upload more complete source documents
+                before accepting.
+              </span>
+            </div>
+          )}
         </div>
       )}
 
