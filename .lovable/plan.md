@@ -1,119 +1,103 @@
 
 
-# Plan — Stop "Re-run Pass 3" from being the only regenerate button inside the editor
+# Plan — Synchronous mutex to prevent concurrent Pass 3 / Organize mutations
 
-## 5-Whys analysis (evidence-based)
+## Root cause (confirmed)
 
-I inspected the live DB row, the edge function logs, the session replay, and every component on the path. **The Organize action is, in fact, running Organize end-to-end** — the system is behaviorally correct. The bug is a **UX confusion bug**, not a wiring bug.
+`useLcPass3Regenerate.ts` relies on React-state `isPending` flags to disable buttons. Because `isPending` only flips on the next render frame, a fast double-click (or near-simultaneous click on the two adjacent buttons) can fire **both** `runPass3.mutate()` and `organizePass3.mutate()` in the same event-loop tick. The existing `useEffect` at line 173 only **logs** the collision — it never cancels anything. Server outcome: Organize finishes first and writes `ai_review_status='organized'`; Pass 3 finishes second, **deletes** that row, and writes `ai_review_status='ai_suggested'`. Organize's work is silently lost.
 
-| Why | Finding |
-|---|---|
-| **Why 1.** When the user clicked **Organize**, did Pass 3 run on the server? | **No.** Edge function logs show ONE invocation at 13:27 with the Organize prompt. The DB row written at 13:28 has `ai_review_status='organized'`. |
-| **Why 2.** Why does the user perceive "Pass 3 ran"? | The session replay shows the dialog said "Organize & Merge", the progress bar said "Organizing & merging…", and the success toast said "Source documents organized & merged". So far correct. **But the editor's bottom action row shows ONE big button labelled "Re-run Pass 3"** as the only regenerate option. After Organize completes the user's eyes land on that button and they read it as "Pass 3 is being / was run". |
-| **Why 3.** Why is "Re-run Pass 3" the only button at the bottom of the editor? | `Pass3EditorBody.tsx` (line 107-118) has a single `ConfirmRegenerateDialog` wired to `onRerun` — which the parent always wires to `review.runPass3()`. There is no Organize counterpart at the bottom. |
-| **Why 4.** Why does that bottom button's confirm dialog reinforce the confusion? | The bottom dialog has **no `mode` prop**, so `ConfirmRegenerateDialog` falls back to `mode='pass3'`. Even if the user just ran Organize, clicking that bottom button shows the **Pass 3** confirmation copy. |
-| **Why 5. (root cause)** Why was the editor bottom never updated when we added the dual Organize / Pass 3 model? | When we split the two flows (handler in regenerate hook, dialog mode prop, page-level button pair, stale-banner button pair), the **bottom-of-editor regenerate row was missed**. It's still the single legacy "Re-run Pass 3" button, with no Organize sibling and no `mode` on its dialog. |
+## Fix — `useRef` mutex (synchronous) + reset on collision (belt-and-braces)
 
-## What's actually broken
+A single file changes: **`src/hooks/cogniblend/useLcPass3Regenerate.ts`**.
 
-`Pass3EditorBody.tsx`:
-- Has **one** regenerate button labelled *"Re-run Pass 3"* always wired to `onRerun → runPass3()`.
-- Its `<ConfirmRegenerateDialog>` has no `mode` prop → defaults to `pass3` copy.
-- After the user has just run **Organize**, the only visible regenerate button beneath the document still says "Re-run Pass 3" — which makes the user think Pass 3 is what runs. There is no way to **Re-organize** from inside the editor without scrolling back up or waiting for the stale banner.
+### 1. Add a synchronous mutex ref
 
-What's NOT broken (verified):
-- Page-level Organize / Run AI Pass 3 buttons in `LcSourceDocUpload` are correctly wired to two separate handlers (`onOrganizeOnly → organizePass3`, `onRunPass3 → runPass3`) with correct dialog modes.
-- Stale-banner buttons in `Pass3StatusStrip` are correctly wired to `onReorganize` and `onRerunAi` with correct dialog modes.
-- `useLcPass3Regenerate` invokes the edge function with the correct payloads (`organize_only: true` only for Organize).
-- The edge function writes `ai_review_status='organized'` for Organize, `'ai_suggested'` for Pass 3.
-- The status strip correctly shows "Organized & Merged from sources" after Organize.
+At the top of the hook body, before the mutations:
 
-## Fix — Two regenerate buttons at the bottom of the editor, both labelled clearly
-
-### A. `Pass3EditorBody.tsx` — replace the single `onRerun` button with two
-
-Add a sibling **Organize & Merge** button next to the existing **Re-run Pass 3** button. Each gets its own confirm dialog with the correct `mode`.
-
-New props (additive — no breaking change to other callers):
 ```ts
-onReorganize: () => void;   // wired to organizePass3
-isOrganizing: boolean;      // distinct loading state for the Organize button
+const mutexRef = useRef(false);
 ```
 
-Render in the bottom action row:
-```tsx
-<ConfirmRegenerateDialog
-  onConfirm={onRerun}
-  skipConfirm={!hasDraft}
-  isDirty={isDirty}
-  disabled={isRunning || isOrganizing || isSaving || isAccepting}
-  mode="pass3"
-  trigger={<Button variant="outline" className="gap-2"><Sparkles className="h-4 w-4"/>Re-run AI Pass 3</Button>}
-/>
-<ConfirmRegenerateDialog
-  onConfirm={onReorganize}
-  skipConfirm={!hasDraft}
-  isDirty={isDirty}
-  disabled={isRunning || isOrganizing || isSaving || isAccepting}
-  mode="organize"
-  trigger={<Button variant="outline" className="gap-2"><FileText className="h-4 w-4"/>Re-organize (No AI)</Button>}
-/>
+`useRef` updates synchronously — no render cycle needed. The second click in the same tick sees `mutexRef.current === true` and bails out **before** the edge function is invoked.
+
+### 2. Wrap both `mutationFn` bodies with the mutex
+
+For both `runPass3` and `organizePass3`:
+
+```ts
+mutationFn: async () => {
+  if (!challengeId) throw new Error('Missing challenge id');
+  if (mutexRef.current) {
+    toast.info('Another operation is already in progress. Please wait.');
+    throw new Error('Concurrent mutation blocked by mutex');
+  }
+  mutexRef.current = true;
+  try {
+    // …existing body unchanged…
+    return { prevHtml };
+  } finally {
+    mutexRef.current = false;
+  }
+},
 ```
 
-The existing **Re-run Pass 3** button gets `mode="pass3"` explicitly (instead of falling back), and a `Sparkles` icon to match the page-level Pass 3 button.
+The `finally` block guarantees the mutex releases on **success, error, or thrown exception** — no deadlock possible.
 
-### B. `LcPass3ReviewPanel.tsx` — pass the Organize handler down
+### 3. Defensive release on error
 
-Wire the new prop:
-```tsx
-<Pass3EditorBody
-  ...
-  onRerun={() => review.runPass3()}
-  onReorganize={() => review.organizeOnly()}
-  isRunning={review.isRunning}
-  isOrganizing={review.isOrganizing}
-/>
+Add `mutexRef.current = false;` as the first line of each mutation's `onError` callback. Redundant with `finally`, but safe insurance against any future refactor that moves work outside the `try`.
+
+### 4. Convert the log-only `useEffect` into an active canceller
+
+Replace the existing log-only effect (≈ line 173) with one that resets the Organize mutation if both ever appear pending simultaneously. Pass 3 is the more expensive, more user-impactful operation — preserve it; cancel Organize:
+
+```ts
+useEffect(() => {
+  if (runPass3.isPending && organizePass3.isPending) {
+    logWarning('Pass 3 and organize running simultaneously — cancelling organize', {
+      operation: 'pass3_mutex_violation',
+      component: 'useLcPass3Regenerate',
+    });
+    organizePass3.reset();
+  }
+}, [runPass3.isPending, organizePass3.isPending]);
 ```
 
-This re-uses the **single shared** `useLcPass3Review` instance hoisted on the page, so the editor-bottom buttons use the same mutations as the page-level and stale-banner buttons. Loading state, progress bar, diff highlight, and "no changes" toast all flow through the existing single source of truth.
+Belt-and-braces only — the mutex should make this branch unreachable, but if it ever does fire, the user sees a clean state instead of two competing edge-function results.
 
-### C. Defensive: explicit `mode` everywhere
+### 5. Imports
 
-Audit every `<ConfirmRegenerateDialog>` instance (page-level, stale banner, editor bottom) to ensure every one passes an explicit `mode` prop. Remove the `mode='pass3'` default from `ConfirmRegenerateDialog` so a future missing prop becomes a TypeScript error rather than a silent confusion bug.
-
-`ConfirmRegenerateDialog.tsx`: change `mode?: ConfirmRegenerateMode` (default `'pass3'`) to **`mode: ConfirmRegenerateMode`** (required, no default).
+Ensure the file imports `useEffect` and `useRef` from `'react'` (the file already imports `useEffect`; add `useRef`).
 
 ## Files touched
 
-1. **`src/components/cogniblend/lc/Pass3EditorBody.tsx`** — add `onReorganize` + `isOrganizing` props; add the second confirm dialog + button; give the existing button explicit `mode="pass3"` and a `Sparkles` icon.
-2. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — pass `onReorganize={() => review.organizeOnly()}` and `isOrganizing={review.isOrganizing}` to `Pass3EditorBody`.
-3. **`src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx`** — make `mode` a required prop (remove default), so any future missing-mode wiring fails at compile time.
+1. **`src/hooks/cogniblend/useLcPass3Regenerate.ts`** — add `mutexRef`; wrap both `mutationFn` bodies; defensive `onError` release; upgrade the collision `useEffect` from log-only to `organizePass3.reset()`. File stays ≤ 250 lines (R1).
 
-No DB migration. No edge function change. No new dependency. Every touched file stays ≤ 250 lines (R1).
+No other files. No DB migration. No edge function change. No new dependency. Buttons, dialog, progress bar, editor body, status strip — all unchanged (verified correct in earlier passes).
 
 ## Behaviour after fix
 
-| Surface | Buttons visible | Each button shows |
+| Scenario | Before | After |
 |---|---|---|
-| **Source-doc card (top of page)** | Run AI Pass 3 · Organize & Merge | Correct dialog mode, correct mutation |
-| **Stale banner inside panel** | Re-run AI Pass 3 · Re-organize | Correct dialog mode, correct mutation |
-| **Bottom of editor (NEW)** | Re-run AI Pass 3 · Re-organize (No AI) · Save · Accept | Correct dialog mode, correct mutation |
-
-A user editing the document who wants to re-trigger Organize no longer has to scroll up. A user who clicks the bottom "Re-organize" button gets the correct Organize confirmation copy and the Organize mutation runs (not Pass 3). The Sparkles vs FileText icon difference matches the page-level pair, reinforcing the conceptual split.
+| Single click on **Re-organize** | Organize runs, status `organized` ✓ | Same ✓ |
+| Single click on **Re-run Pass 3** | Pass 3 runs, status `ai_suggested` ✓ | Same ✓ |
+| Same-tick clicks on both buttons | Both fire; Pass 3 overwrites Organize; Organize's work lost | First click wins; second click shows info toast *"Another operation is already in progress. Please wait."*; only the first mutation's result lands |
+| Rapid double-click on the same button | Both fire; duplicate work; possible row conflicts | Second invocation blocked by mutex; single edge-function call |
+| Click during in-flight mutation from another surface (page button + editor button) | Both can fire if disabled prop hasn't propagated | Mutex blocks the second; user sees the info toast |
 
 ## Verification
 
-1. Click **Organize & Merge** on the page → dialog says "Organize & Merge?", progress says "Organizing & merging…", toast says "Source documents organized & merged", DB row `ai_review_status='organized'`.
-2. With the editor showing the organized draft, click the **bottom "Re-organize (No AI)"** button → dialog says "Organize & Merge?", progress says "Organizing & merging…", toast says "Source documents organized & merged", DB row `ai_review_status='organized'` (run_count incremented).
-3. Click the **bottom "Re-run AI Pass 3"** button → dialog says "Re-run AI Pass 3?", progress says "AI is enhancing the unified agreement…", toast says "Legal AI review completed", DB row `ai_review_status='ai_suggested'`.
-4. Red diff highlights and "No changes…" toast continue to work for both editor-bottom buttons (they use the same shared review state).
-5. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
-6. After making `mode` required on `ConfirmRegenerateDialog`, the TypeScript compiler verifies every call site provides one.
+1. Open the LC workspace; click **Re-organize (No AI)** then immediately click **Re-run AI Pass 3** within the same animation frame → only Organize runs; second click shows *"Another operation is already in progress…"*; DB row ends with `ai_review_status='organized'`; edge function logs show ONE invocation.
+2. Reverse: click Pass 3 then Organize within the same frame → only Pass 3 runs; same toast; DB row ends `ai_review_status='ai_suggested'`; edge logs show ONE invocation.
+3. Single clicks on either button work normally with no toast and correct status.
+4. Trigger an edge-function error (kill network mid-run) → mutation errors as before; immediately retry → second click is **not** blocked (mutex released by `finally`).
+5. Concurrent collision telemetry: confirm `logWarning` with `operation: 'pass3_mutex_violation'` is emitted only in the impossible-but-defensive path (should not appear in normal usage).
+6. `npx tsc --noEmit` passes; touched file ≤ 250 lines.
 
 ## Out of scope
 
-- Renaming statuses, columns, or mutations.
-- Edge function changes (none needed — server is correct).
+- Changing button layouts, dialogs, or progress UI (already correct).
+- Edge function changes (server is correct — bug was purely client concurrency).
 - DB migration.
-- Character-level diff or persisting highlights across reloads.
+- Persisting highlights across reloads, character-level diff, status renames.
 
