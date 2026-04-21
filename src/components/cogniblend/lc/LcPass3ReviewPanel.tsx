@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3Review, type Pass3Confidence } from '@/hooks/cogniblend/useLcPass3Review';
 import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
-import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
+
 import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
 import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
 import { Pass3StatusStrip, type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';

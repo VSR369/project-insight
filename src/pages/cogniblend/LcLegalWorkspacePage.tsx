@@ -29,12 +29,14 @@ import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallen
 import { LcAttachedDocsCard } from '@/components/cogniblend/lc/LcAttachedDocsCard';
 import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
 import { LcSourceDocUpload } from '@/components/cogniblend/lc/LcSourceDocUpload';
+import { LcLegalStepIndicator } from '@/components/cogniblend/lc/LcLegalStepIndicator';
 
 import {
   useAttachedLegalDocs,
   useChallengeForLC,
 } from '@/hooks/cogniblend/useLcLegalData';
 import { useLcLegalActions } from '@/hooks/cogniblend/useLcLegalActions';
+import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 
 export default function LcLegalWorkspacePage() {
   const { id: challengeId } = useParams<{ id: string }>();
