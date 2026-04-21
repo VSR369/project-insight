@@ -55,7 +55,17 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
 }
 
 export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
-  const review = useLcPass3Review(challengeId);
+  const pendingHighlightAgainst = useRef<string | null>(null);
+  const [highlightActive, setHighlightActive] = useState(false);
+  const review = useLcPass3Review(challengeId, {
+    onRegenerateComplete: (prevHtml, outcome) => {
+      if (outcome === 'changed') {
+        pendingHighlightAgainst.current = prevHtml;
+      } else {
+        pendingHighlightAgainst.current = null;
+      }
+    },
+  });
   const [editedHtml, setEditedHtml] = useState<string>('');
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
