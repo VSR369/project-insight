@@ -75,7 +75,7 @@ export function LegalDocSectionNav({
   return (
     <nav
       aria-label="Legal document sections"
-      className="w-[220px] shrink-0 rounded-md border bg-card p-2"
+      className="sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto w-[220px] shrink-0 rounded-md border bg-card p-2 hidden lg:block"
     >
       <ul className="flex flex-col gap-0.5">
         {LEGAL_SECTIONS.map((section, idx) => {
