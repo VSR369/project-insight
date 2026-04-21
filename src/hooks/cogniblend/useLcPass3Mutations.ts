@@ -199,7 +199,8 @@ export function useLcPass3Mutations({
     mutationFn: async (html: string) => {
       const { id: docId } = getCurrentDoc();
       if (!docId) throw new Error('No legal document to save');
-      const updates = await withUpdatedBy({ ai_modified_content_html: html });
+      const cleanHtml = stripDiffSpans(html);
+      const updates = await withUpdatedBy({ ai_modified_content_html: cleanHtml });
       const { error } = await supabase
         .from('challenge_legal_docs')
         .update(updates)
@@ -216,7 +217,7 @@ export function useLcPass3Mutations({
 
   const acceptPass3 = useMutation({
     mutationFn: async () => {
-      const { id: docId, pass3_run_count, version_history } = getCurrentDoc();
+      const { id: docId, pass3_run_count, version_history, unifiedDocHtml } = getCurrentDoc();
       if (!docId) throw new Error('No legal document to accept');
       const versionEntry = {
         version: pass3_run_count ?? 0,
@@ -226,13 +227,19 @@ export function useLcPass3Mutations({
         action: 'accepted',
       };
       const nextHistory = appendVersion(version_history, versionEntry);
-      const updates = await withUpdatedBy({
+      // Defensive scrub — guarantees no diff spans persist on the accepted row.
+      const cleanedHtml = unifiedDocHtml ? stripDiffSpans(unifiedDocHtml) : null;
+      const baseUpdates: Record<string, unknown> = {
         ai_review_status: 'accepted',
         lc_status: 'approved',
         lc_reviewed_by: user?.id ?? null,
         lc_reviewed_at: new Date().toISOString(),
         version_history: nextHistory as never,
-      });
+      };
+      if (cleanedHtml !== null) {
+        baseUpdates.ai_modified_content_html = cleanedHtml;
+      }
+      const updates = await withUpdatedBy(baseUpdates);
       const { error } = await supabase
         .from('challenge_legal_docs')
         .update(updates)
