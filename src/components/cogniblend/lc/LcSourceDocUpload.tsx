@@ -1,30 +1,25 @@
 /**
- * LcSourceDocUpload — Multi-file source document upload for the unified
- * legal document workflow. The LC (or Curator in STRUCTURED) uploads source
- * legal docs that Pass 3 AI will read and merge into the unified SPA.
+ * LcSourceDocUpload — Upload + list of source legal documents.
  *
- * Pure presentation. Mutations live in useSourceDocs.
+ * Pure presentation. Action buttons (Run Pass 3 / Organize & Merge) live in the
+ * parent page (LcLegalWorkspacePage / CuratorComplianceTab) so the user sees
+ * them next to the live document count at the decision point.
  */
 import { useRef, useState } from 'react';
 import {
-  AlertTriangle,
   FileText,
-  Info,
   Loader2,
-  Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useSourceDocs,
   useUploadSourceDoc,
   useDeleteSourceDoc,
-  useArrangeIntoSections,
 } from '@/hooks/queries/useSourceDocs';
 import {
   SOURCE_DOC_CONFIG,
@@ -35,6 +30,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export interface LcSourceDocUploadProps {
   challengeId: string;
+  /** The role uploading new docs from this card. */
   sourceOrigin: SourceOrigin;
   disabled?: boolean;
 }
@@ -51,7 +47,6 @@ export function LcSourceDocUpload({
   const { data: docs, isLoading } = useSourceDocs(challengeId);
   const uploadMut = useUploadSourceDoc();
   const deleteMut = useDeleteSourceDoc();
-  const arrangeMut = useArrangeIntoSections();
 
   const triggerPicker = () => inputRef.current?.click();
 
@@ -75,20 +70,23 @@ export function LcSourceDocUpload({
     if (inputRef.current) inputRef.current.value = '';
   };
 
-  const isBusy = disabled || uploadMut.isPending || arrangeMut.isPending;
-  const hasDocs = (docs?.length ?? 0) > 0;
+  const isBusy = disabled || uploadMut.isPending;
+  const sourceList = docs ?? [];
+  const hasDocs = sourceList.length > 0;
+  const inheritedDocs = sourceList.filter(
+    (d) => d.source_origin && d.source_origin !== sourceOrigin,
+  );
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Upload className="h-4 w-4 text-primary" />
-          Upload Source Legal Documents
+          Source Legal Documents
         </CardTitle>
         <p className="text-xs text-muted-foreground mt-1">
-          Upload your existing legal terms, contracts, or templates. Pass 3 AI
-          will read these documents and merge relevant clauses into the
-          appropriate sections of the unified agreement.
+          Upload existing legal terms from any party. Documents from Creator,
+          Curator and Legal Coordinator are all merged into the unified agreement.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -130,9 +128,10 @@ export function LcSourceDocUpload({
           <Skeleton className="h-20 w-full" />
         ) : hasDocs ? (
           <div className="space-y-2">
-            {docs!.map((doc) => {
+            {sourceList.map((doc) => {
               const isPdf = !doc.content_html && !!doc.lc_review_notes;
               const originKey = (doc.source_origin ?? 'lc') as SourceOrigin;
+              const canDelete = originKey === sourceOrigin;
               return (
                 <div
                   key={doc.id}
@@ -157,68 +156,43 @@ export function LcSourceDocUpload({
                       {new Date(doc.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive shrink-0"
-                    disabled={isBusy || deleteMut.isPending}
-                    onClick={() =>
-                      deleteMut.mutate({
-                        challengeId,
-                        docId: doc.id,
-                        storagePath: doc.lc_review_notes,
-                      })
-                    }
-                    aria-label={`Remove ${doc.document_name ?? 'document'}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {canDelete && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive shrink-0"
+                      disabled={isBusy || deleteMut.isPending}
+                      onClick={() =>
+                        deleteMut.mutate({
+                          challengeId,
+                          docId: doc.id,
+                          storagePath: doc.lc_review_notes,
+                        })
+                      }
+                      aria-label={`Remove ${doc.document_name ?? 'document'}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               );
             })}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground italic">
-            No source documents uploaded yet. Pass 3 will generate the unified
-            agreement from challenge context alone if you proceed without uploads.
+            No source documents uploaded yet by Creator, Curator, or you. You can
+            still proceed — Pass 3 will draft the agreement from the curated
+            challenge context alone.
           </p>
         )}
 
-        {hasDocs && (
-          <Alert className="border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
-            <Info className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-xs text-amber-900 dark:text-amber-200">
-              After uploading, click <strong>Run Pass 3 AI Review</strong> below
-              to generate the unified agreement that incorporates these documents,
-              OR use <strong>Arrange into Sections</strong> for verbatim slotting
-              without AI enhancement.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {hasDocs && (
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between border-t pt-3">
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-              Arrange-only mode preserves uploaded clause wording verbatim — no AI
-              rewording or content generation.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={isBusy}
-              onClick={() => arrangeMut.mutate({ challengeId })}
-            >
-              {arrangeMut.isPending ? (
-                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-1.5" />
-              )}
-              Arrange into Sections (No AI Enhancement)
-            </Button>
-          </div>
+        {inheritedDocs.length > 0 && (
+          <p className="text-[11px] text-muted-foreground border-t pt-2">
+            {inheritedDocs.length} document
+            {inheritedDocs.length !== 1 ? 's' : ''} inherited from earlier roles
+            (read-only here).
+          </p>
         )}
       </CardContent>
     </Card>
