@@ -1,133 +1,120 @@
 
 
-# Plan — Permanent fix for all Consolidate / Enhance / Edit / Accept scenarios (revised)
+# Plan — "No-change" toast + red diff highlighting for regenerated content
 
-## Reviewer's correction — verified against live DB
+## Why the editor sometimes appears unchanged
 
-The reviewer was working from migration files alone. Live DB inspection confirms:
+The Consolidate / Re-run pipeline always regenerates and overwrites the `UNIFIED_SPA` row, but the **rendered HTML can be byte-for-byte (or near-identical) to what was already there** — especially when:
+- The same source docs are fed in twice with no edits.
+- Organize-only mode produces deterministic output (temperature 0.1).
+- AI returns the same merged structure.
 
-- `uq_challenge_legal_docs_type_tier` (the legacy broad constraint) is **gone** — the migration just applied (`20260421104230_…sql`) dropped it.
-- `uq_challenge_legal_docs_unified_per_tier` **exists** as a partial unique index: `(challenge_id, document_type, tier) WHERE document_type <> 'SOURCE_DOC'`.
+Today the UI silently swaps the same content back in — the user sees no visible change and assumes the action did nothing. We need to (a) detect "no meaningful change" and (b) make real changes visible.
 
-This partial index is a **superset** of the reviewer's proposed `WHERE document_type = 'UNIFIED_SPA'` index — it enforces uniqueness for `UNIFIED_SPA` (the only invariant we need today) **and** for any other future non-SOURCE_DOC document type. No additional migration is needed.
+## Two behaviours to add
 
-**Fix C stands as written. No DB change in this plan.**
+### 1. Detect "no meaningful change" → toast instead of silent swap
 
-## Verified problem map
+After Consolidate / Re-run / Enhance returns, compare the new `unifiedDocHtml` against the previous one (snapshot taken **before** the mutation):
 
-| # | Scenario | Today | Risk |
-|---|---|---|---|
-| 1 | Enhance → Consolidate | Replaces enhanced with consolidated | Correct, but silent |
-| 2 | Consolidate → Enhance | Replaces consolidated with enhanced | Correct |
-| 3 | Edit → Re-run (either) | **LC edits silently lost** | **Critical** |
-| 4 | Edit → Upload → Re-run | Edits lost, new doc included | **Critical** |
-| 5 | Accepted → editor locked | Buttons disabled | Safe |
-| 6 | Accepted → upload → stale banner shows | Re-run could attempt second `UNIFIED_SPA` | **Minor risk** (DB index now backstops) |
+- Normalize both (strip whitespace runs, collapse `\n`, ignore attribute order on safe tags).
+- If the normalized strings are equal:
+  - Show toast: *"No changes — the regenerated document is identical to the current draft."*
+  - Suppress the success toast ("Source documents organized & merged" / "Legal AI review completed") to avoid mixed signalling.
+  - Editor content is left untouched.
+- Else: proceed normally and trigger the red-diff highlight (below).
 
-Both `Consolidate` and `Enhance with AI` always read **only** SOURCE_DOC rows + curated context, then replace the `UNIFIED_SPA`. They never read the editor draft. That's the root of the remaining issues.
+Implementation site: `useLcPass3Mutations.ts` already runs `onSuccess`. We capture `prevHtml` from `getCurrentDoc()` (extend the snapshot to expose `unifiedDocHtml`) before invoking the edge function, then compare against the freshly-fetched row inside `onSuccess`.
 
-## Decision
+### 2. Red diff highlighting for changed content
 
-Stay with the **simple, deterministic** model:
+Visually mark every clause that differs between `prevHtml` (pre-regenerate) and the new `unifiedDocHtml`.
 
-- SOURCE_DOC rows = single source of truth for inputs.
-- UNIFIED_SPA = always-regenerable output.
-- LC edits live only in the editor draft. They are protected by a **confirmation dialog** before any action that would discard them.
-- After Accept, every regenerative action is hard-disabled at the UI **and** mutation layers.
-- DB partial index already prevents a second `UNIFIED_SPA` row.
+**Approach (pragmatic, no heavy diff library):**
 
-## Fixes
+- Add a small utility `src/lib/cogniblend/legal/diffHighlight.ts` that:
+  - Parses both HTML strings via `DOMParser`.
+  - Walks block-level nodes (`p`, `li`, `h2`, `h3`, `h4`, `blockquote`, `td`) in document order.
+  - For each new block, computes a normalized text fingerprint (lowercased, whitespace-collapsed).
+  - If a block's fingerprint did NOT exist in the previous doc's fingerprint set, wrap its inner HTML with `<span class="legal-diff-added">…</span>`.
+  - Returns the annotated HTML.
+- This is content-level, not character-level — fits the legal-doc context where users care about clause-level changes, not punctuation churn.
 
-### Fix A — Confirm before destructive regenerate (Scenarios 3 & 4)
+**Where to apply:**
 
-Use shadcn `AlertDialog` (project standard, accessible).
+- `LcPass3ReviewPanel.tsx`: store a `pendingHighlightAgainst: string | null` ref that's set to the pre-regenerate HTML when a Consolidate/Re-run mutation starts.
+- When `review.unifiedDocHtml` updates after the mutation:
+  - If `pendingHighlightAgainst` is set and new HTML ≠ old HTML, run `annotateAdditions(prevHtml, newHtml)` and call `editor.commands.setContent(annotated, { emitUpdate: false })`.
+  - Persist the **un-annotated** HTML to state for `editedHtml` so saves/accepts never store the `<span class="legal-diff-added">` markup.
+  - Clear `pendingHighlightAgainst`.
+- A subtle "Showing changes from previous version" pill renders in `Pass3ReviewHeader` while highlights are active, with a `Clear highlights` button.
 
-Affected entry points:
-- **Re-run Pass 3** in `src/components/cogniblend/lc/Pass3EditorBody.tsx`
-- **Re-organize** in `src/components/cogniblend/lc/Pass3ReviewHeader.tsx`
-- **Consolidate** / **Enhance with AI** entry buttons in `src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx` (whichever surfaces them)
+**CSS** in `src/styles/legal-document.css`:
 
-Behaviour:
-- Dialog only when `unifiedDocHtml` is non-empty AND status ∈ {`organized`, `ai_suggested`}.
-- Title: *"Replace current draft?"*
-- Body (when editor is dirty): *"This will regenerate the agreement from your uploaded source documents. Any manual edits in the editor will be discarded."*
-- Body (when not dirty): *"Regenerate the agreement from the latest source documents?"*
-- Buttons: `Cancel` (default) / `Regenerate` (destructive variant).
-- First-time Consolidate/Enhance from `idle` status → no dialog.
-
-Implementation:
-- New presentational component `src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx` (≤ 60 lines) wrapping `AlertDialog`. Reused by all call sites — keeps each parent ≤ 250 lines.
-- Each call site: `<ConfirmRegenerateDialog trigger={<Button…/>} onConfirm={onAction} skipConfirm={!hasDraft} isDirty={editorDirtySinceLoad} />`.
-
-### Fix B — Hide stale UI and lock regeneration after Accept (Scenario 6)
-
-In `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`:
-
-```tsx
-<Pass3ReviewHeader
-  ...
-  isStale={review.isStale && !review.isPass3Accepted}
-  isBusy={review.isBusy || review.isPass3Accepted}
-  ...
-/>
-```
-
-In `src/hooks/cogniblend/useLcPass3Mutations.ts`, add a guard at the top of both `runPass3` and `organizePass3` mutationFns:
-
-```ts
-if (currentDoc?.ai_review_status === 'accepted') {
-  throw new Error('Legal documents have already been accepted and cannot be regenerated.');
+```css
+.legal-doc .legal-diff-added {
+  color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 0.06);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.legal-doc.is-accepted .legal-diff-added {
+  color: inherit;
+  background-color: transparent;
+  padding: 0;
 }
 ```
 
-Belt-and-braces — UI hides the button, mutation refuses the call, and the DB partial index would refuse a second `UNIFIED_SPA` insert as the final backstop.
+The `is-accepted` class is added to the `.legal-doc` wrapper in `Pass3EditorBody` whenever `isPass3Accepted` is true — this guarantees red turns to black on Accept without touching the underlying HTML.
 
-### Fix C — DB single-row guarantee (already in place)
+### 3. Stripping highlights on Save / Accept (data integrity)
 
-Partial unique index `uq_challenge_legal_docs_unified_per_tier` on `(challenge_id, document_type, tier) WHERE document_type <> 'SOURCE_DOC'` — verified live. **No migration needed.**
+Even though we never put the spans into editor state we control, a defensive `stripDiffSpans(html)` step runs inside `saveEdits` and `acceptPass3` mutationFns to scrub any `legal-diff-added` span from the HTML before it hits Postgres. The DB always stores clean, signable content.
 
-### Fix D — Dirty-state-aware dialog copy
+### 4. Highlights survive only the current session
 
-- Track `editorDirtySinceLoad` by comparing the editor's current HTML against the last persisted `ai_modified_content_html` (already exposed by the autosave hook; expose a boolean if not).
-- `ConfirmRegenerateDialog` shows the "edits will be discarded" copy only when `isDirty === true`. Otherwise the softer "regenerate from latest source documents?" copy. Avoids dialog fatigue.
+Highlights are session-only (in-memory). On page reload, the editor loads `unifiedDocHtml` clean (no spans, no comparison). This avoids stale cross-version diffs and keeps the DB pristine.
 
 ## Files touched
 
-1. `src/components/cogniblend/lc/ConfirmRegenerateDialog.tsx` — new (≤ 60 lines).
-2. `src/components/cogniblend/lc/Pass3EditorBody.tsx` — wrap Re-run button.
-3. `src/components/cogniblend/lc/Pass3ReviewHeader.tsx` — wrap Re-organize button.
-4. `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` — pass guarded `isStale` / `isBusy`.
-5. `src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx` — wrap Consolidate / Enhance entry buttons (if surfaced here).
-6. `src/hooks/cogniblend/useLcPass3Mutations.ts` — `accepted` guard in both mutations; expose `editorDirtySinceLoad` if not already available.
+1. **`src/lib/cogniblend/legal/diffHighlight.ts`** — new (~80 lines). `annotateAdditions(prev, next)` + `stripDiffSpans(html)` + `htmlEqualsNormalized(a, b)`.
+2. **`src/styles/legal-document.css`** — add the two `.legal-diff-added` rules and the `is-accepted` override.
+3. **`src/hooks/cogniblend/useLcPass3Mutations.ts`** — capture `prevHtml` before mutation; in `onSuccess` re-read the new HTML, compare via `htmlEqualsNormalized`, suppress success toast and emit info toast on no-change. Strip diff spans in `saveEdits` + `acceptPass3` payloads.
+4. **`src/hooks/cogniblend/useLcPass3Review.ts`** — extend `getCurrentDoc()` snapshot with current `unifiedDocHtml`; expose a `lastRegenerateOutcome: 'changed' | 'unchanged' | null` flag (small addition, stays under 250 lines).
+5. **`src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`** — track `pendingHighlightAgainst`, run `annotateAdditions` on next-content arrival, drive `is-accepted` class via prop to `Pass3EditorBody`. Stay ≤ 250 lines (pull the highlight effect into `useLcPass3DiffHighlight.ts` if needed).
+6. **`src/components/cogniblend/lc/Pass3EditorBody.tsx`** — accept `isAccepted` prop already present; add `is-accepted` class on the `.legal-doc` wrapper. Add a small "Showing changes" pill + Clear button slot.
+7. **`src/components/cogniblend/lc/Pass3ReviewHeader.tsx`** — optional: surface the "Showing changes from previous version" pill (delegated from parent via prop), with a small `X` to clear.
 
-All files stay ≤ 250 lines (R1). No DB migration. No edge function change. No new dependencies.
+No DB migration. No edge function change. No new dependency. All files remain ≤ 250 lines (R1).
 
-## NOT changing
+## Behaviour matrix after this change
 
-- The "always regenerate from SOURCE_DOC rows" architecture (intentional and correct).
-- The two-tab layout.
-- DB schema (partial unique index already in place).
-- `suggest-legal-documents` edge function.
-- QUICK auto-accept path, Pass 1, Pass 2, `complete_legal_review` RPC.
-- Any naming or terminology.
+| Action | Resulting content differs? | Toast | Editor visual |
+|---|---|---|---|
+| Consolidate (first time, idle) | n/a (no prior) | "Source documents organized & merged" | Plain |
+| Consolidate again, identical output | No | **"No changes — the regenerated document is identical to the current draft."** | Unchanged |
+| Consolidate again, content differs | Yes | "Source documents organized & merged" | New content; **changed clauses in red** |
+| Re-run Pass 3, content differs | Yes | "Legal AI review completed" | New content; **changed clauses in red** |
+| Re-run Pass 3, identical output | No | **"No changes…"** info toast | Unchanged |
+| LC edits a clause, autosaves | n/a | "Legal document saved" | Edits as plain text (no red — edits aren't AI changes) |
+| LC clicks Accept | n/a | "Legal documents approved" | **All red turns to black** via `.is-accepted` class |
+| Page reload after Accept | n/a | — | Plain black (DB has no span markup) |
 
 ## Verification
 
-1. Fresh challenge → Consolidate → no dialog (idle), draft appears.
-2. Edit a clause → click Consolidate → dialog with "edits will be discarded"; Cancel keeps edits; Regenerate replaces.
-3. Edit → click Enhance with AI → same dialog, same behaviour.
-4. Enhance → without editing, click Consolidate → softer dialog ("regenerate from latest source documents?").
-5. Upload a new SOURCE_DOC while editing → stale banner shows; Re-run Consolidate dialog warns about edits.
-6. Accept → all regeneration buttons disabled, stale banner hidden, editor locked.
-7. Manual mutation invocation after accept (e.g. via stale React Query cache) → mutation throws and toasts the error; DB partial index also blocks a duplicate `UNIFIED_SPA`.
-8. Solution Provider preview reads `content_html` of the single accepted `UNIFIED_SPA` row — single source of truth at signing.
-9. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
+1. Fresh challenge, upload two docs, click Consolidate → draft appears, no red highlights (first generation).
+2. Click Consolidate again with no upload changes → info toast *"No changes…"*; success toast does NOT appear; editor content unchanged.
+3. Upload a third doc, click Consolidate → success toast; new clauses pulled from the third doc render in red; existing clauses remain black.
+4. Edit a red clause manually → red span removed by editor on input; autosave persists clean HTML.
+5. Click Re-run Pass 3 with substantive change → success toast; AI-rewritten clauses render in red.
+6. Click Accept → all red text turns black instantly; DB row contains zero `legal-diff-added` spans (verified via Supabase read).
+7. Reload page → editor shows clean black content.
+8. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
 
 ## Out of scope
 
-- Feeding the editor draft back into the AI (preserves predictability).
-- Per-section diff/merge UI.
-- URL/localStorage persistence of the active workspace tab.
-- Renaming statuses or DB columns.
-- Any further DB migration (verified unnecessary).
+- Character-level diff (would require `diff-match-patch` and add weight for marginal gain).
+- Showing deletions inline (red strikethrough of removed clauses) — adds clutter for the legal-review use case; can be added later if requested.
+- Persisting highlights across reloads or across users.
+- Changing the regenerate-from-SOURCE_DOC architecture.
 
