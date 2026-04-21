@@ -4,7 +4,7 @@
  *
  * Thin orchestrator. Source-doc upload → Pass 3 → Attached docs → Submit.
  */
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Shield } from 'lucide-react';
 
@@ -52,7 +52,16 @@ export default function LcLegalWorkspacePage() {
   const [pwaAccepted, setPwaAccepted] = useState(false);
 
   const actions = useLcLegalActions({ challengeId, userId: user?.id });
-  const pass3 = useLcPass3Review(challengeId);
+  const armRef = useRef<((prev: string, outcome: 'changed' | 'unchanged') => void) | null>(null);
+  const pass3 = useLcPass3Review(challengeId, {
+    onRegenerateComplete: (prev, outcome) => armRef.current?.(prev, outcome),
+  });
+  const handleRegisterArm = useCallback(
+    (fn: (prev: string, outcome: 'changed' | 'unchanged') => void) => {
+      armRef.current = fn;
+    },
+    [],
+  );
   const { submit, submitting, gateFailures } = useLcLegalSubmit({
     challengeId,
     userId: user?.id,
@@ -190,9 +199,10 @@ export default function LcLegalWorkspacePage() {
 
           {isLC && (
             <LcUnifiedAgreementCard
-              challengeId={challengeId!}
+              review={pass3}
               isAccepted={pass3.isPass3Accepted}
               reviewedAt={pass3.reviewedAt}
+              onRegisterArm={handleRegisterArm}
             />
           )}
 

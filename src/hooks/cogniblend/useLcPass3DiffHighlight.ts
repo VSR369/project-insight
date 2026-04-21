@@ -33,9 +33,13 @@ export function useLcPass3DiffHighlight({
     if (!editor) return;
     if (!unifiedDocHtml) return;
     const cleanIncoming = stripDiffSpans(unifiedDocHtml);
-    if (cleanIncoming === editor.getHTML()) return;
-
     const prev = pendingHighlightAgainst.current;
+
+    // Only short-circuit when there's no pending diff to render. When a
+    // regenerate has been armed we always render — even on byte-equal HTML —
+    // so reordered/identical-text-different-position changes still annotate.
+    if (!prev && cleanIncoming === editor.getHTML()) return;
+
     if (prev) {
       const annotated = annotateAdditions(stripDiffSpans(prev), cleanIncoming);
       editor.commands.setContent(annotated, { emitUpdate: false });
