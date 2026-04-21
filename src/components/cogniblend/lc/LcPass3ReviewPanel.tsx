@@ -159,23 +159,22 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
       </CardHeader>
 
       <CardContent className="space-y-4">
+        <Pass3ProgressBar
+          isRunning={review.isRunning}
+          isOrganizing={review.isOrganizing}
+        />
+
         {review.isLoading && <Skeleton className="h-40 w-full" />}
 
-        {!review.isLoading && review.pass3Status === 'idle' && !review.isRunning && (
-          <p className="text-xs text-muted-foreground italic">
-            Use the action buttons in the Source Legal Documents card above to
-            generate the unified agreement.
-          </p>
-        )}
-
-        {review.isRunning && (
-          <div className="flex flex-col items-center gap-3 rounded-lg border bg-muted/30 p-8 text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              AI is reviewing legal documents against the full challenge context...
+        {!review.isLoading &&
+          review.pass3Status === 'idle' &&
+          !review.isRunning &&
+          !review.isOrganizing && (
+            <p className="text-xs text-muted-foreground italic">
+              Use the action buttons in the Source Legal Documents card above to
+              generate the unified agreement.
             </p>
-          </div>
-        )}
+          )}
 
         {review.pass3Status === 'error' && !review.isRunning && (
           <Alert variant="destructive">
