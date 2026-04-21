@@ -8,7 +8,10 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { handleMutationError, logWarning } from '@/lib/errorHandler';
-import { htmlEqualsNormalized } from '@/lib/cogniblend/legal/diffHighlight';
+import {
+  htmlEqualsNormalized,
+  summarizeBlockDiff,
+} from '@/lib/cogniblend/legal/diffHighlight';
 import { ensureFreshSession } from '@/lib/cogniblend/ensureFreshSession';
 
 const PASS3_KEY = (challengeId: string | undefined) =>
@@ -70,12 +73,17 @@ export function useLcPass3Regenerate({
     }
   };
 
-  const reportOutcome = (prevHtml: string, newHtml: string, successMsg: string) => {
+  const reportOutcome = (prevHtml: string, newHtml: string, successLabel: string) => {
     const unchanged = !!prevHtml && htmlEqualsNormalized(prevHtml, newHtml);
     if (unchanged) {
       toast.info('No changes — the regenerated document is identical to the current draft.');
     } else {
-      toast.success(successMsg);
+      const { added, removed } = summarizeBlockDiff(prevHtml, newHtml);
+      const deltaSuffix =
+        added > 0 || removed > 0
+          ? ` — ${added} paragraph${added === 1 ? '' : 's'} added, ${removed} removed (red = added, strikethrough = removed).`
+          : '.';
+      toast.success(`${successLabel}${deltaSuffix}`);
     }
     onRegenerateComplete?.(prevHtml, unchanged ? 'unchanged' : 'changed');
   };
@@ -138,7 +146,7 @@ export function useLcPass3Regenerate({
         }
       }
       invalidate();
-      reportOutcome(prevHtml, newHtml, 'Legal AI review completed');
+      reportOutcome(prevHtml, newHtml, 'Re-run AI Pass 3 complete');
     },
     onError: (e) => {
       mutexRef.current = false;
@@ -190,7 +198,7 @@ export function useLcPass3Regenerate({
           '';
       }
       invalidate();
-      reportOutcome(prevHtml, newHtml, 'Source documents organized & merged');
+      reportOutcome(prevHtml, newHtml, 'Re-organize complete');
     },
     onError: (e) => {
       mutexRef.current = false;

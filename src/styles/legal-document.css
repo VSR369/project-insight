@@ -238,6 +238,45 @@
   display: none;
 }
 
+/* Trailing group of removed blocks that had no matching <h2> in the new
+   version. Renders as a clearly delineated panel after the document. */
+.legal-doc .legal-diff-removed-section {
+  margin-top: 32px;
+  padding: 16px 16px 8px 16px;
+  border: 1px dashed hsl(var(--muted-foreground) / 0.4);
+  border-radius: 4px;
+  background: hsl(var(--muted) / 0.2);
+}
+.legal-doc .legal-diff-removed-section::before {
+  content: 'Removed in this version';
+  display: block;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+}
+.legal-doc .legal-diff-removed-section > * {
+  text-decoration: line-through;
+  text-decoration-color: hsl(var(--destructive) / 0.55);
+  color: hsl(var(--muted-foreground));
+  opacity: 0.85;
+  background: transparent;
+  border-left: none;
+  padding: 0;
+  margin: 4px 0;
+  display: block;
+  position: static;
+}
+.legal-doc .legal-diff-removed-section > *::before {
+  content: none;
+}
+.legal-doc.is-accepted .legal-diff-removed-section {
+  display: none;
+}
+
 @media print {
   .legal-doc {
     font-size: 12pt;
