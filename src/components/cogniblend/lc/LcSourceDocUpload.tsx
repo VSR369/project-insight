@@ -245,7 +245,7 @@ export function LcSourceDocUpload({
                       size="sm"
                       className="gap-1.5"
                     >
-                      {pass3Busy ? (
+                      {isRunningPass3 ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Sparkles className="h-3.5 w-3.5" />
