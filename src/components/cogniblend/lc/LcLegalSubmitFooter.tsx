@@ -1,13 +1,14 @@
 /**
  * LcLegalSubmitFooter — Bottom action card for the LC legal workspace.
- * Shows doc count + Submit/Approve/Return controls. Extracted from
- * LcLegalWorkspacePage to keep it under the 250-line cap.
+ * Shows doc count + Return-to-Curator + Submit-to-Curation controls.
+ *
+ * Note: the legacy "Approve Legal Compliance" button has been removed —
+ * acceptance now happens inside the unified agreement editor (Accept Pass 3).
  */
 import { Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LcReturnToCurator } from '@/components/cogniblend/lc/LcReturnToCurator';
-import { LcApproveAction } from '@/components/cogniblend/lc/LcApproveAction';
 
 export interface LcLegalSubmitFooterProps {
   challengeId: string;
@@ -41,12 +42,11 @@ export function LcLegalSubmitFooter({
           <p className="text-xs text-muted-foreground">
             {!phaseGateOk
               ? `Challenge is currently at Phase ${currentPhase ?? '?'}. It must be at Phase 2 before LC can submit to curation.`
-              : 'Run Pass 3 and accept the unified agreement before submitting.'}
+              : 'Generate the unified agreement above, accept it, then submit to advance the challenge.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <LcReturnToCurator challengeId={challengeId} userId={userId} disabled={submitting} />
-          <LcApproveAction challengeId={challengeId} userId={userId} disabled={submitting} />
         </div>
         <Button onClick={onSubmit} disabled={submitDisabled}>
           {submitting ? (

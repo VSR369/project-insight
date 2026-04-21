@@ -67,7 +67,7 @@ export function useLcLegalSubmit({ challengeId, userId }: UseLcLegalSubmitArgs) 
       const msg = result.awaiting === 'creator_approval'
         ? 'Legal review complete — Creator approval requested'
         : result.phase_advanced
-          ? 'Legal review complete — challenge advanced to next phase'
+          ? 'Legal review complete — challenge handed back to the Curator for finalisation.'
           : 'Legal review complete — waiting for financial compliance';
       toast.success(msg);
       if (result.phase_advanced) navigate('/cogni/dashboard');

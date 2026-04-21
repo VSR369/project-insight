@@ -12,7 +12,7 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
-import { Loader2, RefreshCw, Shield, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Loader2, RefreshCw, Shield, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -145,38 +145,11 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
       <CardContent className="space-y-4">
         {review.isLoading && <Skeleton className="h-40 w-full" />}
 
-        {!review.isLoading && review.pass3Status === 'idle' && (
-          <div className="space-y-4 rounded-lg border bg-muted/30 p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Generate the unified Solution Provider Agreement. Choose
-              <strong> Run AI Pass 3 </strong> to merge uploaded source documents
-              and have the AI fill any gaps with grounded content, OR choose
-              <strong> Organize &amp; Merge </strong> to deduplicate and
-              harmonise uploaded source clauses without any new AI-generated
-              content (empty sections show a placeholder).
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button
-                size="lg"
-                onClick={review.runPass3}
-                disabled={review.isRunning || review.isOrganizing}
-                className="gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                Run AI Pass 3 (Merge + Enhance)
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={review.organizeOnly}
-                disabled={review.isRunning || review.isOrganizing}
-                className="gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                Organize &amp; Merge (No AI Enhancement)
-              </Button>
-            </div>
-          </div>
+        {!review.isLoading && review.pass3Status === 'idle' && !review.isRunning && (
+          <p className="text-xs text-muted-foreground italic">
+            Use the action buttons in the Source Legal Documents card above to
+            generate the unified agreement.
+          </p>
         )}
 
         {review.isRunning && (
