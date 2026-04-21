@@ -1,88 +1,68 @@
 
 
-# Plan — Two-tab layout for the LC Legal Workspace
+# Plan — Drop legacy unique constraint blocking multiple SOURCE_DOC uploads
 
-## Goal
+## Root cause (confirmed)
 
-Replace the long vertical stack on `/cogni/challenges/:id/lc-legal` with two tabs:
+The legacy unique constraint `uq_challenge_legal_docs_type_tier` on `(challenge_id, document_type, tier)` is still on `challenge_legal_docs`. It was designed for the old per-document flow (one NDA, one CHALLENGE_TERMS, one IP_ASSIGNMENT per challenge). The new unified workflow requires **multiple `SOURCE_DOC` rows per challenge**, so the second upload always fails.
 
-1. **Legal Review** (default, opens first)
-2. **Curated Challenge**
+A previous attempt tried to replace this with a partial unique index, but the original constraint is still present in the live schema — that's why the error persists.
 
-Header, step indicator, workflow banner, status alerts, and the submit footer stay outside the tabs so they remain visible at all times.
+## Fix — single DB migration, no code changes
 
-## New layout
+Create one new migration:
 
-```text
-┌─ Header: ← back · Shield · "Legal Coordinator Workspace" · challenge title ─┐
-│  [ Read-only banner if lc_compliance_complete ]                              │
-│  [ Step indicator: 1 → 2 → 3 ]                                               │
-│  [ WorkflowProgressBanner step=3 ]                                           │
-│                                                                               │
-│  ┌─ Tabs ─────────────────────────────────────────────────────────────────┐  │
-│  │  [ Legal Review ]   [ Curated Challenge ]                              │  │
-│  │ ───────────────────────────────────────────────────────────────────────│  │
-│  │                                                                         │  │
-│  │  TAB 1 — Legal Review (default)                                        │  │
-│  │   • LcSourceDocUpload  (upload source docs)                            │  │
-│  │   • LcUnifiedAgreementCard  (Consolidate / Enhance / editor / Accept)  │  │
-│  │   • LcAttachedDocsCard  (final list of attached docs)                  │  │
-│  │                                                                         │  │
-│  │  TAB 2 — Curated Challenge                                             │  │
-│  │   • LcFullChallengePreview  (read-only curated challenge content)      │  │
-│  │                                                                         │  │
-│  └─────────────────────────────────────────────────────────────────────────┘  │
-│                                                                               │
-│  [ Gate-failure alerts ]                                                      │
-│  [ LcLegalSubmitFooter — Submit to Curator ]                                  │
-└──────────────────────────────────────────────────────────────────────────────┘
+```sql
+-- Drop the legacy unique constraint that blocks multiple SOURCE_DOC uploads.
+-- The new unified workflow uses document_type='SOURCE_DOC' for ALL uploaded
+-- source documents, so multiple rows per (challenge_id, document_type, tier)
+-- are required.
+ALTER TABLE public.challenge_legal_docs
+  DROP CONSTRAINT IF EXISTS uq_challenge_legal_docs_type_tier;
+
+-- Also drop any duplicate index left behind by the previous attempt so we
+-- can re-create the partial unique index cleanly.
+DROP INDEX IF EXISTS public.uq_challenge_legal_docs_unified_per_tier;
+
+-- Keep one UNIFIED_SPA per (challenge, tier); allow unlimited SOURCE_DOC rows.
+CREATE UNIQUE INDEX uq_challenge_legal_docs_unified_per_tier
+  ON public.challenge_legal_docs (challenge_id, document_type, tier)
+  WHERE document_type <> 'SOURCE_DOC';
 ```
 
-## Why this split
+Why both statements:
+- `DROP CONSTRAINT IF EXISTS` removes the old hard constraint that's still blocking inserts.
+- `DROP INDEX IF EXISTS` + `CREATE UNIQUE INDEX` makes the migration idempotent if the partial index from the previous attempt landed (or didn't).
+- The partial index preserves the only invariant we still want: a single `UNIFIED_SPA` per challenge + tier.
 
-- **Legal Review** is where the LC actually works — uploads, consolidation, AI enhance, editor, accept.
-- **Curated Challenge** is reference reading — the curated brief the LC consults while drafting. Tucking it into a tab removes 60–70% of the scroll.
-- Submit footer stays outside the tabs so the LC can submit from either tab without context-switching.
-- The step indicator stays outside so progress (1 → 2 → 3) is always visible.
+## What is NOT changing
+
+- No component changes (`LcSourceDocUpload`, `LcUnifiedAgreementCard`, `LcPass3ReviewPanel`, `Pass3EditorBody`, etc.).
+- No hook changes (`useSourceDocs`, `useUploadSourceDoc`, `useOrganizeAndMerge`).
+- No edge function changes (`suggest-legal-documents` already supports `organize_only` mode).
+- No status trigger changes (`enforce_legal_doc_status` already accepts `uploaded`/`organized`/`accepted`/`ai_suggested`).
+- No `ai_review_status` check-constraint changes (already accepts `organized`).
+- No UI restructure (two-tab layout from the previous step stays as-is).
 
 ## Files touched
 
-1. **`src/pages/cogniblend/LcLegalWorkspacePage.tsx`** (only file edited)
-   - Import `Tabs, TabsList, TabsTrigger, TabsContent` from `@/components/ui/tabs`.
-   - Add local state: `const [activeTab, setActiveTab] = useState<'legal' | 'challenge'>('legal')`.
-   - Move `LcFullChallengePreview` inside the `Curated Challenge` tab.
-   - Move `LcSourceDocUpload`, `LcUnifiedAgreementCard`, and `LcAttachedDocsCard` inside the `Legal Review` tab.
-   - Keep header, read-only banner, step indicator, `WorkflowProgressBanner`, gate-failure alerts, and `LcLegalSubmitFooter` outside the tabs.
-   - File stays well under 250 lines (target: ~200).
-
-2. **No changes** to:
-   - Child components (`LcSourceDocUpload`, `LcUnifiedAgreementCard`, `LcFullChallengePreview`, `LcAttachedDocsCard`, `LcLegalSubmitFooter`).
-   - Hooks, services, mutations, RPCs.
-   - Database schema or edge functions.
-   - The Curator (`CuratorComplianceTab`) layout — it's a separate flow and isn't affected.
-
-## Behaviour details
-
-- **Default tab**: `Legal Review` (the LC's primary work surface).
-- **Tab persistence**: not persisted across reloads — this is a focused workspace; default-to-Legal-Review is the right call every time.
-- **Accessibility**: shadcn `Tabs` already wires roving focus, `role="tablist"`, `aria-controls`, and Enter/Arrow keys.
-- **Responsive**: tabs render full-width on mobile, inline on `lg:` and up — no extra breakpoint work needed.
-- **Read-only mode** (`lc_compliance_complete`): the read-only banner still shows above the tabs; tab content already respects the read-only state via existing component logic.
+- `supabase/migrations/<new>_drop_legacy_unique_allow_multiple_source_docs.sql` — the SQL above.
 
 ## Verification
 
-1. Navigate to `/cogni/challenges/<id>/lc-legal` — `Legal Review` tab is selected by default.
-2. The Source Upload, Unified Agreement editor, and Attached Docs are all on this tab.
-3. Click `Curated Challenge` — the full challenge preview renders; nothing else moves.
-4. Submit footer is visible from both tabs and works identically.
-5. Step indicator above the tabs updates as LC progresses (1 → 2 → 3).
-6. `lc_compliance_complete` read-only banner still appears above the tabs.
-7. `npx tsc --noEmit` passes; file stays under 250 lines.
+1. Upload doc #1 → succeeds.
+2. Upload doc #2 → **succeeds** (this is the regression fix).
+3. Upload doc #3 → succeeds; all three appear in the source list.
+4. Click **Consolidate uploaded documents** → unified draft renders in the editor (`ai_review_status = organized`).
+5. Click **Enhance with AI (optional)** → editor updates (`ai_review_status = ai_suggested`).
+6. Click **Accept Legal Documents** → `accepted`, banner appears.
+7. Attempt to insert a second `UNIFIED_SPA` for the same `(challenge_id, tier)` → still rejected by the partial unique index (invariant preserved).
+8. `npx tsc --noEmit` — unchanged, no code touched.
 
 ## Out of scope
 
-- Any change to the Curator legal tab.
-- Renaming "Pass 3 — AI Legal Review" (already renamed to "Legal Review" in the prior change).
-- DB or edge function changes.
-- Persisting the active tab in URL/localStorage.
+- Renaming `document_type` enum values.
+- Any change to Pass 1 / Pass 2 / `complete_legal_review` RPC.
+- Any change to QUICK auto-accept path.
+- Any frontend change — explicitly avoided per the user's instruction.
 
