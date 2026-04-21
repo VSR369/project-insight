@@ -136,8 +136,10 @@ export function useLcPass3Regenerate({
       invalidate();
       reportOutcome(prevHtml, newHtml, 'Legal AI review completed');
     },
-    onError: (e) =>
-      handleMutationError(e, { operation: 'run_pass3', component: 'useLcPass3Regenerate' }),
+    onError: (e) => {
+      mutexRef.current = false;
+      handleMutationError(e, { operation: 'run_pass3', component: 'useLcPass3Regenerate' });
+    },
   });
 
   const organizePass3 = useMutation({
