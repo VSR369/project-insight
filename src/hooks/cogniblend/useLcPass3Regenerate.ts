@@ -177,7 +177,7 @@ export function useLcPass3Regenerate({
       logWarning('Pass 3 run and organize mutations are pending simultaneously', {
         operation: 'pass3_regenerate_invariant',
         component: 'useLcPass3Regenerate',
-        metadata: { challengeId },
+        additionalData: { challengeId },
       });
     }
   }, [runPass3.isPending, organizePass3.isPending, challengeId]);
