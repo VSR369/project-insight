@@ -92,6 +92,7 @@ export function LcSourceDocUpload({
   };
 
   const isBusy = disabled || uploadMut.isPending;
+  const pass3Busy = isRunningPass3 || isOrganizing;
   const sourceList = docs ?? [];
   const hasDocs = sourceList.length > 0;
   const inheritedDocs = sourceList.filter(
