@@ -37,8 +37,10 @@ export interface LcSourceDocUploadProps {
   onRunPass3?: () => void;
   /** When provided, renders an Organize & Merge button alongside Run Pass 3. */
   onOrganizeOnly?: () => void;
-  /** Disables both action buttons while a Pass 3 mutation is pending. */
-  pass3Busy?: boolean;
+  /** Spinner on the Re-run AI Pass 3 button — true only while Pass 3 itself runs. */
+  isRunningPass3?: boolean;
+  /** Spinner on the Re-organize button — true only while Organize itself runs. */
+  isOrganizing?: boolean;
   /** Re-labels the buttons as "Re-run" / "Re-organize" once a draft exists. */
   hasGenerated?: boolean;
   /** When true, regenerate clicks show a confirm dialog (draft would be replaced). */
@@ -53,7 +55,8 @@ export function LcSourceDocUpload({
   disabled = false,
   onRunPass3,
   onOrganizeOnly,
-  pass3Busy = false,
+  isRunningPass3 = false,
+  isOrganizing = false,
   hasGenerated = false,
   hasDraft = false,
   isDirty = false,
@@ -89,6 +92,7 @@ export function LcSourceDocUpload({
   };
 
   const isBusy = disabled || uploadMut.isPending;
+  const pass3Busy = isRunningPass3 || isOrganizing;
   const sourceList = docs ?? [];
   const hasDocs = sourceList.length > 0;
   const inheritedDocs = sourceList.filter(
@@ -241,7 +245,7 @@ export function LcSourceDocUpload({
                       size="sm"
                       className="gap-1.5"
                     >
-                      {pass3Busy ? (
+                      {isRunningPass3 ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <Sparkles className="h-3.5 w-3.5" />
@@ -265,7 +269,11 @@ export function LcSourceDocUpload({
                       variant="outline"
                       className="gap-1.5"
                     >
-                      <FileText className="h-3.5 w-3.5" />
+                      {isOrganizing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5" />
+                      )}
                       {organizeLabel}
                     </Button>
                   }

@@ -191,7 +191,8 @@ export default function LcLegalWorkspacePage() {
               sourceOrigin="lc"
               onRunPass3={pass3.runPass3}
               onOrganizeOnly={pass3.organizeOnly}
-              pass3Busy={pass3.isRunning || pass3.isOrganizing}
+              isRunningPass3={pass3.isRunning}
+              isOrganizing={pass3.isOrganizing}
               hasGenerated={pass3.pass3Status !== 'idle'}
               hasDraft={pass3.pass3Status !== 'idle' && !pass3.isPass3Accepted}
             />
