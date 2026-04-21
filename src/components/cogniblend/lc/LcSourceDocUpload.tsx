@@ -143,7 +143,7 @@ export function LcSourceDocUpload({
           </Button>
           <span className="text-[11px] text-muted-foreground">
             {SOURCE_DOC_CONFIG.allowedExtensions.join(', ')} · max{' '}
-            {SOURCE_DOC_CONFIG.maxSizeMB} MB each
+            {SOURCE_DOC_CONFIG.maxSizeMB} MB each · PDF support coming soon
           </span>
         </div>
 
