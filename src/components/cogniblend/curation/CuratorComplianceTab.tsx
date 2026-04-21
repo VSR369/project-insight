@@ -158,7 +158,8 @@ export function CuratorComplianceTab({
               sourceOrigin="curator"
               onRunPass3={review.isPass3Accepted ? undefined : review.runPass3}
               onOrganizeOnly={review.isPass3Accepted ? undefined : review.organizeOnly}
-              pass3Busy={reviewBusy}
+              isRunningPass3={review.isRunning}
+              isOrganizing={review.isOrganizing}
               hasGenerated={review.pass3Status !== 'idle'}
               hasDraft={review.pass3Status !== 'idle' && !review.isPass3Accepted}
             />
