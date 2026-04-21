@@ -203,11 +203,23 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
           </Alert>
         )}
 
-        {review.pass3Status === 'completed' && !review.isRunning && (
+        {(review.pass3Status === 'completed' || review.pass3Status === 'organized' || review.pass3Status === 'accepted') && !review.isRunning && (
           <>
-            {review.isStale && (
-              <Pass3StaleAlert description="Creator made edits. Click 'Re-run Pass 3' to update legal documents." />
-            )}
+            <Pass3StatusStrip
+              status={
+                (review.pass3Status === 'accepted'
+                  ? 'accepted'
+                  : review.pass3Status === 'organized'
+                    ? 'organized'
+                    : 'ai_suggested') as Pass3StatusKind
+              }
+              runCount={review.runCount}
+              reviewedAt={review.reviewedAt}
+              isStale={review.isStale}
+              onRerunAi={() => review.runPass3()}
+              onReorganize={() => review.organizeOnly()}
+              isBusy={review.isRunning || review.isOrganizing}
+            />
             {review.changesSummary && (
               <Alert>
                 <AlertTitle className="flex items-center gap-2">
