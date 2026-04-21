@@ -1,6 +1,9 @@
 /**
  * LcPass3ReviewPanel — Pass 3 (Legal AI Review) UI for the Legal Coordinator.
  * Mirrors CuratorLegalReviewPanel; uses useLcPass3Review for data access.
+ *
+ * Header chips/summary live in Pass3ReviewHeader; editor + nav in
+ * Pass3EditorBody. This panel orchestrates state + composition only.
  */
 import { useEffect, useState } from 'react';
 import { useEditor } from '@tiptap/react';
@@ -16,24 +19,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLcPass3Review, type Pass3Confidence } from '@/hooks/cogniblend/useLcPass3Review';
-import { Pass3StatusStrip, type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
+import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
+import { type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
-import { cn } from '@/lib/utils';
+import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
 import '@/styles/legal-document.css';
 
 export interface LcPass3ReviewPanelProps {
   challengeId: string;
 }
-
-const CONFIDENCE_VARIANT: Record<
-  NonNullable<Pass3Confidence>,
-  { label: string; className: string }
-> = {
-  high: { label: 'High confidence', className: 'bg-success/10 text-success border-success/30' },
-  medium: { label: 'Medium confidence', className: 'bg-warning/10 text-warning border-warning/30' },
-  low: { label: 'Low confidence', className: 'bg-destructive/10 text-destructive border-destructive/30' },
-};
 
 function buildHeadingGuard(protectedHeadings: string[]) {
   const normalized = protectedHeadings.map((h) => h.trim().toLowerCase()).filter(Boolean);
@@ -45,8 +39,10 @@ function buildHeadingGuard(protectedHeadings: string[]) {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<string> {
   const found = new Set<string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   doc?.descendants?.((node: any) => {
     if (node?.type?.name === 'heading' && node?.attrs?.level === 2) {
       const text = String(node.textContent ?? '').trim().toLowerCase();
@@ -116,11 +112,18 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
     editor.setEditable(!review.isPass3Accepted);
   }, [editor, review.isPass3Accepted]);
 
-  const handleUpload = (html: string) => {
-    if (!editor) return;
-    editor.commands.setContent(html, { emitUpdate: true });
-    setEditedHtml(html);
-  };
+  const showBody =
+    (review.pass3Status === 'completed' ||
+      review.pass3Status === 'organized' ||
+      review.pass3Status === 'accepted') &&
+    !review.isRunning;
+
+  const headerStatus: Pass3StatusKind =
+    review.pass3Status === 'accepted'
+      ? 'accepted'
+      : review.pass3Status === 'organized'
+        ? 'organized'
+        : 'ai_suggested';
 
   return (
     <Card>
@@ -198,58 +201,20 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
           </Alert>
         )}
 
-        {(review.pass3Status === 'completed' || review.pass3Status === 'organized' || review.pass3Status === 'accepted') && !review.isRunning && (
+        {showBody && (
           <>
-            <Pass3StatusStrip
-              status={
-                (review.pass3Status === 'accepted'
-                  ? 'accepted'
-                  : review.pass3Status === 'organized'
-                    ? 'organized'
-                    : 'ai_suggested') as Pass3StatusKind
-              }
+            <Pass3ReviewHeader
+              status={headerStatus}
               runCount={review.runCount}
               reviewedAt={review.reviewedAt}
               isStale={review.isStale}
+              isBusy={review.isRunning || review.isOrganizing}
+              changesSummary={review.changesSummary}
+              confidence={review.confidence}
+              regulatoryFlags={review.regulatoryFlags}
               onRerunAi={() => review.runPass3()}
               onReorganize={() => review.organizeOnly()}
-              isBusy={review.isRunning || review.isOrganizing}
             />
-            {review.changesSummary && (
-              <Alert>
-                <AlertTitle className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  AI Summary
-                </AlertTitle>
-                <AlertDescription className="whitespace-pre-wrap text-sm">
-                  {review.changesSummary}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2">
-              {review.confidence && (
-                <Badge
-                  variant="outline"
-                  className={cn('font-medium', CONFIDENCE_VARIANT[review.confidence].className)}
-                >
-                  {CONFIDENCE_VARIANT[review.confidence].label}
-                </Badge>
-              )}
-              {review.regulatoryFlags.length > 0 && (
-                <>
-                  <span className="text-xs text-muted-foreground">Regulatory flags:</span>
-                  {review.regulatoryFlags.map((flag) => (
-                    <Badge key={flag} variant="secondary">
-                      {flag}
-                    </Badge>
-                  ))}
-                </>
-              )}
-              <span className="ml-auto text-xs text-muted-foreground">
-                Run #{review.runCount}
-              </span>
-            </div>
 
             <Pass3EditorBody
               editor={editor}

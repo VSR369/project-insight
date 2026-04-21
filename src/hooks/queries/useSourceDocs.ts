@@ -168,5 +168,3 @@ export function useOrganizeAndMerge() {
   });
 }
 
-/** @deprecated Use `useOrganizeAndMerge` — retained for any in-flight callers. */
-export const useArrangeIntoSections = useOrganizeAndMerge;
