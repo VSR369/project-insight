@@ -61,6 +61,26 @@ export function Pass3EditorBody({
         </div>
       )}
 
+      {highlightActive && !isPass3Accepted && (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
+          <div className="flex items-center gap-2 text-destructive">
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Showing changes from previous version (highlighted in red).</span>
+          </div>
+          {onClearHighlights && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 px-2 text-xs"
+              onClick={onClearHighlights}
+            >
+              <X className="h-3 w-3" />
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 lg:flex-row">
         <Pass3SectionNavWrapper
           containerRef={containerRef}
@@ -69,7 +89,7 @@ export function Pass3EditorBody({
         />
         <div className="flex-1 min-w-0">
           <div className="legal-doc-page" ref={containerRef}>
-            <div className="legal-doc">
+            <div className={cn('legal-doc', isPass3Accepted && 'is-accepted')}>
               <EditorContent editor={editor} />
             </div>
           </div>
