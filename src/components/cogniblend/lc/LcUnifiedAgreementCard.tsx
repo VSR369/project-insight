@@ -5,22 +5,28 @@
  */
 import { ShieldCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { LcPass3ReviewPanel } from '@/components/cogniblend/lc/LcPass3ReviewPanel';
+import {
+  LcPass3ReviewPanel,
+  type ArmRegenerateFn,
+  type Pass3ReviewState,
+} from '@/components/cogniblend/lc/LcPass3ReviewPanel';
 
 export interface LcUnifiedAgreementCardProps {
-  challengeId: string;
+  review: Pass3ReviewState;
   isAccepted: boolean;
   reviewedAt: string | null;
+  onRegisterArm?: (fn: ArmRegenerateFn) => void;
 }
 
 export function LcUnifiedAgreementCard({
-  challengeId,
+  review,
   isAccepted,
   reviewedAt,
+  onRegisterArm,
 }: LcUnifiedAgreementCardProps) {
   return (
     <div className="space-y-4">
-      <LcPass3ReviewPanel challengeId={challengeId} />
+      <LcPass3ReviewPanel review={review} onRegisterArm={onRegisterArm} />
 
       {isAccepted && (
         <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
