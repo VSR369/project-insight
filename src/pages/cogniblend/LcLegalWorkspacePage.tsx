@@ -61,6 +61,15 @@ export default function LcLegalWorkspacePage() {
     userId: user?.id,
   });
 
+  const pass3 = useLcPass3Review(challengeId);
+  // Derive 1/2/3 step from Pass 3 status. Step 1 = nothing generated yet,
+  // Step 2 = draft exists (ai_suggested OR organized), Step 3 = LC accepted.
+  const currentStep: 1 | 2 | 3 = pass3.isPass3Accepted
+    ? 3
+    : pass3.pass3Status === 'completed' || pass3.pass3Status === 'organized'
+      ? 2
+      : 1;
+
   const isLC = roles?.includes('LC') ?? false;
   const hasAccess = isLC || (roles?.includes('CR') ?? false);
 
