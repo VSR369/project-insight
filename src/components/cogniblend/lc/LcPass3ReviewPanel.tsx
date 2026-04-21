@@ -112,11 +112,40 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
 
   useEffect(() => {
     if (!editor) return;
-    if (review.unifiedDocHtml && review.unifiedDocHtml !== editor.getHTML()) {
-      editor.commands.setContent(review.unifiedDocHtml, { emitUpdate: false });
-      setEditedHtml(review.unifiedDocHtml);
+    const incoming = review.unifiedDocHtml;
+    if (!incoming) return;
+    // Strip any incoming spans first so we never re-stack diff highlights
+    // when the row is reloaded.
+    const cleanIncoming = stripDiffSpans(incoming);
+    if (cleanIncoming === editor.getHTML()) return;
+
+    const prev = pendingHighlightAgainst.current;
+    if (prev) {
+      const annotated = annotateAdditions(stripDiffSpans(prev), cleanIncoming);
+      editor.commands.setContent(annotated, { emitUpdate: false });
+      setEditedHtml(cleanIncoming); // store CLEAN html for save/accept
+      setHighlightActive(annotated !== cleanIncoming);
+      pendingHighlightAgainst.current = null;
+    } else {
+      editor.commands.setContent(cleanIncoming, { emitUpdate: false });
+      setEditedHtml(cleanIncoming);
+      setHighlightActive(false);
     }
   }, [editor, review.unifiedDocHtml]);
+
+  // When LC accepts, clear the highlighted state visually (CSS handles colour
+  // override too, but clearing the flag hides the "Showing changes" pill).
+  useEffect(() => {
+    if (review.isPass3Accepted && highlightActive) setHighlightActive(false);
+  }, [review.isPass3Accepted, highlightActive]);
+
+  const clearHighlights = () => {
+    if (!editor) return;
+    const clean = stripDiffSpans(editor.getHTML());
+    editor.commands.setContent(clean, { emitUpdate: false });
+    setEditedHtml(clean);
+    setHighlightActive(false);
+  };
 
   useEffect(() => {
     if (!editor) return;
