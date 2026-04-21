@@ -38,14 +38,22 @@ interface CurrentDocSnapshot {
   pass3_run_count: number;
   version_history: unknown;
   ai_review_status?: string | null;
+  unifiedDocHtml?: string;
 }
 
 export interface UseLcPass3MutationsArgs {
   challengeId: string | undefined;
   getCurrentDoc: () => CurrentDocSnapshot;
+  /** Called after a regenerate completes with the previous HTML so the panel
+   *  can apply diff highlighting against it. Null when no change. */
+  onRegenerateComplete?: (prevHtml: string, outcome: 'changed' | 'unchanged') => void;
 }
 
-export function useLcPass3Mutations({ challengeId, getCurrentDoc }: UseLcPass3MutationsArgs) {
+export function useLcPass3Mutations({
+  challengeId,
+  getCurrentDoc,
+  onRegenerateComplete,
+}: UseLcPass3MutationsArgs) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
