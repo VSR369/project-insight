@@ -213,7 +213,7 @@ export default function LcLegalWorkspacePage() {
         currentPhase={challenge?.current_phase}
         lcComplianceComplete={challenge?.lc_compliance_complete}
         submitting={submitting}
-        onSubmit={handleSubmitToCuration}
+        onSubmit={submit}
       />
     </div>
   );
