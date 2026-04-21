@@ -6,11 +6,8 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { AlertCircle, ArrowLeft, Loader2, Send, Shield } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Shield } from 'lucide-react';
 
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
@@ -35,6 +32,7 @@ import {
   useChallengeForLC,
 } from '@/hooks/cogniblend/useLcLegalData';
 import { useLcLegalActions } from '@/hooks/cogniblend/useLcLegalActions';
+import { useLcLegalSubmit } from '@/hooks/cogniblend/useLcLegalSubmit';
 import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 
 export default function LcLegalWorkspacePage() {
