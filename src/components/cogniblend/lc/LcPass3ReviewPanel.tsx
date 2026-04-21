@@ -19,16 +19,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 import { useLcPass3DiffHighlight } from '@/hooks/cogniblend/useLcPass3DiffHighlight';
+import type { useLcPass3Review } from '@/hooks/cogniblend/useLcPass3Review';
 import { type Pass3StatusKind } from '@/components/cogniblend/lc/Pass3StatusStrip';
 import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
+import { Pass3ProgressBar } from '@/components/cogniblend/lc/Pass3ProgressBar';
 import { stripDiffSpans } from '@/lib/cogniblend/legal/diffHighlight';
 import '@/styles/legal-document.css';
 
+export type Pass3ReviewState = ReturnType<typeof useLcPass3Review>;
+export type ArmRegenerateFn = (prevHtml: string, outcome: 'changed' | 'unchanged') => void;
+
 export interface LcPass3ReviewPanelProps {
-  challengeId: string;
+  review: Pass3ReviewState;
+  onRegisterArm?: (fn: ArmRegenerateFn) => void;
 }
 
 function buildHeadingGuard(protectedHeadings: string[]) {
@@ -55,13 +60,8 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
   return found;
 }
 
-export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
+export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanelProps) {
   const [editedHtml, setEditedHtml] = useState<string>('');
-  const armRef = { current: null as null | ((p: string, o: 'changed' | 'unchanged') => void) };
-
-  const review = useLcPass3Review(challengeId, {
-    onRegenerateComplete: (prevHtml, outcome) => armRef.current?.(prevHtml, outcome),
-  });
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
   const editor = useEditor(
@@ -86,7 +86,10 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
     isPass3Accepted: review.isPass3Accepted,
     setEditedHtml,
   });
-  armRef.current = diff.armRegenerate;
+
+  useEffect(() => {
+    onRegisterArm?.(diff.armRegenerate);
+  }, [onRegisterArm, diff.armRegenerate]);
 
   useEffect(() => {
     if (!editor || protectedNormalized.length === 0) return;
