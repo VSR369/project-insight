@@ -2,7 +2,7 @@
  * useLcPass3Regenerate — Pass 3 regenerate mutations (run + organize).
  * Extracted from useLcPass3Mutations to keep that hook ≤ 250 lines (R1).
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,6 +53,7 @@ export function useLcPass3Regenerate({
 }: UseLcPass3RegenerateArgs) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const mutexRef = useRef(false);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: PASS3_KEY(challengeId) });
@@ -81,18 +82,27 @@ export function useLcPass3Regenerate({
   const runPass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
-      const snap = getCurrentDoc();
-      guardAccepted(snap);
-      const prevHtml = snap.unifiedDocHtml ?? '';
-      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
-        body: { challenge_id: challengeId, pass3_mode: true },
-      });
-      if (error) throw new Error(error.message ?? 'Edge function call failed');
-      if (data && (data as { success?: boolean }).success === false) {
-        const msg = (data as { error?: { message?: string } })?.error?.message;
-        throw new Error(msg ?? 'Pass 3 generation failed');
+      if (mutexRef.current) {
+        toast.info('Another operation is already in progress. Please wait.');
+        throw new Error('Concurrent mutation blocked by mutex');
       }
-      return { prevHtml };
+      mutexRef.current = true;
+      try {
+        const snap = getCurrentDoc();
+        guardAccepted(snap);
+        const prevHtml = snap.unifiedDocHtml ?? '';
+        const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
+          body: { challenge_id: challengeId, pass3_mode: true },
+        });
+        if (error) throw new Error(error.message ?? 'Edge function call failed');
+        if (data && (data as { success?: boolean }).success === false) {
+          const msg = (data as { error?: { message?: string } })?.error?.message;
+          throw new Error(msg ?? 'Pass 3 generation failed');
+        }
+        return { prevHtml };
+      } finally {
+        mutexRef.current = false;
+      }
     },
     onSuccess: async ({ prevHtml }) => {
       let newHtml = '';
@@ -126,29 +136,40 @@ export function useLcPass3Regenerate({
       invalidate();
       reportOutcome(prevHtml, newHtml, 'Legal AI review completed');
     },
-    onError: (e) =>
-      handleMutationError(e, { operation: 'run_pass3', component: 'useLcPass3Regenerate' }),
+    onError: (e) => {
+      mutexRef.current = false;
+      handleMutationError(e, { operation: 'run_pass3', component: 'useLcPass3Regenerate' });
+    },
   });
 
   const organizePass3 = useMutation({
     mutationFn: async () => {
       if (!challengeId) throw new Error('Missing challenge id');
-      const snap = getCurrentDoc();
-      guardAccepted(snap);
-      const prevHtml = snap.unifiedDocHtml ?? '';
-      const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
-        body: {
-          challenge_id: challengeId,
-          pass3_mode: true,
-          organize_only: true,
-        },
-      });
-      if (error) throw new Error(error.message ?? 'Edge function call failed');
-      if (data && (data as { success?: boolean }).success === false) {
-        const msg = (data as { error?: { message?: string } })?.error?.message;
-        throw new Error(msg ?? 'Organize & merge failed');
+      if (mutexRef.current) {
+        toast.info('Another operation is already in progress. Please wait.');
+        throw new Error('Concurrent mutation blocked by mutex');
       }
-      return { prevHtml };
+      mutexRef.current = true;
+      try {
+        const snap = getCurrentDoc();
+        guardAccepted(snap);
+        const prevHtml = snap.unifiedDocHtml ?? '';
+        const { data, error } = await supabase.functions.invoke('suggest-legal-documents', {
+          body: {
+            challenge_id: challengeId,
+            pass3_mode: true,
+            organize_only: true,
+          },
+        });
+        if (error) throw new Error(error.message ?? 'Edge function call failed');
+        if (data && (data as { success?: boolean }).success === false) {
+          const msg = (data as { error?: { message?: string } })?.error?.message;
+          throw new Error(msg ?? 'Organize & merge failed');
+        }
+        return { prevHtml };
+      } finally {
+        mutexRef.current = false;
+      }
     },
     onSuccess: async ({ prevHtml }) => {
       let newHtml = '';
@@ -166,21 +187,25 @@ export function useLcPass3Regenerate({
       invalidate();
       reportOutcome(prevHtml, newHtml, 'Source documents organized & merged');
     },
-    onError: (e) =>
-      handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Regenerate' }),
+    onError: (e) => {
+      mutexRef.current = false;
+      handleMutationError(e, { operation: 'organize_pass3', component: 'useLcPass3Regenerate' });
+    },
   });
 
-  // Defensive invariant: the two regenerate flows must never run concurrently.
-  // If they ever pend together, a wiring regression has crossed the streams.
+  // Belt-and-braces: the synchronous mutexRef should make concurrent pending
+  // impossible, but if both ever appear pending we cancel the organize run
+  // (Pass 3 is the more expensive, more user-impactful operation to preserve).
   useEffect(() => {
     if (runPass3.isPending && organizePass3.isPending) {
-      logWarning('Pass 3 run and organize mutations are pending simultaneously', {
-        operation: 'pass3_regenerate_invariant',
+      logWarning('Pass 3 and organize running simultaneously — cancelling organize', {
+        operation: 'pass3_mutex_violation',
         component: 'useLcPass3Regenerate',
         additionalData: { challengeId },
       });
+      organizePass3.reset();
     }
-  }, [runPass3.isPending, organizePass3.isPending, challengeId]);
+  }, [runPass3.isPending, organizePass3.isPending, challengeId, organizePass3]);
 
   return { runPass3, organizePass3 };
 }
