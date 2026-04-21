@@ -5,7 +5,7 @@
 import { useRef, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
 import { EditorContent } from '@tiptap/react';
-import { CheckCircle2, Loader2, RefreshCw, Save, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, FileText, Loader2, Save, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
@@ -22,12 +22,14 @@ export interface Pass3EditorBodyProps {
   reviewedAt: string | null;
   editedHtml: string;
   isRunning: boolean;
+  isOrganizing: boolean;
   isSaving: boolean;
   isAccepting: boolean;
   isDirty: boolean;
   highlightActive?: boolean;
   onClearHighlights?: () => void;
   onRerun: () => void;
+  onReorganize: () => void;
   onSave: () => void;
   onAccept: () => void;
 }
@@ -40,12 +42,14 @@ export function Pass3EditorBody({
   reviewedAt,
   editedHtml,
   isRunning,
+  isOrganizing,
   isSaving,
   isAccepting,
   isDirty,
   highlightActive = false,
   onClearHighlights,
   onRerun,
+  onReorganize,
   onSave,
   onAccept,
 }: Pass3EditorBodyProps) {
@@ -105,14 +109,28 @@ export function Pass3EditorBody({
       {!isPass3Accepted && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
           <ConfirmRegenerateDialog
+            mode="organize"
+            onConfirm={onReorganize}
+            skipConfirm={!hasDraft}
+            isDirty={isDirty}
+            disabled={isRunning || isOrganizing || isSaving || isAccepting}
+            trigger={
+              <Button variant="outline" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Re-organize (No AI)
+              </Button>
+            }
+          />
+          <ConfirmRegenerateDialog
+            mode="pass3"
             onConfirm={onRerun}
             skipConfirm={!hasDraft}
             isDirty={isDirty}
-            disabled={isRunning || isSaving || isAccepting}
+            disabled={isRunning || isOrganizing || isSaving || isAccepting}
             trigger={
               <Button variant="outline" className="gap-2">
-                <RefreshCw className="h-4 w-4" />
-                Re-run Pass 3
+                <Sparkles className="h-4 w-4" />
+                Re-run AI Pass 3
               </Button>
             }
           />

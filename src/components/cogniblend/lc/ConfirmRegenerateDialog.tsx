@@ -33,8 +33,8 @@ export interface ConfirmRegenerateDialogProps {
   /** Disables the trigger entirely. */
   disabled?: boolean;
   confirmLabel?: string;
-  /** Which operation will be confirmed — drives title + body copy. */
-  mode?: ConfirmRegenerateMode;
+  /** Which operation will be confirmed — drives title + body copy. Required to prevent silent fallback to Pass 3 copy. */
+  mode: ConfirmRegenerateMode;
 }
 
 const COPY: Record<
@@ -66,7 +66,7 @@ export function ConfirmRegenerateDialog({
   isDirty = false,
   disabled = false,
   confirmLabel,
-  mode = 'pass3',
+  mode,
 }: ConfirmRegenerateDialogProps) {
   const [open, setOpen] = useState(false);
 
