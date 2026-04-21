@@ -6,8 +6,8 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  FilePlus, Folder, CheckSquare, ShieldCheck,
-  FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard, Banknote,
+  FilePlus, Folder, CheckSquare,
+  FileText, Eye, BarChart2, Award, Lock, CreditCard, Banknote,
   Search, Lightbulb, User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -47,7 +47,6 @@ const SECTIONS: NavSection[] = [
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, isVisible: (p) => p.canSeeChallengePage, badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, isVisible: (p) => p.canSeeCurationQueue, badgeKey: 'curationQueue' },
       { label: 'Legal Workspace', path: '/cogni/lc-queue', icon: FileText, isVisible: (p) => p.canSeeLegalWorkspace },
-      { label: 'Legal Review', path: '/cogni/legal-review', icon: FileCheck, isVisible: (p) => p.canSeeLegalWorkspace },
     ],
   },
   {
