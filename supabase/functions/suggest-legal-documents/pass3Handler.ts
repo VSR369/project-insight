@@ -97,8 +97,10 @@ interface HandlePass3Args {
   userId: string;
   challengeId: string;
   lovableApiKey: string;
-  /** Classification-only mode: AI slots verbatim source clauses into sections. */
-  arrangeOnly?: boolean;
+  /** Organize-only mode: AI dedupes + harmonises uploaded source clauses into the
+   *  11 sections WITHOUT generating new substantive content. Empty sections get
+   *  a placeholder. Lower temperature, deterministic output. */
+  organizeOnly?: boolean;
 }
 
 /** Per-document content cap (chars) — generous to preserve full source clauses. */
@@ -155,7 +157,7 @@ function buildSystemPrompt(
   engagement: "MARKETPLACE" | "AGGREGATOR",
   governance: "QUICK" | "STRUCTURED" | "CONTROLLED",
   tier: TierComplexity,
-  arrangeOnly: boolean,
+  organizeOnly: boolean,
 ): string {
   const sectionInstructions = sections
     .map((s, idx) => {
@@ -170,33 +172,44 @@ function buildSystemPrompt(
     })
     .join("\n\n");
 
-  if (arrangeOnly) {
-    // Classification-only mode — verbatim slotting, no content generation.
+  if (organizeOnly) {
+    // ORGANIZE MODE — Merge & deduplicate uploaded source clauses into the
+    // configured sections WITHOUT generating new substantive content.
     const sectionList = sections
       .map((s, i) => `${i + 1}. ${s.section_title} [key: ${s.section_key}]`)
       .join("\n");
-    return `You are a legal document ARRANGER, not a content generator. You will receive uploaded source legal documents and a fixed list of section_keys for the unified Solution Provider Agreement.
+    return `You are a senior legal document organizer. You will receive source documents uploaded by Creator, Curator, and/or Legal Coordinator, and a fixed list of section_keys for the unified Solution Provider Agreement.
 
 Engagement model: ${engagement}
 Governance mode: ${governance}
 
-## STRICT SLOTTING RULES (MANDATORY)
-1. For each clause/paragraph in the source documents, identify the BEST-FIT section_key from the list and place the clause there VERBATIM.
-2. Preserve the original wording exactly — do NOT enhance, summarize, paraphrase, or rewrite.
-3. Do NOT generate any new content. Do NOT invent sections or section_keys.
-4. Do NOT duplicate the same clause across multiple sections — pick the single best fit.
-5. If a clause does not fit any section cleanly, place it under the closest "general provisions" / "miscellaneous" section and set requires_human_review=true for that section.
-6. Sections with NO matching source content remain empty with placeholder: <p><em>(No source content provided for this section. Please add or run Pass 3 AI Review to generate.)</em></p>
-7. Wrap the entire output in <div class="legal-doc">...</div>. Each section uses <h2>{Section Title}</h2>. Preserve original numbering inside <ol><li>...</li></ol> when possible.
-8. Always set confidence="medium" or "low". Never "high" — this is unreviewed slotting, not legal drafting.
+Your job: produce ONE clean, integrated, professional legal document with the sections below — by reorganizing, deduplicating, and harmonizing what was uploaded. NEVER generate new substantive content.
+
+## ORGANIZE MODE — Mandatory rules
+1. Read every clause/paragraph from ALL source documents.
+2. For each clause, identify the BEST-FIT section_key from the list and place it there.
+3. When MULTIPLE source documents contain clauses covering the SAME topic (e.g., two confidentiality clauses from two uploads): MERGE them into ONE coherent clause that preserves the strongest protections from each source. Use the wording from the most recent / most detailed source as the base. Do NOT include both versions side-by-side.
+4. HARMONIZE language across sections so the document reads as ONE professional legal document, not a patchwork of writing styles.
+5. Maintain proper legal numbering (1.1, 1.2, etc.) across the entire document.
+6. Do NOT generate new substantive content. Only reorganize, merge, and harmonize what was uploaded.
+7. If NO source content exists for a section, include the section heading with this exact placeholder paragraph: <p><em>(No source content provided for this section. Add content manually or run AI Pass 3 to generate.)</em></p>
+8. Do NOT duplicate content across sections. Pick the single best fit.
+9. Do NOT invent new sections beyond the configured list.
+10. The output must read as a FINAL terms sheet a Solution Provider would sign — professional, clean, seamless.
+
+## Output formatting (MANDATORY)
+- Wrap the entire document in: <div class="legal-doc">...</div>
+- Each section uses: <h2>{Section Title}</h2>
+- Numbered clauses use: <ol><li>...</li></ol>
 
 ## Sections (in order)
 ${sectionList}
 
+## Output schema
 Call the generate_unified_spa tool with:
-- unified_document_html: the complete HTML, sections in the order given, with verbatim source clauses slotted under each.
-- sections[]: one entry per section_key with section_html (just that section), changes_summary ("Slotted from {source filename}" or "(empty)"), confidence (medium|low), regulatory_flags ([]), requires_human_review (true if the clause was a poor fit or this section is empty).
-- overall_summary: 2-3 sentences listing which source documents were used and which sections remain empty.`;
+- unified_document_html: the COMPLETE merged HTML, sections in the order above, with the placeholder paragraph for any section that has no source content.
+- sections[]: one entry per section_key with section_html (just that section), changes_summary (e.g. "Merged from {source A} and {source B}" or "(no source content — placeholder)"), confidence (medium|low — never high; this is organize mode, not legal drafting), regulatory_flags ([]), requires_human_review (true if multiple sources were merged or the section is empty).
+- overall_summary: 2-3 sentences listing which source documents were merged and which sections remain placeholder-only.`;
   }
 
   return `You are a senior legal counsel drafting a unified Solution Provider Agreement (SPA) for a global open innovation platform.
@@ -214,15 +227,17 @@ You will produce a SINGLE unified HTML document containing every section listed 
 - Definitions use: <p><strong>"Term"</strong> means ...</p>
 - No <html>, <head>, or <body> tags. No markdown. HTML only.
 
-## Source-document slotting rules (MANDATORY)
-1. Source documents (uploaded by Creator/Curator/LC/Platform) are AUTHORITATIVE — prefer their wording verbatim where possible.
+## Source-document merge rules (MANDATORY)
+1. Source documents (uploaded by Creator/Curator/LC/Platform) are AUTHORITATIVE — PREFER their wording verbatim where they overlap with what AI would generate. Source content represents the organization's preferred terms.
 2. For each clause in a source document, place it in the best-fit section_key from the list below.
-3. Do NOT duplicate the same clause across multiple sections — pick the single best fit.
-4. Do NOT invent sections or section_keys outside the provided list.
-5. Where a source clause overlaps with the section's system_prompt requirements, MERGE intelligently — keep source wording, fill gaps with section requirements.
-6. Where source documents conflict, prefer the most recent (later created_at) and flag the conflict in changes_summary.
-7. Sections with no relevant source content: generate fresh from the section system_prompt, grounded in challenge facts.
-8. Reference the SPECIFIC challenge facts (title, IP model, reward amounts and currency, data resources, phase schedule, organization name) — never use generic placeholders like [INSERT NAME].
+3. When source content and AI-generated content cover the same topic, PREFER the source content. Supplement with AI content only for gaps.
+4. MERGE overlapping clauses from multiple sources into ONE coherent version — keep the strongest protections, harmonize wording.
+5. NEVER duplicate the same topic across sections — pick the single best fit.
+6. HARMONIZE language so the document reads as one seamless professional agreement, not a patchwork.
+7. Where a source clause overlaps with the section's system_prompt requirements, MERGE intelligently — keep source wording, fill gaps with section requirements.
+8. Where source documents conflict, prefer the most recent (later created_at) and flag the conflict in changes_summary.
+9. Sections with no relevant source content: generate fresh from the section system_prompt, grounded in challenge facts. The final document must be a complete, signeable terms sheet with ZERO gaps.
+10. Reference the SPECIFIC challenge facts (title, IP model, reward amounts and currency, data resources, phase schedule, organization name) — never use generic placeholders like [INSERT NAME].
 
 ## Grounding rules (MANDATORY)
 - Where a section's required_context_keys are not present in the challenge context, state the assumption explicitly inside the clause.
@@ -319,8 +334,19 @@ ${context.industryPack ? JSON.stringify(context.industryPack, null, 2) : "(none)
 ## Geographic / regulatory context
 ${context.geoContext ? JSON.stringify(context.geoContext, null, 2) : "(none)"}
 
-## Source documents (uploaded by Creator/Curator/LC — merge into appropriate sections, prefer wording verbatim)
-${sourceSlim.length > 0 ? JSON.stringify(sourceSlim, null, 2) : "(none — generate from scratch using the section system prompts)"}
+## Source documents (uploaded by Creator / Curator / Legal Coordinator)
+${
+  sourceSlim.length > 0
+    ? sourceSlim
+        .map(
+          (d) =>
+            `### ${String(d.document_name ?? "(untitled)")} (uploaded by: ${String(d.uploaded_by ?? "Unknown")})\n${
+              String(d.content_html ?? d.content_summary ?? "(content pending extraction)")
+            }`,
+        )
+        .join("\n\n---\n\n")
+    : "(none — generate from scratch using the section system prompts)"
+}
 
 ## Section list (in order)
 ${sections.map((s, i) => `${i + 1}. ${s.section_title} [${s.section_key}]`).join("\n")}
@@ -333,7 +359,7 @@ export async function handlePass3({
   userId,
   challengeId,
   lovableApiKey,
-  arrangeOnly = false,
+  organizeOnly = false,
 }: HandlePass3Args): Promise<Response> {
   try {
     // 1) Build unified context
@@ -385,9 +411,9 @@ export async function handlePass3({
       .neq("document_type", DOCUMENT_TYPE)
       .order("created_at", { ascending: true });
 
-    if (arrangeOnly && (!existingDocs || existingDocs.length === 0)) {
+    if (organizeOnly && (!existingDocs || existingDocs.length === 0)) {
       return jsonResponse(
-        { success: false, error: { code: "NO_SOURCE_DOCS", message: "Arrange-only mode requires at least one uploaded source document." } },
+        { success: false, error: { code: "NO_SOURCE_DOCS", message: "Organize mode requires at least one uploaded source document." } },
         400,
       );
     }
@@ -397,19 +423,22 @@ export async function handlePass3({
       supabaseAdmin,
       (context.challenge.organization_id as string | null | undefined) ?? null,
     );
-    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, arrangeOnly);
+    const systemPrompt = buildSystemPrompt(sections, engagement, governance, tier, organizeOnly);
     const userPrompt = buildUserPrompt(context, sections, existingDocs ?? []);
 
     // Tier may bump max_tokens (use highest configured value across sections).
-    const maxTokens = Math.max(
-      16384,
-      ...sections.map((s) => Number(s.max_tokens ?? 0)).filter((n) => n > 0),
-    );
+    // Organize mode produces less new content — cap lower for determinism + cost.
+    const maxTokens = organizeOnly
+      ? 12_288
+      : Math.max(
+          16_384,
+          ...sections.map((s) => Number(s.max_tokens ?? 0)).filter((n) => n > 0),
+        );
 
     const aiResp = await callAIWithFallback(lovableApiKey, {
       max_tokens: maxTokens,
-      // Lower temperature in arrange-only mode for deterministic slotting.
-      temperature: arrangeOnly ? 0.1 : 0.3,
+      // Lower temperature in organize mode for deterministic merging.
+      temperature: organizeOnly ? 0.1 : 0.3,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -494,16 +523,18 @@ export async function handlePass3({
 
     const priorCount = (priorRow?.pass3_run_count as number | null) ?? 0;
 
-    // 7) Delete prior ai_suggested / stale / arranged_only UNIFIED_SPA rows for this challenge
+    // 7) Delete prior ai_suggested / stale / organized UNIFIED_SPA rows for this challenge.
+    //    'arranged_only' is the legacy value (backfilled to 'organized' by migration); keep
+    //    in the IN-list defensively in case any old row slipped through.
     await supabaseAdmin
       .from("challenge_legal_docs")
       .delete()
       .eq("challenge_id", challengeId)
       .eq("document_type", DOCUMENT_TYPE)
-      .in("ai_review_status", ["ai_suggested", "stale", "arranged_only"]);
+      .in("ai_review_status", ["ai_suggested", "stale", "organized", "arranged_only"]);
 
-    // 8) Insert new unified row. Sentinel value 'arranged_only' marks classification-only output.
-    const aiReviewStatus = arrangeOnly ? "arranged_only" : "ai_suggested";
+    // 8) Insert new unified row. Status 'organized' marks no-AI-enhancement output.
+    const aiReviewStatus = organizeOnly ? "organized" : "ai_suggested";
     const { error: insertErr } = await supabaseAdmin.from("challenge_legal_docs").insert({
       challenge_id: challengeId,
       document_type: DOCUMENT_TYPE,

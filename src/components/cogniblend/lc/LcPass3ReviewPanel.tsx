@@ -19,7 +19,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLcPass3Review, type Pass3Confidence } from '@/hooks/cogniblend/useLcPass3Review';
 import { LegalDocEditorToolbar } from '@/components/cogniblend/legal/LegalDocEditorToolbar';
 import { LegalDocQuickInserts } from '@/components/cogniblend/legal/LegalDocQuickInserts';
-import { LegalDocUploadHandler } from '@/components/cogniblend/legal/LegalDocUploadHandler';
 import { Pass3StaleAlert } from '@/components/cogniblend/creator/Pass3StaleAlert';
 import { Pass3SectionNavWrapper } from '@/components/cogniblend/legal/Pass3SectionNavWrapper';
 import { Pass3AttributionBadge } from '@/components/cogniblend/legal/Pass3AttributionBadge';
@@ -150,20 +149,34 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
         {!review.isLoading && review.pass3Status === 'idle' && (
           <div className="space-y-4 rounded-lg border bg-muted/30 p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Run Pass 3 to generate the unified Solution Provider Agreement
-              based on the curated challenge content. The AI will review the
-              full challenge context and produce a single, formatted legal
-              document for your review.
+              Generate the unified Solution Provider Agreement. Choose
+              <strong> Run AI Pass 3 </strong> to merge uploaded source documents
+              and have the AI fill any gaps with grounded content, OR choose
+              <strong> Organize &amp; Merge </strong> to deduplicate and
+              harmonise uploaded source clauses without any new AI-generated
+              content (empty sections show a placeholder).
             </p>
-            <Button
-              size="lg"
-              onClick={review.runPass3}
-              disabled={review.isRunning}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              Run Pass 3 AI Review
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button
+                size="lg"
+                onClick={review.runPass3}
+                disabled={review.isRunning || review.isOrganizing}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Run AI Pass 3 (Merge + Enhance)
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={review.organizeOnly}
+                disabled={review.isRunning || review.isOrganizing}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Organize &amp; Merge (No AI Enhancement)
+              </Button>
+            </div>
           </div>
         )}
 

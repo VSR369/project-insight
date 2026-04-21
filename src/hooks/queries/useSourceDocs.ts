@@ -125,40 +125,48 @@ export function useDeleteSourceDoc() {
   });
 }
 
-interface ArrangeArgs {
+interface OrganizeArgs {
   challengeId: string;
 }
 
 /**
- * Calls the Pass 3 edge function in arrange_only mode — AI does verbatim
- * classification/slotting only, no enhancement or rewording.
+ * Calls the Pass 3 edge function in organize_only mode — AI dedupes and
+ * harmonises uploaded source clauses into the configured sections WITHOUT
+ * generating new substantive content (empty sections render a placeholder).
+ *
+ * Backwards-compatible alias `useArrangeIntoSections` is preserved below for
+ * any callers not yet migrated.
  */
-export function useArrangeIntoSections() {
+export function useOrganizeAndMerge() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ challengeId }: ArrangeArgs) => {
+    mutationFn: async ({ challengeId }: OrganizeArgs) => {
       const { data, error } = await supabase.functions.invoke(
         'suggest-legal-documents',
         {
           body: {
             challenge_id: challengeId,
             pass3_mode: true,
-            arrange_only: true,
+            organize_only: true,
           },
         },
       );
-      if (error) throw new Error(error.message ?? 'Failed to arrange');
+      if (error) throw new Error(error.message ?? 'Failed to organize');
       if (!data?.success) {
-        throw new Error(data?.error?.message ?? 'Arrange failed');
+        throw new Error(data?.error?.message ?? 'Organize failed');
       }
       return data;
     },
     onSuccess: (_d, vars) => {
-      toast.success('Documents arranged into sections (verbatim, no AI enhancement)');
-      qc.invalidateQueries({ queryKey: ['lc-pass3', vars.challengeId] });
+      toast.success('Source documents organized & merged into sections');
+      qc.invalidateQueries({ queryKey: ['pass3-legal-review', vars.challengeId] });
+      qc.invalidateQueries({ queryKey: ['pass3-stale', vars.challengeId] });
       qc.invalidateQueries({ queryKey: ['curator-legal-review', vars.challengeId] });
       qc.invalidateQueries({ queryKey: ['attached-legal-docs', vars.challengeId] });
     },
-    onError: (e) => handleMutationError(e, { operation: 'arrange_source_docs' }),
+    onError: (e) => handleMutationError(e, { operation: 'organize_source_docs' }),
   });
 }
+
+/** @deprecated Use `useOrganizeAndMerge` — retained for any in-flight callers. */
+export const useArrangeIntoSections = useOrganizeAndMerge;
