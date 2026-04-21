@@ -125,6 +125,11 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
         ? 'organized'
         : 'ai_suggested';
 
+  const isDirty =
+    !review.isPass3Accepted &&
+    editedHtml.trim().length > 0 &&
+    editedHtml !== review.unifiedDocHtml;
+
   return (
     <Card>
       <CardHeader>
@@ -180,8 +185,9 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               status={headerStatus}
               runCount={review.runCount}
               reviewedAt={review.reviewedAt}
-              isStale={review.isStale}
-              isBusy={review.isRunning || review.isOrganizing}
+              isStale={review.isStale && !review.isPass3Accepted}
+              isBusy={review.isRunning || review.isOrganizing || review.isPass3Accepted}
+              isDirty={isDirty}
               changesSummary={review.changesSummary}
               confidence={review.confidence}
               regulatoryFlags={review.regulatoryFlags}
@@ -199,6 +205,7 @@ export function LcPass3ReviewPanel({ challengeId }: LcPass3ReviewPanelProps) {
               isRunning={review.isRunning}
               isSaving={review.isSaving}
               isAccepting={review.isAccepting}
+              isDirty={isDirty}
               onRerun={() => review.runPass3()}
               onSave={() => review.saveEdits(editedHtml)}
               onAccept={() => review.acceptPass3()}

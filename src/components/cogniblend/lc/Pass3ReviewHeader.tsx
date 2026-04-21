@@ -24,6 +24,7 @@ export interface Pass3ReviewHeaderProps {
   reviewedAt: string | null;
   isStale: boolean;
   isBusy: boolean;
+  isDirty?: boolean;
   changesSummary: string;
   confidence: Pass3Confidence;
   regulatoryFlags: string[];
@@ -37,6 +38,7 @@ export function Pass3ReviewHeader({
   reviewedAt,
   isStale,
   isBusy,
+  isDirty = false,
   changesSummary,
   confidence,
   regulatoryFlags,
@@ -53,6 +55,7 @@ export function Pass3ReviewHeader({
         onRerunAi={onRerunAi}
         onReorganize={onReorganize}
         isBusy={isBusy}
+        isDirty={isDirty}
       />
 
       {changesSummary && (

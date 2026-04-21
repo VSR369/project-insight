@@ -184,6 +184,7 @@ export default function LcLegalWorkspacePage() {
               onOrganizeOnly={pass3.organizeOnly}
               pass3Busy={pass3.isRunning || pass3.isOrganizing}
               hasGenerated={pass3.pass3Status !== 'idle'}
+              hasDraft={pass3.pass3Status !== 'idle' && !pass3.isPass3Accepted}
             />
           )}
 

@@ -111,6 +111,7 @@ export function useLcPass3Review(challengeId: string | undefined) {
       id: query.data?.id ?? null,
       pass3_run_count: query.data?.pass3_run_count ?? 0,
       version_history: query.data?.version_history,
+      ai_review_status: query.data?.ai_review_status ?? null,
     }),
   });
 

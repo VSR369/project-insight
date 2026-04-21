@@ -7,6 +7,7 @@
 import { AlertTriangle, RefreshCw, Sparkles, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ConfirmRegenerateDialog } from '@/components/cogniblend/lc/ConfirmRegenerateDialog';
 import { cn } from '@/lib/utils';
 
 export type Pass3StatusKind = 'ai_suggested' | 'organized' | 'accepted';
@@ -19,6 +20,8 @@ export interface Pass3StatusStripProps {
   onRerunAi?: () => void;
   onReorganize?: () => void;
   isBusy?: boolean;
+  /** When true, regenerate clicks show the strong "edits will be lost" copy. */
+  isDirty?: boolean;
 }
 
 function formatDate(iso?: string | null): string {
@@ -64,6 +67,7 @@ export function Pass3StatusStrip({
   onRerunAi,
   onReorganize,
   isBusy,
+  isDirty = false,
 }: Pass3StatusStripProps) {
   const variant = VARIANTS[status];
   const Icon = variant.icon;
@@ -94,28 +98,30 @@ export function Pass3StatusStrip({
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               {onRerunAi && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onRerunAi}
+                <ConfirmRegenerateDialog
+                  onConfirm={onRerunAi}
+                  isDirty={isDirty}
                   disabled={isBusy}
-                  className="gap-1.5"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Re-run AI Pass 3
-                </Button>
+                  trigger={
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Re-run AI Pass 3
+                    </Button>
+                  }
+                />
               )}
               {onReorganize && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={onReorganize}
+                <ConfirmRegenerateDialog
+                  onConfirm={onReorganize}
+                  isDirty={isDirty}
                   disabled={isBusy}
-                  className="gap-1.5"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Re-organize
-                </Button>
+                  trigger={
+                    <Button size="sm" variant="ghost" className="gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      Re-organize
+                    </Button>
+                  }
+                />
               )}
             </div>
           </AlertDescription>
