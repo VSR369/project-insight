@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmRegenerateDialog } from '@/components/cogniblend/lc/ConfirmRegenerateDialog';
 import {
   useSourceDocs,
   useUploadSourceDoc,
@@ -40,6 +41,10 @@ export interface LcSourceDocUploadProps {
   pass3Busy?: boolean;
   /** Re-labels the buttons as "Re-run" / "Re-organize" once a draft exists. */
   hasGenerated?: boolean;
+  /** When true, regenerate clicks show a confirm dialog (draft would be replaced). */
+  hasDraft?: boolean;
+  /** When true, the dialog uses the strong "edits will be discarded" copy. */
+  isDirty?: boolean;
 }
 
 export function LcSourceDocUpload({
@@ -50,6 +55,8 @@ export function LcSourceDocUpload({
   onOrganizeOnly,
   pass3Busy = false,
   hasGenerated = false,
+  hasDraft = false,
+  isDirty = false,
 }: LcSourceDocUploadProps) {
   const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -222,33 +229,45 @@ export function LcSourceDocUpload({
             </p>
             <div className="flex flex-wrap gap-2">
               {onRunPass3 && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={onRunPass3}
+                <ConfirmRegenerateDialog
+                  onConfirm={onRunPass3}
+                  skipConfirm={!hasDraft}
+                  isDirty={isDirty}
                   disabled={isBusy || pass3Busy}
-                  className="gap-1.5"
-                >
-                  {pass3Busy ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
-                  )}
-                  {runLabel}
-                </Button>
+                  trigger={
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-1.5"
+                    >
+                      {pass3Busy ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                      {runLabel}
+                    </Button>
+                  }
+                />
               )}
               {onOrganizeOnly && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={onOrganizeOnly}
+                <ConfirmRegenerateDialog
+                  onConfirm={onOrganizeOnly}
+                  skipConfirm={!hasDraft}
+                  isDirty={isDirty}
                   disabled={isBusy || pass3Busy}
-                  className="gap-1.5"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  {organizeLabel}
-                </Button>
+                  trigger={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      {organizeLabel}
+                    </Button>
+                  }
+                />
               )}
             </div>
           </div>
