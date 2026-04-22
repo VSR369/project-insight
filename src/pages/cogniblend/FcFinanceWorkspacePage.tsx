@@ -183,7 +183,17 @@ export default function FcFinanceWorkspacePage() {
         </Alert>
       )}
 
-      <div className="rounded-lg border bg-card p-3">
+      {isPreview && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Preview Mode — Finance review unlocks at Phase 3</AlertTitle>
+          <AlertDescription>
+            This challenge is currently at Phase {challenge?.current_phase ?? '?'}. You can
+            review the curated challenge and supporting context below. The escrow deposit
+            form will appear once curation is complete.
+          </AlertDescription>
+        </Alert>
+      )}
         <FcFinanceStepIndicator currentStep={currentStep} />
       </div>
 
