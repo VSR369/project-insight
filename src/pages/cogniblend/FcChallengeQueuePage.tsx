@@ -24,6 +24,7 @@ interface FcQueueItem {
   currency: string;
   escrow_status: string | null;
   current_phase: number;
+  fc_compliance_complete: boolean;
   created_at: string;
 }
 
@@ -58,14 +59,15 @@ export default function FcChallengeQueuePage() {
           ?? '') as string;
         const govUpper = gov.toUpperCase();
         if (govUpper === 'STRUCTURED' || govUpper === 'QUICK') continue;
-        if (ch.fc_compliance_complete || (ch.current_phase ?? 0) < 3) continue;
+        if (ch.fc_compliance_complete) continue;
         const rs = ch.reward_structure as Record<string, unknown> | null;
         const total = Number(rs?.platinum_award ?? rs?.budget_max ?? 0);
         results.push({
           challenge_id: cid, title: ch.title, reward_total: total,
           currency: (rs?.currency as string) ?? 'USD',
           escrow_status: escRes.data?.escrow_status ?? null,
-          current_phase: ch.current_phase ?? 3,
+          current_phase: ch.current_phase ?? 0,
+          fc_compliance_complete: !!ch.fc_compliance_complete,
           created_at: ch.created_at,
         });
       }
