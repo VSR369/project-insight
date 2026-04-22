@@ -10,7 +10,7 @@ export function EscrowInstallmentSummary({ context }: EscrowInstallmentSummaryPr
     <div className="space-y-3 rounded-md border border-border p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={context.aggregate.status === 'FUNDED' ? 'default' : 'secondary'}>
-          {context.aggregate.status.replaceAll('_', ' ')}
+          {context.aggregate.status.replace(/_/g, ' ')}
         </Badge>
         <span className="text-sm text-muted-foreground">
           {context.aggregate.fundedCount} funded · {context.aggregate.pendingCount} pending
