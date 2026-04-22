@@ -1,315 +1,419 @@
 
-# Revised Plan — FC completes the full escrow workflow immediately in CONTROLLED mode; Curator owns STRUCTURED mode
+## Final implementation plan — Governance-aware installment escrow, aligned to current Cogniblend + Lovable architecture
 
-## Product decision now locked
+## Decision summary
+This direction is correct and should proceed, with the 3 additional safeguards now explicitly locked into scope:
 
-Based on your clarification, the target behavior should be:
+1. **STRUCTURED completion flagging**
+   - In STRUCTURED mode, Curator owns escrow.
+   - `complete_curator_compliance` must also satisfy the financial-compliance gate used by phase advancement.
+   - Implement **Option A**: when governance is STRUCTURED, `complete_curator_compliance` also sets `fc_compliance_complete = true`.
 
-```text
-CONTROLLED
-- FC owns escrow completion end-to-end
-- FC enters/saves escrow details
-- FC uploads proof
-- FC confirms funding
-- FC shares/returns to Curator
-- No separate waiting for “Phase 3” inside the FC workspace
+2. **Governance-aware funding validation**
+   - Role membership alone is not enough.
+   - `funded_by_role` must be enforced against governance mode in the **service layer**, not only via RLS.
+   - Rule:
+     - STRUCTURED → only `funded_by_role = 'CU'`
+     - CONTROLLED → only `funded_by_role = 'FC'`
 
-STRUCTURED
-- Curator owns escrow
-- FC workspace is not part of the STRUCTURED escrow flow
-```
+3. **Shared workspace mode prop**
+   - Shared installment UI must receive `fundingRole: 'CU' | 'FC'`.
+   - This controls:
+     - who is writing the installment funding record
+     - labels/copy
+     - which completion action is wired
 
-So the current Phase-3 gate in the FC workspace is misaligned with your intended workflow and should be removed for FC actions.
+---
 
-## What is wrong in the current implementation
+## What is confirmed in the current system
 
-### 1. The FC workspace is still gated by `current_phase >= 3`
-Current logic in `fcFinanceWorkspaceViewService.ts` makes proof upload and confirmation depend on:
+### Current gaps in code
+- `RecommendedEscrowCard` currently reads mostly from `extended_brief` plus reward totals, not the authored milestone schedule.
+- `FcFinanceWorkspacePage` excludes STRUCTURED entirely and still works from a single `escrow_records` row.
+- `StructuredFieldsSectionRenderer` is still a toggle/read-only view and does not support installment funding.
+- `SectionPanelItem` hardcodes `escrow_funding` coordinator role to `FC`.
+- `useCompleteCuratorCompliance` calls the existing RPC, but current completion semantics do not explicitly guarantee the finance-complete flag for STRUCTURED.
+- `useEscrowDeposit` and related FC hooks are still based on a single challenge-level escrow record.
 
-```ts
-const phaseGateOpen = (currentPhase ?? 0) >= 3;
-```
+So the requirement is real and the architecture change must happen at the domain level, not as a display patch.
 
-That causes:
-- proof upload disabled
-- confirm button disabled
-- confusing “unlocks at Phase 3” messaging
+---
 
-### 2. The footer still assumes finance review only happens at Phase 3
-`FcFinanceSubmitFooter.tsx` currently disables submit when:
-
-```ts
-currentPhase !== 3
-```
-
-So even if FC has completed escrow, the handoff is still blocked by the old lifecycle rule.
-
-### 3. “Phase 3” is being used as a hardcoded workflow gate instead of a display concept
-The progress banner maps:
-- Phase 2 → Curation
-- Phase 3 → Compliance
-
-But your required business behavior is:
+## Core architecture rule set
 
 ```text
-Once the challenge is in FC workspace for CONTROLLED,
-FC should be able to finish escrow immediately.
+QUICK       = no escrow flow
+STRUCTURED  = Curator funds installments
+CONTROLLED  = FC funds installments
+
+Schedule source      = challenges.reward_structure.payment_milestones
+Context notes        = creator_escrow_comments + extended_brief escrow notes
+Funding unit         = escrow_installments row
+Aggregate header     = escrow_records row
+Only pending rows    = actionable
+Funded rows          = immutable
+Header status        = derived from installment states
+Legacy single-row escrow remains supported
 ```
 
-So the FC workflow must no longer be hard-bound to `current_phase === 3`.
+---
 
-### 4. STRUCTURED and CONTROLLED behavior need to remain distinct
-The code and memory already support this split conceptually:
-- CONTROLLED: FC handles escrow
-- STRUCTURED: Curator handles escrow
+## Phase 1 — Add additive installment schema
 
-That distinction should be preserved and made explicit in UI/service logic.
+Create new table: `public.escrow_installments`
 
-## Updated implementation scope
+Required fields:
+- `id`
+- `challenge_id`
+- `escrow_record_id`
+- `installment_number`
+- `schedule_label`
+- `trigger_event`
+- `scheduled_pct`
+- `scheduled_amount`
+- `currency`
+- `status` (`PENDING`, `FUNDED`, `RELEASED`, `CANCELLED`)
+- `funded_by_role` (`CU`, `FC`)
+- `bank_name`
+- `bank_branch`
+- `bank_address`
+- `account_number_masked`
+- `ifsc_swift_code`
+- `deposit_amount`
+- `deposit_date`
+- `deposit_reference`
+- `proof_document_url`
+- `proof_file_name`
+- `proof_uploaded_at`
+- `fc_notes`
+- `funded_at`
+- `funded_by`
+- `created_at`, `updated_at`, `created_by`, `updated_by`
 
-## 1. Remove the Phase-3 gate from CONTROLLED FC completion
-Refactor FC capability logic so CONTROLLED FC actions do not depend on `current_phase >= 3`.
+Required constraints:
+- unique `(challenge_id, installment_number)`
+- numeric non-negative validations
+- `funded_by_role` limited to `CU` / `FC`
 
-In `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`:
-- stop using `phaseGateOpen` as the controller for FC actions
-- replace with business-capability flags based on:
-  - governance mode
-  - FC completion status
-  - escrow funded state
+Do not remove or replace `escrow_records`. It remains the aggregate header for compatibility.
 
-Recommended behavior for CONTROLLED:
-- `canEditDepositFields = !fcComplianceComplete && !isFunded`
-- `canUploadProof = !fcComplianceComplete && !isFunded`
-- `canConfirmEscrow = !fcComplianceComplete && !isFunded`
-- `canSubmitFinanceReview = isFunded && !fcComplianceComplete`
+---
 
-This makes FC self-sufficient in its own workspace.
+## Phase 2 — RLS and access alignment
 
-## 2. Keep STRUCTURED out of FC workflow
-Do not extend FC escrow ownership to STRUCTURED.
+### RLS scope
+`escrow_installments` gets challenge-role-based RLS consistent with existing challenge access patterns:
+- SELECT for active `CR`, `CU`, `FC` on that challenge
+- INSERT/UPDATE for active `CU`/`FC` users on that challenge
 
-In `FcFinanceWorkspacePage.tsx`:
-- keep or strengthen the governance guard so FC workspace is only active for CONTROLLED / enterprise-style modes
-- improve the “not applicable” message to say clearly:
-  - “In Structured governance, escrow is handled by the Curator.”
-  - “Finance Coordinator workflow applies only to Controlled governance.”
+### Governance enforcement location
+Do **not** rely on RLS alone to determine whether CU or FC is the valid funding actor.
+Enforce governance-path correctness in the service validation layer:
 
-This removes ambiguity.
+- STRUCTURED:
+  - only Curator path allowed
+  - reject writes where `funded_by_role !== 'CU'`
+- CONTROLLED:
+  - only FC path allowed
+  - reject writes where `funded_by_role !== 'FC'`
 
-## 3. Redefine the FC sequence
-The FC workspace sequence should become:
+This protects cases where a user may hold both roles.
 
-```text
-Escrow Recommendation / Context
-→ FC Deposit Record Entry
-→ Save Escrow Details
-→ Upload Proof
-→ Confirm Funding
-→ Share with Curator / Submit Financial Review
-```
+---
 
-Not:
+## Phase 3 — Normalize authored schedule into installment model
 
-```text
-wait for Phase 3
-→ then start finance
-```
+Add service-layer normalization from `reward_structure.payment_milestones`.
 
-## 4. Update the mutation flow to match real ownership
-`useFcEscrowConfirm.ts` currently still treats proof/funding as lifecycle-gated behavior.
+### Authoritative source
+Use:
+- `reward_structure.payment_mode`
+- `reward_structure.payment_milestones`
 
-Refactor it into two explicit actions:
+Do **not** seed schedule from `extended_brief`.
 
-### A. Save Escrow Details
-- insert or update `escrow_records`
-- status remains non-funded (`PENDING` or equivalent)
-- available immediately in FC workspace
+### Empty milestone behavior
+If `payment_mode = 'escrow'` and milestones are empty:
+- auto-create one normalized installment:
+  - `installment_number = 1`
+  - `schedule_label = 'Full Escrow Deposit'`
+  - `scheduled_pct = 100`
+  - `trigger_event = 'Before publication'`
 
-### B. Confirm Funding
-- requires:
-  - bank details present
-  - proof uploaded
-  - amount validated
-- updates `escrow_status = 'FUNDED'`
-- available immediately in FC workspace
-- should no longer wait for `current_phase === 3`
+### Computation
+For each installment:
+- `scheduled_amount = reward_total × (pct / 100)`
 
-Then keep final FC completion / curator handoff separate from funding confirmation if needed.
+### Context
+Also surface:
+- `creator_escrow_comments`
+- existing `extended_brief.escrow_notes`
+as contextual notes only, not funded facts.
 
-## 5. Update the footer logic to remove current-phase blocking
-In `src/components/cogniblend/fc/FcFinanceSubmitFooter.tsx`:
-- remove `currentPhase === 3` as the submit gate
-- submit should depend on:
-  - funded escrow
-  - FC not already completed
-  - not currently submitting
+---
 
-Recommended logic:
-```text
-Submit enabled when escrow is FUNDED and FC review not yet complete.
-```
+## Phase 4 — Build installment services and hooks
 
-Copy should change from:
-- “Finance review applies at Phase 3”
+Add service files under `src/services/cogniblend/escrowInstallments/`:
+- `escrowInstallmentTypes.ts`
+- `escrowInstallmentNormalizationService.ts`
+- `escrowInstallmentAggregateService.ts`
+- `escrowInstallmentValidationService.ts`
+- `escrowInstallmentWorkspaceService.ts`
 
-to something like:
-- “Once escrow is funded, FC can submit the financial review and return the challenge to Curator.”
+Key logic:
+- normalize milestones
+- default empty schedule to 100% single installment
+- derive aggregate status:
+  - none funded → `PENDING`
+  - some funded → `PARTIALLY_FUNDED`
+  - all funded → `FUNDED`
+- validate pending-only funding
+- validate exact amount linkage to selected installment
+- validate proof presence before confirmation
+- validate governance ↔ funding-role match
 
-## 6. Replace all misleading “unlocks at Phase 3” copy
-Update FC UI text in:
+Add hooks:
+- `useEscrowInstallments(challengeId)`
+- `useSeedEscrowInstallments(challengeId)`
+- `useEscrowFundingContext(challengeId)`
+- `useEscrowInstallmentFunding(...)`
+
+Refactor:
+- `useEscrowDeposit` → header + legacy compatibility role
+- `useFcEscrowConfirm` → installment-based mutation or replaced by shared funding hook
+- `useFcFinanceSubmit` → checks aggregate installment completion
+- Curator completion hook remains separate but depends on installment aggregate state
+
+---
+
+## Phase 5 — Shared installment workspace components
+
+Create reusable UI under `src/components/cogniblend/escrow/`:
+- `EscrowInstallmentContextCard.tsx`
+- `EscrowInstallmentTable.tsx`
+- `EscrowFundingForm.tsx`
+- `EscrowInstallmentWorkspace.tsx`
+- `EscrowInstallmentSummary.tsx`
+- `EscrowLegacySummary.tsx`
+
+### Required shared prop
+`EscrowInstallmentWorkspace` must accept:
+- `fundingRole: 'CU' | 'FC'`
+- governance mode
+- challenge context
+- installment list
+- submission callbacks
+
+This shared prop drives:
+- `funded_by_role`
+- role-specific copy
+- role-specific submit path
+
+### UX rules
+- funded installments are read-only
+- only pending installments can open the funding form
+- installment number is not free-form
+- amount is prefilled from schedule and not manually repurposed
+- proof and bank details are captured against the selected installment only
+
+---
+
+## Phase 6 — CONTROLLED path in FC Finance Workspace
+
+Update:
+- `FcFinanceWorkspacePage.tsx`
 - `FcEscrowReviewTab.tsx`
-- `EscrowDepositForm.tsx`
 - `FcFinanceSubmitFooter.tsx`
 
-Remove wording that implies:
-- a hidden manual unlock
-- a separate future lifecycle gate
+Behavior:
+- FC sees Creator/Curator-authored schedule as read-only context
+- FC funds pending installments only
+- each funding action writes `funded_by_role = 'FC'`
+- submit footer enables only when aggregate escrow is complete
+- existing “single deposit record” language is replaced with installment-aware copy
 
-Replace with explicit ownership wording:
+`RecommendedEscrowCard` should be refactored or replaced so FC sees:
+- authored milestone schedule
+- creator escrow comments
+- optional curator/context notes
+- total funded vs pending
 
-### For CONTROLLED
-```text
-Finance Coordinator completes escrow here:
-1. Save escrow details
-2. Upload deposit proof
-3. Confirm funding
-4. Submit financial review / return to Curator
-```
+---
 
-### For STRUCTURED
-```text
-Escrow is managed by the Curator in Structured governance.
-```
+## Phase 7 — STRUCTURED path in Curator Compliance Workspace
 
-## 7. Make Creator/Curator escrow input visible as recommendation, not as FC-owned facts
-You specifically asked to check whether Creator-entered escrow details are streaming through.
+Update:
+- `CuratorComplianceTab.tsx`
+- `StructuredFieldsSectionRenderer.tsx`
+- `renderOpsSections.tsx`
 
-Current architecture indicates:
-- Creator/Curator escrow context lives in challenge-level data / recommendation fields
-- FC deposit facts live in `escrow_records`
+Behavior:
+- Curator finance tab uses the same shared installment workspace
+- Curator funds installments directly in STRUCTURED mode
+- each funding action writes `funded_by_role = 'CU'`
+- no FC workspace dependency in STRUCTURED
 
-So the revised UI should explicitly show:
+This replaces the current passive finance message in Curator Compliance.
 
-### Escrow Recommendation
-- creator/curator context
-- recommended amount
-- notes
-- source label: “From challenge context”
+---
 
-### FC Deposit Record
-- bank name
-- branch
-- account reference
-- deposit reference
-- proof
-- funded status
-- source label: “Finance Coordinator record”
+## Phase 8 — Governance-aware section attribution and routing
 
-This avoids the false expectation that recommendation data should automatically appear as a confirmed deposit record.
+Update governance wiring so escrow ownership is no longer hardcoded to FC.
 
-## 8. Improve Curator handoff language
-The handoff should be described as:
-- FC completes escrow
-- FC submits / returns to Curator
-- Curator continues the process
+Required updates:
+- `SectionPanelItem.tsx`
+  - `escrow_funding` coordinator role becomes governance-aware
+  - STRUCTURED → `CU`
+  - CONTROLLED → `FC`
+- `curationSectionDefs.tsx`
+  - `escrow_funding` fill rules and render logic become installment-aware
+- any send-to-coordinator / modification routing touching `escrow_funding`
+- `StructuredFieldsSectionRenderer.tsx`
+  - no longer just toggle/read-only
+  - acts as renderer/entry point for installment workspace in STRUCTURED
 
-So in the footer and success toasts, use wording like:
-- “Escrow funded and financial review submitted to Curator”
-- “Returned to Curator for next action”
+This avoids breaking the current review system’s coordinator mapping.
 
-## 9. Align the progress UI with the real business rule
-The progress banner can still display overall lifecycle, but it must not block FC actions.
+---
 
-Implementation rule:
-- `WorkflowProgressBanner` remains informational
-- lifecycle step display does not determine FC form editability in CONTROLLED mode
+## Phase 9 — Completion RPC and compliance flag alignment
 
-This separates:
-- status display
-- permission logic
+### CONTROLLED
+`complete_financial_review`
+- validate aggregate installment completion
+- preserve existing FC-owned handoff model
+
+### STRUCTURED
+`complete_curator_compliance`
+- validate aggregate installment completion
+- when governance is STRUCTURED, also set:
+  - `fc_compliance_complete = true`
+  - `curator_compliance_complete = true` (or existing curator completion state)
+- keep downstream creator approval / publication behavior intact
+
+This is the safest path because the lifecycle engine already expects both legal and finance gates.
+
+No extra RPC is needed in this iteration unless implementation reveals an unavoidable separation concern.
+
+---
+
+## Phase 10 — Read-only surfaces and preview updates
+
+Update:
+- `RecommendedEscrowCard.tsx`
+- `EscrowStatusCard.tsx`
+- `PreviewEscrowSection.tsx`
+- `usePreviewData`
+- any readiness or preview surfaces relying only on `escrow_records`
+
+Read-only surfaces should show:
+- schedule summary
+- funded count / pending count
+- total funded
+- who funded each installment (`CU`/`FC`) where appropriate
+- creator comments/context notes
+- legacy summary fallback if no installments exist
+
+---
+
+## Phase 11 — Legacy compatibility and migration safety
+
+Do not break existing challenges already using one-row escrow.
+
+Compatibility rules:
+- if `escrow_records` exists and `escrow_installments` does not:
+  - render legacy summary
+  - keep existing funded state visible
+- new installment workflow applies when schedule/installment data exists
+- optional backfill can come later, not required for first release
+
+---
 
 ## Files to update
 
-### Modify
-- `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
-  - remove phase-based gating for CONTROLLED FC actions
-  - make capabilities governance-driven instead
+### Database / RPC / migrations
+- new migration for `escrow_installments`
+- update `complete_curator_compliance`
+- update `complete_financial_review` if needed for aggregate validation
+- RLS policies for `escrow_installments`
 
-- `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`
-  - pass governance-aware capability state
-  - keep STRUCTURED excluded from FC workflow
-  - update explanatory copy
-
+### Services / hooks
+- `src/hooks/cogniblend/useEscrowDeposit.ts`
 - `src/hooks/cogniblend/useFcEscrowConfirm.ts`
-  - support immediate FC save/proof/confirm flow
-  - separate draft save from funded confirmation cleanly
-  - remove hidden dependency on Phase 3 behavior
+- `src/hooks/cogniblend/useFcFinanceSubmit.ts`
+- new escrow installment services/hooks
 
+### FC path
+- `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`
 - `src/components/cogniblend/fc/FcEscrowReviewTab.tsx`
-  - update recommendation vs FC record framing
-  - remove “Phase 3 unlock” wording
-  - explain FC ownership clearly
-
-- `src/pages/cogniblend/EscrowDepositForm.tsx`
-  - enable proof upload immediately for CONTROLLED FC workflow
-  - keep field actions aligned with FC ownership
-  - rename buttons/copy for clarity
-
 - `src/components/cogniblend/fc/FcFinanceSubmitFooter.tsx`
-  - remove `currentPhase === 3` submit lock
-  - enable submit once funded
-  - rewrite helper text
+- `src/components/cogniblend/fc/RecommendedEscrowCard.tsx`
 
-### Optional small extraction
-- a dedicated service/helper for FC capability policy if needed to keep files under 250 lines
+### Curator path
+- `src/components/cogniblend/curation/CuratorComplianceTab.tsx`
+- `src/components/cogniblend/curation/renderers/StructuredFieldsSectionRenderer.tsx`
+- `src/components/cogniblend/curation/renderers/renderOpsSections.tsx`
+- `src/components/cogniblend/curation/SectionPanelItem.tsx`
+- `src/lib/cogniblend/curationSectionDefs.tsx`
 
-## Expected behavior after the revision
+### Preview / summary
+- `src/components/cogniblend/curation/EscrowStatusCard.tsx`
+- `src/components/cogniblend/preview/PreviewEscrowSection.tsx`
+- `src/components/cogniblend/preview/usePreviewData.ts`
 
-### CONTROLLED challenge
-FC opens Finance Workspace and can immediately:
-1. view creator/curator escrow recommendation
-2. enter or update bank/deposit details
-3. upload proof
-4. confirm funding
-5. submit financial review / return to curator
+---
 
-No waiting for a separate Phase 3 gate.
+## Verification checklist
 
-### STRUCTURED challenge
-FC workspace does not apply.
-Curator owns escrow handling.
+1. **CONTROLLED**
+   - FC sees schedule derived from `payment_milestones`
+   - FC can fund only pending installments
+   - funded installment becomes immutable
+   - submit footer enables only after all required installments are funded
 
-## Verification
+2. **STRUCTURED**
+   - Curator sees same installment model inside Curator Compliance
+   - Curator funds installments directly
+   - completing curator compliance also satisfies finance-complete flag expectations
 
-1. CONTROLLED challenge with FC access:
-   - escrow details can be entered immediately
-   - proof upload is enabled immediately
-   - confirm funding is enabled once required fields are complete
-   - footer submit is enabled after funded status
-   - no “Phase 3 unlock” text remains
+3. **Empty milestones**
+   - system creates one 100% installment automatically
+   - no blocking error
 
-2. STRUCTURED challenge:
-   - FC workspace is not used
-   - message clearly states Curator owns escrow
+4. **Governance enforcement**
+   - STRUCTURED rejects `funded_by_role = 'FC'`
+   - CONTROLLED rejects `funded_by_role = 'CU'`
 
-3. Creator/Curator recommendation-only challenge:
-   - recommendation appears clearly
-   - FC deposit record is shown as separate actual record area
+5. **Duplicate prevention**
+   - same installment cannot be captured twice
+   - both DB constraint and service validation protect it
 
-4. Funded challenge:
-   - FC can submit/return to Curator without current-phase blocking
+6. **Context visibility**
+   - creator-authored schedule is visible downstream
+   - `creator_escrow_comments` and escrow notes appear as context
+   - notes do not become funded bank details automatically
 
-5. No file exceeds 250 lines
-6. No direct Supabase calls are introduced into presentation components
-7. `npx tsc --noEmit` passes
+7. **Legacy safety**
+   - existing one-row funded escrow challenges still render correctly
 
-## Final rule set to implement
+8. **Architecture compliance**
+   - no DB access in components
+   - business rules in services, not UI
+   - hooks remain query/mutation wrappers
+   - files stay under 250 lines
+   - no `any`
+   - all loading/error/empty/success states preserved
 
-```text
-CONTROLLED = FC owns full escrow completion now
-STRUCTURED = Curator owns escrow
-Progress banner = informational only
-Recommendation != FC deposit record
-Funded escrow = prerequisite for FC submit
-Phase number must not block FC completion in CONTROLLED mode
-```
+---
+
+## Final implementation decision
+Proceed with the 11-phase plan as revised above.
+
+The only mandatory additions to lock before execution are:
+- STRUCTURED completion also sets finance-complete semantics through `complete_curator_compliance`
+- governance-path enforcement lives in service validation
+- shared installment workspace receives `fundingRole: 'CU' | 'FC'`
+
+With those added, the plan is aligned to the current system, governance model, lifecycle engine, and Lovable architecture standards without breaking existing functionality.
