@@ -59,7 +59,9 @@ export type EscrowFormValues = z.infer<typeof escrowFormSchema>;
 interface EscrowDepositFormProps {
   form: UseFormReturn<EscrowFormValues>;
   onSubmit: (values: EscrowFormValues) => void;
+  onSaveDraft?: (values: EscrowFormValues) => void;
   isPending: boolean;
+  isSavingDraft?: boolean;
   submitLabel?: string;
   proofFile: File | null;
   onProofFileChange: (file: File | null) => void;
@@ -68,6 +70,7 @@ interface EscrowDepositFormProps {
   canEditFields?: boolean;
   canUploadProof?: boolean;
   canSubmit?: boolean;
+  canSaveDraft?: boolean;
   existingProofFileName?: string | null;
   maskedAccountNumber?: string | null;
   previewMessage?: string;
@@ -76,7 +79,9 @@ interface EscrowDepositFormProps {
 export function EscrowDepositForm({
   form,
   onSubmit,
+  onSaveDraft,
   isPending,
+  isSavingDraft = false,
   submitLabel = 'Confirm Escrow Deposit',
   proofFile,
   onProofFileChange,
@@ -85,6 +90,7 @@ export function EscrowDepositForm({
   canEditFields = true,
   canUploadProof = true,
   canSubmit = true,
+  canSaveDraft = false,
   existingProofFileName,
   maskedAccountNumber,
   previewMessage,
@@ -220,10 +226,23 @@ export function EscrowDepositForm({
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <Button type="submit" disabled={!canSubmit || isPending || proofUploading}>
+            <div className="flex flex-col gap-2 lg:flex-row">
+              {canSaveDraft && onSaveDraft && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || isSavingDraft || proofUploading}
+                  onClick={form.handleSubmit(onSaveDraft)}
+                >
+                  {isSavingDraft ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
+                  Save Draft
+                </Button>
+              )}
+              <Button type="submit" disabled={!canSubmit || isPending || proofUploading}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
               {canSubmit ? submitLabel : 'Confirmation unlocks at Phase 3'}
-            </Button>
+              </Button>
+            </div>
             {!canSubmit && <p className="text-xs text-muted-foreground">You can prepare and save escrow deposit details now. Final funding confirmation unlocks at Phase 3.</p>}
           </div>
         </form>
