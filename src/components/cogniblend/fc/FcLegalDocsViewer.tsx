@@ -1,64 +1,36 @@
-/**
- * FcLegalDocsViewer — Read-only view of the LC-approved unified legal
- * agreement (UNIFIED_SPA). FC sees what the Solution Provider will agree
- * to before confirming the escrow deposit.
- */
-import { useQuery } from '@tanstack/react-query';
-import { Scale, CheckCircle2, FileWarning } from 'lucide-react';
 import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, CheckCircle2, FileWarning, RefreshCcw, Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
-import { supabase } from '@/integrations/supabase/client';
+import { useFcLegalAgreement } from '@/hooks/cogniblend/useFcLegalAgreement';
 
 interface FcLegalDocsViewerProps {
   challengeId: string;
 }
 
-interface UnifiedSpaRow {
-  id: string;
-  content_html: string | null;
-  ai_modified_content_html: string | null;
-  lc_reviewed_at: string | null;
+interface QueryErrorWithCorrelation extends Error {
+  correlationId?: string;
 }
 
 export function FcLegalDocsViewer({ challengeId }: FcLegalDocsViewerProps) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['fc-unified-spa', challengeId],
-    queryFn: async (): Promise<UnifiedSpaRow | null> => {
-      if (!challengeId) return null;
-      const { data: row, error } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, content_html, ai_modified_content_html, lc_reviewed_at')
-        .eq('challenge_id', challengeId)
-        .eq('document_type', 'UNIFIED_SPA')
-        .eq('ai_review_status', 'accepted')
-        .maybeSingle();
-      if (error) return null;
-      return (row as UnifiedSpaRow | null) ?? null;
-    },
-    enabled: !!challengeId,
-    staleTime: 60_000,
-  });
+  const { data, error, isLoading, refetch, isRefetching } = useFcLegalAgreement(challengeId);
+  const queryError = error as QueryErrorWithCorrelation | null;
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
           <Scale className="h-4 w-4 text-primary" />
-          Legal Agreement (Read Only)
+          Legal Agreement
           {data && (
-            <Badge
-              variant="outline"
-              className="ml-auto border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-            >
-              <CheckCircle2 className="h-3 w-3 mr-1" />
+            <Badge variant="outline" className="ml-auto">
+              <CheckCircle2 className="mr-1 h-3 w-3" />
               Approved by Legal Coordinator
               {data.lc_reviewed_at && (
-                <span className="ml-1 font-normal">
-                  · {format(new Date(data.lc_reviewed_at), 'MMM d, yyyy')}
-                </span>
+                <span className="ml-1 font-normal">· {format(new Date(data.lc_reviewed_at), 'MMM d, yyyy')}</span>
               )}
             </Badge>
           )}
@@ -72,23 +44,34 @@ export function FcLegalDocsViewer({ challengeId }: FcLegalDocsViewerProps) {
           </div>
         )}
 
-        {!isLoading && !data && (
+        {!isLoading && queryError && (
           <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-center">
-            <FileWarning className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm font-medium text-foreground">
-              Legal documents are being reviewed
+            <AlertCircle className="mx-auto mb-2 h-8 w-8 text-destructive" />
+            <p className="text-sm font-medium text-foreground">Could not load the legal agreement</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Retry the fetch. Reference ID: {queryError.correlationId ?? 'unavailable'}
             </p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              The Legal Coordinator has not yet finalised the unified agreement.
-              You will see the full document here once it is approved.
+            <Button variant="outline" className="mt-4" onClick={() => void refetch()} disabled={isRefetching}>
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {!isLoading && !queryError && !data && (
+          <div className="rounded-md border border-dashed border-border bg-muted/40 p-6 text-center">
+            <FileWarning className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">Legal documents are being reviewed</p>
+            <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+              The Legal Coordinator has not yet finalised the unified agreement. You will see the full document here once it is approved.
             </p>
           </div>
         )}
 
-        {!isLoading && data && (
+        {!isLoading && !queryError && data && (
           <LegalDocumentViewer
             content={data.ai_modified_content_html ?? data.content_html ?? ''}
-            className="max-h-[480px] border rounded-md bg-background"
+            className="max-h-[480px] rounded-md border bg-background"
           />
         )}
       </CardContent>
