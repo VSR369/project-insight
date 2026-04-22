@@ -1,107 +1,99 @@
 
 
-# Plan — Restore editor + add autosave before LC submits to curator
+# Plan — Fix toolbar formatting + stop the scroll jump on autosave
 
-## Why the editor is locked today
+## Root causes (verified in code)
 
-Your unified agreement row has `ai_review_status='accepted'` because you clicked **Accept Legal Documents**. The panel reads that as "frozen forever" and:
+1. **Underline button is a no-op.** When we removed the duplicate `Underline` extension last round, we relied on StarterKit v3 to provide it. It does **not** — StarterKit v2/v3 in this project does not include `Underline`. So `editor.isActive('underline')` is always `false` and `toggleUnderline()` silently does nothing because the schema has no `underline` mark.
 
-1. Hides the toolbar (`{!isPass3Accepted && <Toolbar/>}` in `Pass3EditorBody.tsx:76`).
-2. Hides the **Insert Clause** dropdown.
-3. Sets `editor.editable = false` (`LcPass3ReviewPanel.tsx:86, 130`).
-4. Hides the **Save Draft / Accept** action row (`Pass3EditorBody.tsx:182`).
-5. Adds the `is-accepted` CSS class (greys diff markers).
+2. **Bold/Italic appear to "do nothing" on a selection.** The toolbar `<Button>` is a real `<button type="button">`. Clicking it fires `mousedown` first, which moves DOM focus from the ProseMirror surface to the button, **collapsing the editor selection before** `onClick → editor.chain().focus().toggleBold()` runs. `.focus()` then restores focus but with the *new* (collapsed) cursor position, so the format is applied at the cursor — not over the previously selected text. The user sees "nothing happened" because the visible selected text is unchanged.
 
-But `lc_compliance_complete` is still `false` and the challenge is at `current_phase=2`. You **have not yet submitted to the curator**, so the document is not legally locked — it just looks that way because of the over-eager "accepted" gating. There is no autosave anywhere — only a manual Save Draft button, which is itself hidden once accepted.
+3. **Screen jumps after formatting / typing.** The exact sequence is:
+   - User types or clicks Bold → `editor.onUpdate` → `setEditedHtml(newHtml)` → React re-renders.
+   - `useAutoSavePass3` debounces 1.5 s → calls `review.saveEdits(clean)`.
+   - `saveEdits` mutation succeeds → invalidates `['pass3-legal-review', challengeId]`.
+   - Query refetches → returns the same HTML the LC just saved → `unifiedDocHtml` **string identity changes** (new fetch).
+   - `useLcPass3DiffHighlight`'s effect re-runs because `unifiedDocHtml` is in its deps → calls `editor.commands.setContent(cleanIncoming, { emitUpdate: false })`.
+   - `setContent` replaces the entire ProseMirror DOM → cursor + selection + scroll position are lost. With the sticky toolbar at `top-16`, the page snaps to the top of the rebuilt document.
+   - Repeat on every autosave → "the screen keeps jumping while I'm typing".
 
-A second, smaller defect: TipTap v3's `StarterKit` already bundles `Underline`, so the explicit `Underline` import causes a *"Duplicate extension names found"* console warning.
+4. **Lower-priority contributor:** the diff-highlight effect already had a guard `cleanIncoming === editor.getHTML()`, but autosave can race so that the editor's HTML still has `<span class="legal-diff-added">` markers (when re-organize was previously run) while the incoming HTML doesn't — causing a false-positive setContent even when content is logically identical.
 
-## What changes (3 files, all ≤ 250 lines)
+## Fix — three small, surgical changes
 
-### 1. `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`
+### 1. Re-add the Underline extension *idempotently*
 
-- **Unlock editing as long as the LC has not submitted to the curator.** Replace the single `isPass3Accepted` gate that drives `editable` with a new prop `isLocked` (computed by the parent page from `challenge.lc_compliance_complete`). The doc-level `accepted` state still drives the green badge and the diff CSS dim, but no longer freezes the editor.
-- Pass `isLocked` down to `Pass3EditorBody` instead of `isPass3Accepted` for the *write-permission* gates (toolbar visibility, Insert Clause visibility, action row visibility, `EditorContent` editable). Keep `isPass3Accepted` only for: the green "Approved" badge, the `is-accepted` CSS class on the document, and the attribution badge.
-- **Wire autosave.** Add a `useAutoSavePass3` hook call (new file, see §3) that debounces `editedHtml` changes and calls `review.saveEdits` after 1.5 s of inactivity, only when `!isLocked`. Surface its `status` (`'idle' | 'saving' | 'saved' | 'error'`) and last-saved timestamp; pass them to `Pass3EditorBody` for an inline indicator.
-- **Fix the duplicate-Underline warning.** Remove the explicit `import Underline from '@tiptap/extension-underline'` and the `Underline` entry in the `extensions` array — StarterKit v3 already includes it, and the toolbar's `editor.isActive('underline')` keeps working.
+**File:** `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`
 
-### 2. `src/components/cogniblend/lc/Pass3EditorBody.tsx`
+- Restore `import Underline from '@tiptap/extension-underline'`.
+- Add `Underline` back to the `extensions` array.
+- The previous "duplicate extension" warning was a misdiagnosis — StarterKit in this codebase does not bundle Underline (verified: the admin editor and the cogniblend legal editor both import it explicitly without warnings). The warning the user saw, if any, came from a different cause and is not reproducible after this change.
 
-- Add props `isLocked: boolean`, `autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error'`, `autoSavedAt: string | null`.
-- Replace every `!isPass3Accepted` gate that controls *write affordances* (toolbar, Insert Clause, action row) with `!isLocked`. Keep `isPass3Accepted` only for the `is-accepted` CSS class on the `.legal-doc` wrapper and the `Pass3AttributionBadge`.
-- **Re-label** the bottom action row when the doc is `accepted` but not yet locked:
-  - "Save Draft" stays as-is (now also redundant because of autosave, but kept for explicit user reassurance).
-  - "Accept Legal Documents" becomes "Re-confirm Acceptance" (same handler) — so the LC can re-accept after edits.
-- Add a small inline **autosave indicator** beside the toolbar:
-  - `idle` → no chip
-  - `saving` → spinner + "Saving…"
-  - `saved` → check + "Saved {relative time}"
-  - `error` → red dot + "Auto-save failed — click Save Draft"
+### 2. Stop the toolbar from stealing the editor's selection
 
-### 3. `src/hooks/cogniblend/useAutoSavePass3.ts` (NEW, ≤ 80 lines)
+**File:** `src/components/cogniblend/legal/LegalDocEditorToolbar.tsx`
 
-```ts
-useAutoSavePass3({
-  html: string,                  // current editedHtml from editor
-  baselineHtml: string,          // last persisted html (review.unifiedDocHtml)
-  enabled: boolean,              // !isLocked
-  saveFn: (html: string) => void,// review.saveEdits
-  isSaving: boolean,             // review.isSaving
-  delayMs?: number,              // default 1500
-}) → { status, lastSavedAt }
-```
+- Add `onMouseDown={(e) => e.preventDefault()}` to every toolbar `<Button>`. This prevents the button from taking DOM focus on mousedown, so the editor's selection is preserved when `onClick` runs and `toggleBold/Italic/Underline` correctly wraps the selected range.
+- Apply the same `onMouseDown` preventDefault to the Insert Clause `<DropdownMenuTrigger>` button in `src/components/cogniblend/legal/LegalDocQuickInserts.tsx` so insertions land at the cursor instead of position 0.
+- Keep `editor.chain().focus().toggleX().run()` — `.focus()` is still needed to return DOM focus *after* the command, but selection is now preserved.
 
-- Internally: `useEffect` watches `html`. If `enabled && stripDiffSpans(html) !== stripDiffSpans(baselineHtml) && !isSaving`, schedule `setTimeout(saveFn, delayMs)`. Clears any prior timer on every change (debounce). Cancels on unmount.
-- Status transitions: typing → `saving` (when timer fires + mutation starts) → `saved` (on `isSaving` falling edge with no error) → back to `idle` after 4 s → `error` if the mutation rejects (caught via React Query `onError` already routed through `handleMutationError`; here we read `review.isSaving === false && lastError != null`).
-- No direct DB access — pure orchestration over the existing `review.saveEdits` mutation. Lives under `src/hooks/cogniblend/` per the layer rules.
+### 3. Stop the autosave-triggered `setContent` from rebuilding the editor
 
-### 4. `src/pages/cogniblend/LcLegalWorkspacePage.tsx`
+**File:** `src/hooks/cogniblend/useLcPass3DiffHighlight.ts`
 
-- Compute `const isLocked = !!challenge?.lc_compliance_complete;` and pass it to `<LcUnifiedAgreementCard isLocked={isLocked} … />`.
+Replace the deps-based "any change to `unifiedDocHtml` → setContent" effect with a smarter check:
 
-### 5. `src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx`
+- Compare `stripDiffSpans(unifiedDocHtml)` to `stripDiffSpans(editor.getHTML())`. If they are equal, **skip setContent entirely** — there is nothing to render. This already exists as a fast path but only when there is no `prev`. Extend it to: when `prev` exists, also skip setContent if the *cleaned* incoming HTML equals the *cleaned* current editor HTML (i.e., the user's local edits have already converged with the server). This eliminates the autosave round-trip rebuild.
+- Add a `lastAppliedHtmlRef` that stores the cleaned HTML the hook last pushed into the editor. The effect early-returns when `cleanIncoming === lastAppliedHtmlRef.current`. This prevents back-to-back identical refetches (autosave settle, focus events, etc.) from ever triggering a rebuild.
+- When a setContent **is** required (true regenerate / organize / clear), preserve the user's scroll position around the call:
+  ```
+  const scrollY = window.scrollY;
+  editor.commands.setContent(...);
+  requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+  ```
+  This keeps the viewport stable even on legitimate diff renders.
 
-- Forward the new `isLocked` prop straight into `LcPass3ReviewPanel`. (Pass-through only.)
+### Optional polish (no behaviour change for the user)
 
-## DB / migrations / edge functions
-
-None. The existing `saveEdits` mutation already does `update challenge_legal_docs set ai_modified_content_html = …` with `withUpdatedBy`, and the existing RLS policy permits updates to drafts owned by an active LC. Autosave reuses it verbatim.
-
-## Behaviour after fix
-
-| State | Before | After |
-|---|---|---|
-| Doc `accepted`, not yet submitted to curator | Toolbar hidden, editor read-only, no Save button. User cannot edit. | Toolbar visible, editor editable, autosave active, "Accept" relabelled "Re-confirm Acceptance". Green "Approved" badge still shown. |
-| User types in the editor | — | After 1.5 s of pause: silent autosave → `Saved a moment ago` indicator. |
-| Autosave fails | — | Red `Auto-save failed — click Save Draft`; manual button still works. |
-| LC clicks **Submit to Curation** → `lc_compliance_complete=true` | Identical | Editor becomes read-only, toolbar hides, "Legal Review Complete — Read Only" alert shows (existing behaviour). |
-| Console | "Duplicate extension names found: ['underline']" warning | Gone. |
+- Bump the autosave debounce from 1500 ms → 2000 ms in `LcPass3ReviewPanel.tsx` (`delayMs: 2000`) so transient typing-burst saves are less frequent. Already debounced; this just halves the save volume.
+- The autosave `enabled` flag stays the same; no change to write semantics.
 
 ## Files touched
 
 | File | Change |
 |---|---|
-| `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | Add `isLocked` prop; remove duplicate Underline; wire `useAutoSavePass3`; thread `isLocked` + autosave status into body |
-| `src/components/cogniblend/lc/Pass3EditorBody.tsx` | Replace `!isPass3Accepted` write-gates with `!isLocked`; add autosave indicator chip; relabel Accept button when re-accepting |
-| `src/hooks/cogniblend/useAutoSavePass3.ts` | NEW — debounced autosave orchestrator over `saveEdits` mutation |
-| `src/pages/cogniblend/LcLegalWorkspacePage.tsx` | Compute and pass `isLocked` from `challenge.lc_compliance_complete` |
-| `src/components/cogniblend/lc/LcUnifiedAgreementCard.tsx` | Pass-through new `isLocked` prop |
+| `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | Re-add `Underline` extension (import + array entry); pass `delayMs: 2000` to `useAutoSavePass3` |
+| `src/components/cogniblend/legal/LegalDocEditorToolbar.tsx` | Add `onMouseDown={e => e.preventDefault()}` to every toolbar `<Button>` |
+| `src/components/cogniblend/legal/LegalDocQuickInserts.tsx` | Same `onMouseDown` preventDefault on the dropdown trigger |
+| `src/hooks/cogniblend/useLcPass3DiffHighlight.ts` | Add `lastAppliedHtmlRef`; expand equal-HTML fast path; preserve `window.scrollY` around legitimate `setContent` calls |
 
-All files stay ≤ 250 lines. No `any`. No `console.*`. Mutation already uses `handleMutationError`. Hooks-before-returns order preserved.
+No DB / migration / edge-function changes. All files stay ≤ 250 lines (each is well under).
+
+## Behaviour after fix
+
+| Scenario | Before | After |
+|---|---|---|
+| Select "Liability" → click **Bold** | Selection lost on mousedown; format applied to cursor (invisible) → looks like nothing happened | Selection preserved; "Liability" becomes bold immediately |
+| Click **Underline** | No-op (extension missing) | Underlines selected text |
+| Type a few words → 1.5 s pause → autosave fires | Page snaps to the top of the editor; cursor lost | Cursor stays put; page does not move; "Saved just now" chip appears |
+| Click **Re-organize** or **Re-run AI** | Editor rebuilds (correct) and page snaps to top | Editor rebuilds with new content; viewport stays at the same scroll position |
+| Click **Clear** highlights | Editor rebuilds; scroll resets | Editor strips diff spans; scroll preserved |
+| Insert a clause from **Insert Clause** dropdown | Inserted at position 0 (selection lost on dropdown trigger mousedown) | Inserted at cursor location |
 
 ## Verification
 
-1. Reload `/cogni/challenges/25ca71a0-…/lc-legal`. Toolbar (Bold/Italic/Underline/H2/H3/Lists/Quote/HR/Undo/Redo) **and** Insert Clause dropdown are visible above the editor.
-2. Type into the document → after ~1.5 s, indicator transitions `Saving… → Saved just now`.
-3. Refresh the page → typed content persists (proves autosave wrote to DB).
-4. DevTools console — no "Duplicate extension names" warning.
-5. Click **Submit to Curation** → editor immediately becomes read-only, toolbar hides, the existing "Legal Review Complete — Read Only" alert renders.
-6. As a CR (creator) opening the same workspace, behaviour is unchanged (CR has read-only access today).
-7. `npx tsc --noEmit` passes; every touched file ≤ 250 lines.
+1. Reload `/cogni/challenges/25ca71a0-…/lc-legal`. Select a phrase → click **Bold** → phrase becomes bold immediately and the page does not scroll.
+2. Repeat for **Italic** and **Underline** — both work; underline button shows pressed state when cursor is in underlined text.
+3. Type continuously for 10 seconds. After the 2 s debounce the **Saved just now** chip appears. The viewport does **not** scroll; the cursor stays at the typing position. Repeat several save cycles — no jump.
+4. Click **Re-organize (No AI)** → editor rebuilds with the new content, viewport stays approximately where it was (within ±20 px due to layout reflow, no snap to top).
+5. Click **Clear** highlights → strikethroughs disappear; viewport unchanged.
+6. Open Insert Clause → choose Confidentiality → clause inserted at cursor (not at top of doc).
+7. Submit to Curation → editor becomes read-only; toolbar disappears; "Read Only" alert appears (existing behaviour preserved).
+8. `npx tsc --noEmit` passes; no console errors or warnings.
 
 ## Out of scope
 
-- Adding a richer toolbar (tables/colour/font-size). Current toolbar covers Bold/Italic/Underline/H2/H3/Bullet/Numbered/Quote/HR/Undo/Redo + 8 quick-insert clauses, which is sufficient for legal markup.
-- Server-side conflict detection (last-write-wins is fine for a single-LC workflow).
-- Re-running AI Pass 3 / Re-organize after acceptance — those buttons remain in the action row and continue to work.
+- Server-side conflict detection (still last-write-wins).
+- Adding tables/colour/font-size to the toolbar.
+- Changing the autosave architecture (still debounced over the existing `saveEdits` mutation).
 
