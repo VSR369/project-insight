@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Banknote, ArrowRight, Inbox, Search } from 'lucide-react';
+import { Banknote, ArrowRight, Inbox, Search, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { handleQueryError } from '@/lib/errorHandler';
 
