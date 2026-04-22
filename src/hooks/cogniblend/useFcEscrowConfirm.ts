@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import type { EscrowRecord } from '@/hooks/cogniblend/useEscrowDeposit';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
-import { handleMutationError, logWarning } from '@/lib/errorHandler';
+import { handleMutationError } from '@/lib/errorHandler';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyEscrowConfirmed } from '@/lib/cogniblend/workflowNotifications';
 import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
@@ -125,7 +125,7 @@ export function useFcEscrowConfirm({
       return values;
     },
     onSuccess: () => {
-      toast.success('Escrow draft saved');
+      toast.success('Escrow details saved');
       clearPersistedData();
       queryClient.invalidateQueries({ queryKey: ['escrow-deposit', challengeId] });
       queryClient.invalidateQueries({ queryKey: ['challenge-fc-detail', challengeId] });
@@ -159,7 +159,7 @@ export function useFcEscrowConfirm({
       return values;
     },
     onSuccess: async (values) => {
-      toast.success('Escrow deposit confirmed');
+      toast.success('Escrow funded — ready to submit to Curator');
 
       if (userId) {
         void logStatusTransition({
@@ -187,22 +187,7 @@ export function useFcEscrowConfirm({
         );
       })();
 
-      try {
-        const { error } = await supabase.rpc('complete_financial_review', {
-          p_challenge_id: challengeId,
-          p_user_id: userId ?? '',
-        });
-        if (error) throw error;
-      } catch (rpcError) {
-        logWarning('complete_financial_review safety-net call failed', {
-          operation: 'fc_confirm_escrow_safety_net',
-          additionalData: {
-            error: rpcError instanceof Error ? rpcError.message : String(rpcError),
-          },
-        });
-      }
-
-       form.reset(buildEscrowFormDefaults(escrowRecord, rewardTotal, orgFinanceDefaults));
+      form.reset(buildEscrowFormDefaults(escrowRecord, rewardTotal, orgFinanceDefaults));
       clearPersistedData();
       setProofFile(null);
       setProofUploading(false);
