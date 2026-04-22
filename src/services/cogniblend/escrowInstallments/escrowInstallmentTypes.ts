@@ -101,4 +101,5 @@ export interface EscrowFundingFormValues {
   depositDate: string;
   depositReference: string;
   notes: string;
+  depositAmount: number;
 }
