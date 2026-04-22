@@ -139,7 +139,7 @@ export function Pass3EditorBody({
   return (
     <>
       {canEdit && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="sticky top-16 z-30 -mx-4 lg:-mx-6 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 lg:px-6 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <LegalDocEditorToolbar editor={editor} />
           <LegalDocQuickInserts editor={editor} />
           <div className="ml-auto">
