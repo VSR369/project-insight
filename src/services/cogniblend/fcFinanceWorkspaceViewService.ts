@@ -35,15 +35,15 @@ export function deriveFcWorkspaceViewState(args: {
   escrowStatus: string | null;
   fcComplianceComplete: boolean;
 }): FcWorkspaceViewState {
-  const phaseGateOpen = (args.currentPhase ?? 0) >= 3;
-  const isPreview = !phaseGateOpen;
   const isFunded = args.escrowStatus === 'FUNDED';
+  const hasEscrowRecord = !!args.escrowStatus;
+  const isPreview = !hasEscrowRecord && !isFunded && !args.fcComplianceComplete;
   const canEditDepositFields = !args.fcComplianceComplete && !isFunded;
-  const canUploadProof = phaseGateOpen && canEditDepositFields;
-  const canConfirmEscrow = phaseGateOpen && canEditDepositFields;
-  const canSubmitFinanceReview = phaseGateOpen && isFunded && !args.fcComplianceComplete;
+  const canUploadProof = canEditDepositFields;
+  const canConfirmEscrow = canEditDepositFields;
+  const canSubmitFinanceReview = isFunded && !args.fcComplianceComplete;
   const canSubmitEscrow = canEditDepositFields;
-  const currentStep: 1 | 2 | 3 = isPreview ? 1 : args.fcComplianceComplete || isFunded ? 3 : 2;
+  const currentStep: 1 | 2 | 3 = args.fcComplianceComplete || isFunded ? 3 : hasEscrowRecord ? 2 : 1;
 
   return {
     isPreview,
