@@ -262,15 +262,17 @@ export default function FcFinanceWorkspacePage() {
         </div>
       )}
 
-      <FcFinanceSubmitFooter
-        challengeId={challengeId!}
-        userId={user?.id ?? ''}
-        escrowStatus={escrowStatus}
-        currentPhase={challenge?.current_phase}
-        fcComplianceComplete={challenge?.fc_compliance_complete}
-        submitting={submitting}
-        onSubmit={submit}
-      />
+      {!isPreview && (
+        <FcFinanceSubmitFooter
+          challengeId={challengeId!}
+          userId={user?.id ?? ''}
+          escrowStatus={escrowStatus}
+          currentPhase={challenge?.current_phase}
+          fcComplianceComplete={challenge?.fc_compliance_complete}
+          submitting={submitting}
+          onSubmit={submit}
+        />
+      )}
     </div>
   );
 }
