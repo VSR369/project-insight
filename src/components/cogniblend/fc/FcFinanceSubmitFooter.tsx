@@ -1,7 +1,5 @@
 /**
  * FcFinanceSubmitFooter — Bottom action card for the FC finance workspace.
- * Mirrors LcLegalSubmitFooter. Surfaces escrow status + Return-to-Curator
- * + Submit-Financial-Review controls.
  */
 import { Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,50 +12,35 @@ export interface FcFinanceSubmitFooterProps {
   userId: string;
   escrowStatus: string | null;
   fcComplianceComplete: boolean | null | undefined;
+  canSubmitPath: boolean;
   submitting: boolean;
   onSubmit: () => void;
 }
 
-export function FcFinanceSubmitFooter({
-  challengeId,
-  userId,
-  escrowStatus,
-  fcComplianceComplete,
-  submitting,
-  onSubmit,
-}: FcFinanceSubmitFooterProps) {
-  const isFunded = escrowStatus === 'FUNDED';
-  const submitDisabled = submitting || !isFunded || !!fcComplianceComplete;
+export function FcFinanceSubmitFooter({ challengeId, userId, escrowStatus, fcComplianceComplete, canSubmitPath, submitting, onSubmit }: FcFinanceSubmitFooterProps) {
+  const submitDisabled = submitting || !canSubmitPath || !!fcComplianceComplete;
 
   return (
     <Card>
-      <CardContent className="py-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+      <CardContent className="flex flex-col items-start justify-between gap-3 py-4 lg:flex-row lg:items-center">
         <div>
-          <p className="text-sm font-semibold flex items-center gap-2">
+          <p className="flex items-center gap-2 text-sm font-semibold">
             Escrow:
-            <Badge variant={isFunded ? 'default' : 'secondary'}>
+            <Badge variant={canSubmitPath ? 'default' : 'secondary'}>
               {escrowStatus ?? 'Pending'}
             </Badge>
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {!isFunded
-              ? 'Confirm funding in the FC deposit record above before submitting financial review to the Curator.'
-              : 'Escrow is funded — submit the financial review to return the challenge to the Curator.'}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {!canSubmitPath
+              ? 'All scheduled installments must be funded before submitting financial review to the Curator.'
+              : 'Escrow schedule is fully funded — submit the financial review to return the challenge to the Curator.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <FcReturnToCurator
-            challengeId={challengeId}
-            userId={userId}
-            disabled={submitting}
-          />
+          <FcReturnToCurator challengeId={challengeId} userId={userId} disabled={submitting} />
         </div>
         <Button onClick={onSubmit} disabled={submitDisabled}>
-          {submitting ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Send className="h-4 w-4 mr-2" />
-          )}
+          {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
           {fcComplianceComplete ? 'Already Submitted' : 'Submit Financial Review'}
         </Button>
       </CardContent>

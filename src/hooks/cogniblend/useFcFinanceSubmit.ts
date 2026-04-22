@@ -3,10 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { handleMutationError } from '@/lib/errorHandler';
 
 interface UseFcFinanceSubmitArgs {
   challengeId: string | undefined;
   userId: string | undefined;
+  canSubmitPath?: boolean;
 }
 
 interface CompleteFinancialReviewResult {
@@ -18,7 +20,7 @@ interface CompleteFinancialReviewResult {
   error?: string;
 }
 
-export function useFcFinanceSubmit({ challengeId, userId }: UseFcFinanceSubmitArgs) {
+export function useFcFinanceSubmit({ challengeId, userId, canSubmitPath = false }: UseFcFinanceSubmitArgs) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
@@ -26,6 +28,13 @@ export function useFcFinanceSubmit({ challengeId, userId }: UseFcFinanceSubmitAr
 
   const submit = async () => {
     if (!challengeId || !userId) return;
+    if (!canSubmitPath) {
+      const failure = 'All escrow installments must be funded before financial review can be submitted.';
+      setGateFailures([failure]);
+      toast.error(failure);
+      return;
+    }
+
     setSubmitting(true);
     setGateFailures([]);
 
@@ -34,7 +43,7 @@ export function useFcFinanceSubmit({ challengeId, userId }: UseFcFinanceSubmitAr
         p_challenge_id: challengeId,
         p_user_id: userId,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw error;
 
       const result = (rpcData ?? {}) as CompleteFinancialReviewResult;
       if (result.error) {
@@ -47,6 +56,8 @@ export function useFcFinanceSubmit({ challengeId, userId }: UseFcFinanceSubmitAr
         ['fc-escrow-challenges'],
         ['fc-challenge-queue'],
         ['escrow-deposit', challengeId],
+        ['escrow-installments', challengeId],
+        ['escrow-funding-context', challengeId],
         ['publication-readiness', challengeId],
         ['cogni-dashboard'],
         ['challenge-fc-detail', challengeId],
@@ -61,8 +72,7 @@ export function useFcFinanceSubmit({ challengeId, userId }: UseFcFinanceSubmitAr
       toast.success(message);
       if (result.phase_advanced) navigate('/cogni/fc-queue');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to submit financial review';
-      toast.error(message);
+      handleMutationError(error, { operation: 'complete_financial_review', component: 'useFcFinanceSubmit' });
     } finally {
       setSubmitting(false);
     }
