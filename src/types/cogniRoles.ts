@@ -33,7 +33,7 @@ export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string 
   CU: { label: 'Open Curation Queue', route: '/cogni/curation' },
   ER: { label: 'Open Review Queue', route: '/cogni/review' },
   LC: { label: 'Legal Workspace', route: '/cogni/lc-queue' },
-  FC: { label: 'Manage Escrow', route: '/cogni/escrow' },
+  FC: { label: 'Open Finance Workspace', route: '/cogni/fc-queue' },
 };
 
 /** Role code → nav paths that are "relevant" for this workspace */
@@ -42,7 +42,7 @@ export const ROLE_NAV_RELEVANCE: Record<string, string[]> = {
   CU: ['/cogni/curation', '/cogni/dashboard'],
   ER: ['/cogni/review', '/cogni/evaluation', '/cogni/dashboard'],
   LC: ['/cogni/lc-queue', '/cogni/legal', '/cogni/dashboard'],
-  FC: ['/cogni/escrow', '/cogni/payments', '/cogni/dashboard'],
+  FC: ['/cogni/fc-queue', '/cogni/challenges', '/cogni/dashboard'],
 };
 
 /** Solver paths — only relevant for non-seeking-org users */

@@ -7,7 +7,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FilePlus, Folder, CheckSquare,
-  FileText, Eye, BarChart2, Award, Lock, CreditCard, Banknote,
+  FileText, Eye, BarChart2, Award, Banknote,
   Search, Lightbulb, User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -47,6 +47,7 @@ const SECTIONS: NavSection[] = [
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, isVisible: (p) => p.canSeeChallengePage, badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, isVisible: (p) => p.canSeeCurationQueue, badgeKey: 'curationQueue' },
       { label: 'Legal Workspace', path: '/cogni/lc-queue', icon: FileText, isVisible: (p) => p.canSeeLegalWorkspace },
+      { label: 'Finance Workspace', path: '/cogni/fc-queue', icon: Banknote, isVisible: (p) => p.canSeeEscrow },
     ],
   },
   {
@@ -55,15 +56,12 @@ const SECTIONS: NavSection[] = [
       { label: 'Review Queue', path: '/cogni/review', icon: Eye, isVisible: (p) => p.canSeeEvaluation },
       { label: 'Evaluation Panel', path: '/cogni/evaluation', icon: BarChart2, isVisible: (p) => p.canSeeEvaluation },
       { label: 'Selection & IP', path: '/cogni/selection', icon: Award, isVisible: (p) => p.canSeeEvaluation },
-      { label: 'FC Queue', path: '/cogni/fc-queue', icon: Banknote, isVisible: (p) => p.canSeeEscrow },
-      { label: 'Escrow Management', path: '/cogni/escrow', icon: Lock, isVisible: (p) => p.canSeeEscrow },
-      { label: 'Payment Processing', path: '/cogni/payments', icon: CreditCard, isVisible: (p) => p.canSeeEscrow },
     ],
   },
   {
     title: 'SOLVER',
     items: [
-      { label: 'Browse Challenges', path: '/cogni/browse', icon: Search, isVisible: () => true },
+      { label: 'Browse Challenges', path: '/cogni/browse', icon: Search, isVisible: (p) => p.canSeeSolverFeatures },
       { label: 'My Solutions', path: '/cogni/my-solutions', icon: Lightbulb, isVisible: (p) => p.canSeeSolverFeatures },
       { label: 'My Portfolio', path: '/cogni/portfolio', icon: User, isVisible: (p) => p.canSeeSolverFeatures },
     ],
@@ -116,8 +114,20 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     activeRole,
     availableRoles,
     roleChallengeCount,
+    isRolesLoading,
   } = useCogniRoleContext();
-  const permissions = useCogniPermissions();
+  const basePermissions = useCogniPermissions();
+
+  // Loading guard: while roles resolve, treat solver as hidden to prevent flash
+  const solverVisible =
+    !isRolesLoading &&
+    availableRoles.length > 0 &&
+    basePermissions.canSeeSolverFeatures;
+
+  const permissions: CogniPermissions = {
+    ...basePermissions,
+    canSeeSolverFeatures: solverVisible,
+  };
 
   // Check if user holds only seeking-org roles (no solver role)
   const isSeekingOrgOnly = availableRoles.length > 0 && availableRoles.every((r) => SEEKING_ORG_ROLES.has(r));
@@ -138,9 +148,9 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     return relevantPaths.some((rp) => path === rp || path.startsWith(rp + '/'));
   };
 
-  /** Hide entire SOLVER section for seeking-org-only users */
+  /** Hide entire SOLVER section for seeking-org-only users or while loading */
   const isSectionVisible = (sectionTitle: string): boolean => {
-    if (sectionTitle === 'SOLVER' && isSeekingOrgOnly) return false;
+    if (sectionTitle === 'SOLVER' && (isSeekingOrgOnly || !solverVisible)) return false;
     return true;
   };
 

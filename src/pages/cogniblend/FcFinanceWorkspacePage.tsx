@@ -85,7 +85,9 @@ export default function FcFinanceWorkspacePage() {
     [challenge?.governance_mode_override, challenge?.governance_profile],
   );
 
-  const currentStep: 1 | 2 | 3 = fcDone ? 3 : isFunded ? 3 : 2;
+  const phaseGateOpen = (challenge?.current_phase ?? 0) >= 3;
+  const isPreview = !phaseGateOpen;
+  const currentStep: 1 | 2 | 3 = isPreview ? 1 : fcDone ? 3 : isFunded ? 3 : 2;
   const hasAccess = roles?.includes('FC') ?? false;
 
   /* ── 7. Conditional returns (after all hooks) ───────────── */
@@ -148,28 +150,6 @@ export default function FcFinanceWorkspacePage() {
     );
   }
 
-  if ((challenge?.current_phase ?? 0) < 3) {
-    return (
-      <div className="p-6 max-w-5xl mx-auto">
-        <Card>
-          <CardContent className="py-10 text-center">
-            <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-lg font-semibold text-foreground">
-              Challenge not ready for finance review
-            </p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Currently at Phase {challenge?.current_phase ?? '?'}. Finance review applies once
-              the challenge reaches Phase 3.
-            </p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/fc-queue')}>
-              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to FC Queue
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   /* ── 8. Render ──────────────────────────────────────────── */
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-5xl mx-auto">
@@ -203,6 +183,18 @@ export default function FcFinanceWorkspacePage() {
         </Alert>
       )}
 
+      {isPreview && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Preview Mode — Finance review unlocks at Phase 3</AlertTitle>
+          <AlertDescription>
+            This challenge is currently at Phase {challenge?.current_phase ?? '?'}. You can
+            review the curated challenge and supporting context below. The escrow deposit
+            form will appear once curation is complete.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="rounded-lg border bg-card p-3">
         <FcFinanceStepIndicator currentStep={currentStep} />
       </div>
@@ -220,7 +212,7 @@ export default function FcFinanceWorkspacePage() {
 
           <RecommendedEscrowCard challengeId={challengeId!} />
 
-          {!fcDone && !isFunded && (
+          {!isPreview && !fcDone && !isFunded && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -246,7 +238,7 @@ export default function FcFinanceWorkspacePage() {
             </Card>
           )}
 
-          {(fcDone || isFunded) && <FcEscrowConfirmedSummary escrow={escrowRecord} />}
+          {!isPreview && (fcDone || isFunded) && <FcEscrowConfirmedSummary escrow={escrowRecord} />}
         </TabsContent>
 
         <TabsContent value="challenge" className="mt-4">
@@ -270,15 +262,17 @@ export default function FcFinanceWorkspacePage() {
         </div>
       )}
 
-      <FcFinanceSubmitFooter
-        challengeId={challengeId!}
-        userId={user?.id ?? ''}
-        escrowStatus={escrowStatus}
-        currentPhase={challenge?.current_phase}
-        fcComplianceComplete={challenge?.fc_compliance_complete}
-        submitting={submitting}
-        onSubmit={submit}
-      />
+      {!isPreview && (
+        <FcFinanceSubmitFooter
+          challengeId={challengeId!}
+          userId={user?.id ?? ''}
+          escrowStatus={escrowStatus}
+          currentPhase={challenge?.current_phase}
+          fcComplianceComplete={challenge?.fc_compliance_complete}
+          submitting={submitting}
+          onSubmit={submit}
+        />
+      )}
     </div>
   );
 }
