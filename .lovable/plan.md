@@ -1,99 +1,202 @@
 
 
-# Plan — Fix toolbar formatting + stop the scroll jump on autosave
+# Plan — FC per-challenge Finance Workspace (mirrors LC Legal Workspace)
 
-## Root causes (verified in code)
+Refactor the Finance Coordinator UX from a flat list at `/cogni/escrow` into a per-challenge workspace at `/cogni/challenges/:id/finance` that mirrors the LC Legal Workspace pattern (header + step indicator + tabs + footer). All escrow rules, the `complete_financial_review` RPC, the `EscrowDepositForm` validation, account masking, and proof upload remain untouched.
 
-1. **Underline button is a no-op.** When we removed the duplicate `Underline` extension last round, we relied on StarterKit v3 to provide it. It does **not** — StarterKit v2/v3 in this project does not include `Underline`. So `editor.isActive('underline')` is always `false` and `toggleUnderline()` silently does nothing because the schema has no `underline` mark.
+## What the user will see
 
-2. **Bold/Italic appear to "do nothing" on a selection.** The toolbar `<Button>` is a real `<button type="button">`. Clicking it fires `mousedown` first, which moves DOM focus from the ProseMirror surface to the button, **collapsing the editor selection before** `onClick → editor.chain().focus().toggleBold()` runs. `.focus()` then restores focus but with the *new* (collapsed) cursor position, so the format is applied at the cursor — not over the previously selected text. The user sees "nothing happened" because the visible selected text is unchanged.
+```
+FC Dashboard → "Manage Escrow" → /cogni/fc-queue (list)
+  ↓ click challenge row
+/cogni/challenges/:id/finance
+┌──────────────────────────────────────────────────┐
+│ ← Finance Workspace — [Challenge Title]          │
+│ [1 Review Context] → [2 Confirm Escrow] → [3 ✓] │
+├ Tab: Finance Review │ Curated Challenge ─────────┤
+│  • Legal Agreement (Read Only) — UNIFIED_SPA HTML│
+│  • Recommended Escrow (governance + reward ctx)  │
+│  • Escrow Deposit Confirmation form              │
+│    (or "Escrow Deposit Confirmed" summary)       │
+├──────────────────────────────────────────────────┤
+│ [Return to Curator]   [Submit Financial Review]  │
+└──────────────────────────────────────────────────┘
+```
 
-3. **Screen jumps after formatting / typing.** The exact sequence is:
-   - User types or clicks Bold → `editor.onUpdate` → `setEditedHtml(newHtml)` → React re-renders.
-   - `useAutoSavePass3` debounces 1.5 s → calls `review.saveEdits(clean)`.
-   - `saveEdits` mutation succeeds → invalidates `['pass3-legal-review', challengeId]`.
-   - Query refetches → returns the same HTML the LC just saved → `unifiedDocHtml` **string identity changes** (new fetch).
-   - `useLcPass3DiffHighlight`'s effect re-runs because `unifiedDocHtml` is in its deps → calls `editor.commands.setContent(cleanIncoming, { emitUpdate: false })`.
-   - `setContent` replaces the entire ProseMirror DOM → cursor + selection + scroll position are lost. With the sticky toolbar at `top-16`, the page snaps to the top of the rebuilt document.
-   - Repeat on every autosave → "the screen keeps jumping while I'm typing".
+After submission → green "Financial Review Complete — Read Only" alert, step 3 active, form replaced by confirmation summary, submit button shows "Already Submitted".
 
-4. **Lower-priority contributor:** the diff-highlight effect already had a guard `cleanIncoming === editor.getHTML()`, but autosave can race so that the editor's HTML still has `<span class="legal-diff-added">` markers (when re-organize was previously run) while the incoming HTML doesn't — causing a false-positive setContent even when content is logically identical.
+## Files
 
-## Fix — three small, surgical changes
-
-### 1. Re-add the Underline extension *idempotently*
-
-**File:** `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx`
-
-- Restore `import Underline from '@tiptap/extension-underline'`.
-- Add `Underline` back to the `extensions` array.
-- The previous "duplicate extension" warning was a misdiagnosis — StarterKit in this codebase does not bundle Underline (verified: the admin editor and the cogniblend legal editor both import it explicitly without warnings). The warning the user saw, if any, came from a different cause and is not reproducible after this change.
-
-### 2. Stop the toolbar from stealing the editor's selection
-
-**File:** `src/components/cogniblend/legal/LegalDocEditorToolbar.tsx`
-
-- Add `onMouseDown={(e) => e.preventDefault()}` to every toolbar `<Button>`. This prevents the button from taking DOM focus on mousedown, so the editor's selection is preserved when `onClick` runs and `toggleBold/Italic/Underline` correctly wraps the selected range.
-- Apply the same `onMouseDown` preventDefault to the Insert Clause `<DropdownMenuTrigger>` button in `src/components/cogniblend/legal/LegalDocQuickInserts.tsx` so insertions land at the cursor instead of position 0.
-- Keep `editor.chain().focus().toggleX().run()` — `.focus()` is still needed to return DOM focus *after* the command, but selection is now preserved.
-
-### 3. Stop the autosave-triggered `setContent` from rebuilding the editor
-
-**File:** `src/hooks/cogniblend/useLcPass3DiffHighlight.ts`
-
-Replace the deps-based "any change to `unifiedDocHtml` → setContent" effect with a smarter check:
-
-- Compare `stripDiffSpans(unifiedDocHtml)` to `stripDiffSpans(editor.getHTML())`. If they are equal, **skip setContent entirely** — there is nothing to render. This already exists as a fast path but only when there is no `prev`. Extend it to: when `prev` exists, also skip setContent if the *cleaned* incoming HTML equals the *cleaned* current editor HTML (i.e., the user's local edits have already converged with the server). This eliminates the autosave round-trip rebuild.
-- Add a `lastAppliedHtmlRef` that stores the cleaned HTML the hook last pushed into the editor. The effect early-returns when `cleanIncoming === lastAppliedHtmlRef.current`. This prevents back-to-back identical refetches (autosave settle, focus events, etc.) from ever triggering a rebuild.
-- When a setContent **is** required (true regenerate / organize / clear), preserve the user's scroll position around the call:
-  ```
-  const scrollY = window.scrollY;
-  editor.commands.setContent(...);
-  requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
-  ```
-  This keeps the viewport stable even on legitimate diff renders.
-
-### Optional polish (no behaviour change for the user)
-
-- Bump the autosave debounce from 1500 ms → 2000 ms in `LcPass3ReviewPanel.tsx` (`delayMs: 2000`) so transient typing-burst saves are less frequent. Already debounced; this just halves the save volume.
-- The autosave `enabled` flag stays the same; no change to write semantics.
-
-## Files touched
-
-| File | Change |
-|---|---|
-| `src/components/cogniblend/lc/LcPass3ReviewPanel.tsx` | Re-add `Underline` extension (import + array entry); pass `delayMs: 2000` to `useAutoSavePass3` |
-| `src/components/cogniblend/legal/LegalDocEditorToolbar.tsx` | Add `onMouseDown={e => e.preventDefault()}` to every toolbar `<Button>` |
-| `src/components/cogniblend/legal/LegalDocQuickInserts.tsx` | Same `onMouseDown` preventDefault on the dropdown trigger |
-| `src/hooks/cogniblend/useLcPass3DiffHighlight.ts` | Add `lastAppliedHtmlRef`; expand equal-HTML fast path; preserve `window.scrollY` around legitimate `setContent` calls |
-
-No DB / migration / edge-function changes. All files stay ≤ 250 lines (each is well under).
-
-## Behaviour after fix
-
-| Scenario | Before | After |
+| File | Action | Approx. lines |
 |---|---|---|
-| Select "Liability" → click **Bold** | Selection lost on mousedown; format applied to cursor (invisible) → looks like nothing happened | Selection preserved; "Liability" becomes bold immediately |
-| Click **Underline** | No-op (extension missing) | Underlines selected text |
-| Type a few words → 1.5 s pause → autosave fires | Page snaps to the top of the editor; cursor lost | Cursor stays put; page does not move; "Saved just now" chip appears |
-| Click **Re-organize** or **Re-run AI** | Editor rebuilds (correct) and page snaps to top | Editor rebuilds with new content; viewport stays at the same scroll position |
-| Click **Clear** highlights | Editor rebuilds; scroll resets | Editor strips diff spans; scroll preserved |
-| Insert a clause from **Insert Clause** dropdown | Inserted at position 0 (selection lost on dropdown trigger mousedown) | Inserted at cursor location |
+| `src/pages/cogniblend/FcFinanceWorkspacePage.tsx` | CREATE | ~230 |
+| `src/components/cogniblend/fc/FcFinanceStepIndicator.tsx` | CREATE | ~60 |
+| `src/components/cogniblend/fc/FcLegalDocsViewer.tsx` | CREATE | ~110 |
+| `src/components/cogniblend/fc/FcReturnToCurator.tsx` | CREATE | ~110 |
+| `src/components/cogniblend/fc/FcFinanceSubmitFooter.tsx` | CREATE | ~70 |
+| `src/components/cogniblend/fc/FcEscrowConfirmedSummary.tsx` | CREATE | ~50 |
+| `src/hooks/cogniblend/useFcFinanceData.ts` | CREATE | ~50 |
+| `src/hooks/cogniblend/useFcFinanceSubmit.ts` | CREATE | ~80 |
+| `src/hooks/cogniblend/useFcEscrowConfirm.ts` | CREATE | ~150 (split if needed) |
+| `src/pages/cogniblend/FcChallengeQueuePage.tsx` | MODIFY (1 navigate call + label) | +1 / -1 |
+| `src/pages/cogniblend/EscrowManagementPage.tsx` | MODIFY (simplify to lightweight queue → redirect) | ~120 |
+| `src/App.tsx` | MODIFY (lazy import + 1 route) | +2 |
+
+All files ≤ 250 lines. Zero changes to: `EscrowDepositForm.tsx`, `complete_financial_review` RPC, `escrow_records` schema, `escrow-proofs` bucket, `FcChallengeDetailView`, `RecommendedEscrowCard`, `WorkflowProgressBanner`, `PwaAcceptanceGate`, LC files, AI/Curator flows, QUICK mode.
+
+## Component contracts
+
+### `FcFinanceStepIndicator`
+Visual clone of `LcLegalStepIndicator` with:
+- Step 1: "Review Context"
+- Step 2: "Confirm Escrow"
+- Step 3: "Submitted"
+Same chevrons, ring on active, check on completed.
+
+### `FcLegalDocsViewer({ challengeId })`
+- Query `challenge_legal_docs` for `challenge_id` AND `document_type='UNIFIED_SPA'` AND `ai_review_status='accepted'` — selects `id, content_html, ai_modified_content_html, lc_reviewed_at` (`maybeSingle`).
+- Reuses **`<LegalDocumentViewer content={…} />`** (already imports `legal-document.css`) — no inline `dangerouslySetInnerHTML`.
+- States: loading skeleton; if no row found → muted "Legal documents are being reviewed by the Legal Coordinator…"; if row found → green "Approved by Legal Coordinator on {date}" badge above the rendered HTML.
+- Wrapped in a `Card` titled "Legal Agreement (Read Only)" with a `Scale` icon.
+
+### `FcReturnToCurator({ challengeId, userId, disabled })`
+- Mirrors `LcReturnToCurator` UI (button + AlertDialog + Textarea, min-10-char reason).
+- Behaviour: inserts `audit_trail` row `action='FC_RETURNED_TO_CURATOR'`, then inserts `cogni_notifications` for active CU users (looked up via `getActiveRoleUsers(challengeId, ['CU'])`). Toast "Challenge returned to Curator". Invalidates `fc-challenge-queue` and `cogni-dashboard`.
+- Not piggy-backing on `useUnfreezeForRecuration` — phase semantics differ for FC.
+
+### `FcFinanceSubmitFooter`
+Mirrors `LcLegalSubmitFooter`:
+- Left: escrow status badge (`Escrow: {status ?? 'Pending'}`) + helper text mentioning current phase.
+- Middle: `<FcReturnToCurator />`.
+- Right: "Submit Financial Review" — disabled when `submitting`, `escrowStatus !== 'FUNDED'`, `currentPhase !== 3`, or `fcComplianceComplete`. If already complete → label "Already Submitted".
+
+### `FcEscrowConfirmedSummary({ escrow })`
+Small read-only success card with check icon, formatted amount + currency, bank name, deposit reference. Used after FUNDED.
+
+## Hooks
+
+### `useFcFinanceData.ts`
+- `useChallengeForFC(challengeId)` — `useQuery` selecting `id, title, reward_structure, governance_profile, governance_mode_override, operating_model, current_phase, phase_status, fc_compliance_complete, lc_compliance_complete, currency_code, organization_id` from `challenges`. `staleTime: 60_000`.
+
+### `useFcFinanceSubmit.ts`
+Mirrors `useLcLegalSubmit`:
+- Calls `complete_financial_review` RPC with `{ p_challenge_id, p_user_id }` (the existing RPC — unchanged).
+- On success: invalidates `['fc-escrow-challenges']`, `['fc-challenge-queue']`, `['escrow-deposit', challengeId]`, `['publication-readiness', challengeId]`, `['cogni-dashboard']`, `['challenge-fc-detail', challengeId]`. Toast based on `awaiting`/`phase_advanced` (same shape EscrowManagementPage already handles). Navigates to `/cogni/fc-queue` on phase advance.
+- Returns `{ submit, submitting, gateFailures }`.
+
+### `useFcEscrowConfirm.ts`
+Pure extraction of the existing escrow-confirm logic from `EscrowManagementPage` lines 52–267. No business-rule changes:
+- Builds `useForm<EscrowFormValues>` + `useFormPersistence('cogni_escrow_<challengeId>')` (key scoped by challenge so two FC tabs do not stomp each other — important now that the page is per-challenge).
+- Owns `proofFile`, `proofUploading` state.
+- `confirmEscrow` mutation: same upload → insert/update sequence, same `account_number_masked` masking, same audit trail insert, same `logStatusTransition` + `notifyEscrowConfirmed` calls.
+- Returns `{ form, proofFile, setProofFile, proofUploading, confirmEscrow, handleSubmit, clearForm }`.
+- Crucially: **does not** call `complete_financial_review` itself anymore — that becomes the explicit "Submit Financial Review" action via `useFcFinanceSubmit`. Today the RPC fires automatically in `confirmEscrow.onSuccess`. New behaviour matches the LC pattern (Accept ≠ Submit). To preserve today's automation as a safety net, keep the RPC call in `useFcEscrowConfirm` but make it idempotent: log a warning instead of toasting on failure (the explicit Submit button is the canonical path). This way single-step deposits still complete, and the explicit Submit retries cleanly.
+
+### Existing hook adjustments
+- `useEscrowDeposit(challengeId, userId)` already returns `{ escrow, rewardTotal, canVerify }` — used as-is.
+- `useUserChallengeRoles(userId, challengeId)` returns `string[]` of role codes — access check is `roles?.includes('FC')`.
+
+## Page: `FcFinanceWorkspacePage.tsx`
+
+Hooks order (R5 compliant — all hooks before any return):
+
+1. `useParams`, `useNavigate`, `useAuth`
+2. `useUserChallengeRoles(user?.id, challengeId)`
+3. `useChallengeForFC(challengeId)`
+4. `useEscrowDeposit(challengeId, user?.id)`
+5. `usePwaStatus(user?.id)`
+6. `useState` for `pwaAccepted`, default tab
+7. `useFcEscrowConfirm({ challengeId, userId, rewardTotal })`
+8. `useFcFinanceSubmit({ challengeId, userId })`
+9. Derived: `currentStep`, `isFunded`, `hasAccess`, `govMode`
+10. Conditional returns (loading skeleton, PWA gate, access-denied card, QUICK/STRUCTURED guard card, phase-too-early guard).
+11. JSX.
+
+Step calculation:
+```
+isFunded = escrowRecord?.escrow_status === 'FUNDED'
+fcDone   = !!challenge?.fc_compliance_complete
+currentStep = fcDone ? 3 : isFunded ? 3 : 2
+```
+(Step 1 is implicit context-review, not a separate locked state.)
+
+Layout follows LC: back link to `/cogni/fc-queue`, `Banknote` header icon, "Finance Workspace" title, challenge title, `fc_compliance_complete` green Alert, step indicator card, `WorkflowProgressBanner step={3}`, Tabs, Separator, gate-failure alerts, `FcFinanceSubmitFooter`.
+
+Tab "Finance Review" body:
+```
+<FcLegalDocsViewer challengeId={…} />
+<RecommendedEscrowCard challengeId={…} />
+{!fcDone && !isFunded && (
+  <Card title="Escrow Deposit Confirmation" with Banknote icon>
+    <EscrowDepositForm
+      form={escrow.form}
+      onSubmit={escrow.handleSubmit}
+      isPending={escrow.confirmEscrow.isPending}
+      proofFile={escrow.proofFile}
+      onProofFileChange={escrow.setProofFile}
+      proofUploading={escrow.proofUploading}
+      governanceMode={govMode}
+    />
+  </Card>
+)}
+{(fcDone || isFunded) && <FcEscrowConfirmedSummary escrow={escrowRecord.escrow} />}
+```
+Tab "Curated Challenge" body:
+```
+<FcChallengeDetailView challengeId={…} defaultOpen />
+```
+
+Guard cards (mirroring LC):
+- No `FC` role → "Access Denied" card with return-to-dashboard.
+- `govMode` is `QUICK` or `STRUCTURED` → "Not applicable for QUICK/STRUCTURED governance" card with link back to `/cogni/fc-queue`.
+- `current_phase < 3` → "Challenge not ready for finance review" card with link back to `/cogni/fc-queue`.
+
+## App.tsx
+
+```
+const FcFinanceWorkspacePage = lazy(() => import('@/pages/cogniblend/FcFinanceWorkspacePage'));
+…
+<Route path="/cogni/challenges/:id/finance" element={<LazyRoute><FcFinanceWorkspacePage /></LazyRoute>} />
+```
+Both `/cogni/escrow` and `/cogni/fc-queue` routes remain.
+
+## FcChallengeQueuePage change
+
+Replace the `onClick={() => navigate('/cogni/escrow')}` with `navigate(\`/cogni/challenges/${item.challenge_id}/finance\`)` and change the button label to **"Open Finance Workspace"**.
+
+## EscrowManagementPage simplification
+
+Reduce to a thin queue/redirect page:
+- Reuse the existing `fc-escrow-challenges` query (kept where it is — other callers may depend on the cache key).
+- Remove inline form state, `useForm`, `useFormPersistence`, `confirmEscrow` mutation, `handleSubmit`, the inline `FcChallengeDetailView`/`RecommendedEscrowCard`/`EscrowDepositForm` rendering.
+- For each challenge row, the "Enter Deposit" button becomes "Open Finance Workspace" → `navigate(\`/cogni/challenges/${ch.challenge_id}/finance\`)`. FUNDED rows still show the green "Escrow Confirmed" badge and a "View Workspace" button.
+- Page still acts as a fallback list and respects PWA gate.
+
+## DB / migrations / edge functions
+
+None. All existing tables, RPCs (`complete_financial_review`), bucket policies, and RLS untouched.
 
 ## Verification
 
-1. Reload `/cogni/challenges/25ca71a0-…/lc-legal`. Select a phrase → click **Bold** → phrase becomes bold immediately and the page does not scroll.
-2. Repeat for **Italic** and **Underline** — both work; underline button shows pressed state when cursor is in underlined text.
-3. Type continuously for 10 seconds. After the 2 s debounce the **Saved just now** chip appears. The viewport does **not** scroll; the cursor stays at the typing position. Repeat several save cycles — no jump.
-4. Click **Re-organize (No AI)** → editor rebuilds with the new content, viewport stays approximately where it was (within ±20 px due to layout reflow, no snap to top).
-5. Click **Clear** highlights → strikethroughs disappear; viewport unchanged.
-6. Open Insert Clause → choose Confidentiality → clause inserted at cursor (not at top of doc).
-7. Submit to Curation → editor becomes read-only; toolbar disappears; "Read Only" alert appears (existing behaviour preserved).
-8. `npx tsc --noEmit` passes; no console errors or warnings.
+1. `/cogni/fc-queue` → click a Phase-3 CONTROLLED challenge → lands on `/cogni/challenges/:id/finance`. Header, step indicator, tabs, and submit footer render.
+2. PWA gate appears for an FC user without acceptance — same component as today.
+3. Tab "Finance Review": Legal Agreement card shows the LC-approved UNIFIED_SPA HTML (or the muted "being reviewed" message if not yet accepted). RecommendedEscrowCard shows governance + reward total. EscrowDepositForm renders with all 9 fields + proof upload (no validation drift — same schema, same masking).
+4. Tab "Curated Challenge" shows `FcChallengeDetailView` (33-section preview).
+5. Submit on the deposit form → `escrow_records` updated to FUNDED, audit row written, status history logged, Curator notified — all unchanged from today.
+6. After FUNDED, the form is replaced by the green confirmed summary; "Submit Financial Review" becomes enabled.
+7. Click **Submit Financial Review** → `complete_financial_review` RPC called (idempotent if it already ran in onSuccess), success toast, navigates back to `/cogni/fc-queue`, queue refreshes (challenge gone).
+8. Click **Return to Curator** → AlertDialog → enter ≥10 chars → audit row + Curator notification inserted, toast shown.
+9. QUICK or STRUCTURED challenge directly visited at `/cogni/challenges/:id/finance` → guard card with link back to queue.
+10. Pre-Phase-3 challenge → guard card.
+11. Non-FC user → access-denied card.
+12. `/cogni/escrow` still loads, shows the queue, and clicking a row routes to the new workspace.
+13. LC workspace, AI Pass 1/2/3, Curator flows, QUICK challenges — all unchanged (manual smoke test).
+14. `npx tsc --noEmit` passes; every new/modified file ≤ 250 lines; no `any`, no `console.*`.
 
 ## Out of scope
 
-- Server-side conflict detection (still last-write-wins).
-- Adding tables/colour/font-size to the toolbar.
-- Changing the autosave architecture (still debounced over the existing `saveEdits` mutation).
+- Server-side gate validation for FC submit (mirroring `validate_gate_02`) — not in current spec; the RPC itself enforces preconditions.
+- Multi-currency rate cards.
+- Editing the escrow record after FUNDED (still a single one-shot confirmation).
+- Any change to fee percentages, partial deposits, or refund logic.
 
