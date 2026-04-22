@@ -1,15 +1,14 @@
 /**
- * useEscrowDeposit — Fetches escrow status for a challenge and provides
- * a mutation to verify the deposit (FC role only).
+ * useEscrowDeposit — compatibility hook for legacy single-row escrow screens.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { handleMutationError } from '@/lib/errorHandler';
+import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
-
-/* ─── Types ──────────────────────────────────────────────── */
+import { handleMutationError, handleQueryError } from '@/lib/errorHandler';
+import { getRewardTotal } from '@/services/cogniblend/escrowInstallments/escrowInstallmentNormalizationService';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
 
 export interface EscrowRecord {
   id: string;
@@ -36,83 +35,74 @@ export interface EscrowData {
   escrow: EscrowRecord | null;
   rewardTotal: number;
   canVerify: boolean;
+  installmentCount: number;
 }
-
-/* ─── Fetch hook ─────────────────────────────────────────── */
 
 export function useEscrowDeposit(challengeId: string | undefined, userId: string | undefined) {
-  return useQuery({
+  return useQuery<EscrowData>({
     queryKey: ['escrow-deposit', challengeId],
-    queryFn: async (): Promise<EscrowData> => {
-      if (!challengeId) throw new Error('Challenge ID required');
-
-      // Fetch escrow record
-      const { data: escrow } = await supabase
-        .from('escrow_records')
-        .select(
-          'id, challenge_id, escrow_status, deposit_amount, remaining_amount, rejection_fee_percentage, bank_name, bank_branch, bank_address, currency, deposit_date, deposit_reference, fc_notes, account_number_masked, ifsc_swift_code, proof_file_name, proof_document_url, proof_uploaded_at',
-        )
-        .eq('challenge_id', challengeId)
-        .maybeSingle();
-
-      // Fetch reward_structure to calculate total
-      const { data: challenge } = await supabase
-        .from('challenges')
-        .select('reward_structure')
-        .eq('id', challengeId)
-        .single();
-
-      const rs = challenge?.reward_structure as Record<string, unknown> | null;
-      let rewardTotal = 0;
-      if (rs) {
-        const platinum = Number(rs.platinum_award ?? rs.budget_max ?? 0);
-        const gold = Number(rs.gold_award ?? 0);
-        const silver = Number(rs.silver_award ?? 0);
-        rewardTotal = platinum + gold + silver;
-        if (rewardTotal === 0) rewardTotal = Number(rs.budget_max ?? rs.budget_min ?? 0);
-      }
-
-      // Check FC permission
-      let canVerify = false;
-      if (userId && challengeId) {
-        const { data: canDo } = await supabase.rpc('can_perform', {
-          p_user_id: userId,
-          p_challenge_id: challengeId,
-          p_required_role: 'FC',
-        });
-        canVerify = canDo === true;
-      }
-
-      return {
-        escrow: escrow as EscrowRecord | null,
-        rewardTotal,
-        canVerify,
-      };
-    },
     enabled: !!challengeId,
     ...CACHE_STANDARD,
+    queryFn: async () => {
+      if (!challengeId) throw new Error('Challenge ID required');
+
+      const [escrowResult, challengeResult, roleResult, installmentResult] = await Promise.all([
+        supabase
+          .from('escrow_records')
+          .select('id, challenge_id, escrow_status, deposit_amount, remaining_amount, rejection_fee_percentage, bank_name, bank_branch, bank_address, currency, deposit_date, deposit_reference, fc_notes, account_number_masked, ifsc_swift_code, proof_file_name, proof_document_url, proof_uploaded_at')
+          .eq('challenge_id', challengeId)
+          .maybeSingle(),
+        supabase
+          .from('challenges')
+          .select('reward_structure, governance_profile, governance_mode_override')
+          .eq('id', challengeId)
+          .single(),
+        userId
+          ? supabase.rpc('can_perform', { p_user_id: userId, p_challenge_id: challengeId, p_required_role: 'FC' })
+          : Promise.resolve({ data: false, error: null }),
+        supabase
+          .from('escrow_installments')
+          .select('id', { count: 'exact', head: true })
+          .eq('challenge_id', challengeId),
+      ]);
+
+      if (escrowResult.error) {
+        handleQueryError(escrowResult.error, { operation: 'fetch_legacy_escrow_record', component: 'useEscrowDeposit' });
+        throw escrowResult.error;
+      }
+      if (challengeResult.error) {
+        handleQueryError(challengeResult.error, { operation: 'fetch_challenge_reward_for_escrow', component: 'useEscrowDeposit' });
+        throw challengeResult.error;
+      }
+      if (roleResult.error) {
+        handleQueryError(roleResult.error, { operation: 'check_fc_escrow_permission', component: 'useEscrowDeposit' });
+        throw roleResult.error;
+      }
+      if (installmentResult.error) {
+        handleQueryError(installmentResult.error, { operation: 'count_escrow_installments', component: 'useEscrowDeposit' });
+        throw installmentResult.error;
+      }
+
+      const challenge = challengeResult.data as { reward_structure: unknown; governance_profile: string | null; governance_mode_override: string | null };
+      const governanceMode = resolveGovernanceMode(challenge.governance_mode_override ?? challenge.governance_profile);
+      const rewardTotal = getRewardTotal(challenge.reward_structure);
+
+      return {
+        escrow: escrowResult.data as EscrowRecord | null,
+        rewardTotal,
+        canVerify: governanceMode === 'CONTROLLED' && roleResult.data === true,
+        installmentCount: installmentResult.count ?? 0,
+      };
+    },
   });
 }
-
-/* ─── Verify mutation ────────────────────────────────────── */
 
 export function useVerifyEscrow() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
-      escrowId,
-      challengeId,
-      amount,
-      userId,
-    }: {
-      escrowId: string;
-      challengeId: string;
-      amount: number;
-      userId: string;
-    }) => {
-      // Update escrow record
-      const { error: escrowErr } = await supabase
+    mutationFn: async ({ escrowId, challengeId, amount, userId }: { escrowId: string; challengeId: string; amount: number; userId: string }) => {
+      const { error } = await supabase
         .from('escrow_records')
         .update({
           escrow_status: 'FUNDED',
@@ -122,58 +112,14 @@ export function useVerifyEscrow() {
           updated_by: userId,
         })
         .eq('id', escrowId);
-
-      if (escrowErr) throw new Error(escrowErr.message);
-
-      // Log audit
-      const { error: auditErr } = await supabase.rpc('log_audit' as any, {
-        p_user_id: userId,
-        p_challenge_id: challengeId,
-        p_action: 'ESCROW_VERIFIED',
-        p_method: 'MANUAL',
-        p_details: JSON.stringify({ amount, escrow_id: escrowId }),
-      });
-
-      if (auditErr) {
-        // Fallback: insert directly
-        await supabase.from('audit_trail').insert({
-          user_id: userId,
-          challenge_id: challengeId,
-          action: 'ESCROW_VERIFIED',
-          method: 'MANUAL',
-          details: { amount, escrow_id: escrowId },
-        } as any);
-      }
-
-      // Notify the Curator (CU)
-      // Find active CU for this challenge
-      const { data: cuRoles } = await supabase
-        .from('user_challenge_roles' as any)
-        .select('user_id')
-        .eq('challenge_id', challengeId)
-        .eq('role_code', 'CU')
-        .eq('is_active', true);
-
-      const cuUsers = ((cuRoles ?? []) as unknown as Array<{ user_id: string }>);
-      if (cuUsers.length > 0) {
-        const notifications = cuUsers.map((r) => ({
-          user_id: r.user_id,
-          notification_type: 'ESCROW_VERIFIED',
-          title: 'Escrow verified',
-          message: `Escrow deposit of $${amount.toLocaleString()} has been verified. Challenge is ready to publish.`,
-          challenge_id: challengeId,
-        }));
-
-        await supabase.from('cogni_notifications').insert(notifications);
-      }
+      if (error) throw error;
+      return challengeId;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (challengeId) => {
       toast.success('Escrow deposit verified successfully');
-      queryClient.invalidateQueries({ queryKey: ['escrow-deposit', variables.challengeId] });
-      queryClient.invalidateQueries({ queryKey: ['publication-readiness', variables.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['escrow-deposit', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['publication-readiness', challengeId] });
     },
-    onError: (error: Error) => {
-      handleMutationError(error, { operation: 'verify_escrow' });
-    },
+    onError: (error) => handleMutationError(error, { operation: 'verify_escrow', component: 'useVerifyEscrow' }),
   });
 }

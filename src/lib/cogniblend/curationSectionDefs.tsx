@@ -332,13 +332,15 @@ export const SECTIONS: SectionDef[] = [
   {
     key: "escrow_funding",
     label: "Escrow & Funding",
-    attribution: "by FC",
+    attribution: "by governance owner",
     isFilled: (ch, _ld, _ldd, escrow) => {
-      const controlled = isControlledMode(resolveGovernanceMode(ch.governance_profile));
+      const governanceMode = resolveGovernanceMode(ch.governance_mode_override ?? ch.governance_profile);
+      const controlled = isControlledMode(governanceMode);
       return controlled ? escrow?.escrow_status === "FUNDED" : true;
     },
     render: (ch, _ld, _ldd, escrow) => {
-      const controlled = isControlledMode(resolveGovernanceMode(ch.governance_profile));
+      const governanceMode = resolveGovernanceMode(ch.governance_mode_override ?? ch.governance_profile);
+      const controlled = isControlledMode(governanceMode);
 
       // Non-CONTROLLED modes: escrow is not required
       if (!controlled) {

@@ -1,14 +1,11 @@
-/**
- * usePreviewData — Combined data loading for Challenge Preview Page.
- * Fetches challenge (with org join), legal docs, escrow, digest, attachments, field rules.
- */
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
 import { resolveGovernanceMode } from '@/lib/governanceMode';
 import type { ChallengeData, LegalDocDetail, EscrowRecord } from '@/lib/cogniblend/curationTypes';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import type { EscrowAggregateSummary, EscrowInstallmentRecord } from '@/services/cogniblend/escrowInstallments/escrowInstallmentTypes';
+import { deriveEscrowAggregateSummary } from '@/services/cogniblend/escrowInstallments/escrowInstallmentAggregateService';
 
 export interface OrgData {
   organization_name: string | null;
@@ -46,31 +43,7 @@ export function usePreviewData(challengeId: string | undefined) {
   const challengeQuery = useQuery({
     queryKey: ['challenge-preview', challengeId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenges')
-        .select(`
-          id, title, problem_statement, scope, hook, description,
-          deliverables, expected_outcomes, evaluation_criteria,
-          reward_structure, phase_schedule, ip_model, maturity_level,
-          domain_tags, currency_code, operating_model, governance_profile,
-          governance_mode_override, current_phase, phase_status,
-          organization_id, curation_lock_status, curation_frozen_at,
-          extended_brief, creator_legal_instructions, ai_section_reviews,
-          visibility, evaluation_method, evaluator_count, solver_audience,
-          complexity_score, complexity_level, complexity_parameters,
-          complexity_locked, solver_expertise_requirements,
-          eligibility, solution_types, data_resources_provided,
-          success_metrics_kpis, master_status, submission_guidelines,
-          lc_compliance_complete, fc_compliance_complete,
-          creator_approval_status, cu_compliance_mode,
-          seeker_organizations!challenges_organization_id_fkey(
-            organization_name, organization_type_id, website_url,
-            linkedin_url, twitter_url, organization_description, tagline,
-            organization_types(name)
-          )
-        `)
-        .eq('id', challengeId!)
-        .single();
+      const { data, error } = await supabase.from('challenges').select(`id, title, problem_statement, scope, hook, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, phase_schedule, ip_model, maturity_level, domain_tags, currency_code, operating_model, governance_profile, governance_mode_override, current_phase, phase_status, organization_id, curation_lock_status, curation_frozen_at, extended_brief, creator_legal_instructions, ai_section_reviews, visibility, evaluation_method, evaluator_count, solver_audience, complexity_score, complexity_level, complexity_parameters, complexity_locked, solver_expertise_requirements, eligibility, solution_types, data_resources_provided, success_metrics_kpis, master_status, submission_guidelines, lc_compliance_complete, fc_compliance_complete, creator_approval_status, cu_compliance_mode, seeker_organizations!challenges_organization_id_fkey(organization_name, organization_type_id, website_url, linkedin_url, twitter_url, organization_description, tagline, organization_types(name))`).eq('id', challengeId!).single();
       if (error) throw new Error(error.message);
       return data;
     },
@@ -79,92 +52,31 @@ export function usePreviewData(challengeId: string | undefined) {
     refetchOnWindowFocus: true,
   });
 
-  const govMode = challengeQuery.data
-    ? resolveGovernanceMode(
-        challengeQuery.data.governance_mode_override ?? challengeQuery.data.governance_profile
-      )
-    : null;
-
+  const govMode = challengeQuery.data ? resolveGovernanceMode(challengeQuery.data.governance_mode_override ?? challengeQuery.data.governance_profile) : null;
   const fieldRulesQuery = useGovernanceFieldRules(govMode as GovernanceMode | null);
 
-  const legalQuery = useQuery({
-    queryKey: ['preview-legal-docs', challengeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, document_type, document_name, content_summary, lc_status, status, tier')
-        .eq('challenge_id', challengeId!);
-      if (error) throw new Error(error.message);
-      return (data ?? []) as LegalDocDetail[];
-    },
-    enabled: !!challengeId,
-    staleTime: 0,
-  });
+  const legalQuery = useQuery({ queryKey: ['preview-legal-docs', challengeId], queryFn: async () => { const { data, error } = await supabase.from('challenge_legal_docs').select('id, document_type, document_name, content_summary, lc_status, status, tier').eq('challenge_id', challengeId!); if (error) throw new Error(error.message); return (data ?? []) as LegalDocDetail[]; }, enabled: !!challengeId, staleTime: 0 });
+  const escrowQuery = useQuery({ queryKey: ['preview-escrow', challengeId], queryFn: async () => { const { data, error } = await supabase.from('escrow_records').select('id, escrow_status, deposit_amount, remaining_amount, bank_name, bank_branch, bank_address, currency, deposit_date, deposit_reference, fc_notes').eq('challenge_id', challengeId!).maybeSingle(); if (error) return null; return data as unknown as EscrowRecord | null; }, enabled: !!challengeId, staleTime: 0 });
+  const installmentQuery = useQuery({ queryKey: ['preview-escrow-installments', challengeId], queryFn: async () => { const { data, error } = await supabase.from('escrow_installments').select('id, challenge_id, escrow_record_id, installment_number, schedule_label, trigger_event, scheduled_pct, scheduled_amount, currency, status, funded_by_role, bank_name, bank_branch, bank_address, account_number_masked, ifsc_swift_code, deposit_amount, deposit_date, deposit_reference, proof_document_url, proof_file_name, proof_uploaded_at, fc_notes, funded_at, funded_by').eq('challenge_id', challengeId!).order('installment_number'); if (error) throw new Error(error.message); return (data ?? []) as unknown as EscrowInstallmentRecord[]; }, enabled: !!challengeId, staleTime: 0 });
+  const digestQuery = useQuery({ queryKey: ['preview-digest', challengeId], queryFn: async () => { const { data, error } = await supabase.from('challenge_context_digest').select('id, digest_text, key_facts, source_count, generated_at').eq('challenge_id', challengeId!).maybeSingle(); if (error) throw new Error(error.message); return data as DigestData | null; }, enabled: !!challengeId, staleTime: 0 });
+  const attachmentsQuery = useQuery({ queryKey: ['preview-attachments', challengeId], queryFn: async () => { const { data, error } = await supabase.from('challenge_attachments').select('id, file_name, display_name, storage_path, section_key, source_type, source_url, url_title, extraction_quality, discovery_status').eq('challenge_id', challengeId!).eq('discovery_status', 'accepted').order('display_order'); if (error) throw new Error(error.message); return (data ?? []) as PreviewAttachment[]; }, enabled: !!challengeId, staleTime: 0 });
 
-  const escrowQuery = useQuery({
-    queryKey: ['preview-escrow', challengeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('escrow_records')
-        .select('id, escrow_status, deposit_amount, remaining_amount, bank_name, bank_branch, bank_address, currency, deposit_date, deposit_reference, fc_notes')
-        .eq('challenge_id', challengeId!)
-        .maybeSingle();
-      if (error) return null;
-      return data as unknown as EscrowRecord | null;
-    },
-    enabled: !!challengeId,
-    staleTime: 0,
-  });
-
-  const digestQuery = useQuery({
-    queryKey: ['preview-digest', challengeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenge_context_digest')
-        .select('id, digest_text, key_facts, source_count, generated_at')
-        .eq('challenge_id', challengeId!)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return data as DigestData | null;
-    },
-    enabled: !!challengeId,
-    staleTime: 0,
-  });
-
-  // P5 FIX: Only show accepted sources in preview, include quality + title
-  const attachmentsQuery = useQuery({
-    queryKey: ['preview-attachments', challengeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('challenge_attachments')
-        .select('id, file_name, display_name, storage_path, section_key, source_type, source_url, url_title, extraction_quality, discovery_status')
-        .eq('challenge_id', challengeId!)
-        .eq('discovery_status', 'accepted')
-        .order('display_order');
-      if (error) throw new Error(error.message);
-      return (data ?? []) as PreviewAttachment[];
-    },
-    enabled: !!challengeId,
-    staleTime: 0,
-  });
-
-  const isLoading = challengeQuery.isLoading || legalQuery.isLoading || escrowQuery.isLoading;
-  const isError = challengeQuery.isError;
-  const error = challengeQuery.error;
-
-  const orgData = challengeQuery.data?.seeker_organizations as unknown as OrgData | null;
+  const installments = installmentQuery.data ?? [];
+  const installmentSummary: EscrowAggregateSummary | null = installments.length > 0 ? deriveEscrowAggregateSummary(installments) : null;
 
   return {
     challenge: challengeQuery.data as unknown as ChallengeData | null,
-    orgData,
+    orgData: challengeQuery.data?.seeker_organizations as unknown as OrgData | null,
     legalDetails: legalQuery.data ?? [],
     escrowRecord: escrowQuery.data ?? null,
+    installments,
+    installmentSummary,
     digest: digestQuery.data ?? null,
     attachments: attachmentsQuery.data ?? [],
     fieldRules: fieldRulesQuery.data ?? null,
     governanceMode: govMode,
-    isLoading,
-    isError,
-    error,
+    isLoading: challengeQuery.isLoading || legalQuery.isLoading || escrowQuery.isLoading || installmentQuery.isLoading,
+    isError: challengeQuery.isError,
+    error: challengeQuery.error,
   };
 }

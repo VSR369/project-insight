@@ -247,13 +247,13 @@ export function PreviewDocument({
                   key={key}
                   sectionKey={key}
                   label="Escrow & Funding"
-                  attribution="by FC"
+                  attribution={isControlled ? 'by FC' : 'by CU'}
                   canEdit={false}
                   isLocked
                   isEditing={false}
                   onStartEdit={() => {}}
                 >
-                  <PreviewEscrowSection escrow={escrowRecord} fcComplete={fcComplete} isControlled={isControlled} />
+                  <PreviewEscrowSection escrow={escrowRecord} fcComplete={fcComplete} isControlled={isControlled} installmentSummary={installmentSummary} installments={installments} />
                 </PreviewSection>
               );
             }
