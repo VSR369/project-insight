@@ -42,7 +42,7 @@ function FcQueueRow({
               <span>Phase {item.currentPhase}</span>
               {mode === 'upcoming' && (
                 <Badge variant="outline" className="text-[10px]">
-                  Available at Phase 3
+                  Context only
                 </Badge>
               )}
               <span>·</span>
@@ -101,8 +101,8 @@ export function FcQueueSections({
             Upcoming (in curation) ({upcomingItems.length})
           </h2>
           <p className="text-xs text-muted-foreground">
-            These challenges are still being curated. You can review the context now; escrow
-            confirmation unlocks at Phase 3.
+            These challenges are still being curated. You can review challenge context here,
+            but Finance Coordinator completion starts once the challenge enters the FC workspace.
           </p>
           {upcomingItems.map((item) => (
             <FcQueueRow

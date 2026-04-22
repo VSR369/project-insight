@@ -146,7 +146,11 @@ export default function FcFinanceWorkspacePage() {
           <CardContent className="py-10 text-center">
             <Shield className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-lg font-semibold text-foreground">Not applicable for {govMode.charAt(0) + govMode.slice(1).toLowerCase()} governance</p>
-            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Finance Coordinator review is only required for Controlled or Enterprise governance modes.</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              {govMode === 'STRUCTURED'
+                ? 'In Structured governance, escrow is handled by the Curator. Finance Coordinator workflow applies only to Controlled governance.'
+                : 'Finance Coordinator workflow applies only to Controlled governance.'}
+            </p>
             <Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/fc-queue')}>
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back to FC Queue
@@ -242,7 +246,6 @@ export default function FcFinanceWorkspacePage() {
         challengeId={challengeId ?? ''}
         userId={user?.id ?? ''}
         escrowStatus={escrowStatus}
-        currentPhase={challenge?.current_phase}
         fcComplianceComplete={challenge?.fc_compliance_complete}
         submitting={submitting}
         onSubmit={submit}

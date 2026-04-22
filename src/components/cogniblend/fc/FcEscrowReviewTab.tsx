@@ -90,9 +90,9 @@ export function FcEscrowReviewTab({
       {isPreview && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Prepare escrow details now</AlertTitle>
+          <AlertTitle>Create the FC deposit record</AlertTitle>
           <AlertDescription>
-            Bank and deposit fields are visible for review. Final confirmation unlocks at Phase 3.
+            Creator and Curator recommendations are shown below as context. Finance Coordinator captures the actual bank, proof, and funding record separately.
           </AlertDescription>
         </Alert>
       )}
@@ -112,9 +112,9 @@ export function FcEscrowReviewTab({
       {showForm && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Escrow Deposit Details</CardTitle>
+            <CardTitle className="text-sm">FC Deposit Record</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Capture the bank, transfer, and proof details needed for escrow confirmation.
+              Finance Coordinator completes escrow here: save deposit details, upload proof, confirm funding, then submit the review back to Curator.
             </p>
           </CardHeader>
           <CardContent className="pt-0">
@@ -134,7 +134,7 @@ export function FcEscrowReviewTab({
               canSaveDraft={canEditDepositFields}
               maskedAccountNumber={escrowRecord?.account_number_masked ?? null}
               existingProofFileName={escrowRecord?.proof_file_name ?? null}
-              previewMessage={isPreview ? 'You can prepare and save escrow deposit details now. Proof upload and final funding confirmation unlock at Phase 3.' : undefined}
+               previewMessage={isPreview ? 'This section creates the Finance Coordinator deposit record. Recommendation context above is not treated as saved funding data until FC saves it here.' : undefined}
             />
           </CardContent>
         </Card>

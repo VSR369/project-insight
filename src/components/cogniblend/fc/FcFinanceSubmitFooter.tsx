@@ -13,7 +13,6 @@ export interface FcFinanceSubmitFooterProps {
   challengeId: string;
   userId: string;
   escrowStatus: string | null;
-  currentPhase: number | null | undefined;
   fcComplianceComplete: boolean | null | undefined;
   submitting: boolean;
   onSubmit: () => void;
@@ -23,15 +22,12 @@ export function FcFinanceSubmitFooter({
   challengeId,
   userId,
   escrowStatus,
-  currentPhase,
   fcComplianceComplete,
   submitting,
   onSubmit,
 }: FcFinanceSubmitFooterProps) {
-  const phaseGateOk = currentPhase === 3;
   const isFunded = escrowStatus === 'FUNDED';
-  const submitDisabled =
-    submitting || !phaseGateOk || !isFunded || !!fcComplianceComplete;
+  const submitDisabled = submitting || !isFunded || !!fcComplianceComplete;
 
   return (
     <Card>
@@ -44,11 +40,9 @@ export function FcFinanceSubmitFooter({
             </Badge>
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {!phaseGateOk
-              ? `Challenge is currently at Phase ${currentPhase ?? '?'}. Finance review applies at Phase 3.`
-              : !isFunded
-                ? 'Confirm the escrow deposit above before submitting financial review.'
-                : 'Escrow is funded — submit to advance the challenge.'}
+            {!isFunded
+              ? 'Confirm funding in the FC deposit record above before submitting financial review to the Curator.'
+              : 'Escrow is funded — submit the financial review to return the challenge to the Curator.'}
           </p>
         </div>
         <div className="flex items-center gap-2">

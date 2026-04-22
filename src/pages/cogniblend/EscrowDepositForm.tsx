@@ -82,7 +82,7 @@ export function EscrowDepositForm({
   onSaveDraft,
   isPending,
   isSavingDraft = false,
-  submitLabel = 'Confirm Escrow Deposit',
+  submitLabel = 'Confirm Funding',
   proofFile,
   onProofFileChange,
   proofUploading,
@@ -106,7 +106,7 @@ export function EscrowDepositForm({
           {isControlled ? <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
           <span>
             {isControlled
-              ? 'Mandatory — challenge cannot publish until escrow is funded for the full reward total.'
+              ? 'Controlled governance — FC completes the escrow flow here by saving details, uploading proof, and confirming funding before returning the challenge to Curator.'
               : 'Optional — Creator opted into escrow for this Structured challenge.'}
           </span>
         </div>
@@ -209,9 +209,7 @@ export function EscrowDepositForm({
                 onChange={onProofFileChange}
                 disabled={isProofDisabled}
               />
-              {!canUploadProof && (
-                <p className="text-xs text-muted-foreground">Proof upload unlocks when the challenge reaches Phase 3.</p>
-              )}
+              {!canUploadProof && <p className="text-xs text-muted-foreground">Proof upload is unavailable until editing is re-enabled for this record.</p>}
               {existingProofFileName && !proofFile && (
                 <p className="text-xs text-muted-foreground">Existing proof on file: {existingProofFileName}</p>
               )}
@@ -235,15 +233,15 @@ export function EscrowDepositForm({
                   onClick={form.handleSubmit(onSaveDraft)}
                 >
                   {isSavingDraft ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
-                  Save Draft
+                  Save Escrow Details
                 </Button>
               )}
               <Button type="submit" disabled={!canSubmit || isPending || proofUploading}>
-              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
-              {canSubmit ? submitLabel : 'Confirmation unlocks at Phase 3'}
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
+                {canSubmit ? submitLabel : 'Funding confirmation unavailable'}
               </Button>
             </div>
-            {!canSubmit && <p className="text-xs text-muted-foreground">You can prepare and save escrow deposit details now. Final funding confirmation unlocks at Phase 3.</p>}
+            {!canSubmit && <p className="text-xs text-muted-foreground">This record is already locked or completed. FC confirmation is only available while the deposit record is editable.</p>}
           </div>
         </form>
       </Form>
