@@ -1,276 +1,315 @@
 
-# Plan — Fix FC escrow visibility and editing so the screen reflects actual workflow
+# Revised Plan — FC completes the full escrow workflow immediately in CONTROLLED mode; Curator owns STRUCTURED mode
 
-## Root cause confirmed
+## Product decision now locked
 
-There are two different issues, and both are real:
+Based on your clarification, the target behavior should be:
 
-### 1. FC is only reading `escrow_records`, not Creator/Curator escrow inputs
-The current FC screen hydrates from `useEscrowDeposit`, which reads only `public.escrow_records`.
-
-That means:
-- if Creator or Curator entered only **escrow recommendation/context** in challenge data (`extended_brief`, reward structure, footer transparency UI),
-- but no row was created in `escrow_records`,
-- FC sees:
-  - `RecommendedEscrowCard`
-  - but **no actual bank/deposit record**
-  - therefore the form appears effectively empty.
-
-This matches the current network trace:
 ```text
-GET /escrow_records?...challenge_id=eq.25ca71...
-Response: []
+CONTROLLED
+- FC owns escrow completion end-to-end
+- FC enters/saves escrow details
+- FC uploads proof
+- FC confirms funding
+- FC shares/returns to Curator
+- No separate waiting for “Phase 3” inside the FC workspace
+
+STRUCTURED
+- Curator owns escrow
+- FC workspace is not part of the STRUCTURED escrow flow
 ```
 
-So the screen is not failing to render data that exists in `escrow_records`; there is currently **no escrow record row** for this challenge.
+So the current Phase-3 gate in the FC workspace is misaligned with your intended workflow and should be removed for FC actions.
 
-### 2. The form is intentionally disabled before Phase 3
-Current challenge state:
-```text
-current_phase = 2
-```
+## What is wrong in the current implementation
 
-Current view logic:
+### 1. The FC workspace is still gated by `current_phase >= 3`
+Current logic in `fcFinanceWorkspaceViewService.ts` makes proof upload and confirmation depend on:
+
 ```ts
 const phaseGateOpen = (currentPhase ?? 0) >= 3;
-const isEditable = phaseGateOpen && !fcComplianceComplete && !isFunded;
 ```
 
-That means at Phase 2:
-- fields render
-- but all inputs are disabled
-- submit is disabled
-- proof upload is disabled
+That causes:
+- proof upload disabled
+- confirm button disabled
+- confusing “unlocks at Phase 3” messaging
 
-So “not allowing to enter escrow deposit details” is caused by the current lifecycle gate, not by a rendering bug.
+### 2. The footer still assumes finance review only happens at Phase 3
+`FcFinanceSubmitFooter.tsx` currently disables submit when:
 
-## Why the current UX feels wrong
+```ts
+currentPhase !== 3
+```
 
-The present implementation mixes two different concepts without making the distinction clear:
+So even if FC has completed escrow, the handoff is still blocked by the old lifecycle rule.
+
+### 3. “Phase 3” is being used as a hardcoded workflow gate instead of a display concept
+The progress banner maps:
+- Phase 2 → Curation
+- Phase 3 → Compliance
+
+But your required business behavior is:
 
 ```text
-A. Recommended escrow context
-   - reward total
-   - creator/curator notes
-   - suggested amount
-   - comes from challenge data / extended_brief
-
-B. Actual escrow deposit record
-   - bank name
-   - branch
-   - account reference
-   - IFSC/SWIFT
-   - transfer reference
-   - proof
-   - comes from escrow_records
+Once the challenge is in FC workspace for CONTROLLED,
+FC should be able to finish escrow immediately.
 ```
 
-Today the FC page assumes B exists if FC should see details.  
-But for this challenge, only A exists and B does not.
+So the FC workflow must no longer be hard-bound to `current_phase === 3`.
 
-So the result is:
-- FC sees recommendation context
-- FC does not see saved bank/deposit details
-- FC cannot edit because Phase 2 locks inputs
+### 4. STRUCTURED and CONTROLLED behavior need to remain distinct
+The code and memory already support this split conceptually:
+- CONTROLLED: FC handles escrow
+- STRUCTURED: Curator handles escrow
 
-## What to build
+That distinction should be preserved and made explicit in UI/service logic.
 
-## 1. Make the source-of-truth split explicit in the UI
-Update `FcEscrowReviewTab` so it shows two clearly labeled sections:
+## Updated implementation scope
+
+## 1. Remove the Phase-3 gate from CONTROLLED FC completion
+Refactor FC capability logic so CONTROLLED FC actions do not depend on `current_phase >= 3`.
+
+In `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`:
+- stop using `phaseGateOpen` as the controller for FC actions
+- replace with business-capability flags based on:
+  - governance mode
+  - FC completion status
+  - escrow funded state
+
+Recommended behavior for CONTROLLED:
+- `canEditDepositFields = !fcComplianceComplete && !isFunded`
+- `canUploadProof = !fcComplianceComplete && !isFunded`
+- `canConfirmEscrow = !fcComplianceComplete && !isFunded`
+- `canSubmitFinanceReview = isFunded && !fcComplianceComplete`
+
+This makes FC self-sufficient in its own workspace.
+
+## 2. Keep STRUCTURED out of FC workflow
+Do not extend FC escrow ownership to STRUCTURED.
+
+In `FcFinanceWorkspacePage.tsx`:
+- keep or strengthen the governance guard so FC workspace is only active for CONTROLLED / enterprise-style modes
+- improve the “not applicable” message to say clearly:
+  - “In Structured governance, escrow is handled by the Curator.”
+  - “Finance Coordinator workflow applies only to Controlled governance.”
+
+This removes ambiguity.
+
+## 3. Redefine the FC sequence
+The FC workspace sequence should become:
+
+```text
+Escrow Recommendation / Context
+→ FC Deposit Record Entry
+→ Save Escrow Details
+→ Upload Proof
+→ Confirm Funding
+→ Share with Curator / Submit Financial Review
+```
+
+Not:
+
+```text
+wait for Phase 3
+→ then start finance
+```
+
+## 4. Update the mutation flow to match real ownership
+`useFcEscrowConfirm.ts` currently still treats proof/funding as lifecycle-gated behavior.
+
+Refactor it into two explicit actions:
+
+### A. Save Escrow Details
+- insert or update `escrow_records`
+- status remains non-funded (`PENDING` or equivalent)
+- available immediately in FC workspace
+
+### B. Confirm Funding
+- requires:
+  - bank details present
+  - proof uploaded
+  - amount validated
+- updates `escrow_status = 'FUNDED'`
+- available immediately in FC workspace
+- should no longer wait for `current_phase === 3`
+
+Then keep final FC completion / curator handoff separate from funding confirmation if needed.
+
+## 5. Update the footer logic to remove current-phase blocking
+In `src/components/cogniblend/fc/FcFinanceSubmitFooter.tsx`:
+- remove `currentPhase === 3` as the submit gate
+- submit should depend on:
+  - funded escrow
+  - FC not already completed
+  - not currently submitting
+
+Recommended logic:
+```text
+Submit enabled when escrow is FUNDED and FC review not yet complete.
+```
+
+Copy should change from:
+- “Finance review applies at Phase 3”
+
+to something like:
+- “Once escrow is funded, FC can submit the financial review and return the challenge to Curator.”
+
+## 6. Replace all misleading “unlocks at Phase 3” copy
+Update FC UI text in:
+- `FcEscrowReviewTab.tsx`
+- `EscrowDepositForm.tsx`
+- `FcFinanceSubmitFooter.tsx`
+
+Remove wording that implies:
+- a hidden manual unlock
+- a separate future lifecycle gate
+
+Replace with explicit ownership wording:
+
+### For CONTROLLED
+```text
+Finance Coordinator completes escrow here:
+1. Save escrow details
+2. Upload deposit proof
+3. Confirm funding
+4. Submit financial review / return to Curator
+```
+
+### For STRUCTURED
+```text
+Escrow is managed by the Curator in Structured governance.
+```
+
+## 7. Make Creator/Curator escrow input visible as recommendation, not as FC-owned facts
+You specifically asked to check whether Creator-entered escrow details are streaming through.
+
+Current architecture indicates:
+- Creator/Curator escrow context lives in challenge-level data / recommendation fields
+- FC deposit facts live in `escrow_records`
+
+So the revised UI should explicitly show:
 
 ### Escrow Recommendation
-From challenge data:
-- reward total
-- recommended escrow amount
-- curator/creator notes
-- governance requirement
+- creator/curator context
+- recommended amount
+- notes
+- source label: “From challenge context”
 
-### Escrow Deposit Record
-From `escrow_records`:
-- actual bank/deposit/proof data
-- status badge
-- funded summary
-
-When no `escrow_records` row exists, show a precise state:
-```text
-No escrow deposit record has been created yet.
-Creator/Curator guidance is shown above, but actual bank and deposit details have not yet been captured.
-```
-
-This removes the false impression that data is “missing” when it was never persisted to the FC record table.
-
-## 2. Decouple “can prepare fields” from “can confirm deposit”
-Refactor `fcFinanceWorkspaceViewService.ts` so it no longer uses one `isEditable` flag for everything.
-
-Replace with separate capabilities such as:
-- `isPreview`
-- `isFunded`
-- `canEditDepositFields`
-- `canUploadProof`
-- `canConfirmEscrow`
-- `canSubmitFinanceReview`
-
-Recommended behavior:
-
-### Before Phase 3
-Allow:
+### FC Deposit Record
 - bank name
 - branch
-- bank address
-- currency
-- deposit amount
-- deposit date
+- account reference
 - deposit reference
-- account number
-- IFSC/SWIFT
-- FC notes
+- proof
+- funded status
+- source label: “Finance Coordinator record”
 
-Keep disabled:
-- proof upload
-- final “Confirm Escrow Deposit”
-- final finance review submit
+This avoids the false expectation that recommendation data should automatically appear as a confirmed deposit record.
 
-### At Phase 3
-Enable:
-- proof upload
-- confirm escrow deposit
-- finance review completion path
+## 8. Improve Curator handoff language
+The handoff should be described as:
+- FC completes escrow
+- FC submits / returns to Curator
+- Curator continues the process
 
-This preserves lifecycle governance while solving the current usability problem.
+So in the footer and success toasts, use wording like:
+- “Escrow funded and financial review submitted to Curator”
+- “Returned to Curator for next action”
 
-## 3. Support draft escrow persistence before final confirmation
-Right now `useFcEscrowConfirm` only writes on final confirmation and sets:
-```ts
-escrow_status: 'FUNDED'
-```
+## 9. Align the progress UI with the real business rule
+The progress banner can still display overall lifecycle, but it must not block FC actions.
 
-That is too late for a preparation workflow.
+Implementation rule:
+- `WorkflowProgressBanner` remains informational
+- lifecycle step display does not determine FC form editability in CONTROLLED mode
 
-Add a separate draft save path so FC can persist preparatory details before Phase 3 without falsely marking the deposit as funded.
-
-Recommended approach:
-- if no row exists, insert `escrow_records` draft row
-- if row exists, update it
-- preserve status as non-funded (`PENDING` or existing non-funded status)
-- only switch to `FUNDED` on final confirm at Phase 3
-
-This is the missing functional bridge between:
-- “I want to prepare escrow details now”
-- and
-- “I cannot confirm funding until Phase 3”
-
-## 4. Pull org finance defaults when no escrow record exists
-The codebase already has `useOrgFinanceConfig`.
-
-Use it to prefill the FC form when `escrow_records` is empty:
-- default bank name
-- default branch
-- default bank address
-- preferred escrow currency
-
-Recommended default precedence:
-```text
-1. escrow_records actual saved values
-2. organization finance defaults
-3. challenge recommendation context
-4. reward total / currency fallback
-```
-
-This will stop the screen from looking blank on first entry.
-
-## 5. Keep Creator/Curator recommendation separate from FC deposit facts
-Do not silently treat creator/curator recommendation fields as if they were confirmed bank instructions.
-
-Instead:
-- show recommendation/context in `RecommendedEscrowCard`
-- use them only as hints/defaults where appropriate
-- keep actual deposit data in `escrow_records`
-
-This aligns with the existing domain model and avoids data integrity confusion.
-
-## 6. Update form copy so FC understands the lifecycle
-Change the current preview copy from passive “review only” wording to explicit preparation wording:
-
-### Before Phase 3
-```text
-You can prepare and save escrow deposit details now.
-Proof upload and final funding confirmation unlock at Phase 3.
-```
-
-### Empty-state when no record exists
-```text
-No escrow deposit record exists yet.
-Use the form below to prepare the bank and deposit details for this challenge.
-```
-
-### If only recommendation exists
-```text
-The recommendation above came from Creator/Curator challenge data.
-Actual escrow deposit details must be saved separately below.
-```
+This separates:
+- status display
+- permission logic
 
 ## Files to update
 
 ### Modify
 - `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
-  - split lifecycle/view flags
-  - support pre-Phase-3 field editing
-  - keep confirm/submit gated
+  - remove phase-based gating for CONTROLLED FC actions
+  - make capabilities governance-driven instead
 
-- `src/components/cogniblend/fc/FcEscrowReviewTab.tsx`
-  - separate recommendation vs actual deposit record
-  - improve empty-state messaging
-  - pass new capability flags to the form
-
-- `src/pages/cogniblend/EscrowDepositForm.tsx`
-  - allow editable preparation mode before Phase 3
-  - disable only proof/final confirm when gated
-  - add clearer explanatory copy
+- `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`
+  - pass governance-aware capability state
+  - keep STRUCTURED excluded from FC workflow
+  - update explanatory copy
 
 - `src/hooks/cogniblend/useFcEscrowConfirm.ts`
-  - add draft save/update mutation path
-  - keep final confirm as funded transition only
-  - reset/invalidate correctly after draft or final save
+  - support immediate FC save/proof/confirm flow
+  - separate draft save from funded confirmation cleanly
+  - remove hidden dependency on Phase 3 behavior
 
-- `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
-  - extend `buildEscrowFormDefaults` to accept org finance defaults when no record exists
+- `src/components/cogniblend/fc/FcEscrowReviewTab.tsx`
+  - update recommendation vs FC record framing
+  - remove “Phase 3 unlock” wording
+  - explain FC ownership clearly
 
-### Add / wire
-- connect `useOrgFinanceConfig` into the FC workspace flow
-- optionally add a small service for form default precedence if needed to keep files under 250 lines
+- `src/pages/cogniblend/EscrowDepositForm.tsx`
+  - enable proof upload immediately for CONTROLLED FC workflow
+  - keep field actions aligned with FC ownership
+  - rename buttons/copy for clarity
 
-## Verification after implementation
+- `src/components/cogniblend/fc/FcFinanceSubmitFooter.tsx`
+  - remove `currentPhase === 3` submit lock
+  - enable submit once funded
+  - rewrite helper text
 
-1. Challenge in Phase 2 with no `escrow_records` row:
-   - FC sees recommendation context
-   - FC sees clear “no deposit record yet” state
-   - FC can type bank/deposit details
-   - FC can save draft
-   - proof upload and final confirm remain disabled
+### Optional small extraction
+- a dedicated service/helper for FC capability policy if needed to keep files under 250 lines
 
-2. Challenge in Phase 2 after draft save:
-   - FC revisits page
-   - saved bank/deposit details are visible from `escrow_records`
+## Expected behavior after the revision
 
-3. Challenge in Phase 3:
-   - proof upload becomes enabled
-   - final confirm becomes enabled
-   - successful confirm marks record `FUNDED`
+### CONTROLLED challenge
+FC opens Finance Workspace and can immediately:
+1. view creator/curator escrow recommendation
+2. enter or update bank/deposit details
+3. upload proof
+4. confirm funding
+5. submit financial review / return to curator
+
+No waiting for a separate Phase 3 gate.
+
+### STRUCTURED challenge
+FC workspace does not apply.
+Curator owns escrow handling.
+
+## Verification
+
+1. CONTROLLED challenge with FC access:
+   - escrow details can be entered immediately
+   - proof upload is enabled immediately
+   - confirm funding is enabled once required fields are complete
+   - footer submit is enabled after funded status
+   - no “Phase 3 unlock” text remains
+
+2. STRUCTURED challenge:
+   - FC workspace is not used
+   - message clearly states Curator owns escrow
+
+3. Creator/Curator recommendation-only challenge:
+   - recommendation appears clearly
+   - FC deposit record is shown as separate actual record area
 
 4. Funded challenge:
-   - read-only funded summary shows actual saved data
+   - FC can submit/return to Curator without current-phase blocking
 
-5. No direct Supabase access added to presentation components
-6. No file exceeds 250 lines
+5. No file exceeds 250 lines
+6. No direct Supabase calls are introduced into presentation components
 7. `npx tsc --noEmit` passes
 
-## Final diagnosis
+## Final rule set to implement
 
-The problem is not fully solved because:
-- there is currently **no actual escrow record row** for this challenge, so FC has no saved bank/deposit details to display, and
-- the current code still **hard-locks all input before Phase 3**, so FC cannot prepare details even though the UI suggests they should.
-
-The correct fix is to support:
-- recommendation visibility,
-- draft escrow preparation before Phase 3,
-- and final funding confirmation only at Phase 3.
+```text
+CONTROLLED = FC owns full escrow completion now
+STRUCTURED = Curator owns escrow
+Progress banner = informational only
+Recommendation != FC deposit record
+Funded escrow = prerequisite for FC submit
+Phase number must not block FC completion in CONTROLLED mode
+```
