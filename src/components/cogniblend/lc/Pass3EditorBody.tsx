@@ -1,6 +1,10 @@
 /**
  * Pass3EditorBody — Section nav + TipTap editor surface + bottom action row.
  * Extracted from LcPass3ReviewPanel to keep that file under the 250-line cap.
+ *
+ * `isLocked` (derived from `challenge.lc_compliance_complete`) is the single
+ * write-permission gate. `isPass3Accepted` only drives visual badges and the
+ * `is-accepted` CSS dim — it does NOT freeze the editor.
  */
 import { useRef, type RefObject } from 'react';
 import type { Editor } from '@tiptap/react';
@@ -27,7 +31,7 @@ import { cn } from '@/lib/utils';
 function formatRelative(iso: string | null): string {
   if (!iso) return '';
   const diffMs = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(diffMs / 1000);
+  const sec = Math.max(0, Math.floor(diffMs / 1000));
   if (sec < 5) return 'just now';
   if (sec < 60) return `${sec}s ago`;
   const min = Math.floor(sec / 60);
@@ -36,10 +40,43 @@ function formatRelative(iso: string | null): string {
   return `${hr}h ago`;
 }
 
+interface AutoSaveChipProps {
+  status: AutoSavePass3Status;
+  savedAt: string | null;
+}
+
+function AutoSaveChip({ status, savedAt }: AutoSaveChipProps) {
+  if (status === 'idle') return null;
+  if (status === 'saving') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Saving…
+      </span>
+    );
+  }
+  if (status === 'saved') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+        <Check className="h-3 w-3" />
+        Saved {formatRelative(savedAt)}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-destructive">
+      <span className="inline-block h-2 w-2 rounded-full bg-destructive" />
+      Auto-save failed — click Save Draft
+    </span>
+  );
+}
+
 export interface Pass3EditorBodyProps {
   editor: Editor | null;
   unifiedDocHtml: string;
   isPass3Accepted: boolean;
+  /** True when LC has submitted to curator (lc_compliance_complete) — locks edits. */
+  isLocked: boolean;
   reviewerUserId: string | null;
   reviewedAt: string | null;
   editedHtml: string;
@@ -64,12 +101,15 @@ export interface Pass3EditorBodyProps {
   hasUnverifiedSourceMatch?: boolean;
   /** Server-generated `ai_changes_summary` for the current unified doc. */
   aiChangesSummary?: string;
+  autoSaveStatus?: AutoSavePass3Status;
+  autoSavedAt?: string | null;
 }
 
 export function Pass3EditorBody({
   editor,
   unifiedDocHtml,
   isPass3Accepted,
+  isLocked,
   reviewerUserId,
   reviewedAt,
   editedHtml,
@@ -89,20 +129,26 @@ export function Pass3EditorBody({
   skippedSourceDocNames = [],
   hasUnverifiedSourceMatch = false,
   aiChangesSummary = '',
+  autoSaveStatus = 'idle',
+  autoSavedAt = null,
 }: Pass3EditorBodyProps) {
   const containerRef: RefObject<HTMLDivElement> = useRef<HTMLDivElement>(null);
   const hasDraft = unifiedDocHtml.trim().length > 0;
+  const canEdit = !isLocked;
 
   return (
     <>
-      {!isPass3Accepted && (
+      {canEdit && (
         <div className="flex flex-wrap items-center gap-2">
           <LegalDocEditorToolbar editor={editor} />
           <LegalDocQuickInserts editor={editor} />
+          <div className="ml-auto">
+            <AutoSaveChip status={autoSaveStatus} savedAt={autoSavedAt} />
+          </div>
         </div>
       )}
 
-      {isOrganizedOutput && !isPass3Accepted && (
+      {isOrganizedOutput && canEdit && (
         <div className="space-y-2">
           <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-1">
             <div className="flex items-start gap-2">
@@ -148,7 +194,7 @@ export function Pass3EditorBody({
         </div>
       )}
 
-      {highlightActive && !isPass3Accepted && (
+      {highlightActive && canEdit && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
             <div className="flex items-center gap-1.5 font-medium text-destructive">
@@ -201,7 +247,7 @@ export function Pass3EditorBody({
         </div>
       </div>
 
-      {!isPass3Accepted && (
+      {canEdit && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
           <ConfirmRegenerateDialog
             mode="organize"
@@ -252,7 +298,7 @@ export function Pass3EditorBody({
             ) : (
               <CheckCircle2 className="h-4 w-4" />
             )}
-            Accept Legal Documents
+            {isPass3Accepted ? 'Re-confirm Acceptance' : 'Accept Legal Documents'}
           </Button>
         </div>
       )}

@@ -15,6 +15,8 @@ export interface LcUnifiedAgreementCardProps {
   review: Pass3ReviewState;
   isAccepted: boolean;
   reviewedAt: string | null;
+  /** True when LC has submitted to curator (challenge.lc_compliance_complete). */
+  isLocked?: boolean;
   onRegisterArm?: (fn: ArmRegenerateFn) => void;
 }
 
@@ -22,11 +24,12 @@ export function LcUnifiedAgreementCard({
   review,
   isAccepted,
   reviewedAt,
+  isLocked = false,
   onRegisterArm,
 }: LcUnifiedAgreementCardProps) {
   return (
     <div className="space-y-4">
-      <LcPass3ReviewPanel review={review} onRegisterArm={onRegisterArm} />
+      <LcPass3ReviewPanel review={review} isLocked={isLocked} onRegisterArm={onRegisterArm} />
 
       {isAccepted && (
         <Alert className="border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
