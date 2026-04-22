@@ -8,6 +8,7 @@ import { useEscrowDeposit } from '@/hooks/cogniblend/useEscrowDeposit';
 import { useChallengeForFC } from '@/hooks/cogniblend/useFcFinanceData';
 import { useFcEscrowConfirm } from '@/hooks/cogniblend/useFcEscrowConfirm';
 import { useFcFinanceSubmit } from '@/hooks/cogniblend/useFcFinanceSubmit';
+import { useOrgFinanceConfig } from '@/hooks/queries/useOrgFinanceConfig';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +33,7 @@ export default function FcFinanceWorkspacePage() {
   const { data: roles } = useUserChallengeRoles(user?.id, challengeId);
   const challengeQuery = useChallengeForFC(challengeId);
   const escrowQuery = useEscrowDeposit(challengeId, user?.id);
+  const orgFinanceQuery = useOrgFinanceConfig(challengeQuery.data?.organization_id ?? '');
   const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(user?.id);
   const [pwaAccepted, setPwaAccepted] = useState(false);
 
@@ -57,6 +59,7 @@ export default function FcFinanceWorkspacePage() {
     escrowId: escrowRecord?.id ?? null,
     escrowRecord,
     rewardTotal,
+    orgFinanceDefaults: orgFinanceQuery.data,
   });
   const { submit, submitting, gateFailures } = useFcFinanceSubmit({ challengeId, userId: user?.id });
 
@@ -198,11 +201,15 @@ export default function FcFinanceWorkspacePage() {
             rewardTotal={rewardTotal}
             escrowRecord={escrowRecord}
             isPreview={workspaceState.isPreview}
-            isEditable={workspaceState.isEditable}
+            canEditDepositFields={workspaceState.canEditDepositFields}
+            canUploadProof={workspaceState.canUploadProof}
+            canConfirmEscrow={workspaceState.canConfirmEscrow}
             isFunded={workspaceState.isFunded}
             fcDone={fcDone}
             form={escrow.form}
-            onSubmit={escrow.handleSubmit}
+            onSubmit={escrow.handleConfirmSubmit}
+            onSaveDraft={escrow.handleDraftSubmit}
+            isSavingDraft={escrow.saveDraft.isPending}
             isPending={escrow.confirmEscrow.isPending}
             proofFile={escrow.proofFile}
             onProofFileChange={escrow.setProofFile}
