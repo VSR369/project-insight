@@ -17,7 +17,7 @@ const ROLE_NAV_MAP: Record<string, { label: string; path: string }> = {
   CU: { label: 'Curator', path: '/cogni/curation' },
   ER: { label: 'Evaluation Reviewer', path: '/cogni/review' },
   LC: { label: 'Legal Counsel', path: '/cogni/legal' },
-  FC: { label: 'Finance Controller', path: '/cogni/escrow' },
+  FC: { label: 'Finance Controller', path: '/cogni/fc-queue' },
 };
 
 /* ── Response shape from complete_phase ───────────────────── */

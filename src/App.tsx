@@ -260,7 +260,6 @@ const FullSolutionUploadPage = lazy(() => import("@/pages/cogniblend/FullSolutio
 const ScreeningReviewPage = lazy(() => import("@/pages/cogniblend/ScreeningReviewPage"));
 const CurationDiagnosticsPage = lazy(() => import("@/pages/cogniblend/CurationDiagnosticsPage"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
-const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 const FcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/FcChallengeQueuePage"));
 const FcFinanceWorkspacePage = lazy(() => import("@/pages/cogniblend/FcFinanceWorkspacePage"));
 const LcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/LcChallengeQueuePage"));
@@ -389,7 +388,7 @@ const App = () => (
               <Route path="/cogni/review" element={<LazyRoute><CogniPlaceholderPage title="Review Queue" description="Review submitted solutions awaiting expert evaluation." /></LazyRoute>} />
               <Route path="/cogni/evaluation" element={<LazyRoute><CogniPlaceholderPage title="Evaluation Panel" description="Score and rank solutions using evaluation rubrics." /></LazyRoute>} />
               <Route path="/cogni/selection" element={<LazyRoute><WinnerSelectionPage /></LazyRoute>} />
-              <Route path="/cogni/escrow" element={<LazyRoute><EscrowManagementPage /></LazyRoute>} />
+              <Route path="/cogni/escrow" element={<Navigate to="/cogni/fc-queue" replace />} />
               <Route path="/cogni/fc-queue" element={<LazyRoute><FcChallengeQueuePage /></LazyRoute>} />
               <Route path="/cogni/payments" element={<LazyRoute><CogniPlaceholderPage title="Payment Processing" description="Process prize payments and manage financial transactions." /></LazyRoute>} />
               <Route path="/cogni/browse" element={<LazyRoute><BrowseChallengesPage /></LazyRoute>} />
