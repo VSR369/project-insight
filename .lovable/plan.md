@@ -1,177 +1,240 @@
 
-# Assessment — Mostly correct diagnosis, but not fully aligned with Lovable architecture
+# Plan — Separate Legal from FC Escrow Review and expose escrow/bank workflow correctly
 
-## What is correct in your write-up
+## What is happening now
 
-Your root-cause logic is directionally right:
+Two current implementation choices are causing the confusion:
 
-```text
-No FC assignment row
-→ get_user_all_challenge_roles returns no FC
-→ sidebar hides Finance Workspace
-→ FC queue is empty
-→ challenge finance page shows Access Denied
-```
+1. `FcFinanceWorkspacePage` renders `FcLegalDocsViewer` inside the **Finance Review** tab, so Legal appears as the first block of the FC review screen.
+2. The escrow entry form is intentionally hidden while the challenge is still in preview:
+   ```text
+   phaseGateOpen = current_phase >= 3
+   isPreview = !phaseGateOpen
+   ```
+   and the form only renders when:
+   ```text
+   !isPreview && !fcDone && !isFunded
+   ```
+   So on your current challenge route, FC sees legal/reference content and recommended escrow context, but **cannot yet enter bank/deposit details**.
 
-That matches the current code:
+That means the screen is behaving per current code, but the UX is misaligned with the intended FC workflow.
 
-- `useCogniPermissions.ts` hides FC nav through `canSeeEscrow`
-- `useCogniUserRoles.ts` depends on `get_user_all_challenge_roles`
-- `FcFinanceWorkspacePage.tsx` checks `roles?.includes('FC')`
-- `FcChallengeQueuePage.tsx` only loads challenges from `user_challenge_roles`
+## What to change
 
-So yes: missing FC assignment data is the primary functional blocker.
+### 1. Redefine the FC information architecture
+Make FC workspace primarily about escrow, not legal.
 
-## What is already implemented now
-
-Two items in your proposed fix are already in code:
-
-1. `/cogni/escrow` is already redirected in `src/App.tsx`
-   - Current code: `<Route path="/cogni/escrow" element={<Navigate to="/cogni/fc-queue" replace />} />`
-
-2. The FC queue empty-state and CONTROLLED-only note are already present in `src/pages/cogniblend/FcChallengeQueuePage.tsx`
-   - “No FC assignments yet”
-   - “Finance review applies to CONTROLLED governance challenges only.”
-
-So those are no longer gaps.
-
-## Actual gaps vs Lovable / project architecture
-
-### 1. The FC assignment was handled the wrong way
-The repo contains a SQL migration that inserts data into `user_challenge_roles`.
-
-That is not aligned with the project rules:
-- schema changes → migration
-- data changes → data operation / insert tool
-
-So the FC seed should not live as a permanent migration file if it is only test data.
-
-### 2. Your SQL example is not aligned with the real schema
-`public.user_challenge_roles` does **not** have an `assigned_via` column.
-
-Actual columns include:
-- `user_id`
-- `challenge_id`
-- `role_code`
-- `assigned_by`
-- `assigned_at`
-- `revoked_at`
-- `is_active`
-- `auto_assigned`
-- `created_at`
-- `updated_at`
-- `created_by`
-- `updated_by`
-
-So this version would fail:
-
-```sql
-INSERT INTO public.user_challenge_roles (..., assigned_via)
-```
-
-### 3. There is still a frontend architecture violation in the FC queue page
-`src/pages/cogniblend/FcChallengeQueuePage.tsx` currently:
-- queries Supabase directly inside the page
-- uses `(supabase as any)`
-- contains business filtering logic in the page
-
-That breaks workspace rules:
-- no Supabase calls in page/components
-- zero `any`
-- business logic should move into hook/service layer
-
-### 4. Error-state UX is still incomplete
-The FC queue page logs query errors via `handleQueryError`, but it does not render a proper user-facing error state with retry CTA.  
-That does not meet the “4 mandatory states” rule.
-
-### 5. The “migration exists” question is separate from “data actually applied”
-Even though the SQL file exists in the repo, the real user problem remains if the FC row was not actually applied in the connected Supabase project.  
-So the true operational gap is:
+New FC workspace structure:
 
 ```text
-repo contains seed SQL
-≠
-database definitely has active FC row for Frank
+Finance Workspace
+├── Escrow Review        ← default
+│   ├── Recommended Escrow
+│   ├── Existing Escrow Status / Summary
+│   ├── Bank + deposit details form
+│   └── Submit / Return actions
+├── Curated Challenge    ← read-only challenge spec
+└── Legal Agreement      ← separate read-only reference surface
 ```
 
-## Corrected implementation plan to align with architecture
+This removes the legal document from the main escrow workflow while still keeping it accessible for reference.
 
-### A. Fix the data the right way
-Use a data operation to upsert the FC assignment for Frank on the test challenge:
+### 2. Move Legal out of the Finance Review tab
+In `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`:
 
-```sql
-INSERT INTO public.user_challenge_roles (
-  challenge_id,
-  user_id,
-  role_code,
-  is_active
-)
-VALUES (
-  '25ca71a0-3880-4338-99b3-e157f2b88b3b',
-  '8f429cdb-20c6-49ab-8a3a-75b4a4cd257b',
-  'FC',
-  true
-)
-ON CONFLICT (user_id, challenge_id, role_code)
-DO UPDATE SET
-  is_active = true,
-  revoked_at = null;
-```
+- Remove `FcLegalDocsViewer` from the current **Finance Review** tab.
+- Add a separate **Legal Agreement** tab or challenge-local side navigation item.
+- Keep it read-only and clearly labeled as:
+  - “Reference only”
+  - “Approved by Legal Coordinator”
 
-Do **not** use `assigned_via`.
+Recommended implementation for this pass:
+- Use a **third tab** (`escrow`, `challenge`, `legal`) rather than a global shell sidebar item.
+- Reason: it fits the current route model, avoids app-shell complexity, and stays within the existing per-challenge workspace pattern.
 
-### B. Remove test-data seeding from schema migration history
-Clean up the current SQL migration strategy so test-role assignment is not represented as a structural migration.
+### 3. Rename “Finance Review” to “Escrow Review”
+Update copy so the FC sees the actual task immediately.
 
-### C. Refactor FC queue to follow Lovable architecture
-Split `FcChallengeQueuePage.tsx` into:
-- page = layout/composition only
-- query hook = data fetching
-- service/util = queue filtering and mapping
+Tab labels:
+- `Escrow Review`
+- `Curated Challenge`
+- `Legal Agreement`
 
-Specifically:
-- move Supabase calls out of the page
-- remove `as any`
-- move governance filtering (`QUICK` / `STRUCTURED`) out of the page
-- keep page under the file-size and responsibility rules
+This will align the screen with what FC is expected to do.
 
-### D. Add complete error-state UX
-For FC queue:
-- loading skeleton
-- empty state
-- error card with retry button
-- success state
+### 4. Make escrow information the first-class content
+Inside the new **Escrow Review** tab, render in this order:
 
-### E. Re-verify finance workspace reachability end-to-end
-After the FC row exists:
-1. sidebar shows **Finance Workspace**
-2. `/cogni/fc-queue` shows the assigned challenge
-3. “View challenge context” opens `/cogni/challenges/:id/finance`
-4. two tabs render:
-   - Finance Review
-   - Curated Challenge
-5. preview mode works before Phase 3
-6. deposit form appears at Phase 3 only
+1. **Escrow status card**
+   - Pending / Funded / Submitted
+   - Amount expected
+   - Governance note: “Mandatory for Controlled”
 
-## Final verdict
+2. **RecommendedEscrowCard**
+   - reward breakdown
+   - total expected amount
+   - curator/creator notes if present
 
-## Alignment verdict
-- **Root cause:** Yes, mostly correct
-- **“Route not fixed”:** No, that part is already fixed
-- **“Migration never created”:** No longer accurate; a seed SQL file exists
-- **Architecture alignment:** Not fully aligned yet
+3. **Escrow deposit form**
+   - bank name
+   - branch
+   - bank address
+   - currency
+   - deposited amount
+   - deposit date
+   - transaction reference
+   - account number
+   - IFSC/SWIFT
+   - proof upload
+   - FC notes
 
-## Remaining real gaps
-1. FC assignment must exist in the live DB, not just in repo history
-2. data seed should be handled as data, not migration
-3. remove `assigned_via` from the proposed SQL
-4. refactor `FcChallengeQueuePage` to hook/service architecture
-5. add proper error-state UX
+4. **Read-only funded summary** after confirmation
 
-## Recommended next implementation scope
-One cleanup pass should do all of this together:
-- correct the FC data assignment in DB
-- remove/replace the improper seed migration approach
-- refactor FC queue data access into hook/service
-- add full error state
-- re-verify sidebar → queue → two-tab workspace flow
+### 5. Fix the missing-form behavior for FC preview mode
+Current behavior fully hides the form before Phase 3, which makes FC feel blocked without context.
+
+Refine the behavior:
+
+#### Before Phase 3
+Show:
+- Escrow status card
+- Recommended escrow context
+- The full bank/deposit form in **read-only or disabled preview mode**
+- Clear banner:
+  - “You can prepare escrow details now. Submission unlocks at Phase 3.”
+
+Do **not** allow final mutation yet if lifecycle rules must remain intact.
+
+#### At Phase 3
+Enable:
+- all fields
+- proof upload
+- confirm escrow deposit
+- submit financial review footer
+
+This preserves the business rule while solving the UX problem of “nothing is visible”.
+
+### 6. Prepopulate the form from any existing escrow record
+Right now `useFcEscrowConfirm` initializes blank defaults and does not hydrate from `escrowData`.
+
+Refine so that if an `escrow_records` row already exists, the form loads:
+- bank_name
+- bank_branch
+- bank_address
+- currency
+- deposit_amount
+- deposit_date
+- deposit_reference
+- fc_notes
+- masked account reference if available
+- IFSC/SWIFT if available
+
+This ensures FC sees stored escrow details instead of a blank screen.
+
+### 7. Align data fetching with architecture rules
+There is still a layering mismatch:
+
+- `FcLegalDocsViewer` performs Supabase access directly in a component.
+- FC workspace orchestration is page-heavy.
+
+Refactor to:
+- move legal doc query into a hook/service
+- keep page as composition only
+- keep each file under 250 lines
+- keep zero `any`
+
+### 8. Add the missing mandatory UI states for the FC workspace
+The FC workspace needs explicit:
+- loading skeletons
+- empty legal-reference state
+- escrow-not-yet-created state
+- error state with retry + correlation ID
+- success/read-only funded state
+
+Especially for **Escrow Review**, there should be a clear empty state:
+- “No escrow record yet”
+- “Enter bank and deposit details to prepare the finance review”
+
+## Files to update
+
+### Modify
+- `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`
+  - restructure tabs
+  - remove legal viewer from main FC task area
+  - rename Finance Review → Escrow Review
+  - show preview-mode escrow form shell
+
+- `src/pages/cogniblend/EscrowDepositForm.tsx`
+  - support disabled/read-only preview mode
+  - support hydration from existing escrow values
+  - improve labels so FC understands these are escrow capture fields
+
+- `src/hooks/cogniblend/useFcEscrowConfirm.ts`
+  - initialize/reset from existing escrow record
+  - separate “editable” vs “submit enabled” behavior
+  - preserve Phase-3 submit gate
+
+### Create / extract
+- `src/hooks/cogniblend/useFcLegalAgreement.ts`
+  - typed query for UNIFIED_SPA
+
+- `src/components/cogniblend/fc/FcLegalAgreementTab.tsx`
+  - read-only legal reference state
+
+- `src/components/cogniblend/fc/FcEscrowReviewTab.tsx`
+  - escrow status + recommended card + form + funded summary
+
+- optional small helper:
+  - `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
+  - derive preview/editability/status flags
+
+## Expected UX after the change
+
+On `/cogni/challenges/:id/finance`, FC will see:
+
+### Escrow Review
+- escrow amount/context first
+- bank and escrow entry fields visible
+- preview mode explains when submission unlocks
+- once at Phase 3, form becomes actionable
+
+### Curated Challenge
+- full read-only challenge detail
+
+### Legal Agreement
+- separate read-only reference surface
+- no longer mixed into the core FC task flow
+
+## Business-rule posture
+
+This plan keeps the current workflow guard intact:
+- FC submission still only completes at Phase 3
+- Legal remains reference-only for FC
+- LC remains owner of legal approval
+- FC remains owner of escrow confirmation and finance submission
+
+## Verification
+
+1. FC opens challenge finance workspace at Phase 2:
+   - sees **Escrow Review**, **Curated Challenge**, **Legal Agreement**
+   - sees escrow form fields visible but gated/disabled
+   - legal no longer appears inside escrow flow
+
+2. FC opens challenge at Phase 3:
+   - escrow form becomes editable
+   - bank/deposit/proof entry works
+   - submit footer is enabled only after funded state
+
+3. Existing funded challenge:
+   - FC sees funded summary instead of blank form
+   - legal remains separately accessible
+
+4. No file exceeds 250 lines
+5. No direct Supabase calls remain in FC presentation components
+6. `npx tsc --noEmit` passes
+
+## Out of scope
+
+- Changing LC legal ownership or legal approval flow
+- Moving challenge-specific legal reference into the global app shell sidebar
+- Altering the `complete_financial_review` lifecycle rule
