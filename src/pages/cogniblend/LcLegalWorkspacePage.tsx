@@ -203,6 +203,7 @@ export default function LcLegalWorkspacePage() {
               review={pass3}
               isAccepted={pass3.isPass3Accepted}
               reviewedAt={pass3.reviewedAt}
+              isLocked={!!challenge?.lc_compliance_complete}
               onRegisterArm={handleRegisterArm}
             />
           )}

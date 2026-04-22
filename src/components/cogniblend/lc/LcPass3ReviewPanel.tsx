@@ -8,7 +8,6 @@
 import { useEffect, useState } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
@@ -32,6 +31,7 @@ import { Pass3EditorBody } from '@/components/cogniblend/lc/Pass3EditorBody';
 import { Pass3ReviewHeader } from '@/components/cogniblend/lc/Pass3ReviewHeader';
 import { Pass3ProgressBar } from '@/components/cogniblend/lc/Pass3ProgressBar';
 import { stripDiffSpans } from '@/lib/cogniblend/legal/diffHighlight';
+import { useAutoSavePass3 } from '@/hooks/cogniblend/useAutoSavePass3';
 import '@/styles/legal-document.css';
 
 export type Pass3ReviewState = ReturnType<typeof useLcPass3Review>;
@@ -39,6 +39,8 @@ export type ArmRegenerateFn = (prevHtml: string, outcome: 'changed' | 'unchanged
 
 export interface LcPass3ReviewPanelProps {
   review: Pass3ReviewState;
+  /** True when LC has submitted to curator (challenge.lc_compliance_complete). */
+  isLocked?: boolean;
   onRegisterArm?: (fn: ArmRegenerateFn) => void;
 }
 
@@ -66,7 +68,7 @@ function collectProtectedHeadings(doc: any, protectedNormalized: string[]): Set<
   return found;
 }
 
-export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanelProps) {
+export function LcPass3ReviewPanel({ review, isLocked = false, onRegisterArm }: LcPass3ReviewPanelProps) {
   const [editedHtml, setEditedHtml] = useState<string>('');
   const protectedNormalized = review.protectedHeadings.map((h) => h.trim().toLowerCase());
 
@@ -77,13 +79,12 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
         ParagraphWithClass,
         HeadingWithClass,
         DiffAddedMark,
-        Underline,
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
         buildHeadingGuard(review.protectedHeadings),
       ],
       content: '',
-      editable: !review.isPass3Accepted,
+      editable: !isLocked,
       onUpdate: ({ editor: e }) => setEditedHtml(e.getHTML()),
     },
     [protectedNormalized.join('|')],
@@ -127,8 +128,8 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
 
   useEffect(() => {
     if (!editor) return;
-    editor.setEditable(!review.isPass3Accepted);
-  }, [editor, review.isPass3Accepted]);
+    editor.setEditable(!isLocked);
+  }, [editor, isLocked]);
 
   const showBody =
     (review.pass3Status === 'completed' ||
@@ -146,9 +147,18 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
   const cleanUnified = stripDiffSpans(review.unifiedDocHtml ?? '');
   const cleanEdited = stripDiffSpans(editedHtml ?? '');
   const isDirty =
-    !review.isPass3Accepted &&
+    !isLocked &&
     cleanEdited.trim().length > 0 &&
     cleanEdited !== cleanUnified;
+
+  const autoSave = useAutoSavePass3({
+    html: editedHtml,
+    baselineHtml: review.unifiedDocHtml ?? '',
+    enabled: !isLocked && !review.isRunning && !review.isOrganizing && !review.isAccepting,
+    saveFn: (clean) => review.saveEdits(clean),
+    isSaving: review.isSaving,
+    saveError: review.saveError,
+  });
 
   const sourceDocsQuery = useSourceDocs(review.challengeId ?? undefined);
   const allSourceDocs = sourceDocsQuery.data ?? [];
@@ -233,6 +243,7 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               editor={editor}
               unifiedDocHtml={review.unifiedDocHtml}
               isPass3Accepted={review.isPass3Accepted}
+              isLocked={isLocked}
               reviewerUserId={review.reviewerUserId}
               reviewedAt={review.reviewedAt}
               editedHtml={cleanEdited}
@@ -241,7 +252,7 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               isSaving={review.isSaving}
               isAccepting={review.isAccepting}
               isDirty={isDirty}
-              highlightActive={diff.highlightActive && !review.isPass3Accepted}
+              highlightActive={diff.highlightActive && !isLocked}
               onClearHighlights={diff.clearHighlights}
               onRerun={() => review.runPass3()}
               onReorganize={() => review.organizeOnly()}
@@ -252,6 +263,8 @@ export function LcPass3ReviewPanel({ review, onRegisterArm }: LcPass3ReviewPanel
               skippedSourceDocNames={skippedSourceDocNames}
               hasUnverifiedSourceMatch={hasUnverifiedSourceMatch}
               aiChangesSummary={review.changesSummary ?? ''}
+              autoSaveStatus={autoSave.status}
+              autoSavedAt={autoSave.lastSavedAt}
             />
           </>
         )}

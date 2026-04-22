@@ -159,6 +159,7 @@ export function useLcPass3Review(
     error:
       (runPass3.error instanceof Error ? runPass3.error.message : null) ??
       (organizePass3.error instanceof Error ? organizePass3.error.message : null),
+    saveError: saveEdits.error,
     isPass3Accepted,
     isPass3Complete: isPass3Accepted,
     isStale: staleQuery.data === true,
