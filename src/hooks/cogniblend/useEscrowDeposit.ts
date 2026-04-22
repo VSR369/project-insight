@@ -25,6 +25,11 @@ export interface EscrowRecord {
   deposit_date?: string | null;
   deposit_reference?: string | null;
   fc_notes?: string | null;
+  account_number_masked?: string | null;
+  ifsc_swift_code?: string | null;
+  proof_file_name?: string | null;
+  proof_document_url?: string | null;
+  proof_uploaded_at?: string | null;
 }
 
 export interface EscrowData {
@@ -44,7 +49,9 @@ export function useEscrowDeposit(challengeId: string | undefined, userId: string
       // Fetch escrow record
       const { data: escrow } = await supabase
         .from('escrow_records')
-        .select('id, challenge_id, escrow_status, deposit_amount, remaining_amount, rejection_fee_percentage')
+        .select(
+          'id, challenge_id, escrow_status, deposit_amount, remaining_amount, rejection_fee_percentage, bank_name, bank_branch, bank_address, currency, deposit_date, deposit_reference, fc_notes, account_number_masked, ifsc_swift_code, proof_file_name, proof_document_url, proof_uploaded_at',
+        )
         .eq('challenge_id', challengeId)
         .maybeSingle();
 
