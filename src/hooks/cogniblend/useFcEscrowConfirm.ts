@@ -12,7 +12,10 @@ import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { notifyEscrowConfirmed } from '@/lib/cogniblend/workflowNotifications';
 import { getActiveRoleUsers } from '@/lib/cogniblend/challengeRoleLookup';
 import { escrowFormSchema, type EscrowFormValues } from '@/pages/cogniblend/EscrowDepositForm';
-import { buildEscrowFormDefaults } from '@/services/cogniblend/fcFinanceWorkspaceViewService';
+import {
+  buildEscrowFormDefaults,
+  type OrgFinanceEscrowDefaults,
+} from '@/services/cogniblend/fcFinanceWorkspaceViewService';
 
 interface UseFcEscrowConfirmArgs {
   challengeId: string;
@@ -20,6 +23,7 @@ interface UseFcEscrowConfirmArgs {
   escrowId: string | null;
   escrowRecord: EscrowRecord | null;
   rewardTotal: number;
+  orgFinanceDefaults?: OrgFinanceEscrowDefaults | null;
 }
 
 function maskAccountNumber(raw: string): string {
@@ -34,13 +38,14 @@ export function useFcEscrowConfirm({
   escrowId,
   escrowRecord,
   rewardTotal,
+  orgFinanceDefaults,
 }: UseFcEscrowConfirmArgs) {
   const queryClient = useQueryClient();
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofUploading, setProofUploading] = useState(false);
   const defaultValues = useMemo(
-    () => buildEscrowFormDefaults(escrowRecord, rewardTotal),
-    [escrowRecord, rewardTotal],
+    () => buildEscrowFormDefaults(escrowRecord, rewardTotal, orgFinanceDefaults),
+    [escrowRecord, rewardTotal, orgFinanceDefaults],
   );
 
   const form = useForm<EscrowFormValues>({
@@ -54,61 +59,86 @@ export function useFcEscrowConfirm({
 
   const { clearPersistedData } = useFormPersistence(`cogni_escrow_${challengeId}`, form);
 
+  const persistEscrowRecord = async (values: EscrowFormValues, markFunded: boolean) => {
+    if (!userId) throw new Error('Not authenticated');
+
+    let proofUrl = escrowRecord?.proof_document_url ?? null;
+    let proofFileName = escrowRecord?.proof_file_name ?? null;
+    let proofUploadedAt = escrowRecord?.proof_uploaded_at ?? null;
+
+    if (markFunded && proofFile) {
+      setProofUploading(true);
+      try {
+        const safeName = sanitizeFileName(proofFile.name);
+        const storagePath = `${challengeId}/${Date.now()}_${safeName}`;
+        const { error: uploadError } = await supabase.storage
+          .from('escrow-proofs')
+          .upload(storagePath, proofFile, { upsert: false });
+        if (uploadError) throw new Error(`Proof upload failed: ${uploadError.message}`);
+        proofUrl = storagePath;
+        proofFileName = proofFile.name;
+        proofUploadedAt = new Date().toISOString();
+      } finally {
+        setProofUploading(false);
+      }
+    }
+
+    const escrowStatus = markFunded ? 'FUNDED' : escrowRecord?.escrow_status ?? 'PENDING';
+    const persistedAmount = values.deposit_amount;
+    const baseRow = {
+      escrow_status: escrowStatus,
+      deposit_amount: persistedAmount,
+      remaining_amount: markFunded ? persistedAmount : Number(escrowRecord?.remaining_amount ?? persistedAmount),
+      bank_name: values.bank_name,
+      bank_branch: values.bank_branch ?? null,
+      bank_address: values.bank_address ?? null,
+      currency: values.currency,
+      deposit_date: new Date(values.deposit_date).toISOString(),
+      deposit_reference: values.deposit_reference,
+      fc_notes: values.fc_notes ?? null,
+      account_number_masked: values.account_number ? maskAccountNumber(values.account_number) : escrowRecord?.account_number_masked ?? null,
+      ifsc_swift_code: values.ifsc_swift_code,
+      proof_document_url: proofUrl,
+      proof_file_name: proofFileName,
+      proof_uploaded_at: proofUploadedAt,
+    };
+
+    if (escrowId) {
+      const { error } = await supabase
+        .from('escrow_records')
+        .update({ ...baseRow, updated_at: new Date().toISOString(), updated_by: userId } as never)
+        .eq('id', escrowId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase
+        .from('escrow_records')
+        .insert({ ...baseRow, challenge_id: challengeId, created_by: userId } as never);
+      if (error) throw new Error(error.message);
+    }
+
+    return values;
+  };
+
+  const saveDraft = useMutation({
+    mutationFn: async (values: EscrowFormValues) => {
+      await persistEscrowRecord(values, false);
+      return values;
+    },
+    onSuccess: () => {
+      toast.success('Escrow draft saved');
+      clearPersistedData();
+      queryClient.invalidateQueries({ queryKey: ['escrow-deposit', challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['challenge-fc-detail', challengeId] });
+    },
+    onError: (error: Error) => {
+      setProofUploading(false);
+      handleMutationError(error, { operation: 'fc_save_escrow_draft' });
+    },
+  });
+
   const confirmEscrow = useMutation({
     mutationFn: async (values: EscrowFormValues) => {
-      if (!userId) throw new Error('Not authenticated');
-
-      let proofUrl = escrowRecord?.proof_document_url ?? null;
-      let proofFileName = escrowRecord?.proof_file_name ?? null;
-      let proofUploadedAt = escrowRecord?.proof_uploaded_at ?? null;
-
-      if (proofFile) {
-        setProofUploading(true);
-        try {
-          const safeName = sanitizeFileName(proofFile.name);
-          const storagePath = `${challengeId}/${Date.now()}_${safeName}`;
-          const { error: uploadError } = await supabase.storage
-            .from('escrow-proofs')
-            .upload(storagePath, proofFile, { upsert: false });
-          if (uploadError) throw new Error(`Proof upload failed: ${uploadError.message}`);
-          proofUrl = storagePath;
-          proofFileName = proofFile.name;
-          proofUploadedAt = new Date().toISOString();
-        } finally {
-          setProofUploading(false);
-        }
-      }
-
-      const baseRow = {
-        escrow_status: 'FUNDED',
-        deposit_amount: values.deposit_amount,
-        remaining_amount: values.deposit_amount,
-        bank_name: values.bank_name,
-        bank_branch: values.bank_branch ?? null,
-        bank_address: values.bank_address ?? null,
-        currency: values.currency,
-        deposit_date: new Date(values.deposit_date).toISOString(),
-        deposit_reference: values.deposit_reference,
-        fc_notes: values.fc_notes ?? null,
-        account_number_masked: values.account_number ? maskAccountNumber(values.account_number) : escrowRecord?.account_number_masked ?? null,
-        ifsc_swift_code: values.ifsc_swift_code,
-        proof_document_url: proofUrl,
-        proof_file_name: proofFileName,
-        proof_uploaded_at: proofUploadedAt,
-      };
-
-      if (escrowId) {
-        const { error } = await supabase
-          .from('escrow_records')
-          .update({ ...baseRow, updated_at: new Date().toISOString(), updated_by: userId } as never)
-          .eq('id', escrowId);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase
-          .from('escrow_records')
-          .insert({ ...baseRow, challenge_id: challengeId, created_by: userId } as never);
-        if (error) throw new Error(error.message);
-      }
+      await persistEscrowRecord(values, true);
 
       await supabase.from('audit_trail').insert({
         user_id: userId,
@@ -171,7 +201,7 @@ export function useFcEscrowConfirm({
         });
       }
 
-      form.reset(buildEscrowFormDefaults(escrowRecord, rewardTotal));
+       form.reset(buildEscrowFormDefaults(escrowRecord, rewardTotal, orgFinanceDefaults));
       clearPersistedData();
       setProofFile(null);
       setProofUploading(false);
@@ -190,7 +220,7 @@ export function useFcEscrowConfirm({
     },
   });
 
-  const handleSubmit = (values: EscrowFormValues) => {
+  const handleConfirmSubmit = (values: EscrowFormValues) => {
     if (!proofFile && !escrowRecord?.proof_document_url) {
       toast.error('Please upload deposit proof before submitting.');
       return;
@@ -208,15 +238,21 @@ export function useFcEscrowConfirm({
     confirmEscrow.mutate(values);
   };
 
+  const handleDraftSubmit = (values: EscrowFormValues) => {
+    saveDraft.mutate(values);
+  };
+
   return {
     form,
     proofFile,
     setProofFile,
     proofUploading,
+    saveDraft,
     confirmEscrow,
-    handleSubmit,
+    handleDraftSubmit,
+    handleConfirmSubmit,
     clearForm: () => {
-      form.reset(buildEscrowFormDefaults(escrowRecord, rewardTotal));
+      form.reset(buildEscrowFormDefaults(escrowRecord, rewardTotal, orgFinanceDefaults));
       clearPersistedData();
       setProofFile(null);
     },
