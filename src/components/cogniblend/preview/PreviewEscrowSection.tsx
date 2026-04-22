@@ -20,7 +20,7 @@ export function PreviewEscrowSection({ escrow, fcComplete, isControlled, install
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={installmentSummary.status === 'FUNDED' ? 'default' : 'secondary'}>{installmentSummary.status.replaceAll('_', ' ')}</Badge>
+          <Badge variant={installmentSummary.status === 'FUNDED' ? 'default' : 'secondary'}>{installmentSummary.status.replace(/_/g, ' ')}</Badge>
           <span className="text-xs text-muted-foreground">{installmentSummary.fundedCount} funded · {installmentSummary.pendingCount} pending</span>
         </div>
         <div className="grid grid-cols-1 gap-3 text-sm lg:grid-cols-3">
