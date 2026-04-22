@@ -200,7 +200,7 @@ export function useFcEscrowConfirm({
       } catch (rpcErr) {
         logWarning('complete_financial_review safety-net call failed', {
           operation: 'fc_confirm_escrow_safety_net',
-          error: rpcErr instanceof Error ? rpcErr.message : String(rpcErr),
+          metadata: { error: rpcErr instanceof Error ? rpcErr.message : String(rpcErr) },
         });
       }
 
