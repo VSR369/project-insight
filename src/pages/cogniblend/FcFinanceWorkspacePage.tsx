@@ -194,6 +194,8 @@ export default function FcFinanceWorkspacePage() {
           </AlertDescription>
         </Alert>
       )}
+
+      <div className="rounded-lg border bg-card p-3">
         <FcFinanceStepIndicator currentStep={currentStep} />
       </div>
 
