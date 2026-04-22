@@ -148,6 +148,7 @@ export function LegalDocEditorToolbar({ editor }: LegalDocEditorToolbarProps) {
                       size="sm"
                       aria-label={action.label}
                       aria-pressed={active}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={action.run}
                       className={cn('h-8 w-8 p-0', active && 'bg-accent text-accent-foreground')}
                     >

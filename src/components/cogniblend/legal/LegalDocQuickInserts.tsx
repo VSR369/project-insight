@@ -96,7 +96,14 @@ export function LegalDocQuickInserts({ editor }: LegalDocQuickInsertsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" disabled={disabled} aria-label="Insert clause">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          aria-label="Insert clause"
+          onMouseDown={(e) => e.preventDefault()}
+        >
           <Plus className="h-4 w-4" />
           <span>Insert Clause</span>
         </Button>

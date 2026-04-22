@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Extension } from '@tiptap/core';
@@ -79,6 +80,7 @@ export function LcPass3ReviewPanel({ review, isLocked = false, onRegisterArm }: 
         ParagraphWithClass,
         HeadingWithClass,
         DiffAddedMark,
+        Underline,
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
         Placeholder.configure({ placeholder: 'Legal document will appear here after Pass 3...' }),
         buildHeadingGuard(review.protectedHeadings),
@@ -158,6 +160,7 @@ export function LcPass3ReviewPanel({ review, isLocked = false, onRegisterArm }: 
     saveFn: (clean) => review.saveEdits(clean),
     isSaving: review.isSaving,
     saveError: review.saveError,
+    delayMs: 2000,
   });
 
   const sourceDocsQuery = useSourceDocs(review.challengeId ?? undefined);

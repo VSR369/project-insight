@@ -15,6 +15,15 @@ export interface UseLcPass3DiffHighlightArgs {
   setEditedHtml: (html: string) => void;
 }
 
+/** Run a setContent while preserving the page scroll position. */
+function setContentPreservingScroll(editor: Editor, html: string) {
+  const scrollY = typeof window !== 'undefined' ? window.scrollY : 0;
+  editor.commands.setContent(html, { emitUpdate: false });
+  if (typeof window !== 'undefined') {
+    requestAnimationFrame(() => window.scrollTo({ top: scrollY }));
+  }
+}
+
 export function useLcPass3DiffHighlight({
   editor,
   unifiedDocHtml,
@@ -22,6 +31,7 @@ export function useLcPass3DiffHighlight({
   setEditedHtml,
 }: UseLcPass3DiffHighlightArgs) {
   const pendingHighlightAgainst = useRef<string | null>(null);
+  const lastAppliedHtmlRef = useRef<string | null>(null);
   const [highlightActive, setHighlightActive] = useState(false);
 
   // Capture pre-regenerate HTML so the next content update can be diffed.
@@ -35,21 +45,31 @@ export function useLcPass3DiffHighlight({
     const cleanIncoming = stripDiffSpans(unifiedDocHtml);
     const prev = pendingHighlightAgainst.current;
 
-    // Only short-circuit when there's no pending diff to render. When a
-    // regenerate has been armed we always render — even on byte-equal HTML —
-    // so reordered/identical-text-different-position changes still annotate.
-    if (!prev && cleanIncoming === editor.getHTML()) return;
+    // Skip back-to-back identical refetches (autosave settle, focus events).
+    if (!prev && cleanIncoming === lastAppliedHtmlRef.current) return;
+
+    // Compare against the editor's *cleaned* current HTML so leftover diff
+    // markers don't cause a false-positive rebuild.
+    const cleanCurrent = stripDiffSpans(editor.getHTML());
+    if (cleanIncoming === cleanCurrent) {
+      // Local edits already converged with server — no rebuild needed.
+      lastAppliedHtmlRef.current = cleanIncoming;
+      pendingHighlightAgainst.current = null;
+      return;
+    }
 
     if (prev) {
       const annotated = annotateDiff(stripDiffSpans(prev), cleanIncoming);
-      editor.commands.setContent(annotated, { emitUpdate: false });
+      setContentPreservingScroll(editor, annotated);
       setEditedHtml(cleanIncoming);
       setHighlightActive(annotated !== cleanIncoming);
       pendingHighlightAgainst.current = null;
+      lastAppliedHtmlRef.current = cleanIncoming;
     } else {
-      editor.commands.setContent(cleanIncoming, { emitUpdate: false });
+      setContentPreservingScroll(editor, cleanIncoming);
       setEditedHtml(cleanIncoming);
       setHighlightActive(false);
+      lastAppliedHtmlRef.current = cleanIncoming;
     }
   }, [editor, unifiedDocHtml, setEditedHtml]);
 
@@ -60,9 +80,10 @@ export function useLcPass3DiffHighlight({
   const clearHighlights = () => {
     if (!editor) return;
     const clean = stripDiffSpans(editor.getHTML());
-    editor.commands.setContent(clean, { emitUpdate: false });
+    setContentPreservingScroll(editor, clean);
     setEditedHtml(clean);
     setHighlightActive(false);
+    lastAppliedHtmlRef.current = clean;
   };
 
   return { highlightActive, clearHighlights, armRegenerate };
