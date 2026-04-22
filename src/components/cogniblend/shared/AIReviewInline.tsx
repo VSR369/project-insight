@@ -45,7 +45,7 @@ interface AIReviewInlineProps {
   masterDataOptions?: { value: string; label: string; description?: string }[];
   isLockedSection?: boolean;
   onSendToCoordinator?: (editedComments: string) => void;
-  coordinatorRole?: "LC" | "FC";
+  coordinatorRole?: "LC" | "FC" | "CU";
   hasSentBefore?: boolean;
   onReReview?: (sectionKey: string) => Promise<void>;
   initialRefinedContent?: string | null;

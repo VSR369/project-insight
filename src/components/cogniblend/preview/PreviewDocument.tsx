@@ -21,12 +21,15 @@ import { PreviewDigestSection } from './PreviewDigestSection';
 import { PreviewSectionEditor } from './PreviewSectionEditor';
 import type { ChallengeData, LegalDocDetail, EscrowRecord } from '@/lib/cogniblend/curationTypes';
 import type { OrgData, DigestData, PreviewAttachment } from './usePreviewData';
+import type { EscrowAggregateSummary, EscrowInstallmentRecord } from '@/services/cogniblend/escrowInstallments/escrowInstallmentTypes';
 
 interface PreviewDocumentProps {
   challenge: ChallengeData;
   orgData: OrgData | null;
   legalDetails: LegalDocDetail[];
   escrowRecord: EscrowRecord | null;
+  installmentSummary?: EscrowAggregateSummary | null;
+  installments?: EscrowInstallmentRecord[];
   digest: DigestData | null;
   attachments: PreviewAttachment[];
   canEditSection: (key: string) => boolean;
@@ -51,6 +54,8 @@ export function PreviewDocument({
   orgData,
   legalDetails,
   escrowRecord,
+  installmentSummary,
+  installments = [],
   digest,
   attachments,
   canEditSection,

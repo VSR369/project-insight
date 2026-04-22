@@ -29,6 +29,7 @@ export interface RenderSectionContentArgs {
   section: SectionDef;
   challenge: ChallengeData;
   challengeId: string;
+  currentUserId?: string;
   isReadOnly: boolean;
   isEditing: boolean;
   isLocked: boolean;
