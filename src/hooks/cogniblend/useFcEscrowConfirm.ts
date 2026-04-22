@@ -138,6 +138,7 @@ export function useFcEscrowConfirm({
 
   const confirmEscrow = useMutation({
     mutationFn: async (values: EscrowFormValues) => {
+      const hasProof = !!proofFile || !!escrowRecord?.proof_document_url;
       await persistEscrowRecord(values, true);
 
       await supabase.from('audit_trail').insert({
@@ -151,7 +152,7 @@ export function useFcEscrowConfirm({
           bank_name: values.bank_name,
           deposit_reference: values.deposit_reference,
           ifsc_swift_code: values.ifsc_swift_code,
-          proof_uploaded: !!proofUrl,
+          proof_uploaded: hasProof,
         },
       } as never);
 
