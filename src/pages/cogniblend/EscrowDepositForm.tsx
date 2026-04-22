@@ -59,13 +59,18 @@ export type EscrowFormValues = z.infer<typeof escrowFormSchema>;
 interface EscrowDepositFormProps {
   form: UseFormReturn<EscrowFormValues>;
   onSubmit: (values: EscrowFormValues) => void;
+  onSaveDraft?: (values: EscrowFormValues) => void;
   isPending: boolean;
+  isSavingDraft?: boolean;
+  submitLabel?: string;
   proofFile: File | null;
   onProofFileChange: (file: File | null) => void;
   proofUploading: boolean;
   governanceMode?: GovernanceMode;
-  isEditable?: boolean;
-  isSubmitEnabled?: boolean;
+  canEditFields?: boolean;
+  canUploadProof?: boolean;
+  canSubmit?: boolean;
+  canSaveDraft?: boolean;
   existingProofFileName?: string | null;
   maskedAccountNumber?: string | null;
   previewMessage?: string;
@@ -74,19 +79,25 @@ interface EscrowDepositFormProps {
 export function EscrowDepositForm({
   form,
   onSubmit,
+  onSaveDraft,
   isPending,
+  isSavingDraft = false,
+  submitLabel = 'Confirm Escrow Deposit',
   proofFile,
   onProofFileChange,
   proofUploading,
   governanceMode,
-  isEditable = true,
-  isSubmitEnabled = true,
+  canEditFields = true,
+  canUploadProof = true,
+  canSubmit = true,
+  canSaveDraft = false,
   existingProofFileName,
   maskedAccountNumber,
   previewMessage,
 }: EscrowDepositFormProps) {
   const isControlled = governanceMode === 'CONTROLLED';
-  const isDisabled = !isEditable || isPending || proofUploading;
+  const areFieldsDisabled = !canEditFields || isPending || proofUploading;
+  const isProofDisabled = !canUploadProof || isPending || proofUploading;
 
   return (
     <div className="space-y-4 border-t pt-4">
@@ -109,28 +120,28 @@ export function EscrowDepositForm({
             <FormField control={form.control} name="bank_name" render={({ field }) => (
               <FormItem>
                 <FormLabel>Bank Name *</FormLabel>
-                <FormControl><Input placeholder="e.g. HSBC Holdings" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input placeholder="e.g. HSBC Holdings" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="bank_branch" render={({ field }) => (
               <FormItem>
                 <FormLabel>Branch</FormLabel>
-                <FormControl><Input placeholder="e.g. London Main" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input placeholder="e.g. London Main" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="bank_address" render={({ field }) => (
               <FormItem className="lg:col-span-2">
                 <FormLabel>Bank Address</FormLabel>
-                <FormControl><Input placeholder="e.g. 8 Canada Square, London E14 5HQ" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input placeholder="e.g. 8 Canada Square, London E14 5HQ" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="currency" render={({ field }) => (
               <FormItem>
                 <FormLabel>Currency *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={isDisabled}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={areFieldsDisabled}>
                   <FormControl><SelectTrigger><SelectValue placeholder="Select currency" /></SelectTrigger></FormControl>
                   <SelectContent>{CURRENCIES.map((currency) => <SelectItem key={currency} value={currency}>{currency}</SelectItem>)}</SelectContent>
                 </Select>
@@ -140,7 +151,7 @@ export function EscrowDepositForm({
             <FormField control={form.control} name="deposit_amount" render={({ field }) => (
               <FormItem>
                 <FormLabel>Deposited Amount *</FormLabel>
-                <FormControl><Input type="number" step="0.01" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input type="number" step="0.01" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormDescription>Must match the reward structure total.</FormDescription>
                 <FormMessage />
               </FormItem>
@@ -148,21 +159,21 @@ export function EscrowDepositForm({
             <FormField control={form.control} name="deposit_date" render={({ field }) => (
               <FormItem>
                 <FormLabel>Deposit Date *</FormLabel>
-                <FormControl><Input type="date" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input type="date" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="deposit_reference" render={({ field }) => (
               <FormItem>
                 <FormLabel>Transaction Reference *</FormLabel>
-                <FormControl><Input placeholder="e.g. TXN-2026-03-001" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input placeholder="e.g. TXN-2026-03-001" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="account_number" render={({ field }) => (
               <FormItem>
                 <FormLabel>Account Number</FormLabel>
-                <FormControl><Input type="text" placeholder="Enter account number when submission unlocks" disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Input type="text" placeholder="Enter account number used for this deposit" disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormDescription>
                   {maskedAccountNumber ? `Stored account reference: ${maskedAccountNumber}` : 'The stored account number is masked after submission.'}
                 </FormDescription>
@@ -178,7 +189,7 @@ export function EscrowDepositForm({
                     className="uppercase"
                     maxLength={11}
                     placeholder="e.g. SBIN0001234"
-                    disabled={isDisabled}
+                     disabled={areFieldsDisabled}
                     {...field}
                     onChange={(event) => field.onChange(event.target.value.toUpperCase())}
                   />
@@ -196,8 +207,11 @@ export function EscrowDepositForm({
                 config={PROOF_CONFIG}
                 value={proofFile}
                 onChange={onProofFileChange}
-                disabled={isDisabled}
+                disabled={isProofDisabled}
               />
+              {!canUploadProof && (
+                <p className="text-xs text-muted-foreground">Proof upload unlocks when the challenge reaches Phase 3.</p>
+              )}
               {existingProofFileName && !proofFile && (
                 <p className="text-xs text-muted-foreground">Existing proof on file: {existingProofFileName}</p>
               )}
@@ -205,18 +219,31 @@ export function EscrowDepositForm({
             <FormField control={form.control} name="fc_notes" render={({ field }) => (
               <FormItem className="lg:col-span-2">
                 <FormLabel>FC Notes</FormLabel>
-                <FormControl><Textarea placeholder="Any additional notes about the deposit…" rows={2} disabled={isDisabled} {...field} /></FormControl>
+                <FormControl><Textarea placeholder="Any additional notes about the deposit…" rows={2} disabled={areFieldsDisabled} {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
           </div>
 
           <div className="flex flex-col items-end gap-2">
-            <Button type="submit" disabled={!isSubmitEnabled || isPending || proofUploading}>
+            <div className="flex flex-col gap-2 lg:flex-row">
+              {canSaveDraft && onSaveDraft && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || isSavingDraft || proofUploading}
+                  onClick={form.handleSubmit(onSaveDraft)}
+                >
+                  {isSavingDraft ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
+                  Save Draft
+                </Button>
+              )}
+              <Button type="submit" disabled={!canSubmit || isPending || proofUploading}>
               {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
-              {isSubmitEnabled ? 'Confirm Escrow Deposit' : 'Submission unlocks at Phase 3'}
-            </Button>
-            {!isSubmitEnabled && <p className="text-xs text-muted-foreground">You can review all required fields now and submit once the lifecycle gate opens.</p>}
+              {canSubmit ? submitLabel : 'Confirmation unlocks at Phase 3'}
+              </Button>
+            </div>
+            {!canSubmit && <p className="text-xs text-muted-foreground">You can prepare and save escrow deposit details now. Final funding confirmation unlocks at Phase 3.</p>}
           </div>
         </form>
       </Form>

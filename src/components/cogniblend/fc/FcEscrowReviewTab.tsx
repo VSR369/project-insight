@@ -16,11 +16,15 @@ interface FcEscrowReviewTabProps {
   rewardTotal: number;
   escrowRecord: EscrowRecord | null;
   isPreview: boolean;
-  isEditable: boolean;
+  canEditDepositFields: boolean;
+  canUploadProof: boolean;
+  canConfirmEscrow: boolean;
   isFunded: boolean;
   fcDone: boolean;
   form: UseFormReturn<EscrowFormValues>;
   onSubmit: (values: EscrowFormValues) => void;
+  onSaveDraft: (values: EscrowFormValues) => void;
+  isSavingDraft: boolean;
   isPending: boolean;
   proofFile: File | null;
   onProofFileChange: (file: File | null) => void;
@@ -38,11 +42,15 @@ export function FcEscrowReviewTab({
   rewardTotal,
   escrowRecord,
   isPreview,
-  isEditable,
+  canEditDepositFields,
+  canUploadProof,
+  canConfirmEscrow,
   isFunded,
   fcDone,
   form,
   onSubmit,
+  onSaveDraft,
+  isSavingDraft,
   isPending,
   proofFile,
   onProofFileChange,
@@ -113,16 +121,20 @@ export function FcEscrowReviewTab({
             <EscrowDepositForm
               form={form}
               onSubmit={onSubmit}
+              onSaveDraft={onSaveDraft}
               isPending={isPending}
+              isSavingDraft={isSavingDraft}
               proofFile={proofFile}
               onProofFileChange={onProofFileChange}
               proofUploading={proofUploading}
               governanceMode={governanceMode}
-              isEditable={isEditable}
-              isSubmitEnabled={isEditable}
+              canEditFields={canEditDepositFields}
+              canUploadProof={canUploadProof}
+              canSubmit={canConfirmEscrow}
+              canSaveDraft={canEditDepositFields}
               maskedAccountNumber={escrowRecord?.account_number_masked ?? null}
               existingProofFileName={escrowRecord?.proof_file_name ?? null}
-              previewMessage={isPreview ? 'Submission unlocks at Phase 3. You can review the required fields now.' : undefined}
+              previewMessage={isPreview ? 'You can prepare and save escrow deposit details now. Proof upload and final funding confirmation unlock at Phase 3.' : undefined}
             />
           </CardContent>
         </Card>
