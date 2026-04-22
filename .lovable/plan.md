@@ -1,240 +1,276 @@
 
-# Plan — Separate Legal from FC Escrow Review and expose escrow/bank workflow correctly
+# Plan — Fix FC escrow visibility and editing so the screen reflects actual workflow
 
-## What is happening now
+## Root cause confirmed
 
-Two current implementation choices are causing the confusion:
+There are two different issues, and both are real:
 
-1. `FcFinanceWorkspacePage` renders `FcLegalDocsViewer` inside the **Finance Review** tab, so Legal appears as the first block of the FC review screen.
-2. The escrow entry form is intentionally hidden while the challenge is still in preview:
-   ```text
-   phaseGateOpen = current_phase >= 3
-   isPreview = !phaseGateOpen
-   ```
-   and the form only renders when:
-   ```text
-   !isPreview && !fcDone && !isFunded
-   ```
-   So on your current challenge route, FC sees legal/reference content and recommended escrow context, but **cannot yet enter bank/deposit details**.
+### 1. FC is only reading `escrow_records`, not Creator/Curator escrow inputs
+The current FC screen hydrates from `useEscrowDeposit`, which reads only `public.escrow_records`.
 
-That means the screen is behaving per current code, but the UX is misaligned with the intended FC workflow.
+That means:
+- if Creator or Curator entered only **escrow recommendation/context** in challenge data (`extended_brief`, reward structure, footer transparency UI),
+- but no row was created in `escrow_records`,
+- FC sees:
+  - `RecommendedEscrowCard`
+  - but **no actual bank/deposit record**
+  - therefore the form appears effectively empty.
 
-## What to change
-
-### 1. Redefine the FC information architecture
-Make FC workspace primarily about escrow, not legal.
-
-New FC workspace structure:
-
+This matches the current network trace:
 ```text
-Finance Workspace
-├── Escrow Review        ← default
-│   ├── Recommended Escrow
-│   ├── Existing Escrow Status / Summary
-│   ├── Bank + deposit details form
-│   └── Submit / Return actions
-├── Curated Challenge    ← read-only challenge spec
-└── Legal Agreement      ← separate read-only reference surface
+GET /escrow_records?...challenge_id=eq.25ca71...
+Response: []
 ```
 
-This removes the legal document from the main escrow workflow while still keeping it accessible for reference.
+So the screen is not failing to render data that exists in `escrow_records`; there is currently **no escrow record row** for this challenge.
 
-### 2. Move Legal out of the Finance Review tab
-In `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`:
+### 2. The form is intentionally disabled before Phase 3
+Current challenge state:
+```text
+current_phase = 2
+```
 
-- Remove `FcLegalDocsViewer` from the current **Finance Review** tab.
-- Add a separate **Legal Agreement** tab or challenge-local side navigation item.
-- Keep it read-only and clearly labeled as:
-  - “Reference only”
-  - “Approved by Legal Coordinator”
+Current view logic:
+```ts
+const phaseGateOpen = (currentPhase ?? 0) >= 3;
+const isEditable = phaseGateOpen && !fcComplianceComplete && !isFunded;
+```
 
-Recommended implementation for this pass:
-- Use a **third tab** (`escrow`, `challenge`, `legal`) rather than a global shell sidebar item.
-- Reason: it fits the current route model, avoids app-shell complexity, and stays within the existing per-challenge workspace pattern.
+That means at Phase 2:
+- fields render
+- but all inputs are disabled
+- submit is disabled
+- proof upload is disabled
 
-### 3. Rename “Finance Review” to “Escrow Review”
-Update copy so the FC sees the actual task immediately.
+So “not allowing to enter escrow deposit details” is caused by the current lifecycle gate, not by a rendering bug.
 
-Tab labels:
-- `Escrow Review`
-- `Curated Challenge`
-- `Legal Agreement`
+## Why the current UX feels wrong
 
-This will align the screen with what FC is expected to do.
+The present implementation mixes two different concepts without making the distinction clear:
 
-### 4. Make escrow information the first-class content
-Inside the new **Escrow Review** tab, render in this order:
+```text
+A. Recommended escrow context
+   - reward total
+   - creator/curator notes
+   - suggested amount
+   - comes from challenge data / extended_brief
 
-1. **Escrow status card**
-   - Pending / Funded / Submitted
-   - Amount expected
-   - Governance note: “Mandatory for Controlled”
-
-2. **RecommendedEscrowCard**
-   - reward breakdown
-   - total expected amount
-   - curator/creator notes if present
-
-3. **Escrow deposit form**
+B. Actual escrow deposit record
    - bank name
    - branch
-   - bank address
-   - currency
-   - deposited amount
-   - deposit date
-   - transaction reference
-   - account number
+   - account reference
    - IFSC/SWIFT
-   - proof upload
-   - FC notes
+   - transfer reference
+   - proof
+   - comes from escrow_records
+```
 
-4. **Read-only funded summary** after confirmation
+Today the FC page assumes B exists if FC should see details.  
+But for this challenge, only A exists and B does not.
 
-### 5. Fix the missing-form behavior for FC preview mode
-Current behavior fully hides the form before Phase 3, which makes FC feel blocked without context.
+So the result is:
+- FC sees recommendation context
+- FC does not see saved bank/deposit details
+- FC cannot edit because Phase 2 locks inputs
 
-Refine the behavior:
+## What to build
 
-#### Before Phase 3
-Show:
-- Escrow status card
-- Recommended escrow context
-- The full bank/deposit form in **read-only or disabled preview mode**
-- Clear banner:
-  - “You can prepare escrow details now. Submission unlocks at Phase 3.”
+## 1. Make the source-of-truth split explicit in the UI
+Update `FcEscrowReviewTab` so it shows two clearly labeled sections:
 
-Do **not** allow final mutation yet if lifecycle rules must remain intact.
+### Escrow Recommendation
+From challenge data:
+- reward total
+- recommended escrow amount
+- curator/creator notes
+- governance requirement
 
-#### At Phase 3
+### Escrow Deposit Record
+From `escrow_records`:
+- actual bank/deposit/proof data
+- status badge
+- funded summary
+
+When no `escrow_records` row exists, show a precise state:
+```text
+No escrow deposit record has been created yet.
+Creator/Curator guidance is shown above, but actual bank and deposit details have not yet been captured.
+```
+
+This removes the false impression that data is “missing” when it was never persisted to the FC record table.
+
+## 2. Decouple “can prepare fields” from “can confirm deposit”
+Refactor `fcFinanceWorkspaceViewService.ts` so it no longer uses one `isEditable` flag for everything.
+
+Replace with separate capabilities such as:
+- `isPreview`
+- `isFunded`
+- `canEditDepositFields`
+- `canUploadProof`
+- `canConfirmEscrow`
+- `canSubmitFinanceReview`
+
+Recommended behavior:
+
+### Before Phase 3
+Allow:
+- bank name
+- branch
+- bank address
+- currency
+- deposit amount
+- deposit date
+- deposit reference
+- account number
+- IFSC/SWIFT
+- FC notes
+
+Keep disabled:
+- proof upload
+- final “Confirm Escrow Deposit”
+- final finance review submit
+
+### At Phase 3
 Enable:
-- all fields
 - proof upload
 - confirm escrow deposit
-- submit financial review footer
+- finance review completion path
 
-This preserves the business rule while solving the UX problem of “nothing is visible”.
+This preserves lifecycle governance while solving the current usability problem.
 
-### 6. Prepopulate the form from any existing escrow record
-Right now `useFcEscrowConfirm` initializes blank defaults and does not hydrate from `escrowData`.
+## 3. Support draft escrow persistence before final confirmation
+Right now `useFcEscrowConfirm` only writes on final confirmation and sets:
+```ts
+escrow_status: 'FUNDED'
+```
 
-Refine so that if an `escrow_records` row already exists, the form loads:
-- bank_name
-- bank_branch
-- bank_address
-- currency
-- deposit_amount
-- deposit_date
-- deposit_reference
-- fc_notes
-- masked account reference if available
-- IFSC/SWIFT if available
+That is too late for a preparation workflow.
 
-This ensures FC sees stored escrow details instead of a blank screen.
+Add a separate draft save path so FC can persist preparatory details before Phase 3 without falsely marking the deposit as funded.
 
-### 7. Align data fetching with architecture rules
-There is still a layering mismatch:
+Recommended approach:
+- if no row exists, insert `escrow_records` draft row
+- if row exists, update it
+- preserve status as non-funded (`PENDING` or existing non-funded status)
+- only switch to `FUNDED` on final confirm at Phase 3
 
-- `FcLegalDocsViewer` performs Supabase access directly in a component.
-- FC workspace orchestration is page-heavy.
+This is the missing functional bridge between:
+- “I want to prepare escrow details now”
+- and
+- “I cannot confirm funding until Phase 3”
 
-Refactor to:
-- move legal doc query into a hook/service
-- keep page as composition only
-- keep each file under 250 lines
-- keep zero `any`
+## 4. Pull org finance defaults when no escrow record exists
+The codebase already has `useOrgFinanceConfig`.
 
-### 8. Add the missing mandatory UI states for the FC workspace
-The FC workspace needs explicit:
-- loading skeletons
-- empty legal-reference state
-- escrow-not-yet-created state
-- error state with retry + correlation ID
-- success/read-only funded state
+Use it to prefill the FC form when `escrow_records` is empty:
+- default bank name
+- default branch
+- default bank address
+- preferred escrow currency
 
-Especially for **Escrow Review**, there should be a clear empty state:
-- “No escrow record yet”
-- “Enter bank and deposit details to prepare the finance review”
+Recommended default precedence:
+```text
+1. escrow_records actual saved values
+2. organization finance defaults
+3. challenge recommendation context
+4. reward total / currency fallback
+```
+
+This will stop the screen from looking blank on first entry.
+
+## 5. Keep Creator/Curator recommendation separate from FC deposit facts
+Do not silently treat creator/curator recommendation fields as if they were confirmed bank instructions.
+
+Instead:
+- show recommendation/context in `RecommendedEscrowCard`
+- use them only as hints/defaults where appropriate
+- keep actual deposit data in `escrow_records`
+
+This aligns with the existing domain model and avoids data integrity confusion.
+
+## 6. Update form copy so FC understands the lifecycle
+Change the current preview copy from passive “review only” wording to explicit preparation wording:
+
+### Before Phase 3
+```text
+You can prepare and save escrow deposit details now.
+Proof upload and final funding confirmation unlock at Phase 3.
+```
+
+### Empty-state when no record exists
+```text
+No escrow deposit record exists yet.
+Use the form below to prepare the bank and deposit details for this challenge.
+```
+
+### If only recommendation exists
+```text
+The recommendation above came from Creator/Curator challenge data.
+Actual escrow deposit details must be saved separately below.
+```
 
 ## Files to update
 
 ### Modify
-- `src/pages/cogniblend/FcFinanceWorkspacePage.tsx`
-  - restructure tabs
-  - remove legal viewer from main FC task area
-  - rename Finance Review → Escrow Review
-  - show preview-mode escrow form shell
-
-- `src/pages/cogniblend/EscrowDepositForm.tsx`
-  - support disabled/read-only preview mode
-  - support hydration from existing escrow values
-  - improve labels so FC understands these are escrow capture fields
-
-- `src/hooks/cogniblend/useFcEscrowConfirm.ts`
-  - initialize/reset from existing escrow record
-  - separate “editable” vs “submit enabled” behavior
-  - preserve Phase-3 submit gate
-
-### Create / extract
-- `src/hooks/cogniblend/useFcLegalAgreement.ts`
-  - typed query for UNIFIED_SPA
-
-- `src/components/cogniblend/fc/FcLegalAgreementTab.tsx`
-  - read-only legal reference state
+- `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
+  - split lifecycle/view flags
+  - support pre-Phase-3 field editing
+  - keep confirm/submit gated
 
 - `src/components/cogniblend/fc/FcEscrowReviewTab.tsx`
-  - escrow status + recommended card + form + funded summary
+  - separate recommendation vs actual deposit record
+  - improve empty-state messaging
+  - pass new capability flags to the form
 
-- optional small helper:
-  - `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
-  - derive preview/editability/status flags
+- `src/pages/cogniblend/EscrowDepositForm.tsx`
+  - allow editable preparation mode before Phase 3
+  - disable only proof/final confirm when gated
+  - add clearer explanatory copy
 
-## Expected UX after the change
+- `src/hooks/cogniblend/useFcEscrowConfirm.ts`
+  - add draft save/update mutation path
+  - keep final confirm as funded transition only
+  - reset/invalidate correctly after draft or final save
 
-On `/cogni/challenges/:id/finance`, FC will see:
+- `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
+  - extend `buildEscrowFormDefaults` to accept org finance defaults when no record exists
 
-### Escrow Review
-- escrow amount/context first
-- bank and escrow entry fields visible
-- preview mode explains when submission unlocks
-- once at Phase 3, form becomes actionable
+### Add / wire
+- connect `useOrgFinanceConfig` into the FC workspace flow
+- optionally add a small service for form default precedence if needed to keep files under 250 lines
 
-### Curated Challenge
-- full read-only challenge detail
+## Verification after implementation
 
-### Legal Agreement
-- separate read-only reference surface
-- no longer mixed into the core FC task flow
+1. Challenge in Phase 2 with no `escrow_records` row:
+   - FC sees recommendation context
+   - FC sees clear “no deposit record yet” state
+   - FC can type bank/deposit details
+   - FC can save draft
+   - proof upload and final confirm remain disabled
 
-## Business-rule posture
+2. Challenge in Phase 2 after draft save:
+   - FC revisits page
+   - saved bank/deposit details are visible from `escrow_records`
 
-This plan keeps the current workflow guard intact:
-- FC submission still only completes at Phase 3
-- Legal remains reference-only for FC
-- LC remains owner of legal approval
-- FC remains owner of escrow confirmation and finance submission
+3. Challenge in Phase 3:
+   - proof upload becomes enabled
+   - final confirm becomes enabled
+   - successful confirm marks record `FUNDED`
 
-## Verification
+4. Funded challenge:
+   - read-only funded summary shows actual saved data
 
-1. FC opens challenge finance workspace at Phase 2:
-   - sees **Escrow Review**, **Curated Challenge**, **Legal Agreement**
-   - sees escrow form fields visible but gated/disabled
-   - legal no longer appears inside escrow flow
+5. No direct Supabase access added to presentation components
+6. No file exceeds 250 lines
+7. `npx tsc --noEmit` passes
 
-2. FC opens challenge at Phase 3:
-   - escrow form becomes editable
-   - bank/deposit/proof entry works
-   - submit footer is enabled only after funded state
+## Final diagnosis
 
-3. Existing funded challenge:
-   - FC sees funded summary instead of blank form
-   - legal remains separately accessible
+The problem is not fully solved because:
+- there is currently **no actual escrow record row** for this challenge, so FC has no saved bank/deposit details to display, and
+- the current code still **hard-locks all input before Phase 3**, so FC cannot prepare details even though the UI suggests they should.
 
-4. No file exceeds 250 lines
-5. No direct Supabase calls remain in FC presentation components
-6. `npx tsc --noEmit` passes
-
-## Out of scope
-
-- Changing LC legal ownership or legal approval flow
-- Moving challenge-specific legal reference into the global app shell sidebar
-- Altering the `complete_financial_review` lifecycle rule
+The correct fix is to support:
+- recommendation visibility,
+- draft escrow preparation before Phase 3,
+- and final funding confirmation only at Phase 3.
