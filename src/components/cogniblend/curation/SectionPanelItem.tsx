@@ -17,6 +17,7 @@ import { renderSectionContent } from "@/components/cogniblend/curation/renderSec
 import { LOCKED_SECTIONS } from "@/lib/cogniblend/curationSectionDefs";
 import { EXTENDED_BRIEF_FIELD_MAP } from "@/lib/cogniblend/curationSectionFormats";
 import { parseJson, getSectionContent } from "@/lib/cogniblend/curationHelpers";
+import { resolveGovernanceMode } from '@/lib/governanceMode';
 import type { ChallengeData, LegalDocSummary, LegalDocDetail, EscrowRecord, SectionDef } from "@/lib/cogniblend/curationTypes";
 import type { DeliverableItem } from "@/utils/parseDeliverableItem";
 import type { SectionKey } from "@/types/sections";
@@ -181,7 +182,8 @@ export function SectionPanelItem({ section, challenge, challengeId, isReadOnly, 
     }
   })();
 
-  const coordinatorRole = section.key === "legal_docs" ? "LC" as const : section.key === "escrow_funding" ? "FC" as const : undefined;
+  const escrowCoordinatorRole = resolveGovernanceMode(challenge.governance_mode_override ?? challenge.governance_profile) === "STRUCTURED" ? "CU" as const : "FC" as const;
+  const coordinatorRole = section.key === "legal_docs" ? "LC" as const : section.key === "escrow_funding" ? escrowCoordinatorRole : undefined;
   const hasSentBefore = getSectionActions(section.key).some((a: any) => a.action_type === "modification_request");
   const secReadiness = sectionReadiness[section.key];
 
