@@ -154,10 +154,10 @@ export default function FcChallengeQueuePage() {
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => navigate('/cogni/escrow')}
+                  onClick={() => navigate(`/cogni/challenges/${item.challenge_id}/finance`)}
                   className="shrink-0"
                 >
-                  Enter Deposit <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  Open Finance Workspace <ArrowRight className="h-3.5 w-3.5 ml-1" />
                 </Button>
               </div>
             </CardContent>
