@@ -3668,6 +3668,124 @@ export type Database = {
           },
         ]
       }
+      escrow_installments: {
+        Row: {
+          account_number_masked: string | null
+          bank_address: string | null
+          bank_branch: string | null
+          bank_name: string | null
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          deposit_amount: number | null
+          deposit_date: string | null
+          deposit_reference: string | null
+          escrow_record_id: string | null
+          fc_notes: string | null
+          funded_at: string | null
+          funded_by: string | null
+          funded_by_role: string | null
+          id: string
+          ifsc_swift_code: string | null
+          installment_number: number
+          proof_document_url: string | null
+          proof_file_name: string | null
+          proof_uploaded_at: string | null
+          schedule_label: string
+          scheduled_amount: number
+          scheduled_pct: number
+          status: string
+          trigger_event: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          account_number_masked?: string | null
+          bank_address?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deposit_amount?: number | null
+          deposit_date?: string | null
+          deposit_reference?: string | null
+          escrow_record_id?: string | null
+          fc_notes?: string | null
+          funded_at?: string | null
+          funded_by?: string | null
+          funded_by_role?: string | null
+          id?: string
+          ifsc_swift_code?: string | null
+          installment_number: number
+          proof_document_url?: string | null
+          proof_file_name?: string | null
+          proof_uploaded_at?: string | null
+          schedule_label: string
+          scheduled_amount?: number
+          scheduled_pct?: number
+          status?: string
+          trigger_event?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          account_number_masked?: string | null
+          bank_address?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deposit_amount?: number | null
+          deposit_date?: string | null
+          deposit_reference?: string | null
+          escrow_record_id?: string | null
+          fc_notes?: string | null
+          funded_at?: string | null
+          funded_by?: string | null
+          funded_by_role?: string | null
+          id?: string
+          ifsc_swift_code?: string | null
+          installment_number?: number
+          proof_document_url?: string | null
+          proof_file_name?: string | null
+          proof_uploaded_at?: string | null
+          schedule_label?: string
+          scheduled_amount?: number
+          scheduled_pct?: number
+          status?: string
+          trigger_event?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_installments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escrow_installments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
+            foreignKeyName: "escrow_installments_escrow_record_id_fkey"
+            columns: ["escrow_record_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escrow_records: {
         Row: {
           account_number_masked: string | null
@@ -16550,6 +16668,10 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string; p_user_id: string }
         Returns: Json
       }
+      challenge_escrow_installments_funded: {
+        Args: { p_challenge_id: string }
+        Returns: boolean
+      }
       check_curation_cycle_limit: {
         Args: { p_challenge_id: string; p_max_cycles?: number }
         Returns: Json
@@ -17176,6 +17298,10 @@ export type Database = {
       supervisor_reassign_to_self: {
         Args: { p_verification_id: string }
         Returns: Json
+      }
+      sync_escrow_record_from_installments: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: undefined
       }
       unfreeze_for_recuration: {
         Args: { p_challenge_id: string; p_reason?: string; p_user_id: string }
