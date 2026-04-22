@@ -212,7 +212,7 @@ export default function FcFinanceWorkspacePage() {
 
           <RecommendedEscrowCard challengeId={challengeId!} />
 
-          {!fcDone && !isFunded && (
+          {!isPreview && !fcDone && !isFunded && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -238,7 +238,7 @@ export default function FcFinanceWorkspacePage() {
             </Card>
           )}
 
-          {(fcDone || isFunded) && <FcEscrowConfirmedSummary escrow={escrowRecord} />}
+          {!isPreview && (fcDone || isFunded) && <FcEscrowConfirmedSummary escrow={escrowRecord} />}
         </TabsContent>
 
         <TabsContent value="challenge" className="mt-4">
