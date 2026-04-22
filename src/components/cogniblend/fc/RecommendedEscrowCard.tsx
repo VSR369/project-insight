@@ -73,11 +73,14 @@ export function RecommendedEscrowCard({ challengeId }: RecommendedEscrowCardProp
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Banknote className="h-4 w-4 text-primary" />
-          Recommended Escrow Context
+          Escrow Recommendation
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-2 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="text-[10px]">
+            Source: Challenge context
+          </Badge>
           <GovernanceProfileBadge profile={govMode} compact />
           <Badge variant="secondary" className="text-[10px]">
             Engagement: {opModel}
@@ -118,11 +121,11 @@ export function RecommendedEscrowCard({ challengeId }: RecommendedEscrowCardProp
           <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
             <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
             <span>
-              Curator/Creator recommended escrow:{' '}
+              Creator/Curator recommended escrow:{' '}
               <strong>
                 {currency} {recommendedAmount.toLocaleString()}
               </strong>
-              . You may modify with a note if business context warrants.
+              . This is guidance only and does not create an FC deposit record until Finance Coordinator saves the record below.
             </span>
           </div>
         )}
