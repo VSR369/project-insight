@@ -115,7 +115,7 @@ function buildDemoUsers(_engagementModel: string, mode: GovernanceMode = 'STRUCT
         displayName: 'Frank Coleman',
         roles: ['FC'],
         description: 'Mandatory escrow deposit. Runs in parallel with legal review.',
-        destination: '/cogni/escrow',
+        destination: '/cogni/fc-queue',
         stepLabel: 'Phase 3b',
       },
       {

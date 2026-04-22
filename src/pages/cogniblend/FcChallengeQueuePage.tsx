@@ -161,33 +161,33 @@ export default function FcChallengeQueuePage() {
     <div className="p-4 lg:p-6 space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Banknote className="h-5 w-5 text-primary" /> FC Challenge Queue
+          <Banknote className="h-5 w-5 text-primary" /> Finance Workspace
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Challenges awaiting your escrow deposit confirmation
+          Review finance workspaces for CONTROLLED governance challenges assigned to you.
+        </p>
+        <p className="text-xs text-muted-foreground mt-2">
+          Finance review applies to CONTROLLED governance challenges only.
         </p>
       </div>
-
-      <div className="relative w-full lg:max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search challenges..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 text-base"
-        />
-      </div>
-
+...
       {filteredQueue.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center">
             <Inbox className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-foreground">Queue is empty</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm font-medium text-foreground">
+              {deferredSearch.trim() ? 'No matching challenges' : 'No FC assignments yet'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
               {deferredSearch.trim()
                 ? 'No challenges match your search.'
-                : 'No challenges are currently assigned to you.'}
+                : "You haven't been assigned as Finance Coordinator on any CONTROLLED challenges yet. New CONTROLLED challenges will appear here once a Curator advances them and routes you in."}
             </p>
+            {!deferredSearch.trim() && (
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => navigate('/cogni/dashboard')}>
+                View Dashboard
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
