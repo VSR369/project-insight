@@ -1,104 +1,177 @@
 
+# Assessment — Mostly correct diagnosis, but not fully aligned with Lovable architecture
 
-# Plan — Make the FC workspace reachable for `nh-fc@testsetup.dev` + remove the dead `/cogni/escrow` path
+## What is correct in your write-up
 
-## Five-why root-cause analysis (verified against DB + code)
+Your root-cause logic is directionally right:
 
-1. **You see "No challenges requiring escrow are assigned to you" and no tabs.** → Because the page never receives a challenge to render.
-2. **Why no challenge?** → `EscrowManagementPage` and `FcChallengeQueuePage` both query `user_challenge_roles WHERE user_id = <you> AND role_code = 'FC' AND is_active = true`. For Frank Coleman (`8f429cdb-…`, `nh-fc@testsetup.dev`) that query returns **zero rows**.
-3. **Why zero rows?** → DB confirms it. The **only** FC assignment in the entire database is on user `nh-pp-fc@testsetup.dev` (challenge `25ca71a0…`, CONTROLLED, Phase 2). Frank Coleman has never been assigned the FC role on any challenge.
-4. **Why doesn't the sidebar show "Finance Workspace" then?** → It's gated by `canSeeEscrow → requiresHumanActor(['FC'])`, which requires at least one active `user_challenge_roles` FC row. He has none → sidebar entry is correctly hidden → he can only land on `/cogni/escrow` by URL.
-5. **Why is `/cogni/escrow` still showing the old "queue with empty state" instead of routing him to `Finance Workspace`?** → It's a leftover page kept as a "fallback" but it duplicates the queue and doesn't surface the new tabs/workspace. With the new per-challenge workspace at `/cogni/challenges/:id/finance` and the new queue at `/cogni/fc-queue`, `/cogni/escrow` is now confusing dead weight.
+```text
+No FC assignment row
+→ get_user_all_challenge_roles returns no FC
+→ sidebar hides Finance Workspace
+→ FC queue is empty
+→ challenge finance page shows Access Denied
+```
 
-**Conclusion:** the UX *is* working as designed — the user simply has no FC assignment to act on. We need to (a) seed an FC role on Frank so he can actually exercise the workspace, (b) eliminate the confusing `/cogni/escrow` page by redirecting it to `/cogni/fc-queue`, and (c) tighten the empty-state message so a future FC understands *why* their queue is empty.
+That matches the current code:
 
-## Changes (one focused PR)
+- `useCogniPermissions.ts` hides FC nav through `canSeeEscrow`
+- `useCogniUserRoles.ts` depends on `get_user_all_challenge_roles`
+- `FcFinanceWorkspacePage.tsx` checks `roles?.includes('FC')`
+- `FcChallengeQueuePage.tsx` only loads challenges from `user_challenge_roles`
 
-### 1. Assign Frank Coleman the FC role on the existing test challenge
+So yes: missing FC assignment data is the primary functional blocker.
 
-Migration (additive, idempotent):
+## What is already implemented now
+
+Two items in your proposed fix are already in code:
+
+1. `/cogni/escrow` is already redirected in `src/App.tsx`
+   - Current code: `<Route path="/cogni/escrow" element={<Navigate to="/cogni/fc-queue" replace />} />`
+
+2. The FC queue empty-state and CONTROLLED-only note are already present in `src/pages/cogniblend/FcChallengeQueuePage.tsx`
+   - “No FC assignments yet”
+   - “Finance review applies to CONTROLLED governance challenges only.”
+
+So those are no longer gaps.
+
+## Actual gaps vs Lovable / project architecture
+
+### 1. The FC assignment was handled the wrong way
+The repo contains a SQL migration that inserts data into `user_challenge_roles`.
+
+That is not aligned with the project rules:
+- schema changes → migration
+- data changes → data operation / insert tool
+
+So the FC seed should not live as a permanent migration file if it is only test data.
+
+### 2. Your SQL example is not aligned with the real schema
+`public.user_challenge_roles` does **not** have an `assigned_via` column.
+
+Actual columns include:
+- `user_id`
+- `challenge_id`
+- `role_code`
+- `assigned_by`
+- `assigned_at`
+- `revoked_at`
+- `is_active`
+- `auto_assigned`
+- `created_at`
+- `updated_at`
+- `created_by`
+- `updated_by`
+
+So this version would fail:
 
 ```sql
-INSERT INTO user_challenge_roles (challenge_id, user_id, role_code, is_active, assigned_via)
+INSERT INTO public.user_challenge_roles (..., assigned_via)
+```
+
+### 3. There is still a frontend architecture violation in the FC queue page
+`src/pages/cogniblend/FcChallengeQueuePage.tsx` currently:
+- queries Supabase directly inside the page
+- uses `(supabase as any)`
+- contains business filtering logic in the page
+
+That breaks workspace rules:
+- no Supabase calls in page/components
+- zero `any`
+- business logic should move into hook/service layer
+
+### 4. Error-state UX is still incomplete
+The FC queue page logs query errors via `handleQueryError`, but it does not render a proper user-facing error state with retry CTA.  
+That does not meet the “4 mandatory states” rule.
+
+### 5. The “migration exists” question is separate from “data actually applied”
+Even though the SQL file exists in the repo, the real user problem remains if the FC row was not actually applied in the connected Supabase project.  
+So the true operational gap is:
+
+```text
+repo contains seed SQL
+≠
+database definitely has active FC row for Frank
+```
+
+## Corrected implementation plan to align with architecture
+
+### A. Fix the data the right way
+Use a data operation to upsert the FC assignment for Frank on the test challenge:
+
+```sql
+INSERT INTO public.user_challenge_roles (
+  challenge_id,
+  user_id,
+  role_code,
+  is_active
+)
 VALUES (
   '25ca71a0-3880-4338-99b3-e157f2b88b3b',
   '8f429cdb-20c6-49ab-8a3a-75b4a4cd257b',
   'FC',
-  true,
-  'manual_seed'
+  true
 )
-ON CONFLICT (challenge_id, user_id, role_code) DO UPDATE SET is_active = true;
+ON CONFLICT (user_id, challenge_id, role_code)
+DO UPDATE SET
+  is_active = true,
+  revoked_at = null;
 ```
 
-After this, Frank's queue has exactly one card under "Upcoming (in curation)" (challenge is at Phase 2), with a `View challenge context` button → opens `/cogni/challenges/25ca71a0…/finance` in **preview mode** showing both tabs (Finance Review + Curated Challenge). Once the curator advances it to Phase 3, the deposit form + submit footer light up. (`nh-pp-fc@testsetup.dev` keeps its existing assignment — both users share the workspace, harmless for testing.)
+Do **not** use `assigned_via`.
 
-### 2. Replace `/cogni/escrow` with a redirect to `/cogni/fc-queue`
+### B. Remove test-data seeding from schema migration history
+Clean up the current SQL migration strategy so test-role assignment is not represented as a structural migration.
 
-`src/App.tsx` — change the route:
+### C. Refactor FC queue to follow Lovable architecture
+Split `FcChallengeQueuePage.tsx` into:
+- page = layout/composition only
+- query hook = data fetching
+- service/util = queue filtering and mapping
 
-```tsx
-// Before
-<Route path="/cogni/escrow" element={<LazyRoute><EscrowManagementPage /></LazyRoute>} />
-// After
-<Route path="/cogni/escrow" element={<Navigate to="/cogni/fc-queue" replace />} />
-```
+Specifically:
+- move Supabase calls out of the page
+- remove `as any`
+- move governance filtering (`QUICK` / `STRUCTURED`) out of the page
+- keep page under the file-size and responsibility rules
 
-Drop the `EscrowManagementPage` lazy import. Delete the file `src/pages/cogniblend/EscrowManagementPage.tsx` (its sole responsibility is duplicated by `FcChallengeQueuePage` + workspace). One source of truth for the FC entry point — same pattern LC uses (`/cogni/lc-queue`).
+### D. Add complete error-state UX
+For FC queue:
+- loading skeleton
+- empty state
+- error card with retry button
+- success state
 
-### 3. Make the empty-queue message diagnostic, not generic
+### E. Re-verify finance workspace reachability end-to-end
+After the FC row exists:
+1. sidebar shows **Finance Workspace**
+2. `/cogni/fc-queue` shows the assigned challenge
+3. “View challenge context” opens `/cogni/challenges/:id/finance`
+4. two tabs render:
+   - Finance Review
+   - Curated Challenge
+5. preview mode works before Phase 3
+6. deposit form appears at Phase 3 only
 
-`src/pages/cogniblend/FcChallengeQueuePage.tsx` — when `queue.length === 0` AND there's no search filter, render:
+## Final verdict
 
-> **No FC assignments yet.**
-> You haven't been assigned as Finance Coordinator on any CONTROLLED challenges. New CONTROLLED challenges will appear here once a Curator advances them out of Phase 1 and routes you in.
-> [View Dashboard]
+## Alignment verdict
+- **Root cause:** Yes, mostly correct
+- **“Route not fixed”:** No, that part is already fixed
+- **“Migration never created”:** No longer accurate; a seed SQL file exists
+- **Architecture alignment:** Not fully aligned yet
 
-When the user is a current FC on something but everything is filtered out (e.g., all challenges complete), keep the existing "match your search" branch.
+## Remaining real gaps
+1. FC assignment must exist in the live DB, not just in repo history
+2. data seed should be handled as data, not migration
+3. remove `assigned_via` from the proposed SQL
+4. refactor `FcChallengeQueuePage` to hook/service architecture
+5. add proper error-state UX
 
-This stops the false "screen is broken" impression a future FC would get on a clean account.
-
-### 4. Fix the QUICK/STRUCTURED filter wording in the queue
-
-The queue currently silently drops STRUCTURED + QUICK challenges (correct: FC isn't required there). Add a one-line note under the page subtitle so the FC understands the scope:
-
-> "Finance review applies to **CONTROLLED** governance challenges only."
-
-No logic change — comment-only clarity.
-
-## Files
-
-| File | Action | ~lines |
-|---|---|---|
-| Supabase migration (`assign_fc_to_frank.sql`) | CREATE — idempotent INSERT into `user_challenge_roles` | 7 |
-| `src/App.tsx` | MODIFY — `/cogni/escrow` → `<Navigate>` redirect; drop lazy import | -3 / +2 |
-| `src/pages/cogniblend/EscrowManagementPage.tsx` | DELETE | -200 |
-| `src/pages/cogniblend/FcChallengeQueuePage.tsx` | MODIFY — diagnostic empty-state + scope note | ~20 |
-
-All files ≤ 250 lines. Zero changes to: `complete_financial_review` RPC, `EscrowDepositForm`, `escrow_records` schema or RLS, `escrow-proofs` bucket, LC workspace, AI passes, QUICK mode, Curator flows, sidebar, role context, permissions.
-
-## What you'll see after the change
-
-1. Log in as `nh-fc@testsetup.dev` → Sidebar now shows **Finance Workspace** under CHALLENGES (because Frank now holds an active FC role).
-2. Click **Finance Workspace** → `/cogni/fc-queue` → "Upcoming (in curation)" section lists the test challenge with **View challenge context** button.
-3. Click the button → `/cogni/challenges/25ca71a0…/finance` → header + step indicator + **two tabs: "Finance Review" and "Curated Challenge"** render. Preview banner: "Finance review unlocks at Phase 3."
-4. **Finance Review** tab shows Legal Agreement viewer (or "Legal documents being reviewed" placeholder if LC hasn't approved yet) + Recommended Escrow card. No deposit form (preview).
-5. **Curated Challenge** tab shows the full 33-section read-only spec via `FcChallengeDetailView`.
-6. Visiting old URL `/cogni/escrow` → instantly redirects to `/cogni/fc-queue` (no more dead-end "No challenges" page).
-7. As Curator, advance challenge to Phase 3 → reload as FC → preview banner gone, deposit form + submit footer appear, full happy path works (unchanged behaviour).
-8. `npx tsc --noEmit` passes.
-
-## Verification
-
-- DB: `SELECT * FROM user_challenge_roles WHERE user_id = '8f429cdb-…' AND role_code = 'FC';` returns 1 active row.
-- Sidebar: pure-FC users still don't see SOLVER items (unchanged).
-- LC user (`nh-lc@…`): sidebar and routes unchanged.
-- `/cogni/escrow` returns HTTP 302 → `/cogni/fc-queue` (client-side redirect via `<Navigate>`).
-- No file >250 lines; no `console.*`; no `any` introduced.
-
-## Out of scope
-
-- Auto-assigning the FC role at challenge creation (separate spec — `assignment_pipeline_authority`).
-- Allowing FC to act before Phase 3 (production gate preserved).
-- Changing the deposit form, RPC, fees, or proof upload.
-- Touching the LC workspace, AI passes, or Curator flows.
-
+## Recommended next implementation scope
+One cleanup pass should do all of this together:
+- correct the FC data assignment in DB
+- remove/replace the improper seed migration approach
+- refactor FC queue data access into hook/service
+- add full error state
+- re-verify sidebar → queue → two-tab workspace flow
