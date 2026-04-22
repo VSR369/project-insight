@@ -85,7 +85,9 @@ export default function FcFinanceWorkspacePage() {
     [challenge?.governance_mode_override, challenge?.governance_profile],
   );
 
-  const currentStep: 1 | 2 | 3 = fcDone ? 3 : isFunded ? 3 : 2;
+  const phaseGateOpen = (challenge?.current_phase ?? 0) >= 3;
+  const isPreview = !phaseGateOpen;
+  const currentStep: 1 | 2 | 3 = isPreview ? 1 : fcDone ? 3 : isFunded ? 3 : 2;
   const hasAccess = roles?.includes('FC') ?? false;
 
   /* ── 7. Conditional returns (after all hooks) ───────────── */
@@ -138,28 +140,6 @@ export default function FcFinanceWorkspacePage() {
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
               Finance Coordinator review is only required for Controlled or Enterprise
               governance modes.
-            </p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/fc-queue')}>
-              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to FC Queue
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if ((challenge?.current_phase ?? 0) < 3) {
-    return (
-      <div className="p-6 max-w-5xl mx-auto">
-        <Card>
-          <CardContent className="py-10 text-center">
-            <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-lg font-semibold text-foreground">
-              Challenge not ready for finance review
-            </p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Currently at Phase {challenge?.current_phase ?? '?'}. Finance review applies once
-              the challenge reaches Phase 3.
             </p>
             <Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/fc-queue')}>
               <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to FC Queue
