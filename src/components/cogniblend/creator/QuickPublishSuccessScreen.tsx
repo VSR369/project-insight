@@ -18,6 +18,7 @@ const LEGAL_DOCS_APPLIED = [
   'Platform Membership Agreement',
   'Confidentiality Agreement',
   'Professional Services Agreement',
+  'Challenge Participation Agreement',
 ];
 
 export function QuickPublishSuccessScreen({
@@ -32,10 +33,10 @@ export function QuickPublishSuccessScreen({
     <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 px-4 max-w-lg mx-auto">
       {/* Success header */}
       <div className="text-center space-y-2">
-        <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
-        <h1 className="text-2xl font-bold text-emerald-700">Challenge Published & Live</h1>
+        <CheckCircle2 className="h-14 w-14 text-primary mx-auto" />
+        <h1 className="text-2xl font-bold text-foreground">Challenge Published & Live</h1>
         <p className="text-base text-foreground font-medium">{challengeTitle}</p>
-        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300">
+        <Badge variant="outline" className="border-border bg-muted text-foreground">
           {isMarketplace ? 'Marketplace' : 'Aggregator'}
         </Badge>
       </div>
@@ -46,9 +47,9 @@ export function QuickPublishSuccessScreen({
         <ul className="space-y-1">
           {LEGAL_DOCS_APPLIED.map((doc) => (
             <li key={doc} className="flex items-center gap-2 text-xs text-foreground">
-              <FileCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <FileCheck className="h-3.5 w-3.5 text-primary shrink-0" />
               <span>{doc}</span>
-              <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 text-emerald-700 border-emerald-300 bg-emerald-50">
+              <Badge variant="outline" className="ml-auto text-[9px] px-1.5 py-0 border-border bg-muted text-foreground">
                 Auto-accepted
               </Badge>
             </li>

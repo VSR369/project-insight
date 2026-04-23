@@ -1535,6 +1535,7 @@ export type Database = {
           lc_reviewed_by: string | null
           lc_status: string | null
           maturity_level: string | null
+          override_strategy: string | null
           pass3_run_count: number
           priority: string | null
           rationale: string | null
@@ -1543,6 +1544,7 @@ export type Database = {
           reviewer_notes: string | null
           source_origin: string | null
           status: string | null
+          target_template_code: string | null
           template_version: string | null
           tier: string
           updated_at: string | null
@@ -1574,6 +1576,7 @@ export type Database = {
           lc_reviewed_by?: string | null
           lc_status?: string | null
           maturity_level?: string | null
+          override_strategy?: string | null
           pass3_run_count?: number
           priority?: string | null
           rationale?: string | null
@@ -1582,6 +1585,7 @@ export type Database = {
           reviewer_notes?: string | null
           source_origin?: string | null
           status?: string | null
+          target_template_code?: string | null
           template_version?: string | null
           tier: string
           updated_at?: string | null
@@ -1613,6 +1617,7 @@ export type Database = {
           lc_reviewed_by?: string | null
           lc_status?: string | null
           maturity_level?: string | null
+          override_strategy?: string | null
           pass3_run_count?: number
           priority?: string | null
           rationale?: string | null
@@ -1621,6 +1626,7 @@ export type Database = {
           reviewer_notes?: string | null
           source_origin?: string | null
           status?: string | null
+          target_template_code?: string | null
           template_version?: string | null
           tier?: string
           updated_at?: string | null

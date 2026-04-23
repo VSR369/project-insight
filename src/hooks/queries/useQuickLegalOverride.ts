@@ -27,6 +27,7 @@ interface QueryChain<T> {
   eq(column: string, value: string): QueryChain<T>;
   order(column: string, options: { ascending: boolean }): QueryChain<T>;
   limit(count: number): QueryChain<T>;
+  single(): Promise<MaybeSingleResult<T>>;
   maybeSingle(): Promise<MaybeSingleResult<T>>;
 }
 
@@ -116,8 +117,8 @@ export function useUploadQuickLegalOverride() {
         .eq('override_strategy', OVERRIDE_STRATEGY)
         .eq('target_template_code', TARGET_TEMPLATE_CODE)
         .order('created_at', { ascending: false })
-        .limit(100)
-        .maybeSingle();
+        .limit(1)
+        .single();
 
       const existingRows = existing ? [existing as { id: string; lc_review_notes: string | null }] : [];
 

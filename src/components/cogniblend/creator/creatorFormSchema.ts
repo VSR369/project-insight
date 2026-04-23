@@ -108,6 +108,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     evaluation_method: evaluationMethodRule,
     evaluator_count: evaluatorCountRule,
     creator_legal_instructions: z.string().max(2000).optional().default(''),
+    quick_legal_override_mode: z.enum(['KEEP_DEFAULT', 'REPLACE_DEFAULT']).default('KEEP_DEFAULT'),
     phase_durations: z.array(z.object({
       phase_number: z.number(),
       label: z.string(),
@@ -159,6 +160,7 @@ export type CreatorFormValues = {
   evaluation_method: 'SINGLE' | 'DELPHI';
   evaluator_count: number;
   creator_legal_instructions: string;
+  quick_legal_override_mode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT';
   phase_durations: Array<{
     phase_number: number;
     label: string;

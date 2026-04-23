@@ -28,6 +28,7 @@ interface LegalDocRow {
   tier: string;
   status: string | null;
   lc_status: string | null;
+  override_strategy?: string | null;
 }
 
 export function ChallengeLegalDocsCard({
@@ -38,7 +39,7 @@ export function ChallengeLegalDocsCard({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenge_legal_docs')
-        .select('id, document_type, document_name, tier, status, lc_status')
+        .select('id, document_type, document_name, tier, status, lc_status, override_strategy')
         .eq('challenge_id', challengeId)
         .order('tier', { ascending: true });
       if (error) {
@@ -133,7 +134,10 @@ export function ChallengeLegalDocsCard({
             <div key={doc.id} className="flex items-center justify-between rounded-lg bg-muted/30 border border-border px-3 py-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{doc.document_name ?? doc.document_type}</p>
-                <p className="text-[11px] text-muted-foreground">{doc.document_type} · {doc.tier.replace('_', ' ')}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {doc.document_type} · {doc.tier.replace('_', ' ')}
+                  {doc.override_strategy === 'REPLACE_DEFAULT' ? ' · Challenge override' : ''}
+                </p>
               </div>
               {doc.status === 'auto_accepted' ? (
                 <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">

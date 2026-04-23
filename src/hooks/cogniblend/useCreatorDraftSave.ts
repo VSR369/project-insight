@@ -39,16 +39,16 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
     }
   }, [onDraftIdChange]);
 
-  const handleSaveDraft = useCallback(async () => {
+  const handleSaveDraft = useCallback(async (): Promise<string | null> => {
     if (isSaving) return;
     if (!form) {
       toast.error('Form is not ready yet. Please wait a moment and try again.');
-      return;
+      return null;
     }
     const data = form.getValues();
     if (!orgId || !userId) {
       toast.error('Organization or user context not loaded. Please wait and try again.');
-      return;
+      return null;
     }
     const loadingId = toast.loading('Saving draft…');
     try {
@@ -83,16 +83,19 @@ export function useCreatorDraftSave(config: Omit<DraftSaveConfig, 'form'> & { fo
         await updateDraftMutation.mutateAsync({ ...base, challengeId: draftChallengeId });
         toast.dismiss(loadingId);
         toast.success('Draft updated successfully');
+        return draftChallengeId;
       } else {
         const result = await draftMutation.mutateAsync(base);
         setDraftChallengeId(result.challengeId);
         onDraftIdChange?.(result.challengeId);
         toast.dismiss(loadingId);
         toast.success('Draft saved successfully');
+        return result.challengeId;
       }
     } catch {
       toast.dismiss(loadingId);
       /* handled by mutation onError */
+      return null;
     }
   }, [isSaving, form, orgId, userId, engagementModel, governanceMode, industrySegmentId, referenceUrls, draftChallengeId, updateDraftMutation, draftMutation, onDraftIdChange]);
 
