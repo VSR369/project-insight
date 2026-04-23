@@ -3,15 +3,21 @@ import type {
   EscrowFundingRole,
   EscrowInstallmentRecord,
 } from './escrowInstallmentTypes';
-import { canCompleteEscrowPath, canFundInstallment } from './escrowInstallmentValidationService';
+import {
+  canCompleteEscrowPath,
+  canEditFundedInstallmentBeforeFinalSubmit,
+  canSelectInstallment,
+} from './escrowInstallmentValidationService';
 
 export interface EscrowInstallmentAccessState {
   canSeed: boolean;
-  canFund: boolean;
+  canSubmitChanges: boolean;
   canSubmitPath: boolean;
-  actionableInstallments: EscrowInstallmentRecord[];
+  selectableInstallments: EscrowInstallmentRecord[];
+  editableInstallments: EscrowInstallmentRecord[];
   pendingInstallments: EscrowInstallmentRecord[];
   fundedInstallments: EscrowInstallmentRecord[];
+  isFinalReadOnly: boolean;
 }
 
 export function deriveEscrowInstallmentAccessState(args: {
@@ -20,20 +26,29 @@ export function deriveEscrowInstallmentAccessState(args: {
   isReadOnly: boolean;
 }): EscrowInstallmentAccessState {
   const installments = args.context?.installments ?? [];
+  const isFinalReadOnly = args.isReadOnly;
   const pendingInstallments = installments.filter((installment) => installment.status === 'PENDING');
   const fundedInstallments = installments.filter((installment) => installment.status === 'FUNDED');
-  const actionableInstallments = pendingInstallments.filter((installment) => canFundInstallment({
+  const selectableInstallments = installments.filter((installment) => canSelectInstallment({
     governanceMode: args.context?.governanceMode ?? null,
     fundingRole: args.fundingRole,
     installment,
   }));
+  const editableInstallments = selectableInstallments.filter((installment) => installment.status === 'PENDING' || canEditFundedInstallmentBeforeFinalSubmit({
+    governanceMode: args.context?.governanceMode ?? null,
+    fundingRole: args.fundingRole,
+    installment,
+    isFinalReadOnly,
+  }));
 
   return {
-    canSeed: !args.isReadOnly && !!args.context && args.context.installments.length === 0 && args.context.normalizedSchedule.length > 0,
-    canFund: !args.isReadOnly && actionableInstallments.length > 0,
+    canSeed: !isFinalReadOnly && !!args.context && args.context.installments.length === 0 && args.context.normalizedSchedule.length > 0,
+    canSubmitChanges: !isFinalReadOnly && editableInstallments.length > 0,
     canSubmitPath: canCompleteEscrowPath(args.context),
-    actionableInstallments,
+    selectableInstallments,
+    editableInstallments,
     pendingInstallments,
     fundedInstallments,
+    isFinalReadOnly,
   };
 }
