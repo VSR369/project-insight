@@ -1,95 +1,49 @@
 
-## Updated fix plan — FC finance submit failure + escrow detail visibility/editability, with Claude’s corrections folded in
+Implementation status review against the approved 9-phase FC escrow fix plan:
 
-## Decision
-Claude’s two corrections are appropriate and align with the current Lovable architecture:
+## Overall verdict
+The approved fix is implemented in code for the core problem areas. The only items I cannot fully certify from read-only inspection are runtime outcomes that require executing the app/DB flow.
 
-1. **Audit-method fix must be widened to all active audit-writing RPCs**, not just `complete_financial_review`.
-2. **Proof replacement must explicitly delete the old storage object first**, following the existing legal-flow deletion pattern.
+## Confirmed implemented
 
-Both corrections should be added to the existing 9-phase fix plan.
+### Phase 1 — Audit-trail RPC hardening
+Confirmed in:
+- `supabase/migrations/20260423135648_2ffbde82-bfab-4b47-bba4-d8d11c3c6904.sql`
 
-## What the current code confirms
-- `useFcFinanceSubmit.ts` is correctly calling `supabase.rpc('complete_financial_review', ...)`; the submit-button failure is not a button-wiring bug.
-- The latest installment migration still writes `method = 'rpc'` inside escrow/compliance RPCs, including:
-  - `complete_financial_review`
-  - `complete_curator_compliance`
-- The broader workflow also includes audit-writing RPCs that must be checked in the same pass:
-  - `complete_legal_review`
-  - `complete_phase`
-  - `request_creator_approval`
-- `useEscrowInstallmentFunding.ts` still:
-  - uploads replacement proof without deleting the old file
-  - blocks updates to funded rows with `.eq('status', 'PENDING')`
-- Current UI/access rules still treat funded rows as locked too early:
-  - `escrowInstallmentValidationService.ts`
-  - `escrowInstallmentAccessService.ts`
-  - `EscrowInstallmentTable.tsx`
-  - `EscrowInstallmentWorkspace.tsx`
-  - `fcFinanceWorkspaceViewService.ts`
+Verified functions now write valid audit methods:
+- `complete_curator_compliance` → `HUMAN`
+- `complete_legal_review` → `HUMAN`
+- `complete_financial_review` → `HUMAN`
+- `request_creator_approval` → `HUMAN`
+- `complete_phase` → `HUMAN` / `SYSTEM`
 
-## Final revised fix plan
+I also searched the new migration for `'rpc'/'RPC'` and found no remaining occurrences.
 
-### Phase 1 — Audit-trail RPC hardening in one migration
-Create a single migration that scans and fixes **all currently active functions that insert into `audit_trail`**.
-
-#### Required rule
-Replace every active occurrence of:
-- `method = 'rpc'`
-- `method = 'RPC'`
-
-with:
-- `method = 'HUMAN'`
-
-#### Minimum functions to verify/fix explicitly
-- `complete_financial_review`
-- `complete_curator_compliance`
-- `complete_legal_review`
-- `complete_phase`
-- `request_creator_approval`
-
-#### Notes
-- `sync_escrow_record_from_installments` does not need this change if it does not write to `audit_trail`.
-- Do not widen trigger/constraint rules on `audit_trail`; fix callers instead.
-- This is the correct Lovable architecture approach because it preserves append-only audit governance and avoids introducing system-wide method drift.
-
-### Phase 2 — Keep “FUNDED” for aggregate math, but move edit-locking to final compliance state
-Preserve current aggregate semantics:
-- `PENDING` = not yet captured
-- `FUNDED` = captured and counted toward aggregate funded state
-
-Change editability semantics:
-- funded installments remain editable **until** final review is submitted
-- final immutability begins only when the path is complete:
-  - FC path: `fc_compliance_complete = true`
-  - Curator STRUCTURED path: equivalent final completion state from the challenge context / workspace read-only flag
-
-This avoids schema redesign and keeps rollups/RPC logic intact.
-
-### Phase 3 — Refactor service-layer validation/access rules
-Update:
+### Phase 2 — FUNDED kept for aggregate, locking moved to final compliance
+Confirmed in:
 - `src/services/cogniblend/escrowInstallments/escrowInstallmentValidationService.ts`
 - `src/services/cogniblend/escrowInstallments/escrowInstallmentAccessService.ts`
 
-#### Validation changes
-Add pure helpers such as:
-- `isInstallmentLockedForEditing`
-- `canEditFundedInstallmentBeforeFinalSubmit`
-- `canSelectInstallment`
-- `canSubmitEscrowPath`
+Implemented behavior:
+- `FUNDED` rows remain selectable
+- funded rows can remain editable before final submit
+- final lock is driven by `isFinalReadOnly`, not by funded status alone
 
-#### Rules to enforce
-- governance ownership remains unchanged:
+### Phase 3 — Validation/access refactor
+Confirmed in:
+- `escrowInstallmentValidationService.ts`
+- `escrowInstallmentAccessService.ts`
+
+Verified helpers/rules:
+- `canSelectInstallment`
+- `canEditFundedInstallmentBeforeFinalSubmit`
+- `isInstallmentLockedForEditing`
+- `canCompleteEscrowPath`
+- role mapping remains:
   - STRUCTURED → `CU`
   - CONTROLLED → `FC`
-- funded rows are **not** automatically immutable
-- funded rows are editable only while the challenge path remains open
-- proof is required for first confirmation
-- deposit amount must still match selected installment exactly
-- existing proof may satisfy proof requirement when editing a funded row without replacing the file
 
-#### Access-state changes
-Replace the current “pending-only actionable” model with:
+Access state now includes:
 - `selectableInstallments`
 - `editableInstallments`
 - `pendingInstallments`
@@ -97,167 +51,98 @@ Replace the current “pending-only actionable” model with:
 - `canSubmitPath`
 - `isFinalReadOnly`
 
-### Phase 4 — Make the installment mutation support correction updates + explicit proof cleanup
-Update:
+### Phase 4 — Mutation supports corrections + proof cleanup
+Confirmed in:
 - `src/hooks/cogniblend/useEscrowInstallmentFunding.ts`
 
-#### Correction from Claude — mandatory
-Implement a **delete-before-replace** storage pattern matching the legal workflow (`useDeleteSourceDoc`):
+Verified:
+- old proof is deleted before replacement:
+  - `supabase.storage.from('escrow-proofs').remove([oldPath])`
+- replacement upload then updates:
+  - `proof_document_url`
+  - `proof_file_name`
+  - `proof_uploaded_at`
+- `.eq('status', 'PENDING')` restriction is removed
+- updates target only `.eq('id', args.installment.id)`
 
-1. If a new proof file is being uploaded and the selected installment already has `proof_document_url`:
-   - call  
-     `supabase.storage.from('escrow-proofs').remove([oldProofPath])`
-2. Upload the new file
-3. Update the row with:
-   - `proof_document_url`
-   - `proof_file_name`
-   - `proof_uploaded_at`
+This means funded rows can be corrected pre-lock.
 
-#### Mutation behavior changes
-- remove the strict `.eq('status', 'PENDING')` gate
-- allow updates to the selected installment while the path is not finally locked
-- first confirm:
-  - set `status = 'FUNDED'`
-  - populate funding metadata
-- pre-submit correction:
-  - keep `status = 'FUNDED'`
-  - overwrite editable fields on the same row
-- after final compliance:
-  - reject edits in service validation before mutation executes
-
-#### Additional safeguard
-If storage delete fails, treat it as a mutation error instead of silently orphaning files.
-
-### Phase 5 — Add explicit detail visibility for entered bank/deposit/proof data
-Create:
+### Phase 5 — Installment detail visibility
+Confirmed created:
 - `src/components/cogniblend/escrow/EscrowInstallmentDetailsCard.tsx`
 
-Update:
-- `EscrowInstallmentWorkspace.tsx`
-- keep `EscrowFundingForm.tsx` focused on edit input only
+Confirmed wired in:
+- `src/components/cogniblend/escrow/EscrowInstallmentWorkspace.tsx`
 
-#### Detail card contents
-For the selected installment, show:
-- installment number / label / trigger / amount
-- bank name
-- branch
-- bank address
-- masked account number
-- IFSC/SWIFT
-- deposit date
-- deposit reference
-- proof file name
+Visible detail fields include:
+- label / trigger / amount
+- bank name / branch / address
+- masked account
+- IFSC / SWIFT
+- deposit date / reference
+- proof file
 - notes
-- funded by role
-- funded at timestamp
+- funded by / funded at
 
-#### State rules
-- pending row selected:
-  - show editable form
-- funded row selected and path still open:
-  - show details + editable form
-- funded row selected and path finally complete:
-  - show read-only details only
-
-### Phase 6 — Fix table selection and action labels
-Update:
+### Phase 6 — Table selection + action labels
+Confirmed in:
 - `src/components/cogniblend/escrow/EscrowInstallmentTable.tsx`
 
-#### New behavior
-Rows should remain selectable beyond `PENDING`.
+Verified labels:
+- pending → `Enter details`
+- funded editable → `View / Edit`
+- funded locked → `View`
 
-#### Labels
-- pending + editable → `Enter details`
-- funded + editable → `View / Edit`
-- funded + final-locked → `View`
+Rows remain selectable beyond `PENDING`.
 
-#### Interaction rules
-- remove the current “funded = Locked” behavior
-- selection should work for funded rows so users can review entered details
-- editing enablement must come from service-layer access state, not inline table heuristics
-
-### Phase 7 — Align FC workspace lock semantics with final submit, not aggregate funded
-Update:
+### Phase 7 — FC workspace no longer locks on aggregate funded
+Confirmed in:
 - `src/services/cogniblend/fcFinanceWorkspaceViewService.ts`
 - `src/components/cogniblend/fc/FcEscrowReviewTab.tsx`
 - `src/components/cogniblend/escrow/EscrowInstallmentWorkspace.tsx`
 
-#### Required change
-Do not treat aggregate funded state as read-only.
+Verified:
+- editability is based on `fcComplianceComplete` / `fcDone`
+- funded aggregate enables submit but does not itself lock the form
+- workspace passes `isReadOnly={fcDone}`
 
-#### New state model
-- aggregate funded:
-  - enables `Submit Financial Review`
-  - does **not** lock edits
-- final financial review submitted:
-  - locks edits
-- workspace should pass explicit final-read-only state into the shared escrow UI
+### Phase 8 — Duplicate prevention preserved
+Confirmed by current mutation pattern:
+- updates existing installment by row id
+- does not insert duplicate funded rows
+- corrections are updates to the same installment
 
-### Phase 8 — Preserve duplicate prevention while allowing corrections
-No new rows should be created for a funded installment.
+### Phase 9 — Verification checklist coverage in code
+Code supports these outcomes:
+- submit path gated by aggregate funded state
+- funded installments can be corrected before final submit
+- final lock occurs after FC completion
+- storage replacement cleanup exists
+- legacy fallback logic still exists in the workspace via `isLegacyEscrowOnly`
 
-#### Rule
-- one row per `(challenge_id, installment_number)` remains the authoritative model
-- corrections are always `UPDATE`s to the same installment row
-- no duplicate “recapture” flow
+## Confirmed but worth noting
 
-This preserves the existing uniqueness model and avoids breaking aggregate calculations.
+### `useFcFinanceSubmit.ts`
+This file was not materially changed, but that is acceptable.
+Reason:
+- it was already correctly calling `supabase.rpc('complete_financial_review', ...)`
+- the actual bug was in the RPC audit method, which was fixed in the migration
 
-### Phase 9 — Verification / regression checklist
-Verify all of the following after implementation:
+### `EscrowFundingForm.tsx`
+This file remains focused on edit input, which matches the approved plan.
+The details display responsibility now sits in `EscrowInstallmentDetailsCard.tsx`.
 
-#### A. Audit/RPC coverage
-- `complete_financial_review` succeeds without `Invalid method: rpc`
-- `complete_curator_compliance` still succeeds
-- `complete_legal_review` still succeeds
-- `request_creator_approval` still succeeds
-- `complete_phase` continues to work where it writes audit rows
+## What I cannot fully certify in read-only mode
+These require runtime or DB execution, so I can only say the code appears correct:
 
-#### B. FC installment UX
-- selecting a pending installment shows editable funding form
-- confirming a pending installment marks it funded
-- selecting a funded installment shows entered details
-- funded installment can be corrected before final submit
-- replacing proof deletes the old storage object before uploading the new one
-- no orphan proof files accumulate from replacement flow
+1. `complete_financial_review` now succeeds end-to-end in the live DB
+2. `complete_curator_compliance`, `complete_legal_review`, `request_creator_approval`, and `complete_phase` all execute successfully after the migration
+3. old proof files are actually removed in storage under real user flows
+4. no regression exists in downstream screens beyond the files inspected
 
-#### C. Final lock behavior
-- once `fc_compliance_complete = true`, funded installment edits are blocked
-- `Submit Financial Review` remains disabled until aggregate installment status is fully funded
-- funded aggregate alone does not lock the form
+## Final confirmation
+Yes — the approved fix plan appears implemented in code for the items you listed, including Claude’s two corrections:
+1. audit-method hardening was widened across the relevant workflow RPCs
+2. proof replacement now explicitly deletes the old file before upload
 
-#### D. Legacy and governance safety
-- legacy `escrow_records` fallback still renders safely
-- STRUCTURED remains Curator-owned
-- CONTROLLED remains FC-owned
-- no component performs direct Supabase storage/DB work outside hooks
-
-## Files to update
-```text
-supabase/migrations/<new_migration>.sql
-
-src/hooks/cogniblend/useFcFinanceSubmit.ts
-src/hooks/cogniblend/useEscrowInstallmentFunding.ts
-
-src/services/cogniblend/escrowInstallments/escrowInstallmentValidationService.ts
-src/services/cogniblend/escrowInstallments/escrowInstallmentAccessService.ts
-src/services/cogniblend/fcFinanceWorkspaceViewService.ts
-
-src/components/cogniblend/escrow/EscrowInstallmentWorkspace.tsx
-src/components/cogniblend/escrow/EscrowInstallmentTable.tsx
-src/components/cogniblend/escrow/EscrowFundingForm.tsx
-src/components/cogniblend/fc/FcEscrowReviewTab.tsx
-```
-
-## File to create
-```text
-src/components/cogniblend/escrow/EscrowInstallmentDetailsCard.tsx
-```
-
-## Final execution directive
-Proceed with the existing 9-phase fix plan, but lock in these two required corrections:
-
-1. **Migration must scan/fix every active `audit_trail` insert using `rpc/RPC` across relevant workflow RPCs, not just `complete_financial_review`.**
-2. **`useEscrowInstallmentFunding.ts` must implement explicit delete-before-replace cleanup for proof files in `escrow-proofs`, matching the legal workflow deletion pattern.**
-
-With those additions, the plan is aligned to Lovable architecture, preserves the current installment model, avoids storage leaks, and fixes the FC workflow without tampering with existing lifecycle or governance behavior.
+The remaining uncertainty is only runtime verification, not missing implementation.
