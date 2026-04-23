@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 import { useOrgCpaTemplates } from '@/hooks/queries/useOrgCpaTemplates';
 import { usePlatformSpaTemplate } from '@/hooks/queries/usePlatformSpaTemplate';
@@ -299,6 +299,9 @@ export function CreatorLegalPreview({
           <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>{viewingDoc.name}</DialogTitle>
+              <DialogDescription>
+                Review the effective document content that Solution Providers will see for this agreement.
+              </DialogDescription>
             </DialogHeader>
             <p className="text-xs text-muted-foreground px-1">Variables like {'{{challenge_title}}'}, {'{{ip_clause}}'}, {'{{prize_amount}}'} are auto-filled from your challenge configuration.</p>
             <div className="flex-1 min-h-0 overflow-y-auto">
