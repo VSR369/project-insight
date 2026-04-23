@@ -57,7 +57,7 @@ export function FcEscrowReviewTab({ challengeId, userId, governanceMode, current
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Escrow schedule</AlertTitle>
           <AlertDescription>
-            Select a pending installment to confirm funding. Funding is captured per installment and linked to bank and proof details.
+            Select an installment to review its captured funding details. Funded installments remain editable until Financial Review is submitted.
           </AlertDescription>
         </Alert>
       ) : null}

@@ -7,9 +7,11 @@ export interface EscrowInstallmentTableProps {
   selectedInstallmentId: string | null;
   onSelect: (installment: EscrowInstallmentRecord) => void;
   canSelect: boolean;
+  editableInstallmentIds: string[];
+  isFinalReadOnly: boolean;
 }
 
-export function EscrowInstallmentTable({ installments, selectedInstallmentId, onSelect, canSelect }: EscrowInstallmentTableProps) {
+export function EscrowInstallmentTable({ installments, selectedInstallmentId, onSelect, canSelect, editableInstallmentIds, isFinalReadOnly }: EscrowInstallmentTableProps) {
   return (
     <div className="relative w-full overflow-auto rounded-md border border-border">
       <table className="w-full min-w-[760px] text-sm">
@@ -29,6 +31,8 @@ export function EscrowInstallmentTable({ installments, selectedInstallmentId, on
           {installments.map((installment) => {
             const isSelected = installment.id === selectedInstallmentId;
             const isPending = installment.status === 'PENDING';
+            const isEditable = editableInstallmentIds.includes(installment.id);
+            const actionLabel = isPending ? 'Enter details' : isEditable ? 'View / Edit' : 'View';
             return (
               <tr key={installment.id} className={isSelected ? 'bg-muted/40' : 'border-t'}>
                 <td className="px-3 py-3">{installment.installment_number}</td>
@@ -45,10 +49,10 @@ export function EscrowInstallmentTable({ installments, selectedInstallmentId, on
                     type="button"
                     size="sm"
                     variant={isSelected ? 'default' : 'outline'}
-                    disabled={!canSelect || !isPending}
+                    disabled={!canSelect}
                     onClick={() => onSelect(installment)}
                   >
-                    {isPending ? (isSelected ? 'Selected' : 'Fund') : 'Locked'}
+                    {isSelected ? 'Selected' : isFinalReadOnly && !isPending ? 'View' : actionLabel}
                   </Button>
                 </td>
               </tr>
