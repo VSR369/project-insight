@@ -51,7 +51,6 @@ const INSTRUCTIONS_PLACEHOLDERS: Record<string, string> = {
   CONTROLLED: 'e.g., Export control restrictions apply — ITAR compliance required. The client\'s legal team requires mandatory arbitration in Singapore jurisdiction...',
 };
 
-export function CreatorLegalPreview({ governanceMode, organizationId }: CreatorLegalPreviewProps) {
 export function CreatorLegalPreview({
   governanceMode,
   organizationId,
@@ -125,7 +124,7 @@ export function CreatorLegalPreview({
               }}
               className="grid gap-2"
             >
-              <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
+              <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-muted/50">
                 <RadioGroupItem value="KEEP_DEFAULT" id="quick-legal-keep" className="mt-0.5" />
                 <div>
                   <Label htmlFor="quick-legal-keep" className="text-sm font-medium cursor-pointer">Keep default document</Label>
@@ -133,7 +132,7 @@ export function CreatorLegalPreview({
                 </div>
               </label>
 
-              <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
+              <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-muted/50">
                 <RadioGroupItem value="REPLACE_DEFAULT" id="quick-legal-replace" className="mt-0.5" />
                 <div>
                   <Label htmlFor="quick-legal-replace" className="text-sm font-medium cursor-pointer">Replace default for this challenge</Label>
@@ -221,7 +220,7 @@ export function CreatorLegalPreview({
           </p>
           {cpaTemplate ? (
             effectiveQuickContent ? (
-              <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: cpaTemplate.document_name, content: cpaTemplate.template_content ?? '' })}>
+              <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: effectiveQuickName, content: effectiveQuickContent ?? '' })}>
                 <Eye className="h-3 w-3" />View Template
               </Button>
             ) : null
@@ -232,7 +231,7 @@ export function CreatorLegalPreview({
               </Button>
             )
           ) : (
-            <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-2 flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
+            <div className="rounded-md border border-border bg-muted/40 p-2 flex items-start gap-2 text-xs text-muted-foreground">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                <span>No CPA template found for {governanceMode} governance. Org Admin must create one in Organization Settings → Legal Templates.</span>
             </div>
