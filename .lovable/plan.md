@@ -1,178 +1,109 @@
 
-## Fix plan — preserve existing installment data during edit, including document continuity and editable bank/account fields
+## Status review — not fully fixed yet
 
-## Problem to fix
-When FC clicks `Edit funding details` on a funded installment, previously entered values appear lost:
+## Overall verdict
+Most of the approved fix is implemented in code, but I cannot confirm that **all** problems are fully fixed in every real case.
 
-- bank/account fields do not fully repopulate
-- the uploaded proof looks missing because the upload zone resets to empty
-- FC cannot confidently modify an existing funded installment and replace the proof document
+The main remaining gap is:
 
-Two distinct causes are visible from the current implementation:
+- **historical already-funded installments created before the new migration will still not repopulate the raw account number**
+  - the migration only adds `account_number_raw`
+  - it does **not** backfill old funded rows
+  - `EscrowFundingForm` now reads `installment.account_number_raw`
+  - if that column is null for older rows, the account-number field will still appear blank in edit mode
 
-1. `EscrowFundingForm` resets from installment data, but `accountNumber` is always set to `''` because only `account_number_masked` is stored on the installment row.
-2. The proof uploader only supports a new local `File`; it does not render the already-uploaded proof as an existing attachment with keep/replace semantics.
+So the fix is complete for **newly saved / resaved installments after this change**, but not fully complete for **existing pre-migration funded data**.
 
-## Decision
-A UI-only patch is not enough if FC must truly be able to modify all previously entered data. The current schema only preserves the masked account number, so the original full account number cannot be restored into edit mode.
+## Confirmed implemented
 
-The correct Lovable-aligned fix is:
+### 1) Persisted editable account number
+Confirmed:
+- migration adds `account_number_raw` to:
+  - `public.escrow_installments`
+  - `public.escrow_records`
+- `EscrowInstallmentRecord` now includes `account_number_raw`
+- query hooks now select `account_number_raw`:
+  - `useEscrowFundingContext.ts`
+  - `useEscrowInstallments.ts`
+  - `usePreviewData.ts`
 
-- add an explicit persisted editable account-number field in the data model
-- keep the existing masked field for display
-- update the form/workspace so funded edits load existing values
-- show the existing uploaded proof as the current document until FC replaces it
+### 2) Funding mutation preserves and updates account fields
+Confirmed in `useEscrowInstallmentFunding.ts`:
+- trims submitted account number
+- saves `account_number_raw`
+- regenerates `account_number_masked` when a new number is entered
+- preserves prior raw/masked values if the field is left unchanged during edit
 
-## Implementation approach
+### 3) Funded edit form now preloads saved values
+Confirmed in `EscrowFundingForm.tsx`:
+- defaults now read:
+  - bank name
+  - branch
+  - address
+  - `account_number_raw`
+  - IFSC / SWIFT
+  - deposit date
+  - deposit reference
+  - notes
+- so for rows that actually have `account_number_raw`, the edit form will repopulate correctly
 
-### Phase 1 — Add persisted editable account-number support in the database
-Create a new additive migration for `escrow_installments` and legacy `escrow_records` so edit mode can restore previously entered bank/account data.
+### 4) Existing proof is shown and replacement is supported
+Confirmed in `EscrowFundingForm.tsx` + `EscrowInstallmentWorkspace.tsx`:
+- existing proof filename is shown when no replacement file is selected
+- UI states that the current proof will be kept unless replaced
+- “View current proof” is wired through `useSignedUrl`
+- if a new file is chosen, the UI explicitly says it will replace the current proof
+- “Keep current proof” clears the replacement selection
 
-Recommended schema addition:
-- `account_number_raw text null`
+### 5) Existing proof satisfies edit validation
+Confirmed in `escrowInstallmentValidationService.ts`:
+- proof is only required if there is neither:
+  - a new uploaded file
+  - nor an existing stored proof filename
 
-Rules:
-- keep existing `account_number_masked` for display surfaces
-- on save/update:
-  - persist `account_number_raw`
-  - derive and persist `account_number_masked`
-- do not remove or rename current masked fields
+### 6) Details view remains masked
+Confirmed in `EscrowInstallmentDetailsCard.tsx`:
+- read-only summary still shows `account_number_masked`
+- raw account number is not displayed there
 
-Why this is required:
-- without storing a restorable value, edit mode cannot repopulate the account-number input
-- the current behavior is not a UI bug alone; the raw value is not available anywhere
+### 7) Proof replacement cleanup remains in place
+Confirmed in `useEscrowInstallmentFunding.ts`:
+- existing storage object is deleted before a replacement upload
+- new file is then uploaded and stored on the same installment row
 
-### Phase 2 — Update the installment funding mutation to preserve and overwrite correctly
-Update `src/hooks/cogniblend/useEscrowInstallmentFunding.ts`.
+## Remaining issue
 
-Required behavior:
-- when user enters a new account number:
-  - save `account_number_raw`
-  - regenerate `account_number_masked`
-- when editing a funded installment and FC does not change the account number:
-  - preserve the existing stored raw value
-  - preserve the masked display value
-- keep current delete-before-replace proof behavior
-- keep update-on-same-row behavior for corrections
+### Historical funded rows are not backfilled
+The migration shown is only:
 
-This ensures FC can modify any subset of fields without unintentionally clearing data.
+```sql
+ALTER TABLE public.escrow_installments
+ADD COLUMN IF NOT EXISTS account_number_raw text;
 
-### Phase 3 — Prefill funded edit forms from persisted values
-Update `src/components/cogniblend/escrow/EscrowFundingForm.tsx`.
-
-Change `buildDefaults()` so funded edits restore all editable fields from the selected installment, including:
-- bank name
-- branch
-- bank address
-- account number from new `account_number_raw`
-- IFSC / SWIFT
-- deposit date
-- deposit reference
-- notes
-- deposit amount
-
-Behavior:
-- pending installment → same first-entry behavior as today
-- funded installment in edit mode → full previously entered values preloaded
-
-### Phase 4 — Model proof document as “existing file + optional replacement”
-Refine proof handling in `EscrowFundingForm.tsx` and `EscrowInstallmentWorkspace.tsx`.
-
-Current issue:
-- `proofFile` is only local replacement state
-- the uploader looks empty even when a proof already exists
-
-Required UX:
-- show the current proof as an existing attachment block:
-  - filename
-  - uploaded/already attached state
-  - optional open/download action if existing storage URL helper is available
-- keep the current document unless FC selects a replacement file
-- once a replacement file is picked, clearly show that it will replace the existing proof on save
-- allow canceling replacement before submit
-
-This preserves document continuity and makes replacement explicit instead of making the document seem lost.
-
-### Phase 5 — Extend types and context queries for the new editable field
-Update the escrow installment typing/query surface so the form can receive the persisted raw account number.
-
-Files to update:
-- `src/services/cogniblend/escrowInstallments/escrowInstallmentTypes.ts`
-- `src/hooks/cogniblend/useEscrowFundingContext.ts`
-- `src/hooks/cogniblend/useEscrowInstallments.ts`
-- any preview/read hook that selects installment escrow fields
-
-Additive field:
-- `account_number_raw: string | null`
-
-Do not change existing masked-field consumers that are meant for read-only summaries.
-
-### Phase 6 — Keep details card masked, not raw
-Update `src/components/cogniblend/escrow/EscrowInstallmentDetailsCard.tsx` only if needed to ensure:
-- details view continues to show `account_number_masked`
-- raw account number is never displayed in the summary card
-
-This preserves the current safe read-only presentation while still allowing editing.
-
-### Phase 7 — Validation and edit semantics
-Update `src/services/cogniblend/escrowInstallments/escrowInstallmentValidationService.ts` so edit-mode behavior is correct.
-
-Rules:
-- proof remains required for first confirmation
-- existing proof satisfies proof requirement during edit if no replacement file is selected
-- account number is valid if either:
-  - a new account number is entered, or
-  - an existing persisted raw/masked account value already exists for that installment
-- funded installments remain editable before final compliance lock
-
-### Phase 8 — Optional document access improvement
-If the current app already has a storage URL helper pattern, reuse it so FC can open/download the existing proof directly from the edit panel or details view.
-
-If not already present, add a small hook/service for generating a viewable storage URL for `proof_document_url` in `escrow-proofs`, while keeping DB/storage access out of components.
-
-This is optional for correctness, but recommended for trust and usability.
-
-## Files to update
-```text
-supabase/migrations/<new_migration>.sql
-
-src/hooks/cogniblend/useEscrowInstallmentFunding.ts
-src/hooks/cogniblend/useEscrowFundingContext.ts
-src/hooks/cogniblend/useEscrowInstallments.ts
-
-src/services/cogniblend/escrowInstallments/escrowInstallmentTypes.ts
-src/services/cogniblend/escrowInstallments/escrowInstallmentValidationService.ts
-
-src/components/cogniblend/escrow/EscrowFundingForm.tsx
-src/components/cogniblend/escrow/EscrowInstallmentWorkspace.tsx
-src/components/cogniblend/escrow/EscrowInstallmentDetailsCard.tsx
+ALTER TABLE public.escrow_records
+ADD COLUMN IF NOT EXISTS account_number_raw text;
 ```
 
-## Explicit non-changes
-Do not change:
-- installment locking model
-- funded aggregate semantics
-- one-row-per-installment model
-- proof replacement cleanup logic already added in the funding hook
+That means:
+- older funded installments keep `account_number_raw = null`
+- edit mode will still show blank account number for those rows
+- this does not fully satisfy the requirement that “already entered data” must appear during edit for existing legacy funded data
 
-Those parts are already aligned with the earlier approved fix.
+Because masked values cannot be reversed into the original account number, this cannot be solved by UI alone.
 
-## Expected outcome
-After this fix:
+## Final confirmation
+So the correct answer is:
 
-- clicking `Edit funding details` keeps previously entered bank/deposit data visible
-- FC can edit any existing field instead of re-entering from scratch
-- the existing uploaded proof remains visibly attached until replaced
-- FC can replace the uploaded document without the current proof seeming lost
-- read-only details still show masked account information only
-- no duplicate installment rows are created
+- **No, not fully for all existing cases**
+- **Yes, mostly fixed in code for new and future saves**
+- **But not fully fixed for pre-migration funded installments unless those rows are backfilled from a trusted source or manually re-entered once**
 
-## Verification checklist
-- funded installment edit opens with existing bank name, branch, address, IFSC, date, reference, notes
-- funded installment edit restores previously entered account number from persisted editable field
-- saving without changing account number preserves the prior account details
-- existing proof is visible before replacement
-- selecting a new proof marks it as replacement, not as a second attachment
-- canceling edit does not clear saved installment data
-- after save, updated details render correctly in the details card
-- final read-only still blocks edits after FC completion
+## Final follow-up fix needed
+To fully close the problem, add one of these:
+1. a one-time backfill from any trusted raw source if one exists, or
+2. an explicit fallback UX for legacy funded rows:
+   - show a notice that the original raw account number is unavailable for this older record
+   - require FC to re-enter it once
+   - then save it into `account_number_raw` for future edits
+
+Without that last step, the “previously entered values appear lost” problem is still partially unresolved for older funded installments.
