@@ -4,13 +4,17 @@
  * During Phase 2, shows planned legal templates as a preview.
  */
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
+import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
@@ -29,17 +33,20 @@ interface LegalDocRow {
   status: string | null;
   lc_status: string | null;
   override_strategy?: string | null;
+  content?: string | null;
+  content_html?: string | null;
 }
 
 export function ChallengeLegalDocsCard({
   challengeId, isQuickMode, currentPhase, governanceMode, organizationId, engagementModel,
 }: ChallengeLegalDocsCardProps) {
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
   const { data: legalDocs } = useQuery<LegalDocRow[]>({
     queryKey: ['challenge-legal-docs', challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenge_legal_docs')
-        .select('id, document_type, document_name, tier, status, lc_status, override_strategy')
+        .select('id, document_type, document_name, tier, status, lc_status, override_strategy, content, content_html')
         .eq('challenge_id', challengeId)
         .order('tier', { ascending: true });
       if (error) {
@@ -53,6 +60,7 @@ export function ChallengeLegalDocsCard({
   });
 
   const hasActualDocs = !!legalDocs && legalDocs.length > 0;
+  const hasQuickOverride = !!legalDocs?.some((doc) => doc.override_strategy === 'REPLACE_DEFAULT');
   const { data: templatePreviews } = useLegalTemplatePreview(
     challengeId, currentPhase, hasActualDocs, engagementModel, organizationId,
   );
