@@ -41,6 +41,7 @@ import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculat
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 import { EvaluationMethodSection } from './EvaluationMethodSection';
+import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegalOverride } from '@/hooks/queries/useQuickLegalOverride';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -64,6 +65,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const submitMutation = useChallengeSubmit();
   const { data: fieldRules } = useGovernanceFieldRules(governanceMode);
   const { uploadFiles } = useCreatorFileUpload();
+  const uploadQuickOverride = useUploadQuickLegalOverride();
+  const deleteQuickOverride = useDeleteQuickLegalOverride();
 
   const [showTierModal, setShowTierModal] = useState(false);
   const [showAIReview, setShowAIReview] = useState(false);
@@ -88,6 +91,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       context_background: '', preferred_approach: [''], approaches_not_of_interest: [''],
       affected_stakeholders: [], current_deficiencies: [''], root_causes: [''], expected_timeline: '',
       creator_legal_instructions: '',
+      quick_legal_override_mode: 'KEEP_DEFAULT',
       solver_audience: 'ALL' as const,
       evaluation_method: 'SINGLE' as const,
       evaluator_count: 1,
@@ -107,6 +111,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   }, []);
 
   useCreatorDraftLoader(draftSave.draftChallengeId, form, governanceMode, engagementModel, onDraftModeSync, handleReferenceUrlsLoaded);
+  const { data: quickLegalOverride } = useQuickLegalOverride(draftSave.draftChallengeId ?? undefined);
 
   const currentMaturityLevel = form.watch('maturity_level');
   const currentSolutionMaturityId = form.watch('solution_maturity_id');
@@ -120,7 +125,43 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   }, [currentMaturityLevel, currentSolutionMaturityId, form, solutionMaturityOptions]);
 
   const isSubmitting = submitMutation.isPending;
-  const isBusy = isSubmitting || draftSave.isSaving;
+  const isBusy = isSubmitting || draftSave.isSaving || uploadQuickOverride.isPending || deleteQuickOverride.isPending;
+
+  useEffect(() => {
+    if (!isQuick) return;
+    form.setValue(
+      'quick_legal_override_mode',
+      quickLegalOverride ? 'REPLACE_DEFAULT' : 'KEEP_DEFAULT',
+      { shouldDirty: false },
+    );
+  }, [form, isQuick, quickLegalOverride]);
+
+  const handleQuickLegalOverrideChange = useCallback(async (nextMode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT') => {
+    form.setValue('quick_legal_override_mode', nextMode, { shouldDirty: true });
+
+    if (nextMode === 'KEEP_DEFAULT') {
+      if (quickLegalOverride) {
+        await deleteQuickOverride.mutateAsync({
+          challengeId: quickLegalOverride.challenge_id,
+          docId: quickLegalOverride.id,
+          storagePath: quickLegalOverride.lc_review_notes,
+        });
+      }
+      return;
+    }
+  }, [deleteQuickOverride, form, quickLegalOverride]);
+
+  const handleQuickLegalOverrideUpload = useCallback(async (file: File) => {
+    const challengeId = await draftSave.handleSaveDraft();
+    if (!challengeId || !user?.id) return;
+
+    form.setValue('quick_legal_override_mode', 'REPLACE_DEFAULT', { shouldDirty: true });
+    await uploadQuickOverride.mutateAsync({
+      challengeId,
+      userId: user.id,
+      file,
+    });
+  }, [draftSave, form, uploadQuickOverride, user]);
 
   const cleanArray = (items: string[] | undefined): string[] => (items || []).filter((i) => i.trim().length > 0);
 
@@ -281,6 +322,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         <CreatorLegalPreview
           governanceMode={governanceMode}
           organizationId={currentOrg?.organizationId}
+          challengeId={draftSave.draftChallengeId ?? undefined}
+          quickLegalOverride={quickLegalOverride}
+          quickOverrideMode={form.watch('quick_legal_override_mode')}
+          onQuickOverrideModeChange={handleQuickLegalOverrideChange}
+          onQuickOverrideUpload={handleQuickLegalOverrideUpload}
+          isQuickOverrideBusy={uploadQuickOverride.isPending || deleteQuickOverride.isPending}
         />
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>

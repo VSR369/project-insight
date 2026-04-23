@@ -18,6 +18,7 @@ const LEGAL_DOCS_APPLIED = [
   'Platform Membership Agreement',
   'Confidentiality Agreement',
   'Professional Services Agreement',
+  'Challenge Participation Agreement',
 ];
 
 export function QuickPublishSuccessScreen({
