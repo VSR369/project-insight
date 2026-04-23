@@ -27,14 +27,44 @@ export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnroll
   const { data: cpaDoc, isLoading } = useQuery({
     queryKey: ['cpa-enrollment', challengeId],
     queryFn: async () => {
+      const { data: overrideDoc, error: overrideError } = await supabase
+        .from('challenge_legal_docs')
+        .select('id, document_type, document_name, content, content_html, status, override_strategy, target_template_code')
+        .eq('challenge_id', challengeId)
+        .eq('document_type', 'SOURCE_DOC')
+        .eq('source_origin', 'creator')
+        .eq('override_strategy', 'REPLACE_DEFAULT')
+        .eq('target_template_code', 'CPA_QUICK')
+        .eq('status', 'uploaded')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (overrideError) return null;
+      if (overrideDoc) {
+        return overrideDoc as {
+          id: string;
+          document_type: string;
+          document_name: string | null;
+          content: string | null;
+          content_html: string | null;
+          status: string | null;
+          override_strategy: string | null;
+          target_template_code: string | null;
+        };
+      }
+
       const { data, error } = await supabase
         .from('challenge_legal_docs')
         .select('id, document_type, document_name, content, content_html, status, override_strategy, target_template_code')
         .eq('challenge_id', challengeId)
-        .or('and(document_type.eq.UNIFIED_SPA,is_assembled.eq.true,status.in.(APPROVED,DRAFT)),and(document_type.eq.SOURCE_DOC,source_origin.eq.creator,override_strategy.eq.REPLACE_DEFAULT,target_template_code.eq.CPA_QUICK,status.eq.uploaded)')
+        .eq('document_type', 'UNIFIED_SPA')
+        .eq('is_assembled', true)
+        .in('status', ['APPROVED', 'DRAFT'])
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
       if (error) return null;
       return data as {
         id: string;
@@ -60,7 +90,9 @@ export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnroll
   };
 
   const agreementLabel = useMemo(
-    () => (cpaDoc?.document_type === 'SOURCE_DOC' ? 'Challenge-specific Participation Agreement' : (cpaDoc?.document_name ?? 'Challenge Participation Agreement')),
+    () => (cpaDoc?.document_type === 'SOURCE_DOC'
+      ? 'Challenge-specific Participation Agreement'
+      : (cpaDoc?.document_name ?? 'Challenge Participation Agreement')),
     [cpaDoc],
   );
 

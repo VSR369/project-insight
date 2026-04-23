@@ -65,6 +65,11 @@ interface UploadQuickLegalOverrideArgs {
   file: File;
 }
 
+interface ExistingQuickOverrideCleanupRow {
+  id: string;
+  lc_review_notes: string | null;
+}
+
 interface DeleteQuickLegalOverrideArgs {
   challengeId: string;
   docId: string;
@@ -118,11 +123,16 @@ export function useUploadQuickLegalOverride() {
         .eq('target_template_code', TARGET_TEMPLATE_CODE)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
-
-      const existingRows = existing ? [existing as { id: string; lc_review_notes: string | null }] : [];
+        .maybeSingle();
 
       if (existingError) throw new Error(existingError.message);
+
+      const existingOverride: ExistingQuickOverrideCleanupRow | null = existing
+        ? {
+            id: existing.id,
+            lc_review_notes: existing.lc_review_notes,
+          }
+        : null;
 
       const parsed = await parseFileToHtml(file);
       const safe = sanitizeFileName(file.name);
@@ -151,17 +161,16 @@ export function useUploadQuickLegalOverride() {
       });
       if (insErr) throw new Error(insErr.message);
 
-      const staleIds = existingRows.map((row) => row.id);
-      if (staleIds.length > 0) {
+      if (existingOverride) {
         const { error: delErr } = await supabase
           .from('challenge_legal_docs')
           .delete()
-          .in('id', staleIds);
+          .eq('id', existingOverride.id);
         if (delErr) throw new Error(delErr.message);
 
-        const stalePaths = existingRows
-          .map((row) => row.lc_review_notes)
-          .filter((path): path is string => !!path);
+        const stalePaths = [existingOverride.lc_review_notes].filter(
+          (path): path is string => !!path,
+        );
         if (stalePaths.length > 0) {
           await supabase.storage.from('legal-docs').remove(stalePaths);
         }

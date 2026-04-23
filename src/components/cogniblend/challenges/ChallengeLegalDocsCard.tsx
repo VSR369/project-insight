@@ -4,13 +4,17 @@
  * During Phase 2, shows planned legal templates as a preview.
  */
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
+import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
@@ -29,17 +33,20 @@ interface LegalDocRow {
   status: string | null;
   lc_status: string | null;
   override_strategy?: string | null;
+  content?: string | null;
+  content_html?: string | null;
 }
 
 export function ChallengeLegalDocsCard({
   challengeId, isQuickMode, currentPhase, governanceMode, organizationId, engagementModel,
 }: ChallengeLegalDocsCardProps) {
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
   const { data: legalDocs } = useQuery<LegalDocRow[]>({
     queryKey: ['challenge-legal-docs', challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenge_legal_docs')
-        .select('id, document_type, document_name, tier, status, lc_status, override_strategy')
+        .select('id, document_type, document_name, tier, status, lc_status, override_strategy, content, content_html')
         .eq('challenge_id', challengeId)
         .order('tier', { ascending: true });
       if (error) {
@@ -53,6 +60,7 @@ export function ChallengeLegalDocsCard({
   });
 
   const hasActualDocs = !!legalDocs && legalDocs.length > 0;
+  const hasQuickOverride = !!legalDocs?.some((doc) => doc.override_strategy === 'REPLACE_DEFAULT');
   const { data: templatePreviews } = useLegalTemplatePreview(
     challengeId, currentPhase, hasActualDocs, engagementModel, organizationId,
   );
@@ -119,7 +127,8 @@ export function ChallengeLegalDocsCard({
   }
 
   return (
-    <Card className="border-border">
+    <>
+      <Card className="border-border">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-bold flex items-center gap-1.5">
           <FileText className="h-3.5 w-3.5 text-primary" /> Legal Documents
@@ -139,24 +148,60 @@ export function ChallengeLegalDocsCard({
                   {doc.override_strategy === 'REPLACE_DEFAULT' ? ' · Challenge override' : ''}
                 </p>
               </div>
-              {doc.status === 'auto_accepted' ? (
-                <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
-                  <ShieldCheck className="h-3 w-3" /> Auto-accepted
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] shrink-0">
-                  {doc.lc_status ?? doc.status ?? 'Pending'}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {(doc.content_html || doc.content) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px] gap-1"
+                    onClick={() => setViewingDoc({
+                      name: doc.document_name ?? doc.document_type,
+                      content: doc.content_html ?? `<pre class=\"whitespace-pre-wrap text-sm\">${doc.content ?? ''}</pre>`,
+                    })}
+                  >
+                    <Eye className="h-3 w-3" /> View
+                  </Button>
+                )}
+                {doc.status === 'auto_accepted' ? (
+                  <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
+                    <ShieldCheck className="h-3 w-3" /> Auto-accepted
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {doc.override_strategy === 'REPLACE_DEFAULT'
+                      ? 'Challenge override'
+                      : doc.lc_status ?? doc.status ?? 'Pending'}
+                  </Badge>
+                )}
+              </div>
             </div>
           ))}
         </div>
         {isQuickMode && (
           <p className="text-[11px] text-muted-foreground mt-2 italic">
-            Platform default legal templates applied automatically. View-only.
+            {hasQuickOverride
+              ? 'This challenge is using a creator-provided challenge-specific replacement agreement.'
+              : 'Platform default legal templates applied automatically. View-only.'}
           </p>
         )}
       </CardContent>
-    </Card>
+      </Card>
+      {viewingDoc && (
+        <Dialog open onOpenChange={() => setViewingDoc(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>{viewingDoc.name}</DialogTitle>
+              <DialogDescription>
+                Review the effective legal document content for this challenge.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <LegalDocumentViewer content={viewingDoc.content} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
