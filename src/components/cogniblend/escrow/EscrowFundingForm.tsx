@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Building2, FileText, Loader2, RotateCcw } from 'lucide-react';
+import { AlertCircle, Building2, FileText, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -61,6 +62,7 @@ export function EscrowFundingForm({ installment, fundingRole, mode, proofFile, o
     resolver: zodResolver(schema),
     defaultValues: buildDefaults(installment),
   });
+  const requiresLegacyAccountReentry = mode === 'edit' && installment.status === 'FUNDED' && !installment.account_number_raw && !!installment.account_number_masked;
 
   const title = mode === 'edit' ? `Edit installment ${installment.installment_number}` : `Confirm installment ${installment.installment_number}`;
   const description = mode === 'edit'
@@ -81,6 +83,15 @@ export function EscrowFundingForm({ installment, fundingRole, mode, proofFile, o
       </div>
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+          {requiresLegacyAccountReentry ? (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Re-enter account number once</AlertTitle>
+              <AlertDescription>
+                This funded installment was saved before editable account storage was added. Re-enter the account number now and it will be preserved for future edits.
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <FormField control={form.control} name="bankName" render={({ field }) => (
               <FormItem>
@@ -119,8 +130,8 @@ export function EscrowFundingForm({ installment, fundingRole, mode, proofFile, o
             )} />
             <FormField control={form.control} name="accountNumber" render={({ field }) => (
               <FormItem>
-                <FormLabel>Account number</FormLabel>
-                <FormControl><Input {...field} disabled={isSubmitting} /></FormControl>
+                <FormLabel>{requiresLegacyAccountReentry ? 'Account number (required again for legacy record)' : 'Account number'}</FormLabel>
+                <FormControl><Input {...field} disabled={isSubmitting} placeholder={requiresLegacyAccountReentry ? 'Re-enter the saved account number' : undefined} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
