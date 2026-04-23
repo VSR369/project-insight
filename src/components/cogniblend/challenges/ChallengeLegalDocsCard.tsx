@@ -147,24 +147,59 @@ export function ChallengeLegalDocsCard({
                   {doc.override_strategy === 'REPLACE_DEFAULT' ? ' · Challenge override' : ''}
                 </p>
               </div>
-              {doc.status === 'auto_accepted' ? (
-                <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
-                  <ShieldCheck className="h-3 w-3" /> Auto-accepted
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] shrink-0">
-                  {doc.lc_status ?? doc.status ?? 'Pending'}
-                </Badge>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {(doc.content_html || doc.content) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px] gap-1"
+                    onClick={() => setViewingDoc({
+                      name: doc.document_name ?? doc.document_type,
+                      content: doc.content_html ?? `<pre class=\"whitespace-pre-wrap text-sm\">${doc.content ?? ''}</pre>`,
+                    })}
+                  >
+                    <Eye className="h-3 w-3" /> View
+                  </Button>
+                )}
+                {doc.status === 'auto_accepted' ? (
+                  <Badge variant="secondary" className="text-[10px] shrink-0 gap-1">
+                    <ShieldCheck className="h-3 w-3" /> Auto-accepted
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {doc.override_strategy === 'REPLACE_DEFAULT'
+                      ? 'Challenge override'
+                      : doc.lc_status ?? doc.status ?? 'Pending'}
+                  </Badge>
+                )}
+              </div>
             </div>
           ))}
         </div>
         {isQuickMode && (
           <p className="text-[11px] text-muted-foreground mt-2 italic">
-            Platform default legal templates applied automatically. View-only.
+            {hasQuickOverride
+              ? 'This challenge is using a creator-provided challenge-specific replacement agreement.'
+              : 'Platform default legal templates applied automatically. View-only.'}
           </p>
         )}
       </CardContent>
     </Card>
+    {viewingDoc && (
+      <Dialog open onOpenChange={() => setViewingDoc(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{viewingDoc.name}</DialogTitle>
+            <DialogDescription>
+              Review the effective legal document content for this challenge.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <LegalDocumentViewer content={viewingDoc.content} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    )}
   );
 }
