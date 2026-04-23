@@ -9,6 +9,44 @@ const QUERY_KEY = 'quick-legal-override';
 const TARGET_TEMPLATE_CODE = 'CPA_QUICK';
 const OVERRIDE_STRATEGY = 'REPLACE_DEFAULT';
 
+interface QueryErrorLike {
+  message: string;
+}
+
+interface MaybeSingleResult<T> {
+  data: T | null;
+  error: QueryErrorLike | null;
+}
+
+interface ManyResult<T> {
+  data: T[] | null;
+  error: QueryErrorLike | null;
+}
+
+interface QueryChain<T> {
+  eq(column: string, value: string): QueryChain<T>;
+  order(column: string, options: { ascending: boolean }): QueryChain<T>;
+  limit(count: number): QueryChain<T>;
+  maybeSingle(): Promise<MaybeSingleResult<T>>;
+}
+
+interface SelectChain<T> extends QueryChain<T> {}
+
+interface DeleteChain {
+  eq(column: string, value: string): Promise<{ error: QueryErrorLike | null }>;
+  in(column: string, values: string[]): Promise<{ error: QueryErrorLike | null }>;
+}
+
+interface ChallengeLegalDocsTable {
+  select(columns: string): SelectChain<QuickLegalOverrideRow> & SelectChain<{ id: string; lc_review_notes: string | null }>;
+  insert(values: Record<string, unknown>): Promise<{ error: QueryErrorLike | null }>;
+  delete(): DeleteChain;
+}
+
+function getChallengeLegalDocsTable(): ChallengeLegalDocsTable {
+  return supabase.from('challenge_legal_docs' as never) as unknown as ChallengeLegalDocsTable;
+}
+
 export interface QuickLegalOverrideRow {
   id: string;
   challenge_id: string;
@@ -39,8 +77,7 @@ export function useQuickLegalOverride(challengeId: string | undefined) {
     staleTime: 30_000,
     queryFn: async () => {
       if (!challengeId) return null;
-      const { data, error } = await (supabase
-        .from('challenge_legal_docs')
+      const { data, error } = await getChallengeLegalDocsTable()
         .select(
           'id, challenge_id, document_name, content_html, lc_review_notes, created_at, override_strategy, target_template_code',
         )
@@ -51,10 +88,7 @@ export function useQuickLegalOverride(challengeId: string | undefined) {
         .eq('target_template_code', TARGET_TEMPLATE_CODE)
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle()) as unknown as {
-        data: QuickLegalOverrideRow | null;
-        error: { message: string } | null;
-      };
+        .maybeSingle();
 
       if (error) {
         handleQueryError(error, { operation: 'fetch_quick_legal_override' });
@@ -74,18 +108,18 @@ export function useUploadQuickLegalOverride() {
       const validationErr = validateSourceFile(file);
       if (validationErr) throw new Error(validationErr);
 
-      const { data: existing, error: existingError } = await (supabase
-        .from('challenge_legal_docs')
+      const { data: existing, error: existingError } = await getChallengeLegalDocsTable()
         .select('id, lc_review_notes')
         .eq('challenge_id', challengeId)
         .eq('document_type', 'SOURCE_DOC')
         .eq('source_origin', 'creator')
         .eq('override_strategy', OVERRIDE_STRATEGY)
         .eq('target_template_code', TARGET_TEMPLATE_CODE)
-        .order('created_at', { ascending: false })) as unknown as {
-        data: Array<{ id: string; lc_review_notes: string | null }> | null;
-        error: { message: string } | null;
-      };
+        .order('created_at', { ascending: false })
+        .limit(100)
+        .maybeSingle();
+
+      const existingRows = existing ? [existing as { id: string; lc_review_notes: string | null }] : [];
 
       if (existingError) throw new Error(existingError.message);
 
@@ -116,7 +150,7 @@ export function useUploadQuickLegalOverride() {
       });
       if (insErr) throw new Error(insErr.message);
 
-      const staleIds = (existing ?? []).map((row) => row.id);
+      const staleIds = existingRows.map((row) => row.id);
       if (staleIds.length > 0) {
         const { error: delErr } = await supabase
           .from('challenge_legal_docs')
@@ -124,7 +158,7 @@ export function useUploadQuickLegalOverride() {
           .in('id', staleIds);
         if (delErr) throw new Error(delErr.message);
 
-        const stalePaths = (existing ?? [])
+        const stalePaths = existingRows
           .map((row) => row.lc_review_notes)
           .filter((path): path is string => !!path);
         if (stalePaths.length > 0) {
