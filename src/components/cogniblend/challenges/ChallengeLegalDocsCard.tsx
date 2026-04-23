@@ -127,7 +127,8 @@ export function ChallengeLegalDocsCard({
   }
 
   return (
-    <Card className="border-border">
+    <>
+      <Card className="border-border">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-bold flex items-center gap-1.5">
           <FileText className="h-3.5 w-3.5 text-primary" /> Legal Documents
@@ -185,21 +186,22 @@ export function ChallengeLegalDocsCard({
           </p>
         )}
       </CardContent>
-    </Card>
-    {viewingDoc && (
-      <Dialog open onOpenChange={() => setViewingDoc(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>{viewingDoc.name}</DialogTitle>
-            <DialogDescription>
-              Review the effective legal document content for this challenge.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <LegalDocumentViewer content={viewingDoc.content} />
-          </div>
-        </DialogContent>
-      </Dialog>
-    )}
+      </Card>
+      {viewingDoc && (
+        <Dialog open onOpenChange={() => setViewingDoc(null)}>
+          <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>{viewingDoc.name}</DialogTitle>
+              <DialogDescription>
+                Review the effective legal document content for this challenge.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <LegalDocumentViewer content={viewingDoc.content} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
