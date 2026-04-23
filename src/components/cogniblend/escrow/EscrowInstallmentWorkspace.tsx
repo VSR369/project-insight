@@ -12,6 +12,7 @@ import { EscrowLegacySummary } from './EscrowLegacySummary';
 import { useEscrowFundingContext } from '@/hooks/cogniblend/useEscrowFundingContext';
 import { useSeedEscrowInstallments } from '@/hooks/cogniblend/useSeedEscrowInstallments';
 import { useEscrowInstallmentFunding } from '@/hooks/cogniblend/useEscrowInstallmentFunding';
+import { useSignedUrl } from '@/hooks/cogniblend/useSignedUrl';
 import { deriveEscrowInstallmentAccessState } from '@/services/cogniblend/escrowInstallments/escrowInstallmentAccessService';
 import { isLegacyEscrowOnly } from '@/services/cogniblend/escrowInstallments/escrowInstallmentValidationService';
 import type { EscrowFundingFormValues, EscrowFundingRole, EscrowInstallmentRecord } from '@/services/cogniblend/escrowInstallments/escrowInstallmentTypes';
@@ -28,6 +29,7 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
   const contextQuery = useEscrowFundingContext(challengeId);
   const seedMutation = useSeedEscrowInstallments(challengeId);
   const fundingMutation = useEscrowInstallmentFunding();
+  const { openSignedUrl } = useSignedUrl('escrow-proofs');
   const [selectedInstallment, setSelectedInstallment] = useState<EscrowInstallmentRecord | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [editingFundedId, setEditingFundedId] = useState<string | null>(null);
@@ -148,6 +150,7 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
           fundingRole={fundingRole}
           mode="confirm"
           proofFile={proofFile}
+          onOpenExistingProof={() => void openSignedUrl(selectedInstallment.proof_document_url)}
           onProofFileChange={setProofFile}
           isSubmitting={fundingMutation.isPending}
           canSubmit={accessState.canSubmitChanges && !accessState.isFinalReadOnly}
@@ -162,6 +165,7 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
               fundingRole={fundingRole}
               mode="edit"
               proofFile={proofFile}
+              onOpenExistingProof={() => void openSignedUrl(selectedInstallment.proof_document_url)}
               onProofFileChange={setProofFile}
               isSubmitting={fundingMutation.isPending}
               canSubmit={accessState.canSubmitChanges && !accessState.isFinalReadOnly}
