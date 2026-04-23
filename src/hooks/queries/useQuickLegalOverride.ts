@@ -39,7 +39,7 @@ export function useQuickLegalOverride(challengeId: string | undefined) {
     staleTime: 30_000,
     queryFn: async () => {
       if (!challengeId) return null;
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('challenge_legal_docs')
         .select(
           'id, challenge_id, document_name, content_html, lc_review_notes, created_at, override_strategy, target_template_code',
@@ -51,7 +51,10 @@ export function useQuickLegalOverride(challengeId: string | undefined) {
         .eq('target_template_code', TARGET_TEMPLATE_CODE)
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle()) as unknown as {
+        data: QuickLegalOverrideRow | null;
+        error: { message: string } | null;
+      };
 
       if (error) {
         handleQueryError(error, { operation: 'fetch_quick_legal_override' });
@@ -71,7 +74,7 @@ export function useUploadQuickLegalOverride() {
       const validationErr = validateSourceFile(file);
       if (validationErr) throw new Error(validationErr);
 
-      const { data: existing, error: existingError } = await supabase
+      const { data: existing, error: existingError } = await (supabase
         .from('challenge_legal_docs')
         .select('id, lc_review_notes')
         .eq('challenge_id', challengeId)
@@ -79,7 +82,10 @@ export function useUploadQuickLegalOverride() {
         .eq('source_origin', 'creator')
         .eq('override_strategy', OVERRIDE_STRATEGY)
         .eq('target_template_code', TARGET_TEMPLATE_CODE)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })) as unknown as {
+        data: Array<{ id: string; lc_review_notes: string | null }> | null;
+        error: { message: string } | null;
+      };
 
       if (existingError) throw new Error(existingError.message);
 
