@@ -19,6 +19,7 @@ interface FundInstallmentArgs {
   installment: EscrowInstallmentRecord;
   values: EscrowFundingFormValues;
   proofFile: File | null;
+  isFinalReadOnly: boolean;
 }
 
 function maskAccountNumber(raw: string): string {
@@ -37,6 +38,7 @@ export function useEscrowInstallmentFunding() {
         fundingRole: args.fundingRole,
         installment: args.installment,
         values: args.values,
+        isFinalReadOnly: args.isFinalReadOnly,
         hasProofFile: !!args.proofFile,
         existingProofFileName: args.installment.proof_file_name,
       });
@@ -49,6 +51,13 @@ export function useEscrowInstallmentFunding() {
       let proofUploadedAt = args.installment.proof_uploaded_at;
 
       if (args.proofFile) {
+        if (args.installment.proof_document_url) {
+          const { error: removeError } = await supabase.storage
+            .from('escrow-proofs')
+            .remove([args.installment.proof_document_url]);
+          if (removeError) throw new Error(`Existing proof cleanup failed: ${removeError.message}`);
+        }
+
         const safeName = sanitizeFileName(args.proofFile.name);
         const storagePath = `${args.challengeId}/${Date.now()}_${safeName}`;
         const { error: uploadError } = await supabase.storage
@@ -82,8 +91,7 @@ export function useEscrowInstallmentFunding() {
           updated_at: new Date().toISOString(),
           updated_by: args.userId,
         })
-        .eq('id', args.installment.id)
-        .eq('status', 'PENDING');
+        .eq('id', args.installment.id);
       if (error) throw error;
 
       const { error: syncError } = await supabase.rpc('sync_escrow_record_from_installments', {
@@ -95,7 +103,7 @@ export function useEscrowInstallmentFunding() {
       return args.installment.id;
     },
     onSuccess: async (_id, args) => {
-      toast.success(`Installment ${args.installment.installment_number} funded`);
+      toast.success(`Installment ${args.installment.installment_number} saved`);
       const challengeId = args.challengeId;
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['escrow-installments', challengeId] }),

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { EscrowInstallmentContextCard } from './EscrowInstallmentContextCard';
+import { EscrowInstallmentDetailsCard } from './EscrowInstallmentDetailsCard';
 import { EscrowInstallmentSummary } from './EscrowInstallmentSummary';
 import { EscrowInstallmentTable } from './EscrowInstallmentTable';
 import { EscrowFundingForm } from './EscrowFundingForm';
@@ -42,14 +43,14 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
   }, [accessState.canSeed, contextQuery.data, isReadOnly, seedMutation, userId]);
 
   useEffect(() => {
-    if (!accessState.actionableInstallments.length) {
+    if (!accessState.selectableInstallments.length) {
       setSelectedInstallment(null);
       return;
     }
-    setSelectedInstallment((current) => current && accessState.actionableInstallments.some((item) => item.id === current.id)
+    setSelectedInstallment((current) => current && accessState.selectableInstallments.some((item) => item.id === current.id)
       ? current
-      : accessState.actionableInstallments[0]);
-  }, [accessState.actionableInstallments]);
+      : accessState.selectableInstallments[0]);
+  }, [accessState.selectableInstallments]);
 
   if (contextQuery.isLoading) {
     return <div className="space-y-3"><Skeleton className="h-28 w-full" /><Skeleton className="h-48 w-full" /></div>;
@@ -105,8 +106,11 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
       installment: selectedInstallment,
       values,
       proofFile,
+      isFinalReadOnly: accessState.isFinalReadOnly,
     });
   };
+
+  const canEditSelectedInstallment = !!selectedInstallment && accessState.editableInstallments.some((installment) => installment.id === selectedInstallment.id);
 
   return (
     <div className="space-y-4">
@@ -116,16 +120,21 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
         installments={context.installments}
         selectedInstallmentId={selectedInstallment?.id ?? null}
         onSelect={setSelectedInstallment}
-        canSelect={accessState.canFund}
+        canSelect={accessState.selectableInstallments.length > 0}
+        editableInstallmentIds={accessState.editableInstallments.map((installment) => installment.id)}
+        isFinalReadOnly={accessState.isFinalReadOnly}
       />
-      {selectedInstallment && accessState.canFund ? (
+      {selectedInstallment ? (
+        <EscrowInstallmentDetailsCard installment={selectedInstallment} />
+      ) : null}
+      {selectedInstallment && canEditSelectedInstallment ? (
         <EscrowFundingForm
           installment={selectedInstallment}
           fundingRole={fundingRole}
           proofFile={proofFile}
           onProofFileChange={setProofFile}
           isSubmitting={fundingMutation.isPending}
-          canSubmit={accessState.canFund && !isReadOnly}
+          canSubmit={accessState.canSubmitChanges && !accessState.isFinalReadOnly}
           onSubmit={handleSubmit}
         />
       ) : null}
