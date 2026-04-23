@@ -33,6 +33,7 @@ const PROOF_CONFIG = {
 export interface EscrowFundingFormProps {
   installment: EscrowInstallmentRecord;
   fundingRole: EscrowFundingRole;
+  mode: 'confirm' | 'edit';
   proofFile: File | null;
   onProofFileChange: (file: File | null) => void;
   isSubmitting: boolean;
@@ -54,11 +55,17 @@ function buildDefaults(installment: EscrowInstallmentRecord): EscrowFundingFormV
   };
 }
 
-export function EscrowFundingForm({ installment, fundingRole, proofFile, onProofFileChange, isSubmitting, canSubmit, onSubmit }: EscrowFundingFormProps) {
+export function EscrowFundingForm({ installment, fundingRole, mode, proofFile, onProofFileChange, isSubmitting, canSubmit, onSubmit }: EscrowFundingFormProps) {
   const form = useForm<EscrowFundingFormValues>({
     resolver: zodResolver(schema),
     defaultValues: buildDefaults(installment),
   });
+
+  const title = mode === 'edit' ? `Edit installment ${installment.installment_number}` : `Confirm installment ${installment.installment_number}`;
+  const description = mode === 'edit'
+    ? `${fundingRole === 'FC' ? 'Finance Coordinator' : 'Curator'} is updating this funded installment.`
+    : `${fundingRole === 'FC' ? 'Finance Coordinator' : 'Curator'} is confirming this scheduled installment.`;
+  const submitLabel = mode === 'edit' ? 'Save changes' : 'Confirm installment funding';
 
   useEffect(() => {
     form.reset(buildDefaults(installment));
@@ -68,10 +75,8 @@ export function EscrowFundingForm({ installment, fundingRole, proofFile, onProof
   return (
     <div className="space-y-4 rounded-md border border-border p-4">
       <div>
-        <h3 className="text-sm font-semibold">Confirm installment {installment.installment_number}</h3>
-        <p className="text-xs text-muted-foreground">
-          {fundingRole === 'FC' ? 'Finance Coordinator' : 'Curator'} is confirming this scheduled installment.
-        </p>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -149,7 +154,7 @@ export function EscrowFundingForm({ installment, fundingRole, proofFile, onProof
           </div>
           <Button type="submit" className="w-full lg:w-auto" disabled={!canSubmit || isSubmitting}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
-            {canSubmit ? 'Confirm installment funding' : 'Funding unavailable'}
+            {canSubmit ? submitLabel : 'Funding unavailable'}
           </Button>
         </form>
       </Form>

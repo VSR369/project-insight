@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, RefreshCcw } from 'lucide-react';
+import { AlertCircle, Pencil, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -30,6 +30,7 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
   const fundingMutation = useEscrowInstallmentFunding();
   const [selectedInstallment, setSelectedInstallment] = useState<EscrowInstallmentRecord | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
+  const [editingFundedId, setEditingFundedId] = useState<string | null>(null);
 
   const accessState = useMemo(() => deriveEscrowInstallmentAccessState({
     context: contextQuery.data,
@@ -51,6 +52,17 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
       ? current
       : accessState.selectableInstallments[0]);
   }, [accessState.selectableInstallments]);
+
+  useEffect(() => {
+    setEditingFundedId(null);
+    setProofFile(null);
+  }, [selectedInstallment?.id]);
+
+  useEffect(() => {
+    if (!fundingMutation.isSuccess) return;
+    setEditingFundedId(null);
+    setProofFile(null);
+  }, [fundingMutation.isSuccess]);
 
   if (contextQuery.isLoading) {
     return <div className="space-y-3"><Skeleton className="h-28 w-full" /><Skeleton className="h-48 w-full" /></div>;
@@ -111,6 +123,9 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
   };
 
   const canEditSelectedInstallment = !!selectedInstallment && accessState.editableInstallments.some((installment) => installment.id === selectedInstallment.id);
+  const isPendingSelectedInstallment = selectedInstallment?.status === 'PENDING';
+  const isFundedSelectedInstallment = selectedInstallment?.status === 'FUNDED';
+  const isEditingFundedInstallment = !!selectedInstallment && editingFundedId === selectedInstallment.id;
 
   return (
     <div className="space-y-4">
@@ -127,16 +142,46 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
       {selectedInstallment ? (
         <EscrowInstallmentDetailsCard installment={selectedInstallment} />
       ) : null}
-      {selectedInstallment && canEditSelectedInstallment ? (
+      {selectedInstallment && isPendingSelectedInstallment && canEditSelectedInstallment ? (
         <EscrowFundingForm
           installment={selectedInstallment}
           fundingRole={fundingRole}
+          mode="confirm"
           proofFile={proofFile}
           onProofFileChange={setProofFile}
           isSubmitting={fundingMutation.isPending}
           canSubmit={accessState.canSubmitChanges && !accessState.isFinalReadOnly}
           onSubmit={handleSubmit}
         />
+      ) : null}
+      {selectedInstallment && isFundedSelectedInstallment && canEditSelectedInstallment && !accessState.isFinalReadOnly ? (
+        isEditingFundedInstallment ? (
+          <div className="space-y-3">
+            <EscrowFundingForm
+              installment={selectedInstallment}
+              fundingRole={fundingRole}
+              mode="edit"
+              proofFile={proofFile}
+              onProofFileChange={setProofFile}
+              isSubmitting={fundingMutation.isPending}
+              canSubmit={accessState.canSubmitChanges && !accessState.isFinalReadOnly}
+              onSubmit={handleSubmit}
+            />
+            <Button type="button" variant="ghost" size="sm" onClick={() => {
+              setEditingFundedId(null);
+              setProofFile(null);
+            }}>
+              Cancel edit
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditingFundedId(selectedInstallment.id)}>
+              <Pencil className="h-4 w-4" />
+              Edit funding details
+            </Button>
+          </div>
+        )
       ) : null}
     </div>
   );
