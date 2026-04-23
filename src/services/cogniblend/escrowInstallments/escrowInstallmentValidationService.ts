@@ -52,16 +52,50 @@ export function canFundInstallment(args: {
   return args.installment.status === 'PENDING';
 }
 
+export function canSelectInstallment(args: {
+  governanceMode: GovernanceMode | null;
+  fundingRole: EscrowFundingRole;
+  installment: EscrowInstallmentRecord | null | undefined;
+}): boolean {
+  const expectedRole = resolveExpectedFundingRole(args.governanceMode);
+  if (!expectedRole || expectedRole !== args.fundingRole) return false;
+  if (!args.installment) return false;
+  return args.installment.status === 'PENDING' || args.installment.status === 'FUNDED';
+}
+
+export function canEditFundedInstallmentBeforeFinalSubmit(args: {
+  governanceMode: GovernanceMode | null;
+  fundingRole: EscrowFundingRole;
+  installment: EscrowInstallmentRecord | null | undefined;
+  isFinalReadOnly: boolean;
+}): boolean {
+  if (args.isFinalReadOnly) return false;
+  if (!canSelectInstallment(args)) return false;
+  return args.installment?.status === 'FUNDED';
+}
+
+export function isInstallmentLockedForEditing(args: {
+  governanceMode: GovernanceMode | null;
+  fundingRole: EscrowFundingRole;
+  installment: EscrowInstallmentRecord | null | undefined;
+  isFinalReadOnly: boolean;
+}): boolean {
+  if (args.isFinalReadOnly) return true;
+  if (!canSelectInstallment(args)) return true;
+  return args.installment?.status !== 'PENDING' && !canEditFundedInstallmentBeforeFinalSubmit(args);
+}
+
 export function validateInstallmentFunding(args: {
   governanceMode: GovernanceMode | null;
   fundingRole: EscrowFundingRole;
   installment: EscrowInstallmentRecord | null | undefined;
   values: EscrowFundingFormValues;
+  isFinalReadOnly: boolean;
   hasProofFile: boolean;
   existingProofFileName?: string | null;
 }): EscrowFundingValidationResult {
   const errors: string[] = [];
-  const { governanceMode, fundingRole, installment, values, hasProofFile, existingProofFileName } = args;
+  const { governanceMode, fundingRole, installment, values, isFinalReadOnly, hasProofFile, existingProofFileName } = args;
   const expectedRole = resolveExpectedFundingRole(governanceMode);
 
   if (!installment) {
@@ -74,8 +108,12 @@ export function validateInstallmentFunding(args: {
     errors.push(`This escrow path must be completed by ${expectedRole}.`);
   }
 
-  if (installment?.status && installment.status !== 'PENDING') {
-    errors.push('Only pending installments can be funded.');
+  if (installment && isInstallmentLockedForEditing({ governanceMode, fundingRole, installment, isFinalReadOnly })) {
+    errors.push('This installment is locked and can no longer be edited.');
+  }
+
+  if (installment?.status && installment.status !== 'PENDING' && installment.status !== 'FUNDED') {
+    errors.push('Only pending or funded installments can be edited in this workspace.');
   }
 
   if (installment) {
