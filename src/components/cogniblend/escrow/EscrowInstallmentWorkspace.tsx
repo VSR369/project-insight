@@ -26,19 +26,23 @@ export interface EscrowInstallmentWorkspaceProps {
 }
 
 export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, isReadOnly }: EscrowInstallmentWorkspaceProps) {
+  const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [editingFundedId, setEditingFundedId] = useState<string | null>(null);
   const contextQuery = useEscrowFundingContext(challengeId);
   const seedMutation = useSeedEscrowInstallments(challengeId);
   const fundingMutation = useEscrowInstallmentFunding();
   const { openSignedUrl } = useSignedUrl('escrow-proofs');
-  const [selectedInstallment, setSelectedInstallment] = useState<EscrowInstallmentRecord | null>(null);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [editingFundedId, setEditingFundedId] = useState<string | null>(null);
 
   const accessState = useMemo(() => deriveEscrowInstallmentAccessState({
     context: contextQuery.data,
     fundingRole,
     isReadOnly,
   }), [contextQuery.data, fundingRole, isReadOnly]);
+  const selectedInstallment = useMemo<EscrowInstallmentRecord | null>(() => {
+    if (!selectedInstallmentId) return null;
+    return contextQuery.data?.installments.find((installment) => installment.id === selectedInstallmentId) ?? null;
+  }, [contextQuery.data?.installments, selectedInstallmentId]);
 
   useEffect(() => {
     if (!contextQuery.data || !accessState.canSeed || seedMutation.isPending || seedMutation.isSuccess || isReadOnly) return;
@@ -47,18 +51,18 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
 
   useEffect(() => {
     if (!accessState.selectableInstallments.length) {
-      setSelectedInstallment(null);
+      setSelectedInstallmentId(null);
       return;
     }
-    setSelectedInstallment((current) => current && accessState.selectableInstallments.some((item) => item.id === current.id)
+    setSelectedInstallmentId((current) => current && accessState.selectableInstallments.some((item) => item.id === current)
       ? current
-      : accessState.selectableInstallments[0]);
+      : accessState.selectableInstallments[0]?.id ?? null);
   }, [accessState.selectableInstallments]);
 
   useEffect(() => {
     setEditingFundedId(null);
     setProofFile(null);
-  }, [selectedInstallment?.id]);
+  }, [selectedInstallmentId]);
 
   useEffect(() => {
     if (!fundingMutation.isSuccess) return;
@@ -136,7 +140,7 @@ export function EscrowInstallmentWorkspace({ challengeId, userId, fundingRole, i
       <EscrowInstallmentTable
         installments={context.installments}
         selectedInstallmentId={selectedInstallment?.id ?? null}
-        onSelect={setSelectedInstallment}
+        onSelect={(installment) => setSelectedInstallmentId(installment.id)}
         canSelect={accessState.selectableInstallments.length > 0}
         editableInstallmentIds={accessState.editableInstallments.map((installment) => installment.id)}
         isFinalReadOnly={accessState.isFinalReadOnly}
