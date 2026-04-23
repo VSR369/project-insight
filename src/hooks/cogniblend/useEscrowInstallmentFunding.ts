@@ -49,6 +49,11 @@ export function useEscrowInstallmentFunding() {
       let proofPath = args.installment.proof_document_url;
       let proofFileName = args.installment.proof_file_name;
       let proofUploadedAt = args.installment.proof_uploaded_at;
+      const normalizedAccountNumber = args.values.accountNumber.trim();
+      const accountNumberRaw = normalizedAccountNumber || args.installment.account_number_raw;
+      const accountNumberMasked = normalizedAccountNumber
+        ? maskAccountNumber(normalizedAccountNumber)
+        : args.installment.account_number_masked;
 
       if (args.proofFile) {
         if (args.installment.proof_document_url) {
@@ -79,7 +84,8 @@ export function useEscrowInstallmentFunding() {
           bank_name: args.values.bankName,
           bank_branch: args.values.bankBranch || null,
           bank_address: args.values.bankAddress || null,
-          account_number_masked: maskAccountNumber(args.values.accountNumber),
+          account_number_raw: accountNumberRaw,
+          account_number_masked: accountNumberMasked,
           ifsc_swift_code: args.values.ifscSwiftCode,
           deposit_amount: args.values.depositAmount,
           deposit_date: new Date(args.values.depositDate).toISOString(),

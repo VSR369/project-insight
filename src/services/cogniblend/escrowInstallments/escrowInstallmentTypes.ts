@@ -34,6 +34,7 @@ export interface EscrowInstallmentRecord {
   bank_name: string | null;
   bank_branch: string | null;
   bank_address: string | null;
+  account_number_raw: string | null;
   account_number_masked: string | null;
   ifsc_swift_code: string | null;
   deposit_amount: number | null;

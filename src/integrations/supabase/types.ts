@@ -3671,6 +3671,7 @@ export type Database = {
       escrow_installments: {
         Row: {
           account_number_masked: string | null
+          account_number_raw: string | null
           bank_address: string | null
           bank_branch: string | null
           bank_name: string | null
@@ -3702,6 +3703,7 @@ export type Database = {
         }
         Insert: {
           account_number_masked?: string | null
+          account_number_raw?: string | null
           bank_address?: string | null
           bank_branch?: string | null
           bank_name?: string | null
@@ -3733,6 +3735,7 @@ export type Database = {
         }
         Update: {
           account_number_masked?: string | null
+          account_number_raw?: string | null
           bank_address?: string | null
           bank_branch?: string | null
           bank_name?: string | null
@@ -3789,6 +3792,7 @@ export type Database = {
       escrow_records: {
         Row: {
           account_number_masked: string | null
+          account_number_raw: string | null
           bank_address: string | null
           bank_branch: string | null
           bank_name: string | null
@@ -3815,6 +3819,7 @@ export type Database = {
         }
         Insert: {
           account_number_masked?: string | null
+          account_number_raw?: string | null
           bank_address?: string | null
           bank_branch?: string | null
           bank_name?: string | null
@@ -3841,6 +3846,7 @@ export type Database = {
         }
         Update: {
           account_number_masked?: string | null
+          account_number_raw?: string | null
           bank_address?: string | null
           bank_branch?: string | null
           bank_name?: string | null

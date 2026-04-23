@@ -127,7 +127,7 @@ export function validateInstallmentFunding(args: {
   if (!values.bankName.trim()) errors.push('Bank name is required.');
   if (!values.depositDate.trim()) errors.push('Deposit date is required.');
   if (!values.depositReference.trim()) errors.push('Deposit reference is required.');
-  if (!values.accountNumber.trim() && !installment?.account_number_masked) {
+  if (!values.accountNumber.trim() && !installment?.account_number_raw && !installment?.account_number_masked) {
     errors.push('Account number is required before funding this installment.');
   }
   if (!values.ifscSwiftCode.trim()) errors.push('IFSC / SWIFT code is required.');
