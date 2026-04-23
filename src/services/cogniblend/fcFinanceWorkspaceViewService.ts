@@ -38,7 +38,7 @@ export function deriveFcWorkspaceViewState(args: {
   const isFunded = args.escrowStatus === 'FUNDED';
   const hasEscrowRecord = !!args.escrowStatus;
   const isPreview = !hasEscrowRecord && !isFunded && !args.fcComplianceComplete;
-  const canEditDepositFields = !args.fcComplianceComplete && !isFunded;
+  const canEditDepositFields = !args.fcComplianceComplete;
   const canUploadProof = canEditDepositFields;
   const canConfirmEscrow = canEditDepositFields;
   const canSubmitFinanceReview = isFunded && !args.fcComplianceComplete;
