@@ -1,109 +1,102 @@
 
-## Status review — not fully fixed yet
+## Final fix plan — keep selected installment in sync with refetched data so account number persists across edit → save → edit
 
-## Overall verdict
-Most of the approved fix is implemented in code, but I cannot confirm that **all** problems are fully fixed in every real case.
+## Root cause
+The remaining bug is not in the mutation anymore. The raw account number is being saved in `useEscrowInstallmentFunding.ts`.
 
-The main remaining gap is:
+The problem is in `EscrowInstallmentWorkspace.tsx`:
+- `selectedInstallment` is stored as a full row object in local state
+- after save, queries are invalidated and fresh installment data is fetched
+- but the workspace keeps the old selected object as long as the same `id` still exists
+- reopening edit therefore passes stale installment data into `EscrowFundingForm`
+- result: `buildDefaults()` reads the stale `account_number_raw` value, so the account number appears blank again even though the database row was updated
 
-- **historical already-funded installments created before the new migration will still not repopulate the raw account number**
-  - the migration only adds `account_number_raw`
-  - it does **not** backfill old funded rows
-  - `EscrowFundingForm` now reads `installment.account_number_raw`
-  - if that column is null for older rows, the account-number field will still appear blank in edit mode
+So the issue is a stale selected-row reference, not a missing save.
 
-So the fix is complete for **newly saved / resaved installments after this change**, but not fully complete for **existing pre-migration funded data**.
+## What to change
 
-## Confirmed implemented
+### 1) Replace object-based selection with ID-based selection
+Update `src/components/cogniblend/escrow/EscrowInstallmentWorkspace.tsx`.
 
-### 1) Persisted editable account number
-Confirmed:
-- migration adds `account_number_raw` to:
-  - `public.escrow_installments`
-  - `public.escrow_records`
-- `EscrowInstallmentRecord` now includes `account_number_raw`
-- query hooks now select `account_number_raw`:
-  - `useEscrowFundingContext.ts`
-  - `useEscrowInstallments.ts`
-  - `usePreviewData.ts`
+Change local state from:
+- `selectedInstallment: EscrowInstallmentRecord | null`
 
-### 2) Funding mutation preserves and updates account fields
-Confirmed in `useEscrowInstallmentFunding.ts`:
-- trims submitted account number
-- saves `account_number_raw`
-- regenerates `account_number_masked` when a new number is entered
-- preserves prior raw/masked values if the field is left unchanged during edit
+to:
+- `selectedInstallmentId: string | null`
 
-### 3) Funded edit form now preloads saved values
-Confirmed in `EscrowFundingForm.tsx`:
-- defaults now read:
-  - bank name
-  - branch
-  - address
-  - `account_number_raw`
-  - IFSC / SWIFT
-  - deposit date
-  - deposit reference
-  - notes
-- so for rows that actually have `account_number_raw`, the edit form will repopulate correctly
+Then derive the live selected row from the latest query data:
+- `selectedInstallment = context.installments.find(...) ?? null`
 
-### 4) Existing proof is shown and replacement is supported
-Confirmed in `EscrowFundingForm.tsx` + `EscrowInstallmentWorkspace.tsx`:
-- existing proof filename is shown when no replacement file is selected
-- UI states that the current proof will be kept unless replaced
-- “View current proof” is wired through `useSignedUrl`
-- if a new file is chosen, the UI explicitly says it will replace the current proof
-- “Keep current proof” clears the replacement selection
+This ensures the details card and edit form always use the newest refetched installment record, including the latest `account_number_raw`, proof metadata, and other updated fields.
 
-### 5) Existing proof satisfies edit validation
-Confirmed in `escrowInstallmentValidationService.ts`:
-- proof is only required if there is neither:
-  - a new uploaded file
-  - nor an existing stored proof filename
+### 2) Keep selection stable across refetches
+Still in `EscrowInstallmentWorkspace.tsx`:
+- if the selected ID still exists after refetch, keep it
+- if not, fall back to the first selectable installment
+- if no installments exist, clear the selected ID
 
-### 6) Details view remains masked
-Confirmed in `EscrowInstallmentDetailsCard.tsx`:
-- read-only summary still shows `account_number_masked`
-- raw account number is not displayed there
+This preserves current UX while fixing stale data.
 
-### 7) Proof replacement cleanup remains in place
-Confirmed in `useEscrowInstallmentFunding.ts`:
-- existing storage object is deleted before a replacement upload
-- new file is then uploaded and stored on the same installment row
+### 3) Update table selection wiring
+`EscrowInstallmentTable.tsx` can stay mostly unchanged, but the workspace should pass:
+- `selectedInstallmentId`
+- `onSelect={(installment) => setSelectedInstallmentId(installment.id)}`
 
-## Remaining issue
+No business-rule change is needed in the table itself.
 
-### Historical funded rows are not backfilled
-The migration shown is only:
+### 4) Keep edit-mode reset behavior, but tie it to selected ID
+In `EscrowInstallmentWorkspace.tsx`:
+- continue resetting `editingFundedId` and `proofFile` when the selected installment changes
+- use `selectedInstallmentId` as the effect dependency
+- keep the save-success reset of edit mode and proof replacement state
 
-```sql
-ALTER TABLE public.escrow_installments
-ADD COLUMN IF NOT EXISTS account_number_raw text;
+This avoids regression in the existing funded-edit UX.
 
-ALTER TABLE public.escrow_records
-ADD COLUMN IF NOT EXISTS account_number_raw text;
+### 5) Ensure form defaults always come from the latest installment prop
+`EscrowFundingForm.tsx` already does:
+- `defaultValues: buildDefaults(installment)`
+- `form.reset(buildDefaults(installment))` on installment change
+
+That logic is correct. Once the workspace passes the fresh installment object instead of a stale cached one, the account number should repopulate correctly after edit → save → edit.
+
+No service-layer change is needed for this specific bug.
+
+## Files to update
+```text
+src/components/cogniblend/escrow/EscrowInstallmentWorkspace.tsx
 ```
 
-That means:
-- older funded installments keep `account_number_raw = null`
-- edit mode will still show blank account number for those rows
-- this does not fully satisfy the requirement that “already entered data” must appear during edit for existing legacy funded data
+## Files to verify during implementation
+```text
+src/components/cogniblend/escrow/EscrowFundingForm.tsx
+src/components/cogniblend/escrow/EscrowInstallmentTable.tsx
+```
 
-Because masked values cannot be reversed into the original account number, this cannot be solved by UI alone.
+## Explicit non-changes
+Do not modify:
+- `useEscrowInstallmentFunding.ts`
+- `escrowInstallmentValidationService.ts`
+- database migration / schema
+- proof replacement logic
 
-## Final confirmation
-So the correct answer is:
+Reason:
+- those layers already support raw account persistence and proof continuity
+- the current failure is caused by stale presentation-state selection in the workspace
 
-- **No, not fully for all existing cases**
-- **Yes, mostly fixed in code for new and future saves**
-- **But not fully fixed for pre-migration funded installments unless those rows are backfilled from a trusted source or manually re-entered once**
+## Expected outcome
+After this fix:
+- FC edits a funded installment and saves
+- refetched installment data becomes the active selected row
+- clicking Edit again shows the saved account number correctly
+- proof metadata and other edited fields also reflect the latest saved values
+- no duplicate rows or access-rule changes are introduced
 
-## Final follow-up fix needed
-To fully close the problem, add one of these:
-1. a one-time backfill from any trusted raw source if one exists, or
-2. an explicit fallback UX for legacy funded rows:
-   - show a notice that the original raw account number is unavailable for this older record
-   - require FC to re-enter it once
-   - then save it into `account_number_raw` for future edits
-
-Without that last step, the “previously entered values appear lost” problem is still partially unresolved for older funded installments.
+## Verification checklist
+- funded installment with newly entered raw account number:
+  - save succeeds
+  - closing and reopening edit shows the same account number
+- other edited fields also persist across edit → save → edit
+- existing proof still shows correctly after save
+- replacement proof still works
+- pending installment flow remains unchanged
+- final read-only still blocks editing
