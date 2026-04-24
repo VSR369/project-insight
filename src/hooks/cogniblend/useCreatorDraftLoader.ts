@@ -128,7 +128,6 @@ export function useCreatorDraftLoader(
         phase_durations: phaseDurations,
         is_anonymous: eb?.is_anonymous === true,
         community_creation_allowed: eb?.community_creation_allowed === true,
-        creator_approval_required: eb?.creator_approval_required !== false,
       });
 
       // Restore reference URLs from extended_brief (stored outside RHF)
