@@ -141,8 +141,31 @@ export async function fetchChallengeContext(
     engagementModelName = (em?.code as string) ?? (em?.name as string) ?? null;
   }
 
+  // Flatten extended_brief JSONB into top-level context keys so the prompt
+  // builder's CREATOR_FIELD_LISTS (which reference flat keys like
+  // context_background, root_causes, etc.) can find them.
+  const eb = (challenge.extended_brief as Record<string, unknown> | null) ?? {};
+  const ps = (challenge.phase_schedule as Record<string, unknown> | null) ?? {};
+  const flattenedChallenge: Record<string, unknown> = {
+    ...challenge,
+    context_background: eb.context_background ?? null,
+    root_causes: eb.root_causes ?? null,
+    affected_stakeholders: eb.affected_stakeholders ?? null,
+    preferred_approach: eb.preferred_approach ?? null,
+    approaches_not_of_interest: eb.approaches_not_of_interest ?? null,
+    current_deficiencies: eb.current_deficiencies ?? null,
+    is_anonymous: eb.is_anonymous ?? false,
+    community_creation_allowed: eb.community_creation_allowed ?? false,
+    creator_approval_required: eb.creator_approval_required ?? true,
+    expected_timeline: ps.expected_timeline ?? null,
+    phase_durations: ps.phase_durations ?? null,
+    // Surface platinum_award at top level so prompt scoring can reference it
+    platinum_award: (challenge.reward_structure as Record<string, unknown> | null)?.platinum_award ?? null,
+    weighted_criteria: (challenge.evaluation_criteria as Record<string, unknown> | null)?.weighted_criteria ?? null,
+  };
+
   return {
-    challenge,
+    challenge: flattenedChallenge,
     legalDocs,
     orgName: (org?.organization_name as string) ?? null,
     governanceProfile: (org?.governance_profile as string) ?? null,
