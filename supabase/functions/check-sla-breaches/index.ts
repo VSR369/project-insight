@@ -21,9 +21,9 @@ serve(async (req) => {
     const { data, error } = await supabaseAdmin.rpc("process_sla_breaches");
 
     if (error) {
-      console.error("SLA breach processing error:", error.message);
+      console.error("SLA breach processing error:", (error instanceof Error ? error.message : String(error)));
       return new Response(
-        JSON.stringify({ success: false, error: { code: "PROCESSING_ERROR", message: error.message } }),
+        JSON.stringify({ success: false, error: { code: "PROCESSING_ERROR", message: (error instanceof Error ? error.message : String(error)) } }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -315,9 +315,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Unexpected error:", error.message);
+    console.error("Unexpected error:", (error instanceof Error ? error.message : String(error)));
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: error.message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: (error instanceof Error ? error.message : String(error)) } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -35,7 +35,7 @@ async function handleSyncModel(sa: SA, body: Record<string, unknown>) {
   const { orgId, operatingModel } = body;
   if (!orgId || !operatingModel) return jsonRes({ success: false, error: { code: "INVALID_PARAMS", message: "orgId and operatingModel required" } }, 400);
   const { error } = await sa.from("seeker_organizations").update({ operating_model: operatingModel }).eq("id", orgId);
-  if (error) return jsonRes({ success: false, error: { code: "SYNC_FAILED", message: error.message } }, 500);
+  if (error) return jsonRes({ success: false, error: { code: "SYNC_FAILED", message: (error instanceof Error ? error.message : String(error)) } }, 500);
   return jsonRes({ success: true, data: { message: `Operating model updated to ${operatingModel}` } });
 }
 

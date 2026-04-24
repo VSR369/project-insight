@@ -144,9 +144,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Taxonomy suggestion error:", error.message);
+    console.error("Taxonomy suggestion error:", (error instanceof Error ? error.message : String(error)));
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: error.message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: (error instanceof Error ? error.message : String(error)) } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
