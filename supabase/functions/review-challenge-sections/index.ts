@@ -1338,7 +1338,7 @@ GROUNDING RULE (CRITICAL):
         postBatchModel,
         allNewSections,
         challengeData,
-        context?.sections || {},
+        clientContext?.sections || {},
         reasoningEffort,
       ).catch((err: Error) => {
         if (err.message === 'RATE_LIMIT' || err.message === 'PAYMENT_REQUIRED') {
@@ -1364,10 +1364,10 @@ GROUNDING RULE (CRITICAL):
             await adminClient
               .from('challenge_consistency_findings')
               .delete()
-              .eq('challenge_id', challengeId);
+              .eq('challenge_id', challenge_id);
 
             const rows = consistencyResult.findings.map((f) => ({
-              challenge_id: challengeId,
+              challenge_id: challenge_id,
               section_a: String(f.source_section ?? '').slice(0, 100),
               section_b: String(f.target_section ?? '').slice(0, 100),
               contradiction_type: String(f.inconsistency ?? '').slice(0, 100),
@@ -1420,10 +1420,10 @@ GROUNDING RULE (CRITICAL):
             await adminClient
               .from('challenge_ambiguity_findings')
               .delete()
-              .eq('challenge_id', challengeId);
+              .eq('challenge_id', challenge_id);
 
             const rows = ambiguityResult.findings.map((f) => ({
-              challenge_id: challengeId,
+              challenge_id: challenge_id,
               section_key: String(f.section_key ?? '').slice(0, 100),
               snippet: String(f.ambiguous_text ?? '').slice(0, 500),
               pattern_matched: String(f.ambiguity_type ?? '').slice(0, 100),
