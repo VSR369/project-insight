@@ -222,7 +222,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       ipModel: data.ip_model || undefined, hook: data.hook || undefined,
       weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
       deliverablesList: cleanArray(data.deliverables_list),
-      solverAudience: engagementModel === 'AGG' ? data.solver_audience : 'ALL',
+      solverAudience: audienceSelectable(engagementModel) ? data.solver_audience : 'ALL',
       evaluationMethod: data.evaluation_method,
       evaluatorCount: data.evaluator_count,
       creatorLegalInstructions: data.creator_legal_instructions || undefined,
@@ -260,6 +260,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const handleSubmit = form.handleSubmit(
     async (data) => {
       if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
+      // QUICK: open pre-publish confirmation modal first
+      if (isQuick) {
+        setPendingQuickData(data);
+        setShowQuickConfirm(true);
+        return;
+      }
       await executeSubmit(data);
     },
     (errors) => {
@@ -268,6 +274,13 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       toast.error(`Please fix: ${firstError?.message || firstKey}`);
     },
   );
+
+  const handleQuickConfirm = useCallback(async () => {
+    if (!pendingQuickData) return;
+    setShowQuickConfirm(false);
+    await executeSubmit(pendingQuickData);
+    setPendingQuickData(null);
+  }, [pendingQuickData, executeSubmit]);
 
   const handleFillTestData = useCallback(() => {
     if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
@@ -290,6 +303,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         challengeId={publishedResult.challengeId}
         challengeTitle={publishedResult.title}
         engagementModel={engagementModel}
+        solverAudience={form.getValues('solver_audience')}
+        visibility={null}
       />
     );
   }
@@ -331,7 +346,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             governanceMode={governanceMode}
           />
         )}
-        {engagementModel === 'AGG' && (
+        {audienceSelectable(engagementModel) && (
           <div className="rounded-lg border border-border p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Users className="h-4 w-4 text-muted-foreground" />
