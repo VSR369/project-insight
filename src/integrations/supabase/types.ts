@@ -17087,6 +17087,10 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: undefined
       }
+      next_active_phase_number: {
+        Args: { p_current_phase: number; p_governance_mode: string }
+        Returns: number
+      }
       normalize_role_code: { Args: { code: string }; Returns: string }
       notify_escalation: {
         Args: {

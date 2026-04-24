@@ -23,14 +23,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 import { useOrgCpaTemplates } from '@/hooks/queries/useOrgCpaTemplates';
+import { useLegalDocTemplates } from '@/hooks/queries/useLegalDocTemplates';
 import { usePlatformSpaTemplate } from '@/hooks/queries/usePlatformSpaTemplate';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { SOURCE_DOC_CONFIG } from '@/services/legal/sourceDocService';
 import type { QuickLegalOverrideRow } from '@/hooks/queries/useQuickLegalOverride';
 import type { CreatorFormValues } from './creatorFormSchema';
+import { legalTemplateSource } from '@/services/engagementModelRulesService';
+import { CPA_PREVIEW_DESCRIPTIONS, CPA_SOURCE_LABEL } from '@/constants/legalPreview.constants';
 
 interface CreatorLegalPreviewProps {
   governanceMode: GovernanceMode;
+  /** MP or AGG — drives template source via engagementModelRulesService. */
+  engagementModel: string;
   organizationId?: string;
   challengeId?: string;
   quickLegalOverride?: QuickLegalOverrideRow | null;
@@ -49,11 +54,7 @@ const MODE_CONFIG: Record<GovernanceMode, { color: string; badge: string; badgeC
   CONTROLLED: { color: 'text-purple-600', badge: 'LC-reviewed', badgeClass: 'text-purple-700 border-purple-300 bg-purple-50', borderClass: 'border-purple-200' },
 };
 
-const CPA_DESCRIPTIONS: Record<GovernanceMode, string> = {
-  QUICK: 'Assembled automatically from your org\'s CPA-Quick template with this challenge\'s details (IP model, prize, jurisdiction). Solution Providers auto-accept at enrollment. No manual review.',
-  STRUCTURED: 'Assembled after curation freeze from your org\'s CPA-Structured template. The Curator reviews, can edit legal terms, and optionally add addenda before publishing.',
-  CONTROLLED: 'Assembled after curation freeze from your org\'s CPA-Controlled template. The Legal Coordinator reviews with AI assistance, can edit terms, add addenda, and must approve.',
-};
+// CPA descriptions are sourced from CPA_PREVIEW_DESCRIPTIONS (engagement-aware).
 
 const INSTRUCTIONS_PLACEHOLDERS: Record<string, string> = {
   STRUCTURED: 'e.g., This challenge involves regulated medical data — please ensure HIPAA compliance clauses are included. Our client requires a specific non-compete clause...',
@@ -62,6 +63,7 @@ const INSTRUCTIONS_PLACEHOLDERS: Record<string, string> = {
 
 export function CreatorLegalPreview({
   governanceMode,
+  engagementModel,
   organizationId,
   challengeId,
   quickLegalOverride,
@@ -73,29 +75,49 @@ export function CreatorLegalPreview({
   templateContext,
 }: CreatorLegalPreviewProps) {
   const form = useFormContext<CreatorFormValues>();
-  const { data: cpaTemplates = [], isLoading: cpaLoading } = useOrgCpaTemplates(organizationId ?? '');
+  const templateSource = legalTemplateSource(engagementModel); // 'PLATFORM' | 'ORG'
+  const isPlatformSource = templateSource === 'PLATFORM';
+
+  const { data: orgCpaTemplates = [], isLoading: orgCpaLoading } = useOrgCpaTemplates(
+    isPlatformSource ? '' : (organizationId ?? ''),
+  );
+  const { data: platformCpaDocs = [], isLoading: platformCpaLoading } = useLegalDocTemplates(
+    governanceMode,
+    isPlatformSource ? 'MP' : '__skip__',
+  );
+
   const { data: spaTemplate, isLoading: spaLoading } = usePlatformSpaTemplate();
   const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const config = MODE_CONFIG[governanceMode];
   const cpaCode = `CPA_${governanceMode}`;
-  const cpaTemplate = cpaTemplates.find(t => t.document_code === cpaCode);
   const isQuick = governanceMode === 'QUICK';
   const showInstructions = !isQuick;
   const instructions = form?.watch('creator_legal_instructions') ?? '';
 
-  // Effective document resolution for QUICK mode is driven by BOTH the toggle
-  // AND whether a saved override exists. The saved override is preserved
-  // across toggles; deletion is explicit only.
+  const orgCpaTemplate = orgCpaTemplates.find((t) => t.document_code === cpaCode);
+  const platformCpaTemplate = platformCpaDocs.find(
+    (d) => d.document_code === cpaCode || (d.document_code ?? '').startsWith('CPA_'),
+  );
+
+  const resolvedTemplateContent = isPlatformSource
+    ? platformCpaTemplate?.content ?? null
+    : orgCpaTemplate?.template_content ?? null;
+  const resolvedTemplateName = isPlatformSource
+    ? platformCpaTemplate?.document_name ?? 'Challenge Participation Agreement'
+    : orgCpaTemplate?.document_name ?? 'Challenge Participation Agreement';
+
+  const cpaLoading = isPlatformSource ? platformCpaLoading : orgCpaLoading;
+
   const hasSavedReplacement = !!quickLegalOverride;
   const isReplacementActive = isQuick && quickOverrideMode === 'REPLACE_DEFAULT' && hasSavedReplacement;
   const effectiveQuickContent = isReplacementActive
     ? quickLegalOverride?.content_html ?? null
-    : cpaTemplate?.template_content ?? null;
+    : resolvedTemplateContent;
   const effectiveQuickName = isReplacementActive
     ? quickLegalOverride?.document_name ?? 'Challenge-specific replacement'
-    : cpaTemplate?.document_name ?? 'Challenge Participation Agreement';
+    : resolvedTemplateName;
 
   const handleQuickUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -107,10 +129,10 @@ export function CreatorLegalPreview({
   // Completeness for the CPA template (not the override). Shown as a banner
   // inside the View Template dialog so the Creator sees what's still missing.
   const completeness = useMemo(() => {
-    const raw = cpaTemplate?.template_content;
+    const raw = resolvedTemplateContent;
     if (!raw || !templateContext) return null;
     return analyzeTemplateCompleteness(raw, templateContext);
-  }, [cpaTemplate?.template_content, templateContext]);
+  }, [resolvedTemplateContent, templateContext]);
 
   // Interpolate the dialog content only for the CPA template path.
   // Uploaded replacement (SOURCE_DOC) is run through the plain-text formatter
@@ -259,7 +281,7 @@ export function CreatorLegalPreview({
               ? 'A challenge-specific replacement is active for this Quick challenge. It does not modify the organization template.'
               : isQuick && hasSavedReplacement && quickOverrideMode === 'KEEP_DEFAULT'
                 ? 'Default template currently active. A saved challenge-specific replacement is available if you switch back to “Replace default”.'
-                : CPA_DESCRIPTIONS[governanceMode]}
+                : CPA_PREVIEW_DESCRIPTIONS[templateSource][governanceMode]}
           </p>
           {effectiveQuickContent ? (
             <Button

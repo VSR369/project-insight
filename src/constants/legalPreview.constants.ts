@@ -51,3 +51,35 @@ export const DEFAULT_GOVERNING_LAW = 'As per applicable regulations';
 export function buildEscrowTermsText(currency: string, prizeAmount: string): string {
   return `ESCROW REQUIREMENT: Organization must deposit full prize (${currency} ${prizeAmount}) into Platform escrow before solver enrollment. Released upon winner confirmation + IP agreement execution.`;
 }
+
+/* ─── Creator Legal Preview copy (engagement-aware) ────────────── */
+
+/**
+ * CPA descriptions shown in the Creator Legal Preview card.
+ * Indexed first by engagement source ('PLATFORM' | 'ORG'), then by governance mode.
+ */
+export const CPA_PREVIEW_DESCRIPTIONS: Record<'PLATFORM' | 'ORG', Record<string, string>> = {
+  ORG: {
+    QUICK:
+      "Assembled automatically from your org's CPA-Quick template with this challenge's details (IP model, prize, jurisdiction). Solution Providers auto-accept at enrollment. No manual review.",
+    STRUCTURED:
+      "Assembled after curation freeze from your org's CPA-Structured template. The Curator reviews, can edit legal terms, and optionally add addenda before publishing.",
+    CONTROLLED:
+      "Assembled after curation freeze from your org's CPA-Controlled template. The Legal Coordinator reviews with AI assistance, can edit terms, add addenda, and must approve.",
+  },
+  PLATFORM: {
+    QUICK:
+      "Assembled automatically from the Platform Marketplace CPA-Quick template with this challenge's details (IP model, prize, jurisdiction). Solution Providers auto-accept at enrollment.",
+    STRUCTURED:
+      'Assembled after curation freeze from the Platform Marketplace CPA-Structured template. The Curator reviews and can attach addenda before publishing.',
+    CONTROLLED:
+      'Assembled after curation freeze from the Platform Marketplace CPA-Controlled template. The Legal Coordinator reviews with AI assistance and must approve.',
+  },
+};
+
+/** Source-of-template chip text shown next to the CPA card. */
+export const CPA_SOURCE_LABEL: Record<'PLATFORM' | 'ORG', string> = {
+  PLATFORM: 'Platform template',
+  ORG: 'Organization template',
+};
+

@@ -355,6 +355,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         )}
         <CreatorLegalPreview
           governanceMode={governanceMode}
+          engagementModel={engagementModel}
           organizationId={currentOrg?.organizationId}
           challengeId={draftSave.draftChallengeId ?? undefined}
           quickLegalOverride={quickLegalOverride}
