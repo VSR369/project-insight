@@ -1,5 +1,6 @@
 /**
 import { sendEmail } from "../_shared/sendEmail.ts";
+import { resend } from "../_shared/resendShim.ts";
  * send-registration-otp Edge Function
  * 
  * Generates a 6-digit OTP, hashes it, stores in email_otp_verifications,

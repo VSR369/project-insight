@@ -1,5 +1,6 @@
 /**
 import { sendEmail } from "../_shared/sendEmail.ts";
+import { resend } from "../_shared/resendShim.ts";
  * Notify Enrollment Deleted Edge Function
  * 
  * Sends email notifications to all stakeholders when an enrollment
