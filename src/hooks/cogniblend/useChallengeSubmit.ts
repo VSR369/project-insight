@@ -205,8 +205,19 @@ export function useChallengeSubmit() {
         throw new Error(userMsg);
       }
 
-      // Parse phase result to check current phase
-      const phaseData = phaseResult as unknown as { current_phase?: number } | null;
+      // Parse phase result. The RPC returns { success, current_phase, phases_auto_completed }.
+      // It may also return { success: false, error } without throwing.
+      const phaseData = phaseResult as unknown as {
+        success?: boolean;
+        error?: string;
+        current_phase?: number;
+        phases_auto_completed?: number[];
+      } | null;
+
+      if (phaseData && phaseData.success === false) {
+        throw new Error(phaseData.error || 'Phase transition failed.');
+      }
+
       const currentPhase = phaseData?.current_phase ?? 0;
 
       // Auto-assign CU when Phase 2 (Curation) is reached — skip for QUICK (solo user has all roles)
