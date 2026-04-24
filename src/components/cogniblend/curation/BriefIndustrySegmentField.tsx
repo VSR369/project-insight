@@ -6,6 +6,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle } from "lucide-react";
+import { INDUSTRY_SOURCE_LABEL, type IndustrySegmentSource } from "@/constants/industrySegment.constants";
 
 interface IndustrySegment {
   id: string;
@@ -20,16 +21,8 @@ interface BriefIndustrySegmentFieldProps {
   industrySegments: IndustrySegment[];
   onIndustrySegmentChange?: (segmentId: string) => void;
   /** Provenance: where the current segment value came from. */
-  provenance?: 'draft' | 'org_default' | 'creator_override' | 'curator_override' | 'fallback' | null;
+  provenance?: IndustrySegmentSource | null;
 }
-
-const PROVENANCE_LABEL: Record<NonNullable<BriefIndustrySegmentFieldProps['provenance']>, string> = {
-  draft: 'from Draft',
-  org_default: 'Org default',
-  creator_override: 'Creator set',
-  curator_override: 'Curator set',
-  fallback: 'Auto-selected',
-};
 
 export function BriefIndustrySegmentField({
   industrySegmentId, industrySegmentFromIntake, readOnly,
@@ -44,7 +37,7 @@ export function BriefIndustrySegmentField({
         )}
         {provenance && industrySegmentId && !industrySegmentFromIntake && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">
-            {PROVENANCE_LABEL[provenance]}
+            {INDUSTRY_SOURCE_LABEL[provenance]}
           </Badge>
         )}
         {!industrySegmentId && !readOnly && (

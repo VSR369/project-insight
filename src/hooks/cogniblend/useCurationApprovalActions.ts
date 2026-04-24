@@ -138,6 +138,8 @@ export function useCurationApprovalActions({
       queryClient.invalidateQueries({ queryKey: ['taxonomy_cascade_sub_domains'] }),
       queryClient.invalidateQueries({ queryKey: ['taxonomy_cascade_specialities'] }),
       queryClient.invalidateQueries({ queryKey: ['eligibility', challengeId] }),
+      queryClient.invalidateQueries({ queryKey: ['v_challenge_match'] }),
+      queryClient.invalidateQueries({ queryKey: ['challenge_match'] }),
     ]);
     setOptimisticIndustrySegId(null);
   }, [challengeId, challenge, queryClient, setOptimisticIndustrySegId, userId]);
