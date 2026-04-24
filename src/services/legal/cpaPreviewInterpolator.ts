@@ -19,6 +19,7 @@ import {
   DEFAULT_GOVERNING_LAW,
   buildEscrowTermsText,
 } from '@/constants/legalPreview.constants';
+import { formatLegalPlainText } from '@/services/legal/legalTextFormatter';
 
 export interface CpaPreviewInput {
   challenge_title?: string | null;
@@ -137,7 +138,13 @@ export function interpolateCpaTemplate(
 ): string {
   if (!template) return template;
 
-  return template.replace(VARIABLE_REGEX, (_match, rawKey: string) => {
+  // Format plain-text templates into structured HTML BEFORE substitution so the
+  // {{var}} markers and `[Not set: …]` chips end up inside proper <p>/<h2> tags.
+  // Already-HTML content (DOCX-via-mammoth, post-freeze assembled docs, SPA)
+  // is detected and passed through unchanged by the formatter.
+  const formatted = formatLegalPlainText(template);
+
+  return formatted.replace(VARIABLE_REGEX, (_match, rawKey: string) => {
     const key = rawKey.toLowerCase();
     const value = vars[key];
 

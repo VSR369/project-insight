@@ -19,6 +19,7 @@ import {
   interpolateCpaTemplate,
   type CpaPreviewVariables,
 } from '@/services/legal/cpaPreviewInterpolator';
+import { formatLegalPlainText } from '@/services/legal/legalTextFormatter';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
@@ -208,7 +209,7 @@ export function ChallengeLegalDocsCard({
               <LegalDocumentViewer
                 content={viewingDoc.interpolate && templateContext
                   ? interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview')
-                  : viewingDoc.content}
+                  : formatLegalPlainText(viewingDoc.content)}
               />
             </div>
           </DialogContent>

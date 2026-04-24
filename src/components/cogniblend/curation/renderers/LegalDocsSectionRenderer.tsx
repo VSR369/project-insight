@@ -15,6 +15,7 @@ import {
   interpolateCpaTemplate,
   type CpaPreviewVariables,
 } from "@/services/legal/cpaPreviewInterpolator";
+import { formatLegalPlainText } from "@/services/legal/legalTextFormatter";
 
 interface LegalDocDetail {
   id: string;
@@ -72,8 +73,10 @@ export function LegalDocsSectionRenderer({
   const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
   const dialogContent = useMemo(() => {
     if (!viewingDoc) return '';
-    if (!viewingDoc.interpolate || !templateContext) return viewingDoc.content;
-    return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+    if (viewingDoc.interpolate && templateContext) {
+      return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+    }
+    return formatLegalPlainText(viewingDoc.content);
   }, [viewingDoc, templateContext]);
   const hasActualDocs = documents && documents.length > 0;
 
