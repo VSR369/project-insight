@@ -15,6 +15,10 @@ import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
+import {
+  interpolateCpaTemplate,
+  type CpaPreviewVariables,
+} from '@/services/legal/cpaPreviewInterpolator';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
@@ -23,6 +27,8 @@ interface ChallengeLegalDocsCardProps {
   governanceMode?: string;
   organizationId?: string;
   engagementModel?: string;
+  /** Resolved variable map for `{{...}}` interpolation in the View dialog. */
+  templateContext?: CpaPreviewVariables;
 }
 
 interface LegalDocRow {
@@ -38,9 +44,9 @@ interface LegalDocRow {
 }
 
 export function ChallengeLegalDocsCard({
-  challengeId, isQuickMode, currentPhase, governanceMode, organizationId, engagementModel,
+  challengeId, isQuickMode, currentPhase, governanceMode, organizationId, engagementModel, templateContext,
 }: ChallengeLegalDocsCardProps) {
-  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
   const { data: legalDocs } = useQuery<LegalDocRow[]>({
     queryKey: ['challenge-legal-docs', challengeId],
     queryFn: async () => {
@@ -158,6 +164,8 @@ export function ChallengeLegalDocsCard({
                     onClick={() => setViewingDoc({
                       name: doc.document_name ?? doc.document_type,
                       content: doc.content_html ?? `<pre class=\"whitespace-pre-wrap text-sm\">${doc.content ?? ''}</pre>`,
+                      // Don't interpolate uploaded SOURCE_DOC replacements; show verbatim
+                      interpolate: doc.override_strategy !== 'REPLACE_DEFAULT',
                     })}
                   >
                     <Eye className="h-3 w-3" /> View
@@ -197,7 +205,11 @@ export function ChallengeLegalDocsCard({
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <LegalDocumentViewer content={viewingDoc.content} />
+              <LegalDocumentViewer
+                content={viewingDoc.interpolate && templateContext
+                  ? interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview')
+                  : viewingDoc.content}
+              />
             </div>
           </DialogContent>
         </Dialog>

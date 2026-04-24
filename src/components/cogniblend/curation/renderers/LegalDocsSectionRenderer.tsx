@@ -4,10 +4,17 @@
  * Phase 2: Automatically shows planned legal template previews when no docs exist.
  */
 
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, ShieldCheck, CheckCircle2, Eye, Clock } from "lucide-react";
 import { useLegalTemplatePreview } from "@/hooks/queries/useLegalTemplatePreview";
+import { LegalDocumentViewer } from "@/components/legal/LegalDocumentViewer";
+import {
+  interpolateCpaTemplate,
+  type CpaPreviewVariables,
+} from "@/services/legal/cpaPreviewInterpolator";
 
 interface LegalDocDetail {
   id: string;
@@ -17,6 +24,9 @@ interface LegalDocDetail {
   lc_status: string | null;
   status: string | null;
   tier: string;
+  content?: string | null;
+  content_html?: string | null;
+  override_strategy?: string | null;
 }
 
 function LcStatusBadge({ status }: { status: string | null }) {
@@ -44,6 +54,8 @@ interface LegalDocsSectionRendererProps {
   engagementModel?: string;
   /** Organization ID for AGG template resolution */
   organizationId?: string;
+  /** Resolved variable map for `{{...}}` interpolation in the View dialog. */
+  templateContext?: CpaPreviewVariables;
 }
 
 export function LegalDocsSectionRenderer({
@@ -55,7 +67,14 @@ export function LegalDocsSectionRenderer({
   currentPhase,
   engagementModel,
   organizationId,
+  templateContext,
 }: LegalDocsSectionRendererProps) {
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
+  const dialogContent = useMemo(() => {
+    if (!viewingDoc) return '';
+    if (!viewingDoc.interpolate || !templateContext) return viewingDoc.content;
+    return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+  }, [viewingDoc, templateContext]);
   const hasActualDocs = documents && documents.length > 0;
 
   // Phase 2 preview hook — only fetches when no actual docs exist

@@ -4,7 +4,12 @@
  * STRUCTURED/CONTROLLED: includes Creator Legal Instructions textarea.
  */
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import {
+  interpolateCpaTemplate,
+  analyzeTemplateCompleteness,
+  type CpaPreviewVariables,
+} from '@/services/legal/cpaPreviewInterpolator';
 import { useFormContext } from 'react-hook-form';
 import { FileText, Shield, Eye, Loader2, AlertTriangle, Info, Upload, RefreshCw, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +38,8 @@ interface CreatorLegalPreviewProps {
   onQuickOverrideUpload?: (file: File) => Promise<void>;
   onQuickOverrideRemove?: () => Promise<void>;
   isQuickOverrideBusy?: boolean;
+  /** Resolved variable map for `{{...}}` interpolation in the preview dialog. */
+  templateContext?: CpaPreviewVariables;
 }
 
 const MODE_CONFIG: Record<GovernanceMode, { color: string; badge: string; badgeClass: string; borderClass: string }> = {
@@ -62,11 +69,12 @@ export function CreatorLegalPreview({
   onQuickOverrideUpload,
   onQuickOverrideRemove,
   isQuickOverrideBusy = false,
+  templateContext,
 }: CreatorLegalPreviewProps) {
   const form = useFormContext<CreatorFormValues>();
   const { data: cpaTemplates = [], isLoading: cpaLoading } = useOrgCpaTemplates(organizationId ?? '');
   const { data: spaTemplate, isLoading: spaLoading } = usePlatformSpaTemplate();
-  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const config = MODE_CONFIG[governanceMode];
@@ -94,6 +102,22 @@ export function CreatorLegalPreview({
     if (!file || !onQuickOverrideUpload) return;
     await onQuickOverrideUpload(file);
   };
+
+  // Completeness for the CPA template (not the override). Shown as a banner
+  // inside the View Template dialog so the Creator sees what's still missing.
+  const completeness = useMemo(() => {
+    const raw = cpaTemplate?.template_content;
+    if (!raw || !templateContext) return null;
+    return analyzeTemplateCompleteness(raw, templateContext);
+  }, [cpaTemplate?.template_content, templateContext]);
+
+  // Interpolate the dialog content only for the CPA template path.
+  // Uploaded replacement (SOURCE_DOC) and the SPA are rendered as-is.
+  const dialogContent = useMemo(() => {
+    if (!viewingDoc) return '';
+    if (!viewingDoc.interpolate || !templateContext) return viewingDoc.content;
+    return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+  }, [viewingDoc, templateContext]);
 
   if (cpaLoading || spaLoading) {
     return (
@@ -233,7 +257,18 @@ export function CreatorLegalPreview({
                 : CPA_DESCRIPTIONS[governanceMode]}
           </p>
           {effectiveQuickContent ? (
-            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: effectiveQuickName, content: effectiveQuickContent ?? '' })}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => setViewingDoc({
+                name: effectiveQuickName,
+                content: effectiveQuickContent ?? '',
+                // Uploaded replacement is shown verbatim; CPA template gets interpolated.
+                interpolate: !isReplacementActive,
+              })}
+            >
               <Eye className="h-3 w-3" />View Template
             </Button>
           ) : (
@@ -303,7 +338,17 @@ export function CreatorLegalPreview({
           <Shield className="h-3 w-3 shrink-0" />
           <span>Solution Providers also accept the Solution Provider Platform Agreement (SPA) at registration, covering platform usage and data privacy.</span>
           {spaTemplate?.content && (
-            <button type="button" className="text-primary hover:underline" onClick={() => setViewingDoc({ name: 'Solution Provider Platform Agreement', content: spaTemplate.content ?? '' })}>View</button>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => setViewingDoc({
+                name: 'Solution Provider Platform Agreement',
+                content: spaTemplate.content ?? '',
+                interpolate: false,
+              })}
+            >
+              View
+            </button>
           )}
         </div>
       </div>
@@ -317,9 +362,25 @@ export function CreatorLegalPreview({
                 Review the effective document content that Solution Providers will see for this agreement.
               </DialogDescription>
             </DialogHeader>
-            <p className="text-xs text-muted-foreground px-1">Variables like {'{{challenge_title}}'}, {'{{ip_clause}}'}, {'{{prize_amount}}'} are auto-filled from your challenge configuration.</p>
+            {viewingDoc.interpolate && completeness && (
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-1">
+                <p>
+                  <span className="font-medium text-foreground">{completeness.filled}/{completeness.total}</span>{' '}
+                  variables filled from your current draft.
+                  {completeness.missing > 0 && (
+                    <>
+                      {' '}<span className="font-medium text-amber-700">{completeness.missing}</span> still pending:{' '}
+                      <span className="text-foreground">{completeness.missingNames.join(', ')}</span>.
+                    </>
+                  )}
+                </p>
+                <p className="text-[11px]">
+                  Missing values appear as <span className="legal-preview-missing">[Not set: …]</span> markers — complete the matching fields to fill them in.
+                </p>
+              </div>
+            )}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <LegalDocumentViewer content={viewingDoc.content} />
+              <LegalDocumentViewer content={dialogContent} />
             </div>
           </DialogContent>
         </Dialog>
