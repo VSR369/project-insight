@@ -31,6 +31,7 @@ interface CreatorLegalPreviewProps {
   quickOverrideMode?: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT';
   onQuickOverrideModeChange?: (nextMode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT') => Promise<void>;
   onQuickOverrideUpload?: (file: File) => Promise<void>;
+  onQuickOverrideRemove?: () => Promise<void>;
   isQuickOverrideBusy?: boolean;
 }
 
@@ -59,6 +60,7 @@ export function CreatorLegalPreview({
   quickOverrideMode = 'KEEP_DEFAULT',
   onQuickOverrideModeChange,
   onQuickOverrideUpload,
+  onQuickOverrideRemove,
   isQuickOverrideBusy = false,
 }: CreatorLegalPreviewProps) {
   const form = useFormContext<CreatorFormValues>();
@@ -73,8 +75,18 @@ export function CreatorLegalPreview({
   const isQuick = governanceMode === 'QUICK';
   const showInstructions = !isQuick;
   const instructions = form?.watch('creator_legal_instructions') ?? '';
-  const effectiveQuickContent = quickLegalOverride?.content_html ?? cpaTemplate?.template_content ?? null;
-  const effectiveQuickName = quickLegalOverride?.document_name ?? cpaTemplate?.document_name ?? 'Challenge Participation Agreement';
+
+  // Effective document resolution for QUICK mode is driven by BOTH the toggle
+  // AND whether a saved override exists. The saved override is preserved
+  // across toggles; deletion is explicit only.
+  const hasSavedReplacement = !!quickLegalOverride;
+  const isReplacementActive = isQuick && quickOverrideMode === 'REPLACE_DEFAULT' && hasSavedReplacement;
+  const effectiveQuickContent = isReplacementActive
+    ? quickLegalOverride?.content_html ?? null
+    : cpaTemplate?.template_content ?? null;
+  const effectiveQuickName = isReplacementActive
+    ? quickLegalOverride?.document_name ?? 'Challenge-specific replacement'
+    : cpaTemplate?.document_name ?? 'Challenge Participation Agreement';
 
   const handleQuickUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
