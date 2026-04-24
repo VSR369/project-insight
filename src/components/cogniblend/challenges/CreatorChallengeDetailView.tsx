@@ -157,6 +157,7 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
         governanceMode={effectiveGovernance}
         organizationId={data.organization_id ?? undefined}
         engagementModel={data.operating_model ?? undefined}
+        templateContext={templateContext}
       />
       <ChallengeQASection challengeId={challengeId} />
       <div className="pb-8" />

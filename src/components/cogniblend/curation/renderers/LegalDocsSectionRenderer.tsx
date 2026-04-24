@@ -4,10 +4,17 @@
  * Phase 2: Automatically shows planned legal template previews when no docs exist.
  */
 
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, ShieldCheck, CheckCircle2, Eye, Clock } from "lucide-react";
 import { useLegalTemplatePreview } from "@/hooks/queries/useLegalTemplatePreview";
+import { LegalDocumentViewer } from "@/components/legal/LegalDocumentViewer";
+import {
+  interpolateCpaTemplate,
+  type CpaPreviewVariables,
+} from "@/services/legal/cpaPreviewInterpolator";
 
 interface LegalDocDetail {
   id: string;
