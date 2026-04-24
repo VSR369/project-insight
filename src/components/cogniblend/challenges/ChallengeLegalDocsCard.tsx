@@ -209,7 +209,7 @@ export function ChallengeLegalDocsCard({
               <LegalDocumentViewer
                 content={viewingDoc.interpolate && templateContext
                   ? interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview')
-                  : viewingDoc.content}
+                  : formatLegalPlainText(viewingDoc.content)}
               />
             </div>
           </DialogContent>
