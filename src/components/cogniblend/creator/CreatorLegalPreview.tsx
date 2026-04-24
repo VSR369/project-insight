@@ -113,11 +113,15 @@ export function CreatorLegalPreview({
   }, [cpaTemplate?.template_content, templateContext]);
 
   // Interpolate the dialog content only for the CPA template path.
-  // Uploaded replacement (SOURCE_DOC) and the SPA are rendered as-is.
+  // Uploaded replacement (SOURCE_DOC) is run through the plain-text formatter
+  // (so a TXT upload renders cleanly) but is NOT interpolated. The SPA is shown
+  // as-is.
   const dialogContent = useMemo(() => {
     if (!viewingDoc) return '';
-    if (!viewingDoc.interpolate || !templateContext) return viewingDoc.content;
-    return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+    if (viewingDoc.interpolate && templateContext) {
+      return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+    }
+    return formatLegalPlainText(viewingDoc.content);
   }, [viewingDoc, templateContext]);
 
   if (cpaLoading || spaLoading) {
