@@ -292,8 +292,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     const seed = getSeedForCombination(governanceMode as 'QUICK' | 'STRUCTURED' | 'CONTROLLED', engagementModel as 'MP' | 'AGG');
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
 
-    // 3-tier industry resolution: prop → org's hq country fallback (none exposed) → first available option
-    const resolvedIndustryId = industrySegmentId || industrySegmentOptions[0]?.id || '';
+    // 3-tier industry resolution: prop → org primary → first available option
+    const resolvedIndustryId =
+      industrySegmentId
+      || orgContext?.primaryIndustryId
+      || industrySegmentOptions[0]?.id
+      || '';
     if (resolvedIndustryId && resolvedIndustryId !== industrySegmentId) {
       onIndustrySegmentResolved?.(resolvedIndustryId);
     }
@@ -307,7 +311,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         void draftSave.handleSaveDraft();
       });
     });
-  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId, industrySegmentOptions, onIndustrySegmentResolved]);
+  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId, industrySegmentOptions, orgContext?.primaryIndustryId, onIndustrySegmentResolved]);
 
   if (publishedResult && isQuick) {
     return (
