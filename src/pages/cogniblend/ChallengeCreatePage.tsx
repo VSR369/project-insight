@@ -32,6 +32,7 @@ export default function ChallengeCreatePage() {
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
   const [industrySegmentId, setIndustrySegmentId] = useState<string>('');
+  const [industrySource, setIndustrySource] = useState<'draft' | 'org_default' | 'creator_override' | 'fallback' | null>(null);
   const [orgFillTrigger, setOrgFillTrigger] = useState(0);
   const [draftChallengeId, setDraftChallengeId] = useState<string | null>(null);
 
@@ -39,12 +40,26 @@ export default function ChallengeCreatePage() {
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
 
+  // Auto-fill industry from org primary, then fall back to first option.
+  // Skipped once a draft, manual override, or any value is already set.
   useEffect(() => {
-    if (!orgContext || industrySegmentId) return;
-    const ctx = orgContext as unknown as Record<string, unknown>;
-    const orgIndustry = ctx?.primaryIndustryId as string | undefined;
-    if (orgIndustry) setIndustrySegmentId(orgIndustry);
-  }, [orgContext]);
+    if (industrySegmentId) return;
+    const orgPrimary = orgContext?.primaryIndustryId;
+    if (orgPrimary) {
+      setIndustrySegmentId(orgPrimary);
+      setIndustrySource('org_default');
+      return;
+    }
+    if (industrySegments.length > 0) {
+      setIndustrySegmentId(industrySegments[0].id);
+      setIndustrySource('fallback');
+    }
+  }, [orgContext?.primaryIndustryId, industrySegments, industrySegmentId]);
+
+  const handleIndustryChange = useCallback((id: string) => {
+    setIndustrySegmentId(id);
+    setIndustrySource('creator_override');
+  }, []);
 
   const governanceInitialized = useRef(false);
   const engagementInitialized = useRef(false);
@@ -80,7 +95,15 @@ export default function ChallengeCreatePage() {
   const handleDraftModeSync = useCallback((gov: GovernanceMode, eng: string, industry?: string) => {
     setGovernanceMode(gov);
     setEngagementModel(eng);
-    if (industry) setIndustrySegmentId(industry);
+    if (industry) {
+      setIndustrySegmentId(industry);
+      setIndustrySource('draft');
+    }
+  }, []);
+
+  const handleIndustryResolvedFromForm = useCallback((id: string) => {
+    setIndustrySegmentId(id);
+    setIndustrySource((prev) => prev ?? 'fallback');
   }, []);
 
   if (orgLoading || modelLoading) {
