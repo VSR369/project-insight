@@ -103,6 +103,22 @@ export function CreatorLegalPreview({
     await onQuickOverrideUpload(file);
   };
 
+  // Completeness for the CPA template (not the override). Shown as a banner
+  // inside the View Template dialog so the Creator sees what's still missing.
+  const completeness = useMemo(() => {
+    const raw = cpaTemplate?.template_content;
+    if (!raw || !templateContext) return null;
+    return analyzeTemplateCompleteness(raw, templateContext);
+  }, [cpaTemplate?.template_content, templateContext]);
+
+  // Interpolate the dialog content only for the CPA template path.
+  // Uploaded replacement (SOURCE_DOC) and the SPA are rendered as-is.
+  const dialogContent = useMemo(() => {
+    if (!viewingDoc) return '';
+    if (!viewingDoc.interpolate || !templateContext) return viewingDoc.content;
+    return interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview');
+  }, [viewingDoc, templateContext]);
+
   if (cpaLoading || spaLoading) {
     return (
       <div className="rounded-lg border border-border bg-muted/30 p-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -241,7 +257,18 @@ export function CreatorLegalPreview({
                 : CPA_DESCRIPTIONS[governanceMode]}
           </p>
           {effectiveQuickContent ? (
-            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: effectiveQuickName, content: effectiveQuickContent ?? '' })}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => setViewingDoc({
+                name: effectiveQuickName,
+                content: effectiveQuickContent ?? '',
+                // Uploaded replacement is shown verbatim; CPA template gets interpolated.
+                interpolate: !isReplacementActive,
+              })}
+            >
               <Eye className="h-3 w-3" />View Template
             </Button>
           ) : (
