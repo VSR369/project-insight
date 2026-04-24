@@ -208,8 +208,9 @@ serve(async (req) => {
             .eq("id", challenge_id)
             .single();
           if (fresh) {
-            const liveValue = (fresh as Record<string, unknown>)[finding.section_key]
-              ?? ((fresh.extended_brief as Record<string, unknown> | null)?.[finding.section_key]);
+            const freshRec = fresh as unknown as Record<string, unknown>;
+            const liveValue = freshRec[finding.section_key]
+              ?? ((freshRec.extended_brief as Record<string, unknown> | null)?.[finding.section_key]);
             const liveDet = detect(liveValue);
             if (liveDet === "ok") {
               console.info(
