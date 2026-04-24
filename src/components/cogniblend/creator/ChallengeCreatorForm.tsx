@@ -46,6 +46,7 @@ import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegal
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
+import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
