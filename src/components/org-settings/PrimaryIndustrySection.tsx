@@ -94,7 +94,7 @@ export function PrimaryIndustrySection({ organizationId }: PrimaryIndustrySectio
     <div className="space-y-3">
       <div>
         <Label className="text-sm font-semibold flex items-center gap-1.5">
-          <Star className="h-3.5 w-3.5 text-amber-500" />
+          <Star className="h-3.5 w-3.5 fill-current text-primary" />
           Primary Industry
         </Label>
         <p className="text-xs text-muted-foreground mt-1">
@@ -120,7 +120,7 @@ export function PrimaryIndustrySection({ organizationId }: PrimaryIndustrySectio
                 setPrimaryMutation.isPending && 'opacity-60 cursor-not-allowed',
               )}
             >
-              {isCurrentPrimary && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
+              {isCurrentPrimary && <Star className="h-3 w-3 fill-current text-primary" />}
               {row.industry_segments?.name ?? 'Unknown'}
             </button>
           );
