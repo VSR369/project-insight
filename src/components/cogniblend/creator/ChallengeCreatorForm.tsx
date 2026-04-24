@@ -114,6 +114,26 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
 
   useCreatorDraftLoader(draftSave.draftChallengeId, form, governanceMode, engagementModel, onDraftModeSync, handleReferenceUrlsLoaded);
   const { data: quickLegalOverride } = useQuickLegalOverride(draftSave.draftChallengeId ?? undefined);
+  const { data: geoContext } = useGeoContextForOrg(currentOrg?.organizationId);
+
+  // Watch entire form to build live template-preview variables (single subscribe — R5 safe)
+  const watched = form.watch();
+  const templateContext = useMemo(() => buildPreviewVariables({
+    challenge_title: watched.title,
+    problem_statement: watched.problem_statement,
+    scope: watched.scope,
+    ip_model: watched.ip_model,
+    governance_mode: governanceMode,
+    operating_model: engagementModel,
+    prize_amount: watched.platinum_award,
+    currency: watched.currency_code,
+    evaluation_method: watched.evaluation_method,
+    evaluator_count: watched.evaluator_count,
+    solver_audience: watched.solver_audience,
+    seeker_org_name: currentOrg?.orgName,
+    jurisdiction: geoContext?.jurisdiction,
+    governing_law: geoContext?.governing_law,
+  }), [watched, governanceMode, engagementModel, currentOrg?.orgName, geoContext]);
 
   const currentMaturityLevel = form.watch('maturity_level');
   const currentSolutionMaturityId = form.watch('solution_maturity_id');
@@ -343,6 +363,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           onQuickOverrideUpload={handleQuickLegalOverrideUpload}
           onQuickOverrideRemove={handleQuickLegalOverrideRemove}
           isQuickOverrideBusy={uploadQuickOverride.isPending || deleteQuickOverride.isPending}
+          templateContext={templateContext}
         />
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
           <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
