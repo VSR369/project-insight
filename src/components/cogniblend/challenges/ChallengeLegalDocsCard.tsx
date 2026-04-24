@@ -164,6 +164,8 @@ export function ChallengeLegalDocsCard({
                     onClick={() => setViewingDoc({
                       name: doc.document_name ?? doc.document_type,
                       content: doc.content_html ?? `<pre class=\"whitespace-pre-wrap text-sm\">${doc.content ?? ''}</pre>`,
+                      // Don't interpolate uploaded SOURCE_DOC replacements; show verbatim
+                      interpolate: doc.override_strategy !== 'REPLACE_DEFAULT',
                     })}
                   >
                     <Eye className="h-3 w-3" /> View
@@ -203,7 +205,11 @@ export function ChallengeLegalDocsCard({
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <LegalDocumentViewer content={viewingDoc.content} />
+              <LegalDocumentViewer
+                content={viewingDoc.interpolate && templateContext
+                  ? interpolateCpaTemplate(viewingDoc.content, templateContext, 'preview')
+                  : viewingDoc.content}
+              />
             </div>
           </DialogContent>
         </Dialog>
