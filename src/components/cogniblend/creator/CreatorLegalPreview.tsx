@@ -338,7 +338,17 @@ export function CreatorLegalPreview({
           <Shield className="h-3 w-3 shrink-0" />
           <span>Solution Providers also accept the Solution Provider Platform Agreement (SPA) at registration, covering platform usage and data privacy.</span>
           {spaTemplate?.content && (
-            <button type="button" className="text-primary hover:underline" onClick={() => setViewingDoc({ name: 'Solution Provider Platform Agreement', content: spaTemplate.content ?? '' })}>View</button>
+            <button
+              type="button"
+              className="text-primary hover:underline"
+              onClick={() => setViewingDoc({
+                name: 'Solution Provider Platform Agreement',
+                content: spaTemplate.content ?? '',
+                interpolate: false,
+              })}
+            >
+              View
+            </button>
           )}
         </div>
       </div>
@@ -352,9 +362,25 @@ export function CreatorLegalPreview({
                 Review the effective document content that Solution Providers will see for this agreement.
               </DialogDescription>
             </DialogHeader>
-            <p className="text-xs text-muted-foreground px-1">Variables like {'{{challenge_title}}'}, {'{{ip_clause}}'}, {'{{prize_amount}}'} are auto-filled from your challenge configuration.</p>
+            {viewingDoc.interpolate && completeness && (
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-1">
+                <p>
+                  <span className="font-medium text-foreground">{completeness.filled}/{completeness.total}</span>{' '}
+                  variables filled from your current draft.
+                  {completeness.missing > 0 && (
+                    <>
+                      {' '}<span className="font-medium text-amber-700">{completeness.missing}</span> still pending:{' '}
+                      <span className="text-foreground">{completeness.missingNames.join(', ')}</span>.
+                    </>
+                  )}
+                </p>
+                <p className="text-[11px]">
+                  Missing values appear as <span className="legal-preview-missing">[Not set: …]</span> markers — complete the matching fields to fill them in.
+                </p>
+              </div>
+            )}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <LegalDocumentViewer content={viewingDoc.content} />
+              <LegalDocumentViewer content={dialogContent} />
             </div>
           </DialogContent>
         </Dialog>
