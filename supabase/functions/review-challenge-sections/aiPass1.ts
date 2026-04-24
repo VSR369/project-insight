@@ -204,9 +204,9 @@ export async function callAIPass1Analyze(
       }],
       guidelines: [],
       cross_section_issues: [],
-      solver_impact: null,
+      solver_impact: undefined,
       publication_blocker: false,
-      quality_score: null,
+      quality_score: undefined,
       missing_elements: [],
       reviewed_at: nowTrunc,
     }));
