@@ -14,6 +14,7 @@ import { Loader2 } from 'lucide-react';
 
 import { useOrgProfile, useOrgIndustries, useUpdateOrgProfile } from '@/hooks/queries/useOrgSettings';
 import { isFieldEditable } from '@/services/orgSettingsService';
+import { PrimaryIndustrySection } from './PrimaryIndustrySection';
 
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
@@ -158,6 +159,11 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
           </div>
         )}
       </div>
+
+      <Separator />
+
+      {/* Primary Industry editor (drives challenge default-fill) */}
+      <PrimaryIndustrySection organizationId={organizationId} />
 
       <Separator />
 

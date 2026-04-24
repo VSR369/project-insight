@@ -19,11 +19,21 @@ interface BriefIndustrySegmentFieldProps {
   resolvedSegmentName: string | null | undefined;
   industrySegments: IndustrySegment[];
   onIndustrySegmentChange?: (segmentId: string) => void;
+  /** Provenance: where the current segment value came from. */
+  provenance?: 'draft' | 'org_default' | 'creator_override' | 'curator_override' | 'fallback' | null;
 }
+
+const PROVENANCE_LABEL: Record<NonNullable<BriefIndustrySegmentFieldProps['provenance']>, string> = {
+  draft: 'from Draft',
+  org_default: 'Org default',
+  creator_override: 'Creator set',
+  curator_override: 'Curator set',
+  fallback: 'Auto-selected',
+};
 
 export function BriefIndustrySegmentField({
   industrySegmentId, industrySegmentFromIntake, readOnly,
-  resolvedSegmentName, industrySegments, onIndustrySegmentChange,
+  resolvedSegmentName, industrySegments, onIndustrySegmentChange, provenance,
 }: BriefIndustrySegmentFieldProps) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-1.5">
@@ -31,6 +41,11 @@ export function BriefIndustrySegmentField({
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Industry Segment</p>
         {industrySegmentFromIntake && industrySegmentId && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">from Intake</Badge>
+        )}
+        {provenance && industrySegmentId && !industrySegmentFromIntake && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-muted-foreground">
+            {PROVENANCE_LABEL[provenance]}
+          </Badge>
         )}
         {!industrySegmentId && !readOnly && (
           <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 font-normal">

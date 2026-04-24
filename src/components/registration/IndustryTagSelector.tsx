@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Check, ChevronDown, X, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -96,21 +96,35 @@ export function IndustryTagSelector({ value, onChange, disabled }: IndustryTagSe
 
       {/* Selected tags */}
       {selectedItems.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selectedItems.map((item) => (
-            <Badge key={item.id} variant="secondary" className="gap-1 pr-1">
-              {item.name}
-              <button
-                type="button"
-                onClick={() => removeItem(item.id)}
-                className="ml-0.5 rounded-full hover:bg-muted p-0.5"
-                disabled={disabled}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedItems.map((item, idx) => {
+              const isPrimary = idx === 0;
+              return (
+                <Badge
+                  key={item.id}
+                  variant={isPrimary ? 'default' : 'secondary'}
+                  className="gap-1 pr-1"
+                >
+                  {isPrimary && <Star className="h-3 w-3 fill-current" />}
+                  {item.name}
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.id)}
+                    className="ml-0.5 rounded-full hover:bg-muted p-0.5"
+                    disabled={disabled}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground italic flex items-center gap-1">
+            <Star className="h-3 w-3 fill-current text-primary" />
+            The first selection becomes your organization's primary industry — used as the default when creating challenges.
+          </p>
+        </>
       )}
     </div>
   );
