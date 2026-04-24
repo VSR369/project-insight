@@ -396,6 +396,18 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
       </form>
       {showTierModal && tierLimit && <TierLimitModal isOpen={showTierModal} onClose={() => setShowTierModal(false)} tierName={tierLimit.tier_name} maxAllowed={tierLimit.max_allowed} currentActive={tierLimit.current_active} />}
       {showAIReview && draftSave.draftChallengeId && <CreatorAIReviewDrawer open={showAIReview} onClose={() => setShowAIReview(false)} challengeId={draftSave.draftChallengeId} governanceMode={governanceMode} engagementModel={engagementModel} industrySegmentId={industrySegmentId} onReviewComplete={() => setAiReviewCompleted(true)} />}
+      {isQuick && pendingQuickData && (
+        <QuickPublishConfirmModal
+          open={showQuickConfirm}
+          onOpenChange={(o) => { setShowQuickConfirm(o); if (!o) setPendingQuickData(null); }}
+          onConfirm={handleQuickConfirm}
+          challengeTitle={pendingQuickData.title}
+          engagementModel={engagementModel}
+          solverAudience={pendingQuickData.solver_audience ?? 'ALL'}
+          visibility={null}
+          isSubmitting={isSubmitting}
+        />
+      )}
     </FormProvider>
   );
 }
