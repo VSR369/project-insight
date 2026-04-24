@@ -18,7 +18,7 @@ import { ChallengeConfigurationPanel } from '@/components/cogniblend/creator/Cha
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import {
   getAvailableGovernanceModes,
@@ -41,6 +41,7 @@ export default function ChallengeCreatePage() {
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
+  const { user } = useAuth();
 
   // Auto-fill industry from org primary, then fall back to first option.
   // Skipped once a draft, manual override, or any value is already set.
@@ -59,9 +60,22 @@ export default function ChallengeCreatePage() {
   }, [orgContext?.primaryIndustryId, industrySegments, industrySegmentId]);
 
   const handleIndustryChange = useCallback((id: string) => {
+    const previous = industrySegmentId || null;
     setIndustrySegmentId(id);
     setIndustrySource('creator_override');
-  }, []);
+    // Audit: only log if a draft already exists (otherwise creation will record initial value)
+    if (draftChallengeId && user?.id && previous !== id) {
+      void logStatusTransition({
+        challengeId: draftChallengeId,
+        fromStatus: 'DRAFT',
+        toStatus: 'DRAFT',
+        changedBy: user.id,
+        role: 'CR',
+        triggerEvent: 'industry_segment_changed',
+        metadata: { from: previous, to: id, source: 'creator_override' },
+      });
+    }
+  }, [industrySegmentId, draftChallengeId, user?.id]);
 
   const governanceInitialized = useRef(false);
   const engagementInitialized = useRef(false);
