@@ -24,6 +24,7 @@ type SeedContent = Omit<CreatorFormValues, 'hook'> & { hook?: string };
  */
 export const MP_SEED: SeedContent = {
   title: 'Autonomous Digital Workforce for End-to-End Supply Chain Transformation',
+  hook: 'Reimagine our supply chain through autonomous AI agents and a new human-agent operating model.',
   domain_tags: ['AI/ML', 'Supply Chain', 'Digital Transformation', 'SAP Integration', 'Manufacturing', 'Change Management'],
   problem_statement:
     'Our multi-plant manufacturing conglomerate (12 facilities, 4 countries, ₹6,200 Cr revenue) operates a supply chain that was designed for a pre-digital era — linear, human-dependent, and reactive. We have 340+ people across procurement, logistics, demand planning, and supplier quality whose daily work consists of gathering data from 11 disconnected systems, making judgment calls based on incomplete information, and manually coordinating across time zones via email and WhatsApp. When a critical raw material shipment is delayed, it takes 48-72 hours for the information to cascade through the organization and trigger corrective action. By then, production schedules are disrupted, premium freight costs spike, and customer delivery commitments are broken. We need to fundamentally reimagine this supply chain by introducing Digital Workers — autonomous AI agents that can sense disruptions in real-time, make decisions within defined policy boundaries, coordinate across functions without human bottlenecks, and continuously learn from outcomes. This is not a technology project; it is an organizational transformation that will redefine roles, restructure decision-making authority, reshape policies, and require a cultural shift from "people doing tasks" to "people governing intelligent systems."',
@@ -141,6 +142,7 @@ export const MP_SEED: SeedContent = {
  */
 export const AGG_SEED: SeedContent = {
   title: 'AI-Powered Digital Workforce for Autonomous Financial Services Operations',
+  hook: 'Deploy regulator-defensible AI agents across compliance, advisory, and reporting — restructure how humans govern them.',
   domain_tags: ['AI/ML', 'FinTech', 'Compliance Automation', 'Risk Management', 'Regulatory Technology', 'Wealth Management'],
   problem_statement:
     'Our financial services group (6 business units, $4.2B AUM, 2,800 employees across wealth management, commercial lending, insurance brokerage, and trade finance) operates with a workforce model designed in the 1990s. Every client interaction, risk assessment, compliance check, and advisory recommendation flows through layers of human processors who add latency, inconsistency, and cost without proportional value. Our compliance team of 180 people spends 70% of their time on routine surveillance and reporting that follows deterministic rules — yet we still miss 15% of flaggable transactions because humans cannot process the volume. Our client advisors spend 60% of their day on administrative tasks (data gathering, report formatting, compliance documentation) and only 40% on actual advisory conversations. Meanwhile, our competitors (Goldman Sachs, Morgan Stanley) are deploying AI agents that deliver institutional-quality research to retail clients in seconds. We need to deploy an autonomous Digital Workforce — AI agents that handle compliance surveillance, risk scoring, client portfolio analysis, and regulatory reporting — while fundamentally restructuring how our human workforce operates. This means new roles (Agent Supervisors, AI Ethics Officers, Human-AI Collaboration Designers), new policies (autonomous decision boundaries, algorithmic accountability, client consent frameworks), and a new organizational culture that treats AI agents as team members with defined responsibilities, performance metrics, and governance structures.',
@@ -149,7 +151,7 @@ export const AGG_SEED: SeedContent = {
   maturity_level: 'POC',
   solution_maturity_id: '',
   currency_code: 'USD',
-  platinum_award: 0,
+  platinum_award: 1500000,
   weighted_criteria: [
     { name: 'Regulatory Defensibility & Explainability', weight: 25 },
     { name: 'Technical Architecture & Agent Design', weight: 25 },
@@ -253,9 +255,9 @@ export function getSeedForCombination(
   engagementModel: 'MP' | 'AGG'
 ): SeedContent {
   const base = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
+  const isMP = engagementModel === 'MP';
 
   if (governanceMode === 'QUICK') {
-    const isMP = engagementModel === 'MP';
     return {
       ...base,
       title: isMP
@@ -266,8 +268,7 @@ export function getSeedForCombination(
         : ['Process Redesign', 'KYC', 'Customer Experience', 'Banking Operations'],
       problem_statement: isMP
         ? 'Urban waste management costs municipalities $200+ per ton. Manual sorting achieves only 35% recycling rate. We need an AI vision system that can identify and classify 50+ waste categories on a moving conveyor at 2+ items per second, achieving >90% accuracy, deployable on standard industrial cameras. The Challenge Creator will review submissions directly and Accept or Decline — no abstract round, no panel review.'
-        : 'Our customer onboarding takes 14 business days across 6 departments with 23 manual handoffs. Drop-off rate is 34% between application and activation. We need a process redesign that reduces onboarding to under 3 days while maintaining KYC/AML compliance. This is an internal sprint — only Solution Providers from our organization will see this challenge, and the Creator will review submissions directly.'
-        ,
+        : 'Our customer onboarding takes 14 business days across 6 departments with 23 manual handoffs. Drop-off rate is 34% between application and activation. We need a process redesign that reduces onboarding to under 3 days while maintaining KYC/AML compliance. This is an internal sprint — only Solution Providers from our organization will see this challenge, and the Creator will review submissions directly.',
       scope: isMP
         ? 'Working prototype on standard webcam. 50+ waste categories. Real-time classification. Creator reviews each submission and decides Accept or Decline directly — no multi-stage evaluation.'
         : 'End-to-end onboarding for retail banking. Must integrate with existing KYC system. Internal Solution Providers only; Creator approves the winning submission directly.',
@@ -279,11 +280,12 @@ export function getSeedForCombination(
       context_background: '',
       ip_model: 'IP-NEL',
       expected_timeline: '4w',
-      expected_outcomes: ['Working prototype or proof of concept the Creator can Accept or Decline'],
-      preferred_approach: [''],
-      approaches_not_of_interest: [''],
-      current_deficiencies: [''],
-      root_causes: [''],
+      // Hidden in QUICK — filterSeedByGovernance is the source of truth
+      expected_outcomes: [],
+      preferred_approach: [],
+      approaches_not_of_interest: [],
+      current_deficiencies: [],
+      root_causes: [],
       affected_stakeholders: [],
       solver_audience: isMP ? 'ALL' : 'INTERNAL',
       quick_legal_override_mode: 'KEEP_DEFAULT',
@@ -299,9 +301,25 @@ export function getSeedForCombination(
       ...base,
       evaluation_method: 'SINGLE',
       evaluator_count: 1,
-      creator_legal_instructions: engagementModel === 'MP'
-        ? 'Smart grid operational data is NERC CIP regulated. Please ensure the CPA includes critical infrastructure data handling clauses and Solution Provider background check requirements.'
-        : 'Predictive analytics models must remain compatible with client SAP QM data formats. Please add Siemens MindSphere IP licensing acknowledgment clause.',
+      // AGG: demo Internal audience; MP: forced ALL by engagement rules
+      solver_audience: isMP ? 'ALL' : 'INTERNAL',
+      // Optional schedule (3 phases) so reviewers see timeline UI populated
+      phase_durations: (() => {
+        const today = new Date();
+        const d = (offset: number) => {
+          const dt = new Date(today);
+          dt.setDate(dt.getDate() + offset);
+          return dt.toISOString().split('T')[0];
+        };
+        return [
+          { phase_number: 5, label: 'Solution Provider Submission Period', target_date: d(30), duration_days: 30 },
+          { phase_number: 8, label: 'Full Solution Review', target_date: d(55), duration_days: 25 },
+          { phase_number: 9, label: 'Award Decision', target_date: d(70), duration_days: 15 },
+        ];
+      })(),
+      creator_legal_instructions: isMP
+        ? 'Multi-plant supply chain data spans India, ASEAN suppliers, and SAP S/4HANA records. Please ensure the CPA includes (a) supplier confidentiality clauses for tier-1/tier-2 vendor data, (b) SAP integration IP carve-outs, and (c) data residency confirmation that all training and inference data remains within India.'
+        : 'Solution Providers from our internal pool will handle regulated financial data (transaction history, client portfolios, AML signals). Please add (a) FINRA/SEC confidentiality acknowledgements, (b) SR 11-7 model risk documentation requirements, and (c) restriction that no training data leaves our US-based infrastructure.',
     };
   }
 
@@ -316,6 +334,11 @@ export function getSeedForCombination(
     ...base,
     evaluation_method: 'DELPHI',
     evaluator_count: 3,
+    // AGG: demo External audience; MP: forced ALL by engagement rules
+    solver_audience: isMP ? 'ALL' : 'EXTERNAL',
+    // Exercise creator-preference toggles
+    is_anonymous: isMP ? true : base.is_anonymous,
+    community_creation_allowed: !isMP ? true : base.community_creation_allowed,
     phase_durations: [
       { phase_number: 5, label: 'Solution Provider Submission Period', target_date: d(45), duration_days: 45 },
       { phase_number: 6, label: 'Abstract/Proposal Review', target_date: d(62), duration_days: 17 },
@@ -323,9 +346,9 @@ export function getSeedForCombination(
       { phase_number: 9, label: 'Award Decision', target_date: d(107), duration_days: 14 },
       { phase_number: 10, label: 'Payment & Delivery', target_date: d(123), duration_days: 16 },
     ],
-    creator_legal_instructions: engagementModel === 'MP'
-      ? 'Financial transaction data subject to SOX, GDPR, and 40+ jurisdictional regulations. CPA must include cross-border data transfer clauses and mandatory arbitration in Singapore.'
-      : 'HIPAA compliance required — all IP clauses must reference 45 CFR Part 164. Mandatory arbitration in Delaware. Data residency restricted to US-based servers.',
+    creator_legal_instructions: isMP
+      ? 'Supply chain transformation data crosses 4 jurisdictions (India, Thailand, Vietnam, Indonesia) and includes SAP S/4HANA exports, supplier contracts, and union-sensitive workforce information. CPA must include (a) cross-border data transfer clauses aligned with India DPDP Act 2023, (b) workforce-impact disclosure protocols approved by our CHRO, (c) SAP and Oracle integration IP carve-outs, and (d) mandatory arbitration in Mumbai under Indian Arbitration & Conciliation Act.'
+      : 'Autonomous AI agents will handle SEC-regulated, FINRA-supervised, and state-insurance-commissioner-monitored activities. CPA must include (a) full SR 11-7 model risk management documentation, (b) explainability and audit-trail guarantees per FINRA Rule 3110, (c) cross-state insurance compliance acknowledgements, (d) US-only data residency, and (e) mandatory arbitration in Delaware Chancery Court.',
   };
 }
 

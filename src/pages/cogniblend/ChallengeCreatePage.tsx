@@ -120,8 +120,10 @@ export default function ChallengeCreatePage() {
 
   const handleIndustryResolvedFromForm = useCallback((id: string) => {
     setIndustrySegmentId(id);
-    setIndustrySource((prev) => prev ?? 'fallback');
-  }, []);
+    setIndustrySource((prev) =>
+      prev ?? (id === orgContext?.primaryIndustryId ? 'org_default' : 'fallback')
+    );
+  }, [orgContext?.primaryIndustryId]);
 
   if (orgLoading || modelLoading) {
     return (
