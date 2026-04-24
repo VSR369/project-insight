@@ -8,6 +8,8 @@ import { useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
+import { withUpdatedBy } from '@/lib/auditFields';
+import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import { parseJson } from '@/lib/cogniblend/curationHelpers';
 import { derivePrimaryGroup, getSelectedGroups } from '@/hooks/queries/useSolutionTypeMap';
 import { getCurationFormStore } from '@/store/curationFormStore';
@@ -106,16 +108,40 @@ export function useCurationApprovalActions({
 
   const handleIndustrySegmentChange = useCallback(async (segmentId: string) => {
     if (!challengeId || !challenge) return;
+    const previous = (challenge.industry_segment_id as string | null) ?? null;
     setOptimisticIndustrySegId(segmentId);
-    const currentTf = parseJson<any>(challenge.targeting_filters) ?? {};
-    currentTf.industry_segment_id = segmentId;
-    currentTf.industries = [segmentId];
-    const { error } = await supabase.from('challenges').update({ targeting_filters: currentTf }).eq('id', challengeId);
+    const currentTf = parseJson<Record<string, unknown>>(challenge.targeting_filters) ?? {};
+    const nextTf = { ...currentTf, industry_segment_id: segmentId, industries: [segmentId] };
+    const updates = await withUpdatedBy({
+      industry_segment_id: segmentId,
+      targeting_filters: nextTf,
+    });
+    const { error } = await supabase.from('challenges').update(updates).eq('id', challengeId);
     if (error) { toast.error('Failed to save industry segment'); setOptimisticIndustrySegId(null); return; }
     toast.success('Industry segment updated');
-    await queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] });
+    // Audit trail (fire-and-forget)
+    if (userId) {
+      void logStatusTransition({
+        challengeId,
+        toStatus: (challenge.status as string) ?? 'unknown',
+        fromStatus: (challenge.status as string) ?? 'unknown',
+        changedBy: userId,
+        role: 'CU',
+        triggerEvent: 'industry_segment_changed',
+        metadata: { from: previous, to: segmentId, source: 'curator_override' },
+      });
+    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['curation-review', challengeId] }),
+      queryClient.invalidateQueries({ queryKey: ['challenge', challengeId] }),
+      queryClient.invalidateQueries({ queryKey: ['taxonomy_cascade_prof_areas'] }),
+      queryClient.invalidateQueries({ queryKey: ['taxonomy_cascade_sub_domains'] }),
+      queryClient.invalidateQueries({ queryKey: ['taxonomy_cascade_specialities'] }),
+      queryClient.invalidateQueries({ queryKey: ['eligibility', challengeId] }),
+    ]);
     setOptimisticIndustrySegId(null);
-  }, [challengeId, challenge, queryClient, setOptimisticIndustrySegId]);
+  }, [challengeId, challenge, queryClient, setOptimisticIndustrySegId, userId]);
+
 
   const handleAcceptAllLegalDefaults = useCallback(async () => {
     if (!challengeId) return;

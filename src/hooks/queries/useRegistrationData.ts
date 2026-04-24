@@ -201,13 +201,14 @@ export function useUpdateOrganization() {
 
       if (orgError) throw new Error(orgError.message);
 
-      // 2. Replace industries: delete then re-insert
+      // 2. Replace industries: delete then re-insert. First entry is marked primary.
       await supabase.from('seeker_org_industries').delete().eq('organization_id', id);
       if (industry_ids.length > 0) {
-        const industryRows = industry_ids.map((industry_id) => ({
+        const industryRows = industry_ids.map((industry_id, idx) => ({
           organization_id: id,
           tenant_id: tenantId,
           industry_id,
+          is_primary: idx === 0,
         }));
         const { error: indError } = await supabase
           .from('seeker_org_industries')
@@ -378,10 +379,11 @@ export function useCreateOrganization() {
       // 2. Insert child records; cleanup org on failure
       try {
         if (industry_ids.length > 0) {
-          const industryRows = industry_ids.map((industry_id) => ({
+          const industryRows = industry_ids.map((industry_id, idx) => ({
             organization_id: orgId,
             tenant_id: tenantId,
             industry_id,
+            is_primary: idx === 0,
           }));
           const { error: indError } = await supabase
             .from('seeker_org_industries')
