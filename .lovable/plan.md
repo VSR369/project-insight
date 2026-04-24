@@ -1,115 +1,142 @@
 
-Implement the QUICK override fix in three focused parts so upload works reliably and the replacement document is visible everywhere it should be.
+Implement the QUICK legal toggle fix so switching between “Keep default document” and “Replace default for this challenge” never destroys the uploaded replacement unless the creator explicitly removes it.
 
-## 1) Fix the upload failure in `useQuickLegalOverride.ts`
-Root cause from the console logs:
-- `upload_quick_legal_override` fails with `Cannot coerce the result to a single JSON object`
-- this comes from the pre-upload lookup using `.single()`
-- when no existing override row exists yet, `.single()` throws instead of returning null
+## Root cause
+The current toggle handler in `ChallengeCreatorForm.tsx` treats “Keep default” as a destructive action:
+- it immediately deletes the existing QUICK override row and stored file
+- the form state is then re-synced from query data, so the replacement disappears
+- when the creator toggles back to “Replace default”, there is nothing left to show
 
-Required changes:
-- replace the existing-override lookup from `.single()` to `.maybeSingle()`
-- handle the “no existing override yet” case explicitly
-- keep the delete-old-row behavior only when a prior override actually exists
-- keep the current challenge-scoped metadata:
-  - `document_type = 'SOURCE_DOC'`
-  - `source_origin = 'creator'`
-  - `override_strategy = 'REPLACE_DEFAULT'`
-  - `target_template_code = 'CPA_QUICK'`
+This makes the toggle behave like a delete button instead of a display-mode selector.
 
-Also tighten the hook:
-- add a small typed helper for “override row used for replacement cleanup”
-- keep query invalidation for:
-  - `quick-legal-override`
-  - `cpa-enrollment`
-  - `public-challenge-legal`
+## Required behavior
+Use the user-confirmed rule: when toggling back to “Keep default”, the uploaded replacement must be kept saved.
+
+That means:
+- `Keep default` = use org default document for preview and downstream resolution
+- `Replace default` = use the saved challenge-specific replacement if one exists
+- the uploaded replacement remains available when toggling back and forth
+- deletion happens only through an explicit remove action
+
+## Implementation changes
+
+### 1) Separate “saved replacement exists” from “currently active mode”
+Update `ChallengeCreatorForm.tsx` so the radio toggle only changes:
+- `quick_legal_override_mode` form state
+
+It must no longer:
+- call `deleteQuickOverride` when switching to `KEEP_DEFAULT`
+
+Instead:
+- keep the fetched `quickLegalOverride` row intact
+- only call delete when the creator presses the explicit Remove button
+
+Also preserve the current hydration behavior:
+- if an override row exists, do not forcibly overwrite the creator’s current toggle choice during the same editing session
+- only initialize the form mode once from saved state, or use a guarded sync so query refreshes do not snap the toggle back unexpectedly
+
+### 2) Fix preview resolution in `CreatorLegalPreview.tsx`
+The preview currently derives content directly from `quickLegalOverride`, so the replacement can still appear even when the user selected `KEEP_DEFAULT`.
+
+Update the preview logic to resolve an effective document based on both:
+- `quickOverrideMode`
+- `quickLegalOverride`
+
+Rules:
+- if `quickOverrideMode === 'KEEP_DEFAULT'`, show the org default QUICK CPA
+- if `quickOverrideMode === 'REPLACE_DEFAULT'` and an override exists, show the uploaded replacement
+- if `quickOverrideMode === 'REPLACE_DEFAULT'` but no override exists yet, still show the default doc with clear “no replacement uploaded yet” guidance
+
+Update labels/copy accordingly:
+- “Default template in use”
+- “Saved replacement available”
+- “Challenge-specific replacement in use”
+
+### 3) Make explicit remove the only destructive action
+Keep the Remove button, but change its meaning to true deletion:
+- when clicked, delete the override row/storage object
+- then set mode to `KEEP_DEFAULT`
+- invalidate current legal queries as already implemented
+
+This gives three distinct behaviors:
+- toggle to Keep default: non-destructive
+- toggle to Replace default: non-destructive
+- Remove: destructive
+
+## File-specific updates
+
+### `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`
+Change:
+- `handleQuickLegalOverrideChange` so it only updates form state
+- move deletion logic into a dedicated explicit remove handler
+- pass that remove handler to the preview component
+- guard the effect that syncs `quick_legal_override_mode` from `quickLegalOverride` so refetches do not override the creator’s live toggle selection
 
 Expected result:
-- first-time upload succeeds
-- replacement upload succeeds
-- no crash when there is not yet an existing override row
+- uploaded replacement remains available across toggles
+- toggling no longer deletes stored data
+- creator can return to Replace and still see the uploaded doc
 
-## 2) Make the replacement document visible in the challenge legal card
-Current gap:
-- `ChallengeLegalDocsCard.tsx` shows the override row label, but it does not expose a View action for the new replacement doc
-- the user specifically wants “View (new replaced doc)”
+### `src/components/cogniblend/creator/CreatorLegalPreview.tsx`
+Change:
+- compute `isReplacementActive` from both mode and override existence
+- compute displayed document name/content from active mode, not just row existence
+- update status text so the creator can tell whether:
+  - default is active
+  - a replacement is saved but inactive
+  - a replacement is active
+- keep upload area visible in Replace mode
+- keep the saved replacement row visible when present
+- wire the Remove button to the new explicit remove callback instead of switching radio mode only
 
-Update `src/components/cogniblend/challenges/ChallengeLegalDocsCard.tsx`:
-- extend the query to fetch the rendered content fields needed for viewing:
-  - `content`
-  - `content_html`
-- add local dialog state like the existing legal preview components use
-- add a `View` button for docs that have content
-- when `override_strategy === 'REPLACE_DEFAULT'`:
-  - label clearly as `Challenge override`
-  - show the uploaded document name
-  - open the uploaded replacement content in `LegalDocumentViewer`
-- keep existing STRUCTURED / CONTROLLED behavior unchanged
-
-Also update copy:
-- if QUICK mode has an override row, do not say only “platform default legal templates applied automatically”
-- instead say the challenge is using a creator-provided challenge-specific replacement
+Recommended prop addition:
+- `onQuickOverrideRemove?: () => Promise<void>`
 
 Expected result:
-- in challenge detail/legal card, the uploaded replacement is visible
-- clicking View opens the new replaced document, not just the default template label
+- Keep default shows the default document even if a saved replacement exists
+- Replace default shows the uploaded replacement again without re-uploading
+- the saved replacement is not “lost”
 
-## 3) Ensure the participation agreement uses the replacement cleanly
-`CpaEnrollmentGate.tsx` already attempts to resolve the QUICK override, but it should be hardened.
+### `src/hooks/queries/useQuickLegalOverride.ts`
+Likely no data-layer change required for the toggle bug itself.
 
-Update `src/components/cogniblend/solver/CpaEnrollmentGate.tsx`:
-- change the fetch from `.single()` to `.maybeSingle()` so the gate does not throw when a matching row is absent
-- keep the QUICK override preference logic intact
-- preserve the current display behavior:
-  - if doc is `SOURCE_DOC`, render `content_html` in `LegalDocumentViewer`
-  - badge as QUICK override
-- refine label/copy so the agreement clearly reads as the challenge-specific participation agreement when the replacement exists
+Keep current behavior for:
+- fetch
+- upload/replace
+- explicit delete
+- invalidation
 
-If the current combined OR query proves brittle, switch to a safer two-step resolution:
-1. fetch the latest QUICK override row
-2. if absent, fetch the normal assembled challenge agreement
+Only touch this file if minor typing cleanup is needed for the new explicit remove flow.
 
-This keeps behavior deterministic without touching STRUCTURED/CONTROLLED logic.
-
-Expected result:
-- participation gate shows the uploaded replacement document content
-- solver sees the correct challenge-specific agreement for QUICK challenges
-- no regression to reviewed-mode legal flows
-
-## 4) Small UX/accessibility cleanup while touching these dialogs
-Current console warning:
-- missing dialog description for `DialogContent`
-
-While updating the view dialogs:
-- add a `DialogDescription` or explicit `aria-describedby` path in:
-  - `CreatorLegalPreview.tsx`
-  - `ChallengeLegalDocsCard.tsx`
-- keep scope minimal; do not redesign the dialogs
-
-## Files to update
-```text
-src/hooks/queries/useQuickLegalOverride.ts
-src/components/cogniblend/challenges/ChallengeLegalDocsCard.tsx
-src/components/cogniblend/solver/CpaEnrollmentGate.tsx
-src/components/cogniblend/creator/CreatorLegalPreview.tsx
-```
-
-## Explicit non-changes
+## Non-changes
 Do not modify:
-```text
-Curator legal workspace
-LC legal workspace
-Pass 1 / Pass 2
-STRUCTURED legal flow
-CONTROLLED legal flow
-Pass 3 / UNIFIED_SPA reviewed-mode logic
-```
+- STRUCTURED legal flow
+- CONTROLLED legal flow
+- Curator legal workspace
+- LC legal workspace
+- Pass 1 / Pass 2
+- reviewed-mode legal resolution
+
+## UX copy refinement
+While updating the preview, make the state obvious:
+- `KEEP_DEFAULT` + saved override:
+  - “Default template currently active. A saved challenge-specific replacement is available if you switch back.”
+- `REPLACE_DEFAULT` + no saved override:
+  - “No replacement uploaded yet. The default Quick CPA is shown until you upload one.”
+- `REPLACE_DEFAULT` + saved override:
+  - “Challenge-specific replacement currently active.”
 
 ## Verification checklist
-- first upload of QUICK replacement works with no error
-- second upload replaces the earlier override cleanly
-- creator-side QUICK preview shows the new uploaded document
-- challenge legal card shows the override row and opens the new document in View
-- solver participation agreement shows the replacement document content
-- QUICK fallback still uses default document when no override exists
-- STRUCTURED and CONTROLLED legal behavior remain unchanged
+- upload a replacement in QUICK mode
+- switch to Keep default:
+  - default doc is shown
+  - uploaded replacement remains saved
+- switch back to Replace default:
+  - same uploaded replacement is shown again
+  - no re-upload needed
+- click explicit Remove:
+  - replacement is deleted
+  - mode returns to Keep default
+  - default doc is shown
+- preview copy accurately reflects inactive-vs-active replacement state
+- no changes to STRUCTURED or CONTROLLED behavior
