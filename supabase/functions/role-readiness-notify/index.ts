@@ -14,7 +14,8 @@ const corsHeaders = {
 
 /** Insert with exponential backoff retry (up to 3 attempts) */
 async function insertWithRetry(
-  adminClient: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
   notifications: Record<string, unknown>[],
   maxAttempts = 3
 ): Promise<{ count: number; failed: boolean; lastError?: string }> {
