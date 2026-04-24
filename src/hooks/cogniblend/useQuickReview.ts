@@ -95,7 +95,9 @@ export function useQuickReviewData(challengeId: string | undefined) {
       };
     },
     ...CACHE_FREQUENT,
-    onError: (e: Error) => handleQueryError(e, { operation: 'fetch_quick_review' }),
+    meta: {
+      onError: (e: Error) => handleQueryError(e, { operation: 'fetch_quick_review' }),
+    },
   });
 }
 

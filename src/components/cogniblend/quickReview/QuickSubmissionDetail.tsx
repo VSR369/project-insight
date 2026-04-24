@@ -215,7 +215,6 @@ export function QuickSubmissionDetail({
       {/* Legal gate modal — fired before accept */}
       {legalGate.showGate && (
         <LegalGateModal
-          open={legalGate.showGate}
           triggerEvent={legalGate.triggerEvent}
           challengeId={legalGate.challengeId}
           userRole={legalGate.userRole}
