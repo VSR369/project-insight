@@ -33,7 +33,8 @@ const STATIC_MASTER_DATA: Record<string, { code: string; label: string }[]> = {
 };
 
 async function fetchMasterDataOptions(
-  adminClient: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
 ): Promise<Record<string, { code: string; label: string }[]>> {
   const result: Record<string, { code: string; label: string }[]> = { ...STATIC_MASTER_DATA };
 
