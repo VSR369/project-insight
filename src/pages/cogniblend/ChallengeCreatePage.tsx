@@ -18,6 +18,8 @@ import { ChallengeConfigurationPanel } from '@/components/cogniblend/creator/Cha
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useAuth } from '@/contexts/AuthContext';
+import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import {
   getAvailableGovernanceModes,
   getDefaultGovernanceMode,
