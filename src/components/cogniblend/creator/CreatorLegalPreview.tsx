@@ -69,11 +69,12 @@ export function CreatorLegalPreview({
   onQuickOverrideUpload,
   onQuickOverrideRemove,
   isQuickOverrideBusy = false,
+  templateContext,
 }: CreatorLegalPreviewProps) {
   const form = useFormContext<CreatorFormValues>();
   const { data: cpaTemplates = [], isLoading: cpaLoading } = useOrgCpaTemplates(organizationId ?? '');
   const { data: spaTemplate, isLoading: spaLoading } = usePlatformSpaTemplate();
-  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const config = MODE_CONFIG[governanceMode];
