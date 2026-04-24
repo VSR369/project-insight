@@ -19,6 +19,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { useChallengeSubmit } from '@/hooks/cogniblend/useChallengeSubmit';
 
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
