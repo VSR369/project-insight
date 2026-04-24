@@ -404,6 +404,16 @@ export default function ScreeningReviewPage() {
   const { data, isLoading, error } = useScreeningData(challengeId, userId);
   const approveMutation = useApproveShortlist();
 
+  // ═══ SECTION 3a: QUICK governance early redirect ═══
+  // QUICK challenges use the simplified Creator-only review surface.
+  useEffect(() => {
+    if (!data || !challengeId) return;
+    const mode = resolveGovernanceMode(data.governanceProfile);
+    if (mode === 'QUICK') {
+      navigate(`/cogni/q/${challengeId}/review`, { replace: true });
+    }
+  }, [data, challengeId, navigate]);
+
   // ═══ SECTION 4: Derived ═══
   const hasERRole = roles?.includes('ER') ?? false;
   const hasCURole = roles?.includes('CU') ?? false;
