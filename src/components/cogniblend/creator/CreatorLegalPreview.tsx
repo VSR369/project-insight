@@ -4,7 +4,12 @@
  * STRUCTURED/CONTROLLED: includes Creator Legal Instructions textarea.
  */
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import {
+  interpolateCpaTemplate,
+  analyzeTemplateCompleteness,
+  type CpaPreviewVariables,
+} from '@/services/legal/cpaPreviewInterpolator';
 import { useFormContext } from 'react-hook-form';
 import { FileText, Shield, Eye, Loader2, AlertTriangle, Info, Upload, RefreshCw, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
