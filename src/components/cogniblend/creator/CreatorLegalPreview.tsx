@@ -38,6 +38,8 @@ interface CreatorLegalPreviewProps {
   onQuickOverrideUpload?: (file: File) => Promise<void>;
   onQuickOverrideRemove?: () => Promise<void>;
   isQuickOverrideBusy?: boolean;
+  /** Resolved variable map for `{{...}}` interpolation in the preview dialog. */
+  templateContext?: CpaPreviewVariables;
 }
 
 const MODE_CONFIG: Record<GovernanceMode, { color: string; badge: string; badgeClass: string; borderClass: string }> = {
