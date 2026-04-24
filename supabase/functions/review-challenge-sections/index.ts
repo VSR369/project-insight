@@ -556,10 +556,10 @@ serve(async (req) => {
     let orgContext: {
       orgType?: string; orgName?: string; tradeBrand?: string; orgDescription?: string;
       websiteUrl?: string; linkedinUrl?: string; twitterUrl?: string; tagline?: string;
-      hqCountry?: string; hqCity?: string;
+      hqCountry?: string; hqCountryCode?: string; hqCity?: string;
       annualRevenue?: string; employeeCount?: string; foundingYear?: number;
       isEnterprise?: boolean; functionalAreas?: string[];
-      industries?: { name: string; isPrimary: boolean }[];
+      industries?: { name: string; code?: string; isPrimary: boolean }[];
     } = {};
 
     if (isPreviewMode) {
@@ -575,9 +575,7 @@ serve(async (req) => {
       }
     } else {
       // ── Fetch challenge data based on context ─────────────────
-      const challengeFields = resolvedContext === "intake"
-        ? "title, problem_statement, scope, reward_structure, phase_schedule, extended_brief, ai_section_reviews"
-        : resolvedContext === "legal"
+      const challengeFields = resolvedContext === "legal"
         ? "title, ip_model, maturity_level, eligibility, ai_section_reviews"
         : resolvedContext === "finance"
         ? "title, reward_structure, phase_schedule, ai_section_reviews"
@@ -585,7 +583,7 @@ serve(async (req) => {
         ? "title, evaluation_criteria, deliverables, complexity_level, ai_section_reviews"
         : "title, problem_statement, scope, description, deliverables, expected_outcomes, evaluation_criteria, reward_structure, ip_model, maturity_level, eligibility, eligibility_model, visibility, challenge_visibility, phase_schedule, complexity_score, complexity_level, complexity_parameters, ai_section_reviews, hook, extended_brief, domain_tags, solver_expertise_requirements, solver_eligibility_types, solver_visibility_types, success_metrics_kpis, data_resources_provided, solution_type, currency_code, organization_id, submission_guidelines, operating_model, industry_segment_id";
 
-      const fetchPromises: Promise<any>[] = [
+      const fetchPromises: any[] = [
         adminClient.from("challenges").select(challengeFields).eq("id", challenge_id).single(),
       ];
 
@@ -739,16 +737,7 @@ serve(async (req) => {
         clientContext._frameworkBlock = frameworkBlock;
       }
 
-      // Extract extended_brief fields for intake/spec
-      if ((resolvedContext === "intake" || resolvedContext === "spec") && challengeData.extended_brief) {
-        const eb = typeof challengeData.extended_brief === "object" ? challengeData.extended_brief : {};
-        challengeData = {
-          ...challengeData,
-          beneficiaries_mapping: (eb as any).beneficiaries_mapping ?? null,
-          solution_expectations: (eb as any).solution_expectations ?? challengeData.scope ?? null,
-          expected_outcomes: (eb as any).expected_outcomes ?? challengeData.scope ?? null,
-        };
-      }
+      // Legacy 'intake'/'spec' branches removed — replaced by 'curation' (see standardized-naming memory).
 
       // For curation context: extract extended_brief subsections as individual data fields
       if (resolvedContext === "curation" && challengeData.extended_brief) {
@@ -808,9 +797,7 @@ serve(async (req) => {
       }
     } // end non-preview branch
 
-    const contextLabel = resolvedContext === "intake" ? "intake brief"
-      : resolvedContext === "spec" ? "specification"
-      : resolvedContext === "legal" ? "legal documentation"
+    const contextLabel = resolvedContext === "legal" ? "legal documentation"
       : resolvedContext === "finance" ? "financial configuration"
       : resolvedContext === "evaluation" ? "evaluation setup"
       : "challenge";
