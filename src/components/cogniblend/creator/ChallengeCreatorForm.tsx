@@ -42,6 +42,8 @@ import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 import { EvaluationMethodSection } from './EvaluationMethodSection';
 import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegalOverride } from '@/hooks/queries/useQuickLegalOverride';
+import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
+import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
