@@ -255,32 +255,42 @@ export function getSeedForCombination(
   const base = engagementModel === 'AGG' ? AGG_SEED : MP_SEED;
 
   if (governanceMode === 'QUICK') {
+    const isMP = engagementModel === 'MP';
     return {
       ...base,
-      title: engagementModel === 'MP'
-        ? 'AI-Powered Waste Sorting Solution — 48hr Hackathon'
+      title: isMP
+        ? 'AI-Powered Waste Sorting Solution — Rapid Pilot'
         : 'Customer Onboarding Time Reduction — Internal Sprint',
-      problem_statement: engagementModel === 'MP'
-        ? 'Urban waste management costs municipalities $200+ per ton. Manual sorting achieves only 35% recycling rate. We need an AI vision system that can identify and classify 50+ waste categories on a moving conveyor at 2+ items per second, achieving >90% accuracy, deployable on standard industrial cameras.'
-        : 'Our customer onboarding takes 14 business days across 6 departments with 23 manual handoffs. Drop-off rate is 34% between application and activation. We need a process redesign that reduces onboarding to under 3 days while maintaining KYC/AML compliance.',
-      scope: engagementModel === 'MP'
-        ? 'Working prototype on standard webcam. 50+ waste categories. Real-time classification.'
-        : 'End-to-end onboarding for retail banking. Must integrate with existing KYC system.',
-      platinum_award: engagementModel === 'MP' ? 500000 : 300000,
-      currency_code: engagementModel === 'MP' ? 'INR' : 'USD',
+      domain_tags: isMP
+        ? ['AI/ML', 'Computer Vision', 'Sustainability', 'Waste Management']
+        : ['Process Redesign', 'KYC', 'Customer Experience', 'Banking Operations'],
+      problem_statement: isMP
+        ? 'Urban waste management costs municipalities $200+ per ton. Manual sorting achieves only 35% recycling rate. We need an AI vision system that can identify and classify 50+ waste categories on a moving conveyor at 2+ items per second, achieving >90% accuracy, deployable on standard industrial cameras. The Challenge Creator will review submissions directly and Accept or Decline — no abstract round, no panel review.'
+        : 'Our customer onboarding takes 14 business days across 6 departments with 23 manual handoffs. Drop-off rate is 34% between application and activation. We need a process redesign that reduces onboarding to under 3 days while maintaining KYC/AML compliance. This is an internal sprint — only Solution Providers from our organization will see this challenge, and the Creator will review submissions directly.'
+        ,
+      scope: isMP
+        ? 'Working prototype on standard webcam. 50+ waste categories. Real-time classification. Creator reviews each submission and decides Accept or Decline directly — no multi-stage evaluation.'
+        : 'End-to-end onboarding for retail banking. Must integrate with existing KYC system. Internal Solution Providers only; Creator approves the winning submission directly.',
+      platinum_award: isMP ? 500000 : 300000,
+      currency_code: isMP ? 'INR' : 'USD',
       evaluation_method: 'SINGLE',
       evaluator_count: 1,
       hook: '',
       context_background: '',
       ip_model: 'IP-NEL',
       expected_timeline: '4w',
-      expected_outcomes: ['Working prototype or proof of concept'],
+      expected_outcomes: ['Working prototype or proof of concept the Creator can Accept or Decline'],
       preferred_approach: [''],
       approaches_not_of_interest: [''],
       current_deficiencies: [''],
       root_causes: [''],
       affected_stakeholders: [],
-      creator_legal_instructions: '',
+      solver_audience: isMP ? 'ALL' : 'INTERNAL',
+      quick_legal_override_mode: 'KEEP_DEFAULT',
+      phase_durations: [],
+      creator_legal_instructions: isMP
+        ? 'Using the Platform Admin default CPA template (Marketplace path) — no custom legal terms required for this rapid pilot.'
+        : 'Using the Seeking-Org Admin default CPA template (Aggregator path) for our internal Solution Providers — no custom legal terms required.',
     };
   }
 
