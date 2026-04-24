@@ -129,10 +129,10 @@ export function CreatorLegalPreview({
   // Completeness for the CPA template (not the override). Shown as a banner
   // inside the View Template dialog so the Creator sees what's still missing.
   const completeness = useMemo(() => {
-    const raw = cpaTemplate?.template_content;
+    const raw = resolvedTemplateContent;
     if (!raw || !templateContext) return null;
     return analyzeTemplateCompleteness(raw, templateContext);
-  }, [cpaTemplate?.template_content, templateContext]);
+  }, [resolvedTemplateContent, templateContext]);
 
   // Interpolate the dialog content only for the CPA template path.
   // Uploaded replacement (SOURCE_DOC) is run through the plain-text formatter
@@ -281,7 +281,7 @@ export function CreatorLegalPreview({
               ? 'A challenge-specific replacement is active for this Quick challenge. It does not modify the organization template.'
               : isQuick && hasSavedReplacement && quickOverrideMode === 'KEEP_DEFAULT'
                 ? 'Default template currently active. A saved challenge-specific replacement is available if you switch back to “Replace default”.'
-                : CPA_DESCRIPTIONS[governanceMode]}
+                : CPA_PREVIEW_DESCRIPTIONS[templateSource][governanceMode]}
           </p>
           {effectiveQuickContent ? (
             <Button
