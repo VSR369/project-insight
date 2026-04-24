@@ -17051,7 +17051,15 @@ export type Database = {
         Returns: string
       }
       is_email_domain_blocked: { Args: { p_email: string }; Returns: boolean }
+      is_legacy_org_owner: {
+        Args: { p_tenant_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_primary_org_admin: { Args: { p_org_id: string }; Returns: boolean }
+      is_primary_seeking_admin: {
+        Args: { p_organization_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_pulse_provider_owner: {
         Args: { p_provider_id: string }
         Returns: boolean
