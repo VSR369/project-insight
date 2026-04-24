@@ -28,6 +28,8 @@ import { SECTION_LABELS } from '@/components/cogniblend/curation/context-library
 import { CurationProgressTracker } from '@/components/cogniblend/progress/CurationProgressTracker';
 import { TieredApprovalView } from '@/components/cogniblend/approval/TieredApprovalView';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
+import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
+import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 
 interface CreatorChallengeDetailViewProps {
   data: PublicChallengeData;
