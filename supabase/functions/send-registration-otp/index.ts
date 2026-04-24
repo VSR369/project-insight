@@ -1,11 +1,9 @@
 /**
-import { sendEmail } from "../_shared/sendEmail.ts";
-import { resend } from "../_shared/resendShim.ts";
  * send-registration-otp Edge Function
- * 
+ *
  * Generates a 6-digit OTP, hashes it, stores in email_otp_verifications,
  * and sends the code via Resend. Enforces rate limits per BR-REG-006.
- * 
+ *
  * Rate limits:
  * - Max 5 OTPs per hour per email
  * - 24h lockout after 5 cumulative failed attempts
@@ -14,7 +12,7 @@ import { resend } from "../_shared/resendShim.ts";
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-;
+import { resend } from "../_shared/resendShim.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

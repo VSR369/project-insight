@@ -1,14 +1,12 @@
 /**
-import { sendEmail } from "../_shared/sendEmail.ts";
-import { resend } from "../_shared/resendShim.ts";
  * Notify Booking Cancelled Edge Function
- * 
+ *
  * Sends email notification to provider when their interview booking
  * is cancelled by a reviewer.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-;
+import { resend } from "../_shared/resendShim.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
