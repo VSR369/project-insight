@@ -31,6 +31,7 @@ interface CreatorLegalPreviewProps {
   quickOverrideMode?: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT';
   onQuickOverrideModeChange?: (nextMode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT') => Promise<void>;
   onQuickOverrideUpload?: (file: File) => Promise<void>;
+  onQuickOverrideRemove?: () => Promise<void>;
   isQuickOverrideBusy?: boolean;
 }
 
@@ -59,6 +60,7 @@ export function CreatorLegalPreview({
   quickOverrideMode = 'KEEP_DEFAULT',
   onQuickOverrideModeChange,
   onQuickOverrideUpload,
+  onQuickOverrideRemove,
   isQuickOverrideBusy = false,
 }: CreatorLegalPreviewProps) {
   const form = useFormContext<CreatorFormValues>();
@@ -73,8 +75,18 @@ export function CreatorLegalPreview({
   const isQuick = governanceMode === 'QUICK';
   const showInstructions = !isQuick;
   const instructions = form?.watch('creator_legal_instructions') ?? '';
-  const effectiveQuickContent = quickLegalOverride?.content_html ?? cpaTemplate?.template_content ?? null;
-  const effectiveQuickName = quickLegalOverride?.document_name ?? cpaTemplate?.document_name ?? 'Challenge Participation Agreement';
+
+  // Effective document resolution for QUICK mode is driven by BOTH the toggle
+  // AND whether a saved override exists. The saved override is preserved
+  // across toggles; deletion is explicit only.
+  const hasSavedReplacement = !!quickLegalOverride;
+  const isReplacementActive = isQuick && quickOverrideMode === 'REPLACE_DEFAULT' && hasSavedReplacement;
+  const effectiveQuickContent = isReplacementActive
+    ? quickLegalOverride?.content_html ?? null
+    : cpaTemplate?.template_content ?? null;
+  const effectiveQuickName = isReplacementActive
+    ? quickLegalOverride?.document_name ?? 'Challenge-specific replacement'
+    : cpaTemplate?.document_name ?? 'Challenge Participation Agreement';
 
   const handleQuickUploadChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -174,7 +186,7 @@ export function CreatorLegalPreview({
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          void onQuickOverrideModeChange?.('KEEP_DEFAULT');
+                          void onQuickOverrideRemove?.();
                         }}
                         disabled={isQuickOverrideBusy}
                       >
@@ -214,32 +226,34 @@ export function CreatorLegalPreview({
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${config.badgeClass}`}>{config.badge}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            {isQuick && quickLegalOverride
+            {isQuick && isReplacementActive
               ? 'A challenge-specific replacement is active for this Quick challenge. It does not modify the organization template.'
-              : CPA_DESCRIPTIONS[governanceMode]}
+              : isQuick && hasSavedReplacement && quickOverrideMode === 'KEEP_DEFAULT'
+                ? 'Default template currently active. A saved challenge-specific replacement is available if you switch back to “Replace default”.'
+                : CPA_DESCRIPTIONS[governanceMode]}
           </p>
-          {cpaTemplate ? (
-            effectiveQuickContent ? (
-              <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: effectiveQuickName, content: effectiveQuickContent ?? '' })}>
-                <Eye className="h-3 w-3" />View Template
-              </Button>
-            ) : null
-          ) : isQuick && quickLegalOverride ? (
-            effectiveQuickContent && (
-              <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: effectiveQuickName, content: effectiveQuickContent ?? '' })}>
-                <Eye className="h-3 w-3" />View Template
-              </Button>
-            )
+          {effectiveQuickContent ? (
+            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setViewingDoc({ name: effectiveQuickName, content: effectiveQuickContent ?? '' })}>
+              <Eye className="h-3 w-3" />View Template
+            </Button>
           ) : (
             <div className="rounded-md border border-border bg-muted/40 p-2 flex items-start gap-2 text-xs text-muted-foreground">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-               <span>No CPA template found for {governanceMode} governance. Org Admin must create one in Organization Settings → Legal Templates.</span>
+              <span>No CPA template found for {governanceMode} governance. Org Admin must create one in Organization Settings → Legal Templates.</span>
             </div>
           )}
           {isQuick && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <Info className="h-3.5 w-3.5 shrink-0" />
-              <span>{quickLegalOverride ? 'Challenge-specific replacement in use' : 'Default template in use'}</span>
+              <span>
+                {isReplacementActive
+                  ? 'Challenge-specific replacement currently active.'
+                  : quickOverrideMode === 'REPLACE_DEFAULT'
+                    ? 'No replacement uploaded yet. The default Quick CPA is shown until you upload one.'
+                    : hasSavedReplacement
+                      ? 'Default template currently active. Saved replacement available.'
+                      : 'Default template in use.'}
+              </span>
             </div>
           )}
         </div>

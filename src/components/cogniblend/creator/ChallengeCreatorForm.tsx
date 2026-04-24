@@ -127,28 +127,40 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const isSubmitting = submitMutation.isPending;
   const isBusy = isSubmitting || draftSave.isSaving || uploadQuickOverride.isPending || deleteQuickOverride.isPending;
 
+  // One-time hydration: initialize the toggle from the saved override state
+  // when the draft first loads. After that, the creator's live selection wins
+  // and is NOT snapped back by query refetches.
+  const [hasHydratedQuickMode, setHasHydratedQuickMode] = useState(false);
   useEffect(() => {
-    if (!isQuick) return;
+    if (!isQuick || hasHydratedQuickMode) return;
+    if (quickLegalOverride === undefined) return; // wait until query resolves
     form.setValue(
       'quick_legal_override_mode',
       quickLegalOverride ? 'REPLACE_DEFAULT' : 'KEEP_DEFAULT',
       { shouldDirty: false },
     );
-  }, [form, isQuick, quickLegalOverride]);
+    setHasHydratedQuickMode(true);
+  }, [form, isQuick, quickLegalOverride, hasHydratedQuickMode]);
 
+  // Non-destructive toggle: only updates form state. The saved replacement is
+  // preserved when switching back to KEEP_DEFAULT — deletion is explicit only.
   const handleQuickLegalOverrideChange = useCallback(async (nextMode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT') => {
     form.setValue('quick_legal_override_mode', nextMode, { shouldDirty: true });
+  }, [form]);
 
-    if (nextMode === 'KEEP_DEFAULT') {
-      if (quickLegalOverride) {
-        await deleteQuickOverride.mutateAsync({
-          challengeId: quickLegalOverride.challenge_id,
-          docId: quickLegalOverride.id,
-          storagePath: quickLegalOverride.lc_review_notes,
-        });
-      }
+  // Explicit destructive remove: deletes the saved override row + storage object,
+  // then resets the toggle to KEEP_DEFAULT.
+  const handleQuickLegalOverrideRemove = useCallback(async () => {
+    if (!quickLegalOverride) {
+      form.setValue('quick_legal_override_mode', 'KEEP_DEFAULT', { shouldDirty: true });
       return;
     }
+    await deleteQuickOverride.mutateAsync({
+      challengeId: quickLegalOverride.challenge_id,
+      docId: quickLegalOverride.id,
+      storagePath: quickLegalOverride.lc_review_notes,
+    });
+    form.setValue('quick_legal_override_mode', 'KEEP_DEFAULT', { shouldDirty: true });
   }, [deleteQuickOverride, form, quickLegalOverride]);
 
   const handleQuickLegalOverrideUpload = useCallback(async (file: File) => {
@@ -327,6 +339,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           quickOverrideMode={form.watch('quick_legal_override_mode')}
           onQuickOverrideModeChange={handleQuickLegalOverrideChange}
           onQuickOverrideUpload={handleQuickLegalOverrideUpload}
+          onQuickOverrideRemove={handleQuickLegalOverrideRemove}
           isQuickOverrideBusy={uploadQuickOverride.isPending || deleteQuickOverride.isPending}
         />
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
