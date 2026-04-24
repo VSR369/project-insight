@@ -55,15 +55,17 @@ interface ChallengeCreatorFormProps {
   onDraftModeSync?: (governance: GovernanceMode, engagement: string, industrySegmentId?: string) => void;
   onFillTestData?: () => void;
   onDraftIdChange?: (id: string) => void;
+  onIndustrySegmentResolved?: (id: string) => void;
 }
 
 export type { CreatorFormValues } from './creatorFormSchema';
 
-export function ChallengeCreatorForm({ engagementModel, governanceMode, industrySegmentId, onDraftModeSync, onFillTestData, onDraftIdChange }: ChallengeCreatorFormProps) {
+export function ChallengeCreatorForm({ engagementModel, governanceMode, industrySegmentId, onDraftModeSync, onFillTestData, onDraftIdChange, onIndustrySegmentResolved }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
+  const { data: industrySegmentOptions = [] } = useIndustrySegmentOptions();
   
   const { data: solutionMaturityOptions = [] } = useSolutionMaturityList();
   const { data: tierLimit } = useTierLimitCheck();
