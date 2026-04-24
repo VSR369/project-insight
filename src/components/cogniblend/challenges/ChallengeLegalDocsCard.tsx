@@ -19,6 +19,7 @@ import {
   interpolateCpaTemplate,
   type CpaPreviewVariables,
 } from '@/services/legal/cpaPreviewInterpolator';
+import { formatLegalPlainText } from '@/services/legal/legalTextFormatter';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
