@@ -5,9 +5,10 @@
  * Two-panel layout: abstract list (left) + detail/scoring (right).
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
 import {
   useScreeningData,
   useScoreAbstract,

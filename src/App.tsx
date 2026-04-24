@@ -258,6 +258,7 @@ const ChallengeManagePage = lazy(() => import("@/pages/cogniblend/ChallengeManag
 const SolutionSubmitPage = lazy(() => import("@/pages/cogniblend/SolutionSubmitPage"));
 const FullSolutionUploadPage = lazy(() => import("@/pages/cogniblend/FullSolutionUploadPage"));
 const ScreeningReviewPage = lazy(() => import("@/pages/cogniblend/ScreeningReviewPage"));
+const QuickReviewPage = lazy(() => import("@/pages/cogniblend/QuickReviewPage"));
 const CurationDiagnosticsPage = lazy(() => import("@/pages/cogniblend/CurationDiagnosticsPage"));
 const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
 const FcChallengeQueuePage = lazy(() => import("@/pages/cogniblend/FcChallengeQueuePage"));
@@ -375,6 +376,7 @@ const App = () => (
               <Route path="/cogni/challenges/:id/submit" element={<LazyRoute><SolutionSubmitPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/solutions/:solId/upload" element={<LazyRoute><FullSolutionUploadPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/screen" element={<LazyRoute><ScreeningReviewPage /></LazyRoute>} />
+              <Route path="/cogni/q/:challengeId/review" element={<LazyRoute><QuickReviewPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id" element={<LazyRoute><ChallengeManagePage /></LazyRoute>} />
               <Route path="/cogni/curation" element={<LazyRoute><CurationQueuePage /></LazyRoute>} />
               <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
