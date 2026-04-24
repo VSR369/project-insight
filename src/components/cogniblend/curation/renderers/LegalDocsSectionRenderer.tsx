@@ -15,6 +15,7 @@ import {
   interpolateCpaTemplate,
   type CpaPreviewVariables,
 } from "@/services/legal/cpaPreviewInterpolator";
+import { formatLegalPlainText } from "@/services/legal/legalTextFormatter";
 
 interface LegalDocDetail {
   id: string;
