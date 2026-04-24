@@ -67,14 +67,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send regret email if the reviewer was ACCEPTED
     if (wasAccepted) {
-      const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      if (resendApiKey) {
-        try {
-          await resend.emails.send({
-            from: "CogniBlend <onboarding@resend.dev>",
-            to: [reviewer.email],
-            subject: "Panel Membership Removal Notice - CogniBlend",
-            html: `
+      try {
+        await sendEmail({
+          to: reviewer.email,
+          subject: "Panel Membership Removal Notice - CogniBlend",
+          html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #1f2937;">Panel Membership Removal Notice</h2>
                 
@@ -102,14 +99,11 @@ const handler = async (req: Request): Promise<Response> => {
                 </p>
               </div>
             `,
-          });
-          console.log(`[delete-panel-reviewer] Regret email sent to ${reviewer.email}`);
-        } catch (emailError) {
-          console.error(`[delete-panel-reviewer] Failed to send regret email:`, emailError);
-          // Continue with deletion even if email fails
-        }
-      } else {
-        console.warn("[delete-panel-reviewer] RESEND_API_KEY not configured, skipping email");
+        });
+        console.log(`[delete-panel-reviewer] Regret email sent to ${reviewer.email}`);
+      } catch (emailError) {
+        console.error(`[delete-panel-reviewer] Failed to send regret email:`, emailError);
+        // Continue with deletion even if email fails
       }
     }
 

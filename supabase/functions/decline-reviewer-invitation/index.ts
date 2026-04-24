@@ -162,7 +162,8 @@ serve(async (req) => {
               </div>
             `,
           });
-          console.log("[decline-reviewer-invitation] Admin notification sent");
+            console.log("[decline-reviewer-invitation] Admin notification sent to:", adminEmail);
+          }
         }
       }
     } catch (emailErr) {
