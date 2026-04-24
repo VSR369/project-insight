@@ -27,6 +27,7 @@ import {
 } from '@/lib/governanceMode';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import type { IndustrySegmentSource } from '@/constants/industrySegment.constants';
 
 const FIELD_COUNTS: Record<GovernanceMode, number> = { QUICK: 5, STRUCTURED: 8, CONTROLLED: 12 };
 
@@ -34,7 +35,7 @@ export default function ChallengeCreatePage() {
   const [governanceMode, setGovernanceMode] = useState<GovernanceMode>('STRUCTURED');
   const [engagementModel, setEngagementModel] = useState<string>('MP');
   const [industrySegmentId, setIndustrySegmentId] = useState<string>('');
-  const [industrySource, setIndustrySource] = useState<'draft' | 'org_default' | 'creator_override' | 'fallback' | null>(null);
+  const [industrySource, setIndustrySource] = useState<IndustrySegmentSource | null>(null);
   const [orgFillTrigger, setOrgFillTrigger] = useState(0);
   const [draftChallengeId, setDraftChallengeId] = useState<string | null>(null);
 

@@ -18,6 +18,7 @@ import {
   GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from '@/lib/governanceMode';
+import { INDUSTRY_SOURCE_HINT, type IndustrySegmentSource } from '@/constants/industrySegment.constants';
 
 /* ─── Governance card metadata ────────────────────────── */
 
@@ -38,7 +39,7 @@ interface ChallengeConfigurationPanelProps {
   onIndustrySegmentChange: (id: string) => void;
   industrySegments: Array<{ id: string; name: string }>;
   /** How the current segment was resolved — drives the helper subtitle. */
-  industrySource?: 'draft' | 'org_default' | 'creator_override' | 'fallback' | null;
+  industrySource?: IndustrySegmentSource | null;
   governanceMode: GovernanceMode;
   onGovernanceModeChange: (mode: GovernanceMode) => void;
   engagementModel: string;
@@ -65,14 +66,7 @@ export function ChallengeConfigurationPanel({
   const availableModes = getAvailableGovernanceModes(tierCode);
   const isSingleMode = availableModes.length <= 1;
 
-  const sourceHint =
-    industrySource === 'org_default'
-      ? "Defaulted from your organization's primary industry — change if needed."
-      : industrySource === 'fallback'
-        ? 'Auto-selected — please confirm or change.'
-        : industrySource === 'draft'
-          ? 'Loaded from your saved draft.'
-          : null;
+  const sourceHint = industrySource ? INDUSTRY_SOURCE_HINT[industrySource] ?? null : null;
 
   return (
     <div className="space-y-6">
