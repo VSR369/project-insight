@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { sendEmail } from "../_shared/sendEmail.ts";
+import { resend } from "../_shared/resendShim.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 ;
 
@@ -166,7 +167,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("[send-manager-reminder] Error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: (error instanceof Error ? error.message : String(error)) }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

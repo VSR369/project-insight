@@ -125,7 +125,7 @@ serve(async (req) => {
     );
   } catch (error) {
     return new Response(
-      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: error.message } }),
+      JSON.stringify({ success: false, error: { code: "INTERNAL_ERROR", message: (error instanceof Error ? error.message : String(error)) } }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

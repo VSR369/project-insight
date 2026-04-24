@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { sendEmail } from "../_shared/sendEmail.ts";
+import { resend } from "../_shared/resendShim.ts";
 ;
 
 
@@ -183,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in notify-slot-modified-by-admin:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error instanceof Error ? error.message : String(error)) }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

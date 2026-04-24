@@ -115,9 +115,8 @@ const handler = async (req: Request): Promise<Response> => {
     for (const expired of expiredEnrollments) {
       if (expired.providerEmail) {
         try {
-          await resend.emails.send({
-            from: "CogniBlend <onboarding@resend.dev>",
-            to: [expired.providerEmail],
+          await sendEmail({
+            to: expired.providerEmail,
             subject: `Manager Approval Request Expired for ${expired.orgName}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -183,7 +182,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("[auto-decline-expired] Error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: (error instanceof Error ? error.message : String(error)) }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }

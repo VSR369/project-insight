@@ -123,21 +123,15 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
       `;
 
-      const emailResponse = await resend.emails.send({
-        from: "CogniBlend <onboarding@resend.dev>",
-        to: [reviewer.email],
-        subject: "Panel Membership Cancellation Notice",
-        html: emailHtml,
-      });
-
-      console.log("[cancel-reviewer-invitation] Regret email sent:", {
-        success: !emailResponse.error,
-        emailId: emailResponse.data?.id,
-        recipient: reviewer.email,
-      });
-
-      if (emailResponse.error) {
-        console.error("[cancel-reviewer-invitation] Email error:", emailResponse.error);
+      try {
+        await sendEmail({
+          to: reviewer.email,
+          subject: "Panel Membership Cancellation Notice",
+          html: emailHtml,
+        });
+        console.log("[cancel-reviewer-invitation] Regret email sent to:", reviewer.email);
+      } catch (emailErr) {
+        console.error("[cancel-reviewer-invitation] Email error:", emailErr);
         // Continue with cancellation even if email fails
       }
     }

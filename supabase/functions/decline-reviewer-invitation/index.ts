@@ -143,11 +143,11 @@ serve(async (req) => {
         const adminEmails = profiles?.map(p => p.email).filter(Boolean) || [];
 
         if (adminEmails.length > 0) {
-          await resend.emails.send({
-            from: "CogniBlend <onboarding@resend.dev>",
-            to: adminEmails,
-            subject: `Reviewer Invitation Declined: ${reviewer.name}`,
-            html: `
+          for (const adminEmail of adminEmails) {
+            await sendEmail({
+              to: adminEmail,
+              subject: `Reviewer Invitation Declined: ${reviewer.name}`,
+              html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #dc2626;">Invitation Declined</h2>
                 <p>The following reviewer has declined their invitation:</p>
@@ -162,7 +162,8 @@ serve(async (req) => {
               </div>
             `,
           });
-          console.log("[decline-reviewer-invitation] Admin notification sent");
+            console.log("[decline-reviewer-invitation] Admin notification sent to:", adminEmail);
+          }
         }
       }
     } catch (emailErr) {

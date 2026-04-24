@@ -1,5 +1,6 @@
 /**
 import { sendEmail } from "../_shared/sendEmail.ts";
+import { resend } from "../_shared/resendShim.ts";
  * Notify Booking Cancelled Edge Function
  * 
  * Sends email notification to provider when their interview booking
