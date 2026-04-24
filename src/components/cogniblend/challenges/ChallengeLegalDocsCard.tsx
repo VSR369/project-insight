@@ -15,6 +15,10 @@ import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
+import {
+  interpolateCpaTemplate,
+  type CpaPreviewVariables,
+} from '@/services/legal/cpaPreviewInterpolator';
 
 interface ChallengeLegalDocsCardProps {
   challengeId: string;
@@ -23,6 +27,8 @@ interface ChallengeLegalDocsCardProps {
   governanceMode?: string;
   organizationId?: string;
   engagementModel?: string;
+  /** Resolved variable map for `{{...}}` interpolation in the View dialog. */
+  templateContext?: CpaPreviewVariables;
 }
 
 interface LegalDocRow {
