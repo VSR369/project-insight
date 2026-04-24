@@ -66,6 +66,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
+  const { data: orgContext } = useOrgModelContext();
   const { data: industrySegmentOptions = [] } = useIndustrySegmentOptions();
   
   const { data: solutionMaturityOptions = [] } = useSolutionMaturityList();
