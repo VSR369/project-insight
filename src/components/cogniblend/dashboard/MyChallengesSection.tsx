@@ -294,14 +294,26 @@ export function MyChallengesSection({
                           <GovernanceProfileBadge profile={item.governance_mode_override ?? item.governance_profile} compact />
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10 w-full lg:w-auto"
-                        onClick={() => navigate(`/cogni/challenges/${item.challenge_id}/view`)}
-                      >
-                        View
-                      </Button>
+                      {(() => {
+                        const isQuick = (item.governance_mode_override ?? item.governance_profile ?? '').toUpperCase() === 'QUICK';
+                        const hasCRRole = item.role_codes.includes('CR');
+                        // QUICK + Creator + post-publication (Phase ≥ 7) → simplified review surface
+                        const useQuickReview = isQuick && hasCRRole && item.current_phase >= 7;
+                        const target = useQuickReview
+                          ? `/cogni/q/${item.challenge_id}/review`
+                          : `/cogni/challenges/${item.challenge_id}/view`;
+                        const label = useQuickReview ? 'Review submissions' : 'View';
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10 w-full lg:w-auto"
+                            onClick={() => navigate(target)}
+                          >
+                            {label}
+                          </Button>
+                        );
+                      })()}
                     </div>
                   );
                 })}
