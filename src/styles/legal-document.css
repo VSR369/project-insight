@@ -277,6 +277,24 @@
   display: none;
 }
 
+/* Preview-only marker for variables not yet entered by the Creator.
+   Server-assembled documents never contain this class — it is rendered
+   client-side by `interpolateCpaTemplate(..., 'preview')` only. */
+.legal-doc .legal-preview-missing {
+  display: inline-block;
+  background-color: #fef3c7;
+  color: #92400e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85em;
+  font-weight: 500;
+  padding: 1px 6px;
+  margin: 0 1px;
+  border-radius: 3px;
+  border: 1px solid #fcd34d;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
 @media print {
   .legal-doc {
     font-size: 12pt;
@@ -285,5 +303,10 @@
   }
   .legal-doc h2 {
     page-break-after: avoid;
+  }
+  .legal-doc .legal-preview-missing {
+    background-color: transparent;
+    color: inherit;
+    border: 1px dashed #999;
   }
 }
