@@ -10,6 +10,7 @@ import {
   analyzeTemplateCompleteness,
   type CpaPreviewVariables,
 } from '@/services/legal/cpaPreviewInterpolator';
+import { formatLegalPlainText } from '@/services/legal/legalTextFormatter';
 import { useFormContext } from 'react-hook-form';
 import { FileText, Shield, Eye, Loader2, AlertTriangle, Info, Upload, RefreshCw, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
