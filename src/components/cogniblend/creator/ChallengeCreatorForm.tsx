@@ -40,10 +40,12 @@ import { MP_SEED, AGG_SEED, getSeedForCombination } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
+import { QuickPublishConfirmModal } from './QuickPublishConfirmModal';
 import { EvaluationMethodSection } from './EvaluationMethodSection';
 import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegalOverride } from '@/hooks/queries/useQuickLegalOverride';
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
+import { audienceSelectable } from '@/services/engagementModelRulesService';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -77,6 +79,8 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [referenceUrls, setReferenceUrls] = useState<string[]>([]);
   const [publishedResult, setPublishedResult] = useState<{ challengeId: string; title: string } | null>(null);
+  const [showQuickConfirm, setShowQuickConfirm] = useState(false);
+  const [pendingQuickData, setPendingQuickData] = useState<CreatorFormValues | null>(null);
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
   const isControlled = governanceMode === 'CONTROLLED';
