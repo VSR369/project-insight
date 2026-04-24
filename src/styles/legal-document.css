@@ -42,6 +42,33 @@
   margin-bottom: 32px;
 }
 
+/* Centered metadata lines under the title (e.g. "Challenge: …", "Organization: …").
+   Stack tightly with no bottom margin between them; the last one gets spacing
+   via the adjacent-h2 selector below. */
+.legal-doc .doc-meta {
+  text-align: center;
+  font-size: 13.5px;
+  color: hsl(var(--muted-foreground));
+  margin: 0;
+  line-height: 1.5;
+}
+.legal-doc .doc-meta + .doc-meta {
+  margin-top: 2px;
+}
+.legal-doc .doc-meta:last-of-type {
+  margin-bottom: 28px;
+}
+
+/* Slight extra breathing room for the first paragraph after a numbered section. */
+.legal-doc h2 + p {
+  margin-top: 4px;
+}
+
+/* Lettered sub-clauses block produced by the plain-text formatter. */
+.legal-doc ol.legal-clauses {
+  margin-top: 8px;
+}
+
 .legal-doc h2 {
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 15px;
