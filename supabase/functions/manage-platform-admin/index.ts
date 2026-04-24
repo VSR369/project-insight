@@ -98,7 +98,7 @@ serve(async (req: Request) => {
 });
 
 async function handleCreate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, "public", any>>,
   body: Record<string, unknown>,
   callerId: string,
   callerTier: AdminTier,
@@ -253,7 +253,7 @@ async function handleCreate(
 }
 
 async function handleUpdate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, "public", any>>,
   body: Record<string, unknown>,
   callerId: string,
   callerTier: AdminTier,
@@ -351,7 +351,7 @@ async function handleUpdate(
 }
 
 async function handleDeactivate(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createClient<any, "public", any>>,
   body: Record<string, unknown>,
   callerId: string,
   callerTier: AdminTier,
