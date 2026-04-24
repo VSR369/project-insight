@@ -19,6 +19,8 @@ export interface CurrentOrg {
   tcVersionAccepted: string | null;
   governanceProfile: string;
   lcReviewRequired: boolean;
+  /** Org's primary industry segment id (resolved from seeker_org_industries.is_primary=true). */
+  primaryIndustryId: string | null;
 }
 
 export function useCurrentOrg() {
@@ -60,14 +62,22 @@ export function useCurrentOrg() {
       const tierCode = org?.seeker_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
       const orgId = data.organization_id;
 
-      // Check if org is a child in an active saas_agreements record (internal department)
-      const { data: saasData } = await supabase
-        .from('saas_agreements')
-        .select('id')
-        .eq('child_organization_id', orgId)
-        .eq('lifecycle_status', 'active')
-        .limit(1)
-        .maybeSingle();
+      // Parallel: internal-department check + primary industry lookup
+      const [saasResult, primaryResult] = await Promise.all([
+        supabase
+          .from('saas_agreements')
+          .select('id')
+          .eq('child_organization_id', orgId)
+          .eq('lifecycle_status', 'active')
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('seeker_org_industries')
+          .select('industry_id')
+          .eq('organization_id', orgId)
+          .eq('is_primary', true)
+          .maybeSingle(),
+      ]);
 
       return {
         organizationId: orgId,
@@ -76,11 +86,12 @@ export function useCurrentOrg() {
         orgName: org?.legal_entity_name ?? 'Organization',
         tierCode,
         hqCountryId: org?.hq_country_id ?? null,
-        isInternalDepartment: !!saasData,
+        isInternalDepartment: !!saasResult.data,
         verificationStatus: org?.verification_status ?? null,
         tcVersionAccepted: org?.tc_version_accepted ?? null,
         governanceProfile: org?.governance_profile ?? 'QUICK',
         lcReviewRequired: !!(org?.lc_review_required),
+        primaryIndustryId: (primaryResult.data?.industry_id as string | undefined) ?? null,
       };
     },
     enabled: !!user?.id,
