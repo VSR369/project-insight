@@ -166,7 +166,8 @@ export default function ChallengeCreatePage() {
         </div>
         <ChallengeConfigurationPanel
           industrySegmentId={industrySegmentId}
-          onIndustrySegmentChange={setIndustrySegmentId}
+          onIndustrySegmentChange={handleIndustryChange}
+          industrySource={industrySource}
           industrySegments={industrySegments}
           governanceMode={governanceMode}
           onGovernanceModeChange={setGovernanceMode}
@@ -198,7 +199,7 @@ export default function ChallengeCreatePage() {
           onDraftModeSync={handleDraftModeSync}
           onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
           onDraftIdChange={setDraftChallengeId}
-          onIndustrySegmentResolved={setIndustrySegmentId}
+          onIndustrySegmentResolved={handleIndustryResolvedFromForm}
         />
       </div>
     </div>
