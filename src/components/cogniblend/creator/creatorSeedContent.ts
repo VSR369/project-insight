@@ -151,7 +151,7 @@ export const AGG_SEED: SeedContent = {
   maturity_level: 'POC',
   solution_maturity_id: '',
   currency_code: 'USD',
-  platinum_award: 0,
+  platinum_award: 1500000,
   weighted_criteria: [
     { name: 'Regulatory Defensibility & Explainability', weight: 25 },
     { name: 'Technical Architecture & Agent Design', weight: 25 },
