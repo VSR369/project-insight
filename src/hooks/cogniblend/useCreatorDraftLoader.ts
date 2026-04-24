@@ -10,7 +10,7 @@ import type { CreatorFormValues } from '@/components/cogniblend/creator/creatorF
 import { toFormMaturityCode } from '@/components/cogniblend/creator/creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
-const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model, evaluation_criteria, deliverables';
+const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model, evaluation_criteria, deliverables, solver_audience, evaluation_method, evaluator_count, creator_legal_instructions';
 
 interface DraftSyncCallback {
   (gov: GovernanceMode, eng: string, industrySegmentId?: string): void;
@@ -87,6 +87,12 @@ export function useCreatorDraftLoader(
       const eo = challenge.expected_outcomes as unknown;
       const ps = challenge.phase_schedule as Record<string, unknown> | null;
 
+      const ch = challenge as Record<string, unknown>;
+      const phaseDurationsRaw = (ps as Record<string, unknown> | null)?.phase_durations;
+      const phaseDurations = Array.isArray(phaseDurationsRaw)
+        ? (phaseDurationsRaw as CreatorFormValues['phase_durations'])
+        : [];
+
       form.reset({
         title: (challenge.title as string) || '',
         hook: (challenge.hook as string) || '',
@@ -95,7 +101,7 @@ export function useCreatorDraftLoader(
         maturity_level: toFormMaturityCode(challenge.maturity_level as string | null | undefined),
         solution_maturity_id: (challenge.solution_maturity_id as string) || '',
         industry_segment_id: (challenge.industry_segment_id as string) || '',
-        
+
         currency_code: ((rs?.currency as string) || 'USD') as CreatorFormValues['currency_code'],
         platinum_award: Number(rs?.platinum_award ?? rs?.budget_max ?? 0),
         weighted_criteria: (() => {
@@ -114,6 +120,14 @@ export function useCreatorDraftLoader(
         current_deficiencies: parseLineItems(eb?.current_deficiencies),
         root_causes: parseLineItems(eb?.root_causes),
         expected_timeline: (ps?.expected_timeline as string) || '',
+        // Newly restored fields ↓
+        solver_audience: ((ch.solver_audience as string) ?? 'ALL') as CreatorFormValues['solver_audience'],
+        evaluation_method: ((ch.evaluation_method as string) ?? 'SINGLE') as CreatorFormValues['evaluation_method'],
+        evaluator_count: Number(ch.evaluator_count ?? 1),
+        creator_legal_instructions: (ch.creator_legal_instructions as string) || '',
+        phase_durations: phaseDurations,
+        is_anonymous: eb?.is_anonymous === true,
+        community_creation_allowed: eb?.community_creation_allowed === true,
       });
 
       // Restore reference URLs from extended_brief (stored outside RHF)

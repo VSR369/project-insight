@@ -16,9 +16,9 @@ const GOVERNANCE_DESCRIPTIONS: Record<string, string> = {
 /* ── Creator field lists by governance mode ── */
 
 const CREATOR_FIELD_LISTS: Record<string, string[]> = {
-  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award'],
-  STRUCTURED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria'],
-  CONTROLLED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline'],
+  QUICK: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'solver_audience'],
+  STRUCTURED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria', 'solver_audience', 'evaluation_method', 'evaluator_count', 'creator_legal_instructions'],
+  CONTROLLED: ['title', 'problem_statement', 'domain_tags', 'currency_code', 'platinum_award', 'scope', 'maturity_level', 'weighted_criteria', 'hook', 'context_background', 'ip_model', 'expected_timeline', 'solver_audience', 'evaluation_method', 'evaluator_count', 'creator_legal_instructions', 'phase_durations', 'is_anonymous', 'community_creation_allowed', 'preferred_approach', 'root_causes', 'affected_stakeholders', 'current_deficiencies'],
 };
 
 /* ── Prompt builders ── */

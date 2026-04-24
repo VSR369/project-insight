@@ -24,9 +24,9 @@ const COUNTRY_TO_REGION: Record<string, string> = {
 /* ── Governance-filtered challenge fields ── */
 
 const CHALLENGE_FIELDS_BY_MODE: Record<string, string> = {
-  QUICK: "title, problem_statement, domain_tags, currency_code, reward_structure, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, maturity_level",
-  STRUCTURED: "title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, evaluation_criteria, organization_id, engagement_model_id, industry_segment_id, governance_mode_override",
-  CONTROLLED: "title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, evaluation_criteria, hook, description, ip_model, phase_schedule, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, eligibility, visibility",
+  QUICK: "title, problem_statement, domain_tags, currency_code, reward_structure, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, maturity_level, solver_audience, evaluation_method, evaluator_count",
+  STRUCTURED: "title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, solution_maturity_id, evaluation_criteria, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, solver_audience, evaluation_method, evaluator_count, creator_legal_instructions, extended_brief, phase_schedule, hook",
+  CONTROLLED: "title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, solution_maturity_id, evaluation_criteria, hook, description, ip_model, phase_schedule, organization_id, engagement_model_id, industry_segment_id, governance_mode_override, eligibility, visibility, solver_audience, evaluation_method, evaluator_count, creator_legal_instructions, extended_brief",
 };
 
 /* ── Types ── */
@@ -75,8 +75,8 @@ export async function fetchChallengeContext(
     throw new Error("CHALLENGE_NOT_FOUND");
   }
 
-  const challenge = challengeRes.data as Record<string, unknown>;
-  const legalDocs = (legalRes.data ?? []) as Record<string, unknown>[];
+  const challenge = challengeRes.data as unknown as Record<string, unknown>;
+  const legalDocs = (legalRes.data ?? []) as unknown as Record<string, unknown>[];
 
   // Fetch org data with country JOIN
   const orgId = challenge.organization_id as string;
