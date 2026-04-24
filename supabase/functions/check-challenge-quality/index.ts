@@ -9,7 +9,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchChallengeContext } from "./contextFetcher.ts";
 import { buildSystemPrompt, buildUserPrompt } from "./promptBuilder.ts";
 import { callAIWithFallback } from "../_shared/aiModelConfig.ts";
-import { buildSystemPrompt, buildUserPrompt } from "./promptBuilder.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

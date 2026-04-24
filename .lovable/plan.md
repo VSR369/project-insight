@@ -1,105 +1,130 @@
 
-# Plan — Fix "Fill Test Data" for ALL governance × engagement combinations
+# Audit & Fix Plan — Save Draft / AI Review / Submit & Publish across all 6 governance × engagement combos
 
-## Audit summary (gaps found)
+I traced every code path end-to-end (form → hook → payload builder → RPC → DB → AI edge function). Below are the **real, reproducible** gaps found.
 
-I audited `creatorSeedContent.ts`, `ChallengeCreatorForm.handleFillTestData`, `ChallengeCreatePage`, `creatorFormSchema.ts`, and `governanceFieldFilter.ts` against the recent industry-segment + governance + audience changes. Real gaps below:
+## Verification matrix (current state)
 
-### G-A. Industry segment fallback is incomplete (handleFillTestData)
-`ChallengeCreatorForm.handleFillTestData` only does `industrySegmentId || industrySegmentOptions[0]?.id`. It **ignores `orgContext.primaryIndustryId`** — the canonical org default added in the recent industry-segment plan. The `useEffect` in `ChallengeCreatePage` does run that resolution on mount, so in practice the prop is usually populated — **but** if the page hits Fill Test Data before the org-primary effect fires, or if a user manually clears the segment, the seeder skips the org-default tier. The auto-fill chain must mirror page-level priority: `prop → org primary → first option`, and announce provenance (`org_default` / `fallback`) back through `onIndustrySegmentResolved` so the `industrySource` badge stays truthful.
+| Step | QUICK-MP | QUICK-AGG | STRUCTURED-MP | STRUCTURED-AGG | CONTROLLED-MP | CONTROLLED-AGG |
+|---|---|---|---|---|---|---|
+| Save Draft persists all fields | ⚠ partial | ⚠ partial | ⚠ partial | ⚠ partial | ⚠ partial | ⚠ partial |
+| Draft re-load restores all fields | ❌ misses 7 fields | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AI Review boots | ❌ duplicate import | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AI Review sees all creator fields | ❌ partial selection | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Submit & Publish writes everything | ⚠ misses `creator_legal_instructions` | ⚠ same | ⚠ same | ⚠ same | ⚠ same | ⚠ same |
 
-### G-B. STRUCTURED-AGG seeds prize = 0
-`AGG_SEED.platinum_award = 0`. STRUCTURED branch returns `...base` unchanged. AGG passes Zod (no `>0` refine), but Step 2 then renders an empty escrow card and the publish-readiness gate flags it. Seed should set a realistic AGG prize (e.g. `300000 USD`) and ensure `currency_code` is consistent.
+## Gaps found
 
-### G-C. STRUCTURED & CONTROLLED `creator_legal_instructions` copy refers to scenarios the seed doesn't represent
-The seeds now describe **supply-chain digital workforce (MP)** and **financial services autonomous ops (AGG)**, but legal instructions still talk about "smart grid / NERC CIP", "Siemens MindSphere", "SOX cross-border", "HIPAA / 45 CFR Part 164". Curators reading the brief will see incoherent copy. Rewrite the four legal-instruction strings (STRUCTURED-MP, STRUCTURED-AGG, CONTROLLED-MP, CONTROLLED-AGG) so each matches its actual seed domain.
+### G1. [CRITICAL — BLOCKS AI REVIEW EVERYWHERE] Duplicate import in edge function
+`supabase/functions/check-challenge-quality/index.ts` lines 10 + 12 both import `buildSystemPrompt, buildUserPrompt`. Deno will reject this at boot with `Identifier 'buildSystemPrompt' has already been declared`. Confirms why no logs exist for the function — it never boots. **Effect: AI Review fails for all 6 combinations.**
 
-### G-D. STRUCTURED & CONTROLLED don't exercise AGG audience selector
-For AGG, `solver_audience` is selectable (Internal / External / All). All non-QUICK AGG seeds inherit `'ALL'` from base, so the audience selector is never demonstrated when filling test data. Set:
-- STRUCTURED-AGG → `'INTERNAL'`
-- CONTROLLED-AGG → `'EXTERNAL'`
-(QUICK-AGG already uses `'INTERNAL'`.) MP stays `'ALL'` (forced by `audienceSelectable(MP)=false`).
+### G2. [HIGH] AI Review context fetcher omits new creator fields
+`contextFetcher.ts` `CHALLENGE_FIELDS_BY_MODE` selects only the legacy field set. It does NOT pull these fields the AI must see to reason about the brief:
+- `solver_audience` (AGG-relevant — AI can't comment on audience choice)
+- `evaluation_method` + `evaluator_count` (DELPHI vs SINGLE rigor)
+- `extended_brief` (preferred_approach, root_causes, current_deficiencies, affected_stakeholders, context_background, is_anonymous, community_creation_allowed) — **all CONTROLLED creator content lives here**
+- `creator_legal_instructions`
+- `solution_maturity_id`
 
-### G-E. CONTROLLED seeds don't set `is_anonymous` / `community_creation_allowed` distinctly
-Both seeds use defaults (false/false). To exercise the creator-preference toggles end-to-end (especially in CONTROLLED where they appear in the brief), set CONTROLLED-MP `is_anonymous: true` and CONTROLLED-AGG `community_creation_allowed: true`. (Optional but improves coverage.)
+For CONTROLLED especially this is severe: the AI literally cannot see context_background, root_causes, stakeholders, etc. — the very content CONTROLLED requires.
 
-### G-F. QUICK seeds wipe context arrays to `['']` even though governance hides them
-QUICK seeds set `preferred_approach: ['']`, `current_deficiencies: ['']`, etc. Then `filterSeedByGovernance` runs and *re-resets* them to `['']` since they're hidden in QUICK. Net behavior is correct, but the explicit `['']` in the seed is redundant noise. Replace with `[]` (empty array) so the filter is the single source of truth and the seed reads cleanly. (Cosmetic / maintenance — keep as low-priority cleanup.)
+### G3. [HIGH] Submit/Publish path drops `creator_legal_instructions`
+`useChallengeSubmit.mutationFn` (lines 93-135) writes the challenge update but omits `creator_legal_instructions`. The draft-save path writes it via `buildChallengeUpdatePayload`, so if the user clicks Save Draft → Submit it survives. If the user clicks Submit without an intermediate save (e.g., after filling test data + immediately submitting), the latest `creator_legal_instructions` is lost. **Effect: STRUCTURED & CONTROLLED legal-instructions sometimes don't reach the curator.**
 
-### G-G. `expected_outcomes` in QUICK is `['Working prototype …']` but field is hidden
-Same issue — QUICK hides `expected_outcomes`, so the seed value is dropped by `filterSeedByGovernance`. Harmless, but again redundant. Set to `[]` for consistency.
+### G4. [HIGH] Draft loader misses 7 newly-added fields
+`useCreatorDraftLoader` `DRAFT_COLUMNS` does not select, and `form.reset({...})` does not restore:
+- `solver_audience` (column exists)
+- `evaluation_method` (column exists)
+- `evaluator_count` (column exists)
+- `creator_legal_instructions` (column exists)
+- `phase_durations` (lives in `phase_schedule.phase_durations`)
+- `is_anonymous` (lives in `extended_brief.is_anonymous`)
+- `community_creation_allowed` (lives in `extended_brief.community_creation_allowed`)
 
-### G-H. No seed for `hook` in STRUCTURED / CONTROLLED
-`hookRule` requires `min(1)` for CONTROLLED. Base seeds set `hook` only via the optional `& { hook?: string }` — but neither MP_SEED nor AGG_SEED defines `hook`. Result: filling test data in **CONTROLLED** mode produces a Zod error on the `hook` field (300-char one-liner). Add a one-line hook to both base seeds (e.g. `hook: 'Reimagine supply chain through autonomous AI agents and a new human-agent operating model.'`).
+**Effect:** Any reload of a draft loses creator-preference toggles, audience choice, eval method, eval count, phase schedule, and legal instructions. This will silently overwrite the saved values on the next Save Draft (form re-serializes default values).
 
-### G-I. `phase_durations` only seeded for CONTROLLED — STRUCTURED with optional schedule never demoed
-STRUCTURED can optionally define phase durations (per the timeline-config memory). Currently STRUCTURED seeds leave it empty. For demo coverage, seed STRUCTURED with a 3-phase schedule (phases 5/8/9) so reviewers can see the toggle populated. (Low priority — only matters if testers want to exercise the timeline UI.)
+### G5. [MEDIUM] AI Review prompt doesn't surface the new fields in scoring guidance
+Even after G2 is fixed, `promptBuilder.ts` `CREATOR_FIELD_LISTS` excludes:
+- `solver_audience` (relevant for AGG STRUCTURED & CONTROLLED — AI should validate Internal/External choice vs problem)
+- `evaluation_method` / `evaluator_count` (relevant for STRUCTURED + CONTROLLED — AI should validate that DELPHI is sensible for the prize size)
+- `phase_durations` (relevant for CONTROLLED — AI should sanity-check the 5-phase timeline)
 
-### G-J. `evaluator_count` for CONTROLLED hard-coded to 3 — no MP/AGG variation needed
-This is fine, just confirming. DELPHI requires ≥1, ≤5; 3 is sensible. No change.
+So even with the data fetched, the AI is told "ignore these fields."
 
-### G-K. Org-context fill (`onFillTestData → setOrgFillTrigger`) fires on every Fill, including QUICK
-Currently `onFillTestData?.()` is called unconditionally inside `handleFillTestData`. For QUICK that's fine (org context is still useful). No bug — just confirming current behavior is intentional.
+### G6. [LOW] CONTROLLED preferences not in field list
+`CREATOR_REVIEW_FIELDS.CONTROLLED` lists 12 fields but doesn't include `is_anonymous` or `community_creation_allowed`. Both appear in the brief and should be reflected back as a per-field score row (even if just informational), because the new "Fill Test Data" plan explicitly seeds these in CONTROLLED.
 
----
-
-## Files to change
-
-### 1. `src/components/cogniblend/creator/creatorSeedContent.ts`  (~30-line delta inside the same file)
-- Add `hook` to both `MP_SEED` and `AGG_SEED` (one-line summary matching each scenario).
-- `AGG_SEED.platinum_award = 1500000` USD (or similar non-zero baseline).
-- Replace the four `creator_legal_instructions` strings inside `getSeedForCombination` so STRUCTURED-MP/AGG and CONTROLLED-MP/AGG copy matches the supply-chain (MP) and financial-services (AGG) scenarios.
-- STRUCTURED branch: set `solver_audience: 'INTERNAL'` when AGG; leave MP at `'ALL'`.
-- CONTROLLED branch: set `solver_audience: 'EXTERNAL'` when AGG; `'ALL'` for MP. Set CONTROLLED-MP `is_anonymous: true`; CONTROLLED-AGG `community_creation_allowed: true`.
-- (Cleanup) QUICK branch: empty arrays (`[]`) instead of `['']` for the hidden line-item fields and `expected_outcomes`.
-- (Optional) STRUCTURED branch: seed a 3-row `phase_durations` schedule for visual coverage.
-
-### 2. `src/components/cogniblend/creator/ChallengeCreatorForm.tsx`  (~6-line delta in `handleFillTestData`)
-- Pull `orgContext.primaryIndustryId` via `useOrgModelContext()` (already imported in the page; add the hook call here).
-- Replace the resolution line:
-  ```
-  const resolvedIndustryId =
-    industrySegmentId
-    || orgContext?.primaryIndustryId
-    || industrySegmentOptions[0]?.id
-    || '';
-  ```
-- Keep `onIndustrySegmentResolved?.(resolvedIndustryId)` so `ChallengeCreatePage.industrySource` flips to `org_default` or `fallback` (page already maps to `'fallback'` when prev was null — extend to set `'org_default'` when the resolved id matches the org primary).
-
-### 3. `src/pages/cogniblend/ChallengeCreatePage.tsx`  (~4-line delta in `handleIndustryResolvedFromForm`)
-- Compare incoming id to `orgContext?.primaryIndustryId`:
-  ```
-  const handleIndustryResolvedFromForm = useCallback((id: string) => {
-    setIndustrySegmentId(id);
-    setIndustrySource((prev) =>
-      prev ?? (id === orgContext?.primaryIndustryId ? 'org_default' : 'fallback')
-    );
-  }, [orgContext?.primaryIndustryId]);
-  ```
-  This keeps the provenance badge accurate when Fill Test Data resolves the industry.
-
-### 4. (No DB / RPC / migration changes.) Verification only — `npx tsc --noEmit`.
+### G7. Confirmed-OK (no change needed)
+- Draft save **write** path correctly writes all the new fields (`useChallengeDraft.ts` + `buildChallengeUpdatePayload`).
+- Submit/publish path correctly writes `solver_audience`, `evaluation_method`, `evaluator_count`, `phase_schedule.phase_durations`, `extended_brief.is_anonymous`, `extended_brief.community_creation_allowed`, `industry_segment_id`, `hook`.
+- DB columns exist for all the canonical fields; `is_anonymous` / `community_creation_allowed` correctly live in JSONB only.
+- `complete_phase` and `initialize_challenge` RPCs exist.
+- QUICK auto-publish notification path is intact.
 
 ---
 
-## Out of scope
-- Seeding `weighted_criteria` for QUICK (field is hidden by governance — already correctly dropped).
-- Adding new languages / currencies beyond what each scenario uses (INR for MP, USD for AGG).
-- Touching `ORG_SEED` (Organization context fill) — already fine.
-- Mutating the curation-side seed (different surface, different file).
-- Re-seeding attached files / reference URLs (no changes needed; tester adds those manually if wanted).
+## Fix plan
 
----
+### Fix 1 — `supabase/functions/check-challenge-quality/index.ts` (1-line delta)
+Delete the duplicate import on line 12. Re-deploys automatically.
 
-## Verification matrix (after changes)
+### Fix 2 — `supabase/functions/check-challenge-quality/contextFetcher.ts` (~6-line delta)
+Extend `CHALLENGE_FIELDS_BY_MODE` so each mode pulls the columns the AI needs:
 
-| Combo | Title set | Industry resolves | Prize > 0 | Audience seeded | Legal copy matches scenario | Hook present | Zod passes |
-|---|---|---|---|---|---|---|---|
-| QUICK-MP | ✓ Waste sorting | org_primary→fallback | ✓ 500000 INR | ALL | Platform CPA note | n/a (hidden) | ✓ |
-| QUICK-AGG | ✓ Onboarding sprint | same | ✓ 300000 USD | INTERNAL | Org CPA note | n/a (hidden) | ✓ |
-| STRUCTURED-MP | ✓ Supply chain AI | same | ✓ 45M INR | ALL | Supply-chain regulated data | ✓ | ✓ |
-| STRUCTURED-AGG | ✓ FinServ autonomous | same | ✓ 1.5M USD | INTERNAL | Financial-services regulated | ✓ | ✓ |
-| CONTROLLED-MP | ✓ Supply chain AI | same | ✓ 45M INR | ALL | Supply-chain controlled-tier | ✓ | ✓ |
-| CONTROLLED-AGG | ✓ FinServ autonomous | same | ✓ 1.5M USD | EXTERNAL | Financial-services controlled-tier | ✓ | ✓ |
+```text
+QUICK:      add solver_audience, evaluation_method, evaluator_count
+STRUCTURED: add solver_audience, evaluation_method, evaluator_count,
+                creator_legal_instructions, extended_brief, solution_maturity_id
+CONTROLLED: add solver_audience, evaluation_method, evaluator_count,
+                creator_legal_instructions, extended_brief, solution_maturity_id
+```
 
-All six combinations will pass schema validation, render a non-zero escrow display where applicable, demonstrate the AGG audience selector across modes, and show the correct industry-segment provenance badge ("Org default" / "Auto-selected" / "Creator set").
+Already selected: title, problem_statement, domain_tags, currency_code, reward_structure, scope, maturity_level, evaluation_criteria, hook, ip_model, phase_schedule, industry_segment_id, governance_mode_override, eligibility, visibility, organization_id, engagement_model_id.
+
+### Fix 3 — `supabase/functions/check-challenge-quality/promptBuilder.ts` (~6-line delta)
+Extend `CREATOR_FIELD_LISTS`:
+- STRUCTURED: append `solver_audience`, `evaluation_method`, `evaluator_count`
+- CONTROLLED: append the same three plus `phase_durations`
+
+So gap reports can include them.
+
+### Fix 4 — `src/hooks/cogniblend/useChallengeSubmit.ts` (1-line delta)
+Add `creator_legal_instructions: filteredPayload.creatorLegalInstructions ?? null,` to the `challenges` `.update({...})` block (around line 133), mirroring the draft path.
+
+### Fix 5 — `src/hooks/cogniblend/useCreatorDraftLoader.ts` (~15-line delta)
+1. Extend `DRAFT_COLUMNS`:
+   `+ solver_audience, evaluation_method, evaluator_count, creator_legal_instructions`.
+2. In `form.reset({...})`, add:
+   - `solver_audience: ((challenge.solver_audience as string) ?? 'ALL') as 'ALL'|'INTERNAL'|'EXTERNAL'`
+   - `evaluation_method: ((challenge.evaluation_method as string) ?? 'SINGLE') as 'SINGLE'|'DELPHI'`
+   - `evaluator_count: Number(challenge.evaluator_count ?? 1)`
+   - `creator_legal_instructions: (challenge.creator_legal_instructions as string) || ''`
+   - `phase_durations: Array.isArray(ps?.phase_durations) ? (ps.phase_durations as CreatorFormValues['phase_durations']) : []`
+   - `is_anonymous: eb?.is_anonymous === true`
+   - `community_creation_allowed: eb?.community_creation_allowed === true`
+   - `quick_legal_override_mode: 'KEEP_DEFAULT'` (kept default; `useQuickLegalOverride` query overrides post-load — already wired)
+
+### Fix 6 — `src/constants/creatorReviewFields.ts` (4-line delta)
+Append to `CONTROLLED_FIELDS`:
+- `{ key: 'solver_audience', label: 'Solver Audience' }` (only when AGG — but list is governance-only, so include and let the engagement-model layer decide; the AI mapper safely no-ops if no gap)
+- `{ key: 'evaluation_method', label: 'Evaluation Method' }`
+- `{ key: 'evaluator_count', label: 'Evaluator Count' }`
+- `{ key: 'phase_durations', label: 'Phase Schedule' }`
+
+Append to `STRUCTURED_FIELDS`:
+- `{ key: 'evaluation_method', label: 'Evaluation Method' }` (STRUCTURED can choose DELPHI)
+- `{ key: 'solver_audience', label: 'Solver Audience' }` (AGG only, but harmless for MP since it's locked to ALL and AI gets value)
+
+### Out of scope
+- Renaming columns or adding new DB columns — `is_anonymous` and `community_creation_allowed` correctly live in JSONB.
+- Changing the AI scoring weights or rubric.
+- Changing the curation-side surfaces (`extended_brief` reads on the curator side already work).
+- Editing the QUICK publish notification fan-out.
+- Touching `creator_approval_required` — already handled.
+
+### Verification after fixes
+For each of the 6 combinations:
+1. Configure (Step 1) → click **Fill Test Data** → click **Save Draft** → reload page with `?draft=…` → confirm every field re-hydrates (audience, eval method/count, legal instructions, phase schedule, anonymity, community-creation toggle).
+2. Click **AI Review** on the saved draft → confirm the function returns 200 with `dimensions`, `summary`, `gaps`, `strengths`, and `fieldResults` covering the new fields where applicable.
+3. Click **Submit & Publish** (QUICK) or **Submit to Curator** (STRUCTURED/CONTROLLED) → confirm DB row contains the post-edit `creator_legal_instructions` and the curator sees the full brief.
+4. `npx tsc --noEmit` passes; no edge-function boot errors in logs.

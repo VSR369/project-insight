@@ -131,6 +131,7 @@ export function useChallengeSubmit() {
           solver_audience: payload.solverAudience ?? 'ALL',
           evaluation_method: filteredPayload.evaluationMethod ?? 'SINGLE',
           evaluator_count: filteredPayload.evaluatorCount ?? 1,
+          creator_legal_instructions: filteredPayload.creatorLegalInstructions || null,
         } as any)
         .eq('id', challengeId);
 
