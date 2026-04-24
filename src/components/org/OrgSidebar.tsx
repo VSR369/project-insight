@@ -1,8 +1,15 @@
 /**
  * OrgSidebar — Sidebar for the Seeker Organization portal.
- * - PRIMARY admins see: Dashboard, Settings, Admin Management
- * - DELEGATED admins see: Dashboard only
- * - Non-admin org users see the full sidebar (preserves existing behavior)
+ *
+ * Visibility model (additive groups, not mutually exclusive):
+ *   PRIMARY SO Admin   → Workspace + Role Management + Org Configuration
+ *                        + Operations + Resources + Account
+ *   DELEGATED SO Admin → Workspace + Role Management + Resources
+ *   Non-admin org user → Workspace + Organization + Resources + Account
+ *
+ * Org Configuration items deep-link into OrgSettingsPage via ?tab=… so the
+ * Primary admin can reach the Legal Templates / Governance / Finance /
+ * Compliance / Audit Trail tabs that previously had no entry point in the nav.
  */
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -28,7 +35,6 @@ import {
   Crown,
   ArrowLeft,
   Network,
-  UserPlus,
   ShieldCheck,
   LogOut,
   CheckCircle2,
@@ -36,6 +42,11 @@ import {
   Mail,
   BookOpen,
   DollarSign,
+  FileText,
+  Banknote,
+  History,
+  Settings2,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +54,12 @@ import { useOrgContext } from '@/contexts/OrgContext';
 import { useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
 import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 import { supabase } from '@/integrations/supabase/client';
+
+interface NavItem {
+  title: string;
+  icon: typeof LayoutDashboard;
+  path: string;
+}
 
 export function OrgSidebar() {
   const navigate = useNavigate();
@@ -54,65 +71,94 @@ export function OrgSidebar() {
   const isSOAdmin = !!currentAdmin;
   const isPrimary = currentAdmin?.admin_tier === 'PRIMARY';
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    // For settings deep-links, also match when query param matches
+    if (path.includes('?tab=')) {
+      const [base, qs] = path.split('?');
+      const tab = new URLSearchParams(qs).get('tab');
+      const currentTab = new URLSearchParams(location.search).get('tab');
+      return location.pathname === base && currentTab === tab;
+    }
+    return location.pathname === path && !location.search;
+  };
 
-  // --- Navigation items ---
-
-  const mainItems = [
+  // ── Workspace (everyone) ────────────────────────────────────────────────
+  const workspaceItems: NavItem[] = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/org/dashboard' },
-  ];
-
-  // Only shown when NOT an SO Admin (regular org users)
-  const challengeItems = [
     { title: 'All Challenges', icon: Briefcase, path: '/org/challenges' },
     { title: 'Create Challenge', icon: PlusCircle, path: '/org/challenges/create' },
   ];
 
-  // Role Management — visible to SO Admins (both PRIMARY and DELEGATED)
-  const roleManagementItems = isSOAdmin
+  // ── Role Management (SO Admins only) ────────────────────────────────────
+  const roleManagementItems: NavItem[] = isSOAdmin
     ? [
         { title: 'Role Management', icon: ShieldCheck, path: '/org/role-management' },
         { title: 'Role Readiness', icon: CheckCircle2, path: '/org/role-readiness' },
-      ]
-    : [];
-
-  // Admin & Operations — PRIMARY SO Admins only
-  const adminOperationsItems = isSOAdmin
-    ? [
         ...(isPrimary && delegationEnabled
           ? [{ title: 'Delegated Admins', icon: UserCog, path: '/org/admin-management' }]
           : []),
-        { title: 'My Profile', icon: Users, path: '/org/contact-profile' },
+      ]
+    : [];
+
+  // ── Org Configuration (PRIMARY only) — deep-links into OrgSettingsPage ──
+  const orgConfigItems: NavItem[] = isPrimary
+    ? [
+        { title: 'Profile & Subscription', icon: Building2, path: '/org/settings?tab=profile' },
+        { title: 'Engagement Model', icon: Settings, path: '/org/settings?tab=engagement' },
+        { title: 'Governance', icon: ShieldCheck, path: '/org/settings?tab=governance' },
+        { title: 'Legal Templates', icon: FileText, path: '/org/settings?tab=legal-templates' },
+        { title: 'Finance', icon: Banknote, path: '/org/settings?tab=finance' },
+        { title: 'Compliance', icon: ShieldCheck, path: '/org/settings?tab=compliance' },
+        { title: 'Custom Fields', icon: Settings2, path: '/org/settings?tab=custom-fields' },
+        { title: 'Audit Trail', icon: History, path: '/org/settings?tab=audit' },
+      ]
+    : [];
+
+  // ── Operations (PRIMARY only) ───────────────────────────────────────────
+  const operationsItems: NavItem[] = isPrimary
+    ? [
         { title: 'Email Templates', icon: Mail, path: '/org/email-templates' },
         { title: 'Shadow Pricing', icon: DollarSign, path: '/org/shadow-pricing' },
       ]
     : [];
 
-  // Organization section — non-admin org users
-  const orgItems = isSOAdmin
-    ? []
-    : [
+  // ── Organization (non-admin org users) ──────────────────────────────────
+  const orgItems: NavItem[] = !isSOAdmin
+    ? [
         { title: 'Settings', icon: Building2, path: '/org/settings' },
         { title: 'Team', icon: Users, path: '/org/team' },
         { title: 'Membership', icon: Crown, path: '/org/membership' },
         { title: 'Parent Dashboard', icon: Network, path: '/org/parent-dashboard' },
-      ];
-
-  // Knowledge Centre — SO Admins only
-  const knowledgeCentreItems = isSOAdmin
-    ? [{ title: 'Knowledge Centre', icon: BookOpen, path: '/org/knowledge-centre' }]
+      ]
     : [];
 
-  const billingItems = [
-    { title: 'Billing & Usage', icon: CreditCard, path: '/org/billing' },
+  // ── Resources (admins + non-admins) ─────────────────────────────────────
+  const resourceItems: NavItem[] = [
+    { title: 'My Profile', icon: Users, path: '/org/contact-profile' },
+    ...(isSOAdmin
+      ? [{ title: 'Knowledge Centre', icon: BookOpen, path: '/org/knowledge-centre' }]
+      : []),
   ];
+
+  // ── Account (PRIMARY admin + non-admin org users own billing) ───────────
+  const accountItems: NavItem[] = isPrimary || !isSOAdmin
+    ? [
+        ...(!isSOAdmin
+          ? [
+              { title: 'Team', icon: Users, path: '/org/team' },
+              { title: 'Membership', icon: Crown, path: '/org/membership' },
+            ]
+          : []),
+        { title: 'Billing & Usage', icon: CreditCard, path: '/org/billing' },
+      ]
+    : [];
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/org/login');
   };
 
-  const renderMenuSection = (items: typeof mainItems) => (
+  const renderMenuSection = (items: NavItem[]) => (
     <SidebarMenu>
       {items.map((item) => (
         <SidebarMenuItem key={item.path}>
@@ -124,6 +170,14 @@ export function OrgSidebar() {
       ))}
     </SidebarMenu>
   );
+
+  const renderGroup = (label: string | null, items: NavItem[]) =>
+    items.length > 0 && (
+      <SidebarGroup>
+        {label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
+        <SidebarGroupContent>{renderMenuSection(items)}</SidebarGroupContent>
+      </SidebarGroup>
+    );
 
   return (
     <Sidebar className="border-r">
@@ -142,72 +196,13 @@ export function OrgSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Main — always visible */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            {renderMenuSection(mainItems)}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Challenges — hidden for SO Admins */}
-        {!isSOAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Challenges</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {renderMenuSection(challengeItems)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Role Management — SO Admins only */}
-        {isSOAdmin && roleManagementItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Role Management</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {renderMenuSection(roleManagementItems)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Admin & Operations — SO Admins only */}
-        {isSOAdmin && adminOperationsItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Administration</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {renderMenuSection(adminOperationsItems)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Organization — scoped items (non-admin org users) */}
-        {orgItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Organization</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {renderMenuSection(orgItems)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Knowledge Centre — SO Admins only */}
-        {isSOAdmin && knowledgeCentreItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Resources</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {renderMenuSection(knowledgeCentreItems)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Billing — hidden for SO Admins */}
-        {!isSOAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Billing</SidebarGroupLabel>
-            <SidebarGroupContent>
-              {renderMenuSection(billingItems)}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {renderGroup(null, workspaceItems)}
+        {renderGroup('Role Management', roleManagementItems)}
+        {renderGroup('Org Configuration', orgConfigItems)}
+        {renderGroup('Operations', operationsItems)}
+        {renderGroup('Organization', orgItems)}
+        {renderGroup('Resources', resourceItems)}
+        {renderGroup('Account', accountItems)}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">

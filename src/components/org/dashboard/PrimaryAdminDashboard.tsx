@@ -28,6 +28,8 @@ import {
   Mail,
   BookOpen,
   Clock,
+  FileText,
+  Banknote,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -168,6 +170,30 @@ export default function PrimaryAdminDashboard() {
               title="Email Templates"
               description="Preview notification email templates"
               onClick={() => navigate('/org/email-templates')}
+            />
+            <ConsoleCard
+              icon={<FileText className="h-5 w-5" />}
+              title="Legal Templates"
+              description="Manage org-level legal documents (AGG)"
+              onClick={() => navigate('/org/settings?tab=legal-templates')}
+            />
+            <ConsoleCard
+              icon={<Shield className="h-5 w-5" />}
+              title="Governance"
+              description="Default mode and per-mode overrides"
+              onClick={() => navigate('/org/settings?tab=governance')}
+            />
+            <ConsoleCard
+              icon={<Banknote className="h-5 w-5" />}
+              title="Finance"
+              description="Org-level rate cards and currency"
+              onClick={() => navigate('/org/settings?tab=finance')}
+            />
+            <ConsoleCard
+              icon={<ShieldCheck className="h-5 w-5" />}
+              title="Compliance"
+              description="HIPAA, GDPR, SOC2 attestations"
+              onClick={() => navigate('/org/settings?tab=compliance')}
             />
           </div>
         </div>
