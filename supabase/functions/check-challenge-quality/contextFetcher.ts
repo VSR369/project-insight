@@ -75,8 +75,8 @@ export async function fetchChallengeContext(
     throw new Error("CHALLENGE_NOT_FOUND");
   }
 
-  const challenge = challengeRes.data as Record<string, unknown>;
-  const legalDocs = (legalRes.data ?? []) as Record<string, unknown>[];
+  const challenge = challengeRes.data as unknown as Record<string, unknown>;
+  const legalDocs = (legalRes.data ?? []) as unknown as Record<string, unknown>[];
 
   // Fetch org data with country JOIN
   const orgId = challenge.organization_id as string;
