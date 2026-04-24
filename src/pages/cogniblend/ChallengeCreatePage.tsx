@@ -175,6 +175,7 @@ export default function ChallengeCreatePage() {
           onDraftModeSync={handleDraftModeSync}
           onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
           onDraftIdChange={setDraftChallengeId}
+          onIndustrySegmentResolved={setIndustrySegmentId}
         />
       </div>
     </div>

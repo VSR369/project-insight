@@ -46,6 +46,7 @@ import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegal
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
+import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -54,15 +55,17 @@ interface ChallengeCreatorFormProps {
   onDraftModeSync?: (governance: GovernanceMode, engagement: string, industrySegmentId?: string) => void;
   onFillTestData?: () => void;
   onDraftIdChange?: (id: string) => void;
+  onIndustrySegmentResolved?: (id: string) => void;
 }
 
 export type { CreatorFormValues } from './creatorFormSchema';
 
-export function ChallengeCreatorForm({ engagementModel, governanceMode, industrySegmentId, onDraftModeSync, onFillTestData, onDraftIdChange }: ChallengeCreatorFormProps) {
+export function ChallengeCreatorForm({ engagementModel, governanceMode, industrySegmentId, onDraftModeSync, onFillTestData, onDraftIdChange, onIndustrySegmentResolved }: ChallengeCreatorFormProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
+  const { data: industrySegmentOptions = [] } = useIndustrySegmentOptions();
   
   const { data: solutionMaturityOptions = [] } = useSolutionMaturityList();
   const { data: tierLimit } = useTierLimitCheck();
@@ -286,7 +289,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
     const seed = getSeedForCombination(governanceMode as 'QUICK' | 'STRUCTURED' | 'CONTROLLED', engagementModel as 'MP' | 'AGG');
     const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
-    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: industrySegmentId || '' }, fieldRules) : seed;
+
+    // 3-tier industry resolution: prop → org's hq country fallback (none exposed) → first available option
+    const resolvedIndustryId = industrySegmentId || industrySegmentOptions[0]?.id || '';
+    if (resolvedIndustryId && resolvedIndustryId !== industrySegmentId) {
+      onIndustrySegmentResolved?.(resolvedIndustryId);
+    }
+
+    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: resolvedIndustryId }, fieldRules) : { ...seed, industry_segment_id: resolvedIndustryId };
     form.reset(filtered as CreatorFormValues, { keepDefaultValues: true });
     onFillTestData?.();
     // Use rAF + microtask to ensure React has flushed form state before saving draft
@@ -295,7 +305,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         void draftSave.handleSaveDraft();
       });
     });
-  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId]);
+  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId, industrySegmentOptions, onIndustrySegmentResolved]);
 
   if (publishedResult && isQuick) {
     return (
