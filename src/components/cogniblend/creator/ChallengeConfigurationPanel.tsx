@@ -37,6 +37,8 @@ interface ChallengeConfigurationPanelProps {
   industrySegmentId: string;
   onIndustrySegmentChange: (id: string) => void;
   industrySegments: Array<{ id: string; name: string }>;
+  /** How the current segment was resolved — drives the helper subtitle. */
+  industrySource?: 'draft' | 'org_default' | 'creator_override' | 'fallback' | null;
   governanceMode: GovernanceMode;
   onGovernanceModeChange: (mode: GovernanceMode) => void;
   engagementModel: string;
@@ -52,6 +54,7 @@ export function ChallengeConfigurationPanel({
   industrySegmentId,
   onIndustrySegmentChange,
   industrySegments,
+  industrySource,
   governanceMode,
   onGovernanceModeChange,
   engagementModel,
@@ -61,6 +64,15 @@ export function ChallengeConfigurationPanel({
 }: ChallengeConfigurationPanelProps) {
   const availableModes = getAvailableGovernanceModes(tierCode);
   const isSingleMode = availableModes.length <= 1;
+
+  const sourceHint =
+    industrySource === 'org_default'
+      ? "Defaulted from your organization's primary industry — change if needed."
+      : industrySource === 'fallback'
+        ? 'Auto-selected — please confirm or change.'
+        : industrySource === 'draft'
+          ? 'Loaded from your saved draft.'
+          : null;
 
   return (
     <div className="space-y-6">
@@ -82,6 +94,9 @@ export function ChallengeConfigurationPanel({
             ))}
           </SelectContent>
         </Select>
+        {sourceHint && (
+          <p className="text-xs text-muted-foreground italic">{sourceHint}</p>
+        )}
       </div>
 
       {/* ═══ Governance Mode ═══ */}
