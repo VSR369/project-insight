@@ -19,6 +19,7 @@ import {
   DEFAULT_GOVERNING_LAW,
   buildEscrowTermsText,
 } from '@/constants/legalPreview.constants';
+import { formatLegalPlainText } from '@/services/legal/legalTextFormatter';
 
 export interface CpaPreviewInput {
   challenge_title?: string | null;
