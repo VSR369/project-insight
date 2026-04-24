@@ -44,9 +44,9 @@ interface LegalDocRow {
 }
 
 export function ChallengeLegalDocsCard({
-  challengeId, isQuickMode, currentPhase, governanceMode, organizationId, engagementModel,
+  challengeId, isQuickMode, currentPhase, governanceMode, organizationId, engagementModel, templateContext,
 }: ChallengeLegalDocsCardProps) {
-  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string } | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; content: string; interpolate: boolean } | null>(null);
   const { data: legalDocs } = useQuery<LegalDocRow[]>({
     queryKey: ['challenge-legal-docs', challengeId],
     queryFn: async () => {
