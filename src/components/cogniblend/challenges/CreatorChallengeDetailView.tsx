@@ -45,6 +45,26 @@ export function CreatorChallengeDetailView({ data, challengeId }: CreatorChallen
   );
 
   const { data: fieldRules } = useGovernanceFieldRules(effectiveGovernance);
+  const { data: geoContext } = useGeoContextForOrg(data.organization_id ?? undefined);
+
+  const rewardStruct = (data.reward_structure ?? {}) as Record<string, unknown>;
+  const templateContext = useMemo(() => buildPreviewVariables({
+    challenge_title: data.title,
+    problem_statement: (data as unknown as Record<string, unknown>).problem_statement as string | null,
+    scope: (data as unknown as Record<string, unknown>).scope as string | null,
+    ip_model: (data as unknown as Record<string, unknown>).ip_model as string | null,
+    governance_mode: effectiveGovernance,
+    operating_model: data.operating_model ?? null,
+    prize_amount: (rewardStruct.platinum_award as number | string | null | undefined) ?? null,
+    currency: data.currency_code ?? null,
+    evaluation_method: (data as unknown as Record<string, unknown>).evaluation_method as string | null,
+    evaluator_count: (data as unknown as Record<string, unknown>).evaluator_count as number | null,
+    solver_audience: (data as unknown as Record<string, unknown>).solver_audience as string | null,
+    submission_deadline: (data as unknown as Record<string, unknown>).submission_deadline as string | null,
+    seeker_org_name: data.organization_name ?? null,
+    jurisdiction: geoContext?.jurisdiction,
+    governing_law: geoContext?.governing_law,
+  }), [data, effectiveGovernance, rewardStruct, geoContext]);
 
   const snapshot = (data as unknown as Record<string, unknown>).creator_snapshot as Record<string, unknown> | null;
   const hasSnapshot = !!snapshot && Object.keys(snapshot).length > 0;
