@@ -14,7 +14,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 import { useOrgLegalTemplates, useCreateOrgLegalTemplate, useUpdateOrgLegalTemplate } from '@/hooks/queries/useOrgLegalTemplates';
+import { useOrgSubscription } from '@/hooks/queries/useOrgSettings';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { CpaTemplateSection } from './CpaTemplateSection';
 
@@ -23,6 +26,10 @@ interface OrgLegalTemplatesTabProps { organizationId: string; }
 export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabProps) {
   const { organizationId: tenantId } = useOrgContext();
   const { data: templates, isLoading } = useOrgLegalTemplates(organizationId);
+  const { data: subscription } = useOrgSubscription(organizationId);
+  const engagementModel = (subscription as { md_engagement_models?: { code?: string } } | undefined)
+    ?.md_engagement_models?.code;
+  const isAggregator = engagementModel === 'AGG' || engagementModel === 'aggregator';
   const createMut = useCreateOrgLegalTemplate();
   const updateMut = useUpdateOrgLegalTemplate();
   const [showAdd, setShowAdd] = useState(false);
@@ -43,6 +50,17 @@ export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabPro
 
   return (
     <div className="space-y-6">
+      {!isAggregator && engagementModel && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Org-level legal templates apply only to <strong>Aggregator (AGG)</strong> challenges.
+            Your organization is currently on the <strong>{engagementModel}</strong> engagement
+            model — these templates will not be auto-attached to challenges. The platform's
+            canonical templates (SPA / SKPA / PWA) are used instead.
+          </AlertDescription>
+        </Alert>
+      )}
       <CpaTemplateSection organizationId={organizationId} tenantId={tenantId} />
       <Separator />
     <Card>
