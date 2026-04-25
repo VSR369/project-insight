@@ -379,20 +379,20 @@ const App = () => (
               <Route path="/cogni/challenges/:id/screen" element={<LazyRoute><ScreeningReviewPage /></LazyRoute>} />
               <Route path="/cogni/q/:challengeId/review" element={<LazyRoute><QuickReviewPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id" element={<LazyRoute><ChallengeManagePage /></LazyRoute>} />
-              <Route path="/cogni/curation" element={<LazyRoute><CurationQueuePage /></LazyRoute>} />
-              <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
-              <Route path="/cogni/curation/:id/preview" element={<LazyRoute><ChallengePreviewPage /></LazyRoute>} />
-              <Route path="/cogni/curation/:id/diagnostics" element={<LazyRoute><CurationDiagnosticsPage /></LazyRoute>} />
+              <Route path="/cogni/curation" element={<LazyRoute><WorkforcePwaGate roleCodes={CU_ROLES} surfaceLabel="Curation Queue"><CurationQueuePage /></WorkforcePwaGate></LazyRoute>} />
+              <Route path="/cogni/curation/:id" element={<LazyRoute><WorkforcePwaGate roleCodes={CU_ROLES} surfaceLabel="Curation Workspace"><CurationReviewPage /></WorkforcePwaGate></LazyRoute>} />
+              <Route path="/cogni/curation/:id/preview" element={<LazyRoute><WorkforcePwaGate roleCodes={CU_ROLES} surfaceLabel="Curation Preview"><ChallengePreviewPage /></WorkforcePwaGate></LazyRoute>} />
+              <Route path="/cogni/curation/:id/diagnostics" element={<LazyRoute><WorkforcePwaGate roleCodes={CU_ROLES} surfaceLabel="Curation Diagnostics"><CurationDiagnosticsPage /></WorkforcePwaGate></LazyRoute>} />
 
               {/* My Challenges */}
               <Route path="/cogni/my-challenges" element={<LazyRoute><MyChallengesPage /></LazyRoute>} />
-              <Route path="/cogni/lc-queue" element={<LazyRoute><LcChallengeQueuePage /></LazyRoute>} />
+              <Route path="/cogni/lc-queue" element={<LazyRoute><WorkforcePwaGate roleCodes={LC_ROLES} surfaceLabel="Legal Coordinator Queue"><LcChallengeQueuePage /></WorkforcePwaGate></LazyRoute>} />
               <Route path="/cogni/legal" element={<LazyRoute><CogniPlaceholderPage title="Legal Documents" description="Manage legal templates and document attachments for challenges." /></LazyRoute>} />
               <Route path="/cogni/review" element={<LazyRoute><CogniPlaceholderPage title="Review Queue" description="Review submitted solutions awaiting expert evaluation." /></LazyRoute>} />
               <Route path="/cogni/evaluation" element={<LazyRoute><CogniPlaceholderPage title="Evaluation Panel" description="Score and rank solutions using evaluation rubrics." /></LazyRoute>} />
               <Route path="/cogni/selection" element={<LazyRoute><WinnerSelectionPage /></LazyRoute>} />
               <Route path="/cogni/escrow" element={<Navigate to="/cogni/fc-queue" replace />} />
-              <Route path="/cogni/fc-queue" element={<LazyRoute><FcChallengeQueuePage /></LazyRoute>} />
+              <Route path="/cogni/fc-queue" element={<LazyRoute><WorkforcePwaGate roleCodes={FC_ROLES} surfaceLabel="Finance Coordinator Queue"><FcChallengeQueuePage /></WorkforcePwaGate></LazyRoute>} />
               <Route path="/cogni/payments" element={<LazyRoute><CogniPlaceholderPage title="Payment Processing" description="Process prize payments and manage financial transactions." /></LazyRoute>} />
               <Route path="/cogni/browse" element={<LazyRoute><BrowseChallengesPage /></LazyRoute>} />
               <Route path="/cogni/my-solutions" element={<LazyRoute><CogniPlaceholderPage title="My Solutions" description="Track your submitted solutions and their evaluation status." /></LazyRoute>} />
