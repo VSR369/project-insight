@@ -8,8 +8,7 @@
  *
  * Mounted inside `AuthGuard` after the PMA / SPA legacy gates.
  */
-import { useMemo, useState, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,9 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError } from '@/lib/errorHandler';
 import { usePendingRoleLegalAcceptance, type PendingRoleLegalRow } from '@/hooks/queries/usePendingRoleLegalAcceptance';
 import { useAcceptRoleLegal } from '@/hooks/legal/useAcceptRoleLegal';
-import { resolveActiveLegalTemplate, type ResolvedLegalTemplate } from '@/services/legal/roleDocResolver';
-import { getRoleDocMapping } from '@/services/legal/roleToDocumentMap';
-import { interpolateCpaTemplate } from '@/services/legal/cpaPreviewInterpolator';
+import { useAssembleRoleDoc } from '@/hooks/legal/useAssembleRoleDoc';
 
 interface RoleLegalGateProps {
   userId: string;
@@ -46,15 +43,12 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
   // Pick the first unresolved row to render
   const current: PendingRoleLegalRow | undefined = pending[0];
 
-  // Fetch the resolved template for the current pending row
-  const { data: template, isLoading: tmplLoading } = useQuery<ResolvedLegalTemplate | null>({
-    queryKey: ['resolve-legal-template', current?.org_id, current?.doc_code, current?.role_code],
-    queryFn: () => {
-      if (!current) return Promise.resolve(null);
-      return resolveActiveLegalTemplate(current.org_id, current.doc_code, current.role_code);
-    },
-    enabled: !!current,
-    staleTime: 5 * 60_000,
+  // Server-side assembled doc (canonical, fully-interpolated)
+  const { data: assembled, isLoading: tmplLoading, error: tmplError } = useAssembleRoleDoc({
+    userId: current?.user_id,
+    docCode: current?.doc_code,
+    orgId: current?.org_id,
+    roleCode: current?.role_code,
   });
 
   // When pending list becomes empty, signal completion
@@ -69,29 +63,17 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
     setAcceptedChecked(false);
   }, [current?.id]);
 
-  const interpolated = useMemo(() => {
-    if (!template?.content || !current) return '';
-    const mapping = getRoleDocMapping(current.role_code);
-    return interpolateCpaTemplate(
-      template.content,
-      {
-        user_role: mapping?.userRoleLabel ?? current.role_code,
-        acceptance_date: new Date().toISOString().slice(0, 10),
-        platform_name: 'CogniBlend',
-      },
-      'strict',
-    );
-  }, [template, current]);
+  const interpolated = assembled?.content ?? '';
 
   const handleAccept = useCallback(() => {
-    if (!current || !template) return;
+    if (!current || !assembled) return;
     acceptMutation.mutate(
       {
         pendingId: current.id,
         userId,
-        templateId: template.template_id,
+        templateId: assembled.template_id,
         docCode: current.doc_code,
-        documentVersion: template.version,
+        documentVersion: assembled.version,
         triggerEvent: 'FIRST_LOGIN',
       },
       {
@@ -100,7 +82,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
         },
       },
     );
-  }, [current, template, userId, acceptMutation]);
+  }, [current, assembled, userId, acceptMutation]);
 
   const handleDecline = useCallback(async () => {
     try {
@@ -124,6 +106,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
 
   const docTitle = DOC_TITLE[current.doc_code] ?? current.doc_code;
   const remaining = pending.length;
+  const errorMsg = tmplError instanceof Error ? tmplError.message : null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -132,13 +115,13 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
             {docTitle}
-            {template?.source && (
+            {assembled?.source && (
               <Badge variant="outline" className="ml-2 text-xs">
-                {template.source === 'ORG' ? 'Organization template' : 'Platform template'}
+                {assembled.source === 'ORG' ? 'Organization template' : 'Platform template'}
               </Badge>
             )}
-            {template?.version && (
-              <Badge variant="outline" className="ml-auto text-xs">v{template.version}</Badge>
+            {assembled?.version && (
+              <Badge variant="outline" className="ml-auto text-xs">v{assembled.version}</Badge>
             )}
           </CardTitle>
           {remaining > 1 && (
@@ -148,8 +131,14 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
           )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {tmplLoading || !template ? (
-            <Skeleton className="h-48 w-full" />
+          {tmplLoading || !assembled ? (
+            errorMsg ? (
+              <div className="rounded border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                {errorMsg}
+              </div>
+            ) : (
+              <Skeleton className="h-48 w-full" />
+            )
           ) : (
             <div className="max-h-[360px] overflow-y-auto rounded border bg-muted/50 p-3">
               <div
@@ -164,7 +153,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
               id="role-legal-accept"
               checked={acceptedChecked}
               onCheckedChange={(v) => setAcceptedChecked(v === true)}
-              disabled={tmplLoading || !template}
+              disabled={tmplLoading || !assembled}
             />
             <label htmlFor="role-legal-accept" className="text-sm cursor-pointer">
               I have read and agree to the {docTitle}.
@@ -181,7 +170,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
             </Button>
             <Button
               onClick={handleAccept}
-              disabled={!acceptedChecked || acceptMutation.isPending || !template}
+              disabled={!acceptedChecked || acceptMutation.isPending || !assembled}
               className="flex-1"
             >
               {acceptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
