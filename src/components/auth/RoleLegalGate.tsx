@@ -8,8 +8,7 @@
  *
  * Mounted inside `AuthGuard` after the PMA / SPA legacy gates.
  */
-import { useMemo, useState, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,9 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError } from '@/lib/errorHandler';
 import { usePendingRoleLegalAcceptance, type PendingRoleLegalRow } from '@/hooks/queries/usePendingRoleLegalAcceptance';
 import { useAcceptRoleLegal } from '@/hooks/legal/useAcceptRoleLegal';
-import { resolveActiveLegalTemplate, type ResolvedLegalTemplate } from '@/services/legal/roleDocResolver';
-import { getRoleDocMapping } from '@/services/legal/roleToDocumentMap';
-import { interpolateCpaTemplate } from '@/services/legal/cpaPreviewInterpolator';
+import { useAssembleRoleDoc } from '@/hooks/legal/useAssembleRoleDoc';
 
 interface RoleLegalGateProps {
   userId: string;
