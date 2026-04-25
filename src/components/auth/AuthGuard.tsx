@@ -12,8 +12,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { LegalGateModal } from '@/components/legal/LegalGateModal';
 import { SpaAcceptanceGate } from '@/components/cogniblend/solver/SpaAcceptanceGate';
+import { RoleLegalGate } from '@/components/auth/RoleLegalGate';
 import { useSpaStatus } from '@/hooks/cogniblend/useSpaStatus';
 import { useAudienceClassification } from '@/hooks/queries/useAudienceClassification';
+import { usePendingRoleLegalAcceptance } from '@/hooks/queries/usePendingRoleLegalAcceptance';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
