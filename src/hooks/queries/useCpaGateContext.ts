@@ -20,7 +20,7 @@ import {
   type CpaPreviewVariables,
 } from '@/services/legal/cpaPreviewInterpolator';
 import { ROLE_LABELS } from '@/constants/legalPreview.constants';
-import { CACHE_USER } from '@/config/queryCache';
+import { CACHE_FREQUENT } from '@/config/queryCache';
 
 const CHALLENGE_COLUMNS =
   'id, title, problem_statement, scope, ip_model, governance_mode_override, currency_code, submission_deadline, evaluation_method, evaluator_count, solver_audience, operating_model, reward_structure, organization_id, industry_segment_id';

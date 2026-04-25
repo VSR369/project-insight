@@ -18,7 +18,7 @@ import {
   type CpaPreviewVariables,
 } from '@/services/legal/cpaPreviewInterpolator';
 import { ROLE_LABELS } from '@/constants/legalPreview.constants';
-import { CACHE_USER } from '@/config/queryCache';
+import { CACHE_FREQUENT } from '@/config/queryCache';
 
 const COLUMNS = 'id, title, governance_mode_override, currency_code, operating_model';
 
@@ -34,8 +34,8 @@ export function usePwaGateContext(challengeId: string | undefined): PwaGateConte
     queryKey: ['pwa-gate-challenge', challengeId],
     queryFn: async (): Promise<TemplateContextChallenge | null> => {
       if (!challengeId) return null;
-      const { data, error } = await supabase
-        .from('challenges')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('challenges') as any)
         .select(COLUMNS)
         .eq('id', challengeId)
         .maybeSingle();
@@ -43,10 +43,10 @@ export function usePwaGateContext(challengeId: string | undefined): PwaGateConte
         handleQueryError(error, { operation: 'fetch_challenge_for_pwa_gate' });
         return null;
       }
-      return data as TemplateContextChallenge | null;
+      return (data ?? null) as TemplateContextChallenge | null;
     },
     enabled: !!challengeId,
-    ...CACHE_USER,
+    ...CACHE_FREQUENT,
   });
 
   const variables = useMemo<CpaPreviewVariables>(() => {
