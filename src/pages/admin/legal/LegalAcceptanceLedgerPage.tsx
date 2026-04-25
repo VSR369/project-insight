@@ -48,6 +48,7 @@ export default function LegalAcceptanceLedgerPage() {
   );
 
   const { data, isLoading, isError, error, refetch } = useLegalAcceptanceLedger(filters);
+  const exportMutation = useExportLegalLedger();
 
   const handleReset = useCallback(() => {
     setDocumentCode(INITIAL.documentCode);
@@ -58,6 +59,11 @@ export default function LegalAcceptanceLedgerPage() {
     setPage(0);
   }, []);
 
+  const handleExport = useCallback(() => {
+    const { page: _p, pageSize: _ps, ...exportFilters } = filters;
+    exportMutation.mutate(exportFilters);
+  }, [filters, exportMutation]);
+
   const total = data?.total ?? 0;
   const rows = data?.rows ?? [];
   const totalPages = Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE));
@@ -66,14 +72,28 @@ export default function LegalAcceptanceLedgerPage() {
 
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-4">
-      <div className="flex items-center gap-2">
-        <ScrollText className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-xl lg:text-2xl font-semibold">Legal Acceptance Ledger</h1>
-          <p className="text-sm text-muted-foreground">
-            Forensic record of every accepted or declined legal agreement.
-          </p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ScrollText className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-xl lg:text-2xl font-semibold">Legal Acceptance Ledger</h1>
+            <p className="text-sm text-muted-foreground">
+              Forensic record of every accepted or declined legal agreement.
+            </p>
+          </div>
         </div>
+        <Button
+          variant="outline"
+          onClick={handleExport}
+          disabled={exportMutation.isPending || isLoading}
+        >
+          {exportMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin lg:mr-1" />
+          ) : (
+            <Download className="h-4 w-4 lg:mr-1" />
+          )}
+          <span className="hidden lg:inline">Export CSV</span>
+        </Button>
       </div>
 
       <Card>
