@@ -16612,6 +16612,15 @@ export type Database = {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
       }
+      assemble_role_doc: {
+        Args: {
+          p_doc_code: string
+          p_org_id?: string
+          p_role_code?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       assign_challenge_role: {
         Args: {
           p_assigned_by: string
@@ -17087,6 +17096,10 @@ export type Database = {
           p_org_id: string
           p_title: string
         }
+        Returns: string
+      }
+      interpolate_legal_vars: {
+        Args: { p_content: string; p_vars: Json }
         Returns: string
       }
       is_email_domain_blocked: { Args: { p_email: string }; Returns: boolean }
