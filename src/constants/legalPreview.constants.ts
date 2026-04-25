@@ -68,15 +68,15 @@ export const LEGAL_TRIGGER_EVENTS = {
   ROLE_ACCEPTANCE: 'ROLE_ACCEPTANCE',
 } as const;
 
-/** Human-readable labels for solver_audience codes (mirrors server). */
-export const SOLVER_AUDIENCE_LABELS: Record<string, string> = {
+/** Human-readable labels for solver_audience codes — used in legal docs only. */
+export const LEGAL_SOLVER_AUDIENCE_LABELS: Record<string, string> = {
   ALL: 'All Solution Providers (Internal + External)',
   INTERNAL: 'Internal Solution Providers only',
   EXTERNAL: 'External Solution Providers only',
 };
 
-/** Human-readable labels for engagement model codes. */
-export const ENGAGEMENT_MODEL_LABELS: Record<string, string> = {
+/** Human-readable labels for engagement model codes — legal-doc context. */
+export const LEGAL_ENGAGEMENT_MODEL_LABELS: Record<string, string> = {
   MP: 'Marketplace',
   AGG: 'Aggregator',
   IP: 'Marketplace',
