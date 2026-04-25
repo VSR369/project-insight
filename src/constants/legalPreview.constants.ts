@@ -26,6 +26,60 @@ export const CPA_VARIABLE_LABELS: Record<string, string> = {
   problem_statement: 'Problem statement',
   scope: 'Scope',
   submission_deadline: 'Submission deadline',
+  // ── Extended (display-only) ──
+  seeker_legal_entity: 'Legal entity name',
+  seeker_country: 'Seeker country',
+  seeker_industry: 'Seeker industry',
+  data_privacy_laws: 'Applicable data-privacy laws',
+  regulatory_frameworks: 'Regulatory frameworks',
+  industry_name: 'Industry',
+  industry_certifications: 'Industry certifications',
+  industry_frameworks: 'Industry frameworks',
+  user_full_name: 'Your full name',
+  user_email: 'Your email',
+  user_role: 'Your role',
+  acceptance_date: 'Acceptance date',
+  escrow_required: 'Escrow required',
+  payment_mode: 'Payment mode',
+  installment_count: 'Installments',
+  platform_fee_pct: 'Platform fee %',
+  platform_name: 'Platform',
+};
+
+/** Platform display name — single source of truth. */
+export const PLATFORM_NAME = 'CogniBlend';
+
+/** Role labels used when interpolating `{{user_role}}` in role-acceptance docs. */
+export const ROLE_LABELS = {
+  creator: 'Challenge Creator',
+  solver: 'Solution Provider',
+  curator: 'Curator',
+  lc: 'Legal Coordinator',
+  fc: 'Finance Coordinator',
+  er: 'Expert Reviewer',
+  workforce: 'Platform Workforce Member',
+} as const;
+export type RoleLabelKey = keyof typeof ROLE_LABELS;
+
+/** Trigger events recorded on legal_acceptance entries. */
+export const LEGAL_TRIGGER_EVENTS = {
+  CHALLENGE_SUBMIT: 'CHALLENGE_SUBMIT',
+  ENROLLMENT: 'ENROLLMENT',
+  ROLE_ACCEPTANCE: 'ROLE_ACCEPTANCE',
+} as const;
+
+/** Human-readable labels for solver_audience codes (mirrors server). */
+export const SOLVER_AUDIENCE_LABELS: Record<string, string> = {
+  ALL: 'All Solution Providers (Internal + External)',
+  INTERNAL: 'Internal Solution Providers only',
+  EXTERNAL: 'External Solution Providers only',
+};
+
+/** Human-readable labels for engagement model codes. */
+export const ENGAGEMENT_MODEL_LABELS: Record<string, string> = {
+  MP: 'Marketplace',
+  AGG: 'Aggregator',
+  IP: 'Marketplace',
 };
 
 /**
