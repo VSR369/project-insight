@@ -8,13 +8,14 @@ import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollText, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { ScrollText, ChevronLeft, ChevronRight, AlertCircle, Download, Loader2 } from 'lucide-react';
 import { LedgerFiltersBar } from '@/components/admin/legal/LedgerFiltersBar';
 import { LedgerTable } from '@/components/admin/legal/LedgerTable';
 import {
   useLegalAcceptanceLedger,
   type LedgerFilters,
 } from '@/hooks/queries/useLegalAcceptanceLedger';
+import { useExportLegalLedger } from '@/hooks/legal/useExportLegalLedger';
 import { LEDGER_PAGE_SIZE } from '@/constants/legalLedger.constants';
 
 const INITIAL = {
