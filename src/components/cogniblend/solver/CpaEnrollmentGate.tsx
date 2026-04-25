@@ -1,9 +1,8 @@
 /**
  * CpaEnrollmentGate — Challenge-specific CPA acceptance at enrollment.
+ * Renders the assembled CPA with `{{variables}}` interpolated for display.
  */
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,7 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Loader2 } from 'lucide-react';
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
+import { useChallengeCpaDoc } from '@/hooks/queries/useChallengeCpaDoc';
+import { useCpaGateContext } from '@/hooks/queries/useCpaGateContext';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
+import { interpolateCpaTemplate } from '@/services/legal/cpaPreviewInterpolator';
 import { toast } from 'sonner';
 
 interface CpaEnrollmentGateProps {
@@ -23,71 +25,15 @@ interface CpaEnrollmentGateProps {
 export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnrollmentGateProps) {
   const [accepted, setAccepted] = useState(false);
   const recordAcceptance = useRecordLegalAcceptance();
+  const { data: cpaDoc, isLoading } = useChallengeCpaDoc(challengeId);
+  const { variables } = useCpaGateContext(challengeId);
 
-  const { data: cpaDoc, isLoading } = useQuery({
-    queryKey: ['cpa-enrollment', challengeId],
-    queryFn: async () => {
-      const { data: overrideDoc, error: overrideError } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, document_type, document_name, content, content_html, status, override_strategy, target_template_code')
-        .eq('challenge_id', challengeId)
-        .eq('document_type', 'SOURCE_DOC')
-        .eq('source_origin', 'creator')
-        .eq('override_strategy', 'REPLACE_DEFAULT')
-        .eq('target_template_code', 'CPA_QUICK')
-        .eq('status', 'uploaded')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (overrideError) return null;
-      if (overrideDoc) {
-        return overrideDoc as {
-          id: string;
-          document_type: string;
-          document_name: string | null;
-          content: string | null;
-          content_html: string | null;
-          status: string | null;
-          override_strategy: string | null;
-          target_template_code: string | null;
-        };
-      }
-
-      const { data, error } = await supabase
-        .from('challenge_legal_docs')
-        .select('id, document_type, document_name, content, content_html, status, override_strategy, target_template_code')
-        .eq('challenge_id', challengeId)
-        .eq('document_type', 'UNIFIED_SPA')
-        .eq('is_assembled', true)
-        .in('status', ['APPROVED', 'DRAFT'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) return null;
-      return data as {
-        id: string;
-        document_type: string;
-        document_name: string | null;
-        content: string | null;
-        content_html: string | null;
-        status: string | null;
-        override_strategy: string | null;
-        target_template_code: string | null;
-      };
-    },
-    enabled: !!challengeId,
-    staleTime: 60_000,
-  });
-
-  const handleAccept = () => {
-    if (!cpaDoc) return;
-    recordAcceptance.mutate(
-      { userId, challengeId, documentType: cpaDoc.document_type, documentName: cpaDoc.document_name ?? 'CPA', documentVersion: '1.0', scrollConfirmed: true },
-      { onSuccess: () => { toast.success('Challenge Participation Agreement accepted'); onAccepted(); } },
-    );
-  };
+  const interpolated = useMemo(() => {
+    if (!cpaDoc || !variables) return { plain: null as string | null, html: null as string | null };
+    const plain = cpaDoc.content ? interpolateCpaTemplate(cpaDoc.content, variables, 'strict') : null;
+    const html = cpaDoc.content_html ? interpolateCpaTemplate(cpaDoc.content_html, variables, 'strict') : null;
+    return { plain, html };
+  }, [cpaDoc, variables]);
 
   const agreementLabel = useMemo(
     () => (cpaDoc?.document_type === 'SOURCE_DOC'
@@ -95,6 +41,26 @@ export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnroll
       : (cpaDoc?.document_name ?? 'Challenge Participation Agreement')),
     [cpaDoc],
   );
+
+  const handleAccept = () => {
+    if (!cpaDoc) return;
+    recordAcceptance.mutate(
+      {
+        userId,
+        challengeId,
+        documentType: cpaDoc.document_type,
+        documentName: cpaDoc.document_name ?? 'CPA',
+        documentVersion: '1.0',
+        scrollConfirmed: true,
+      },
+      {
+        onSuccess: () => {
+          toast.success('Challenge Participation Agreement accepted');
+          onAccepted();
+        },
+      },
+    );
+  };
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
   if (!cpaDoc) return null;
@@ -111,13 +77,13 @@ export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnroll
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {cpaDoc.document_type === 'SOURCE_DOC' && cpaDoc.content_html ? (
+        {cpaDoc.document_type === 'SOURCE_DOC' && interpolated.html ? (
           <div className="max-h-[250px] overflow-y-auto rounded border bg-muted/50 p-3">
-            <LegalDocumentViewer content={cpaDoc.content_html} />
+            <LegalDocumentViewer content={interpolated.html} />
           </div>
-        ) : cpaDoc.content ? (
+        ) : interpolated.plain ? (
           <div className="max-h-[250px] overflow-y-auto rounded border bg-muted/50 p-3">
-            <pre className="whitespace-pre-wrap text-sm">{cpaDoc.content}</pre>
+            <pre className="whitespace-pre-wrap text-sm">{interpolated.plain}</pre>
           </div>
         ) : null}
         {cpaDoc.document_type === 'SOURCE_DOC' && (
@@ -133,7 +99,7 @@ export function CpaEnrollmentGate({ challengeId, userId, onAccepted }: CpaEnroll
         </div>
         <Button size="sm" onClick={handleAccept} disabled={!accepted || recordAcceptance.isPending}>
           {recordAcceptance.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-          Accept & Enroll
+          Accept &amp; Enroll
         </Button>
       </CardContent>
     </Card>

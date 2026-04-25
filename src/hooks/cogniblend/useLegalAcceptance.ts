@@ -71,6 +71,12 @@ export function useRecordLegalAcceptance() {
       queryClient.invalidateQueries({
         queryKey: ['legal-acceptance', variables.challengeId],
       });
+      // Invalidate role-acceptance status caches so gates re-evaluate immediately
+      queryClient.invalidateQueries({ queryKey: ['pwa-acceptance-status', variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ['skpa-acceptance-status', variables.userId] });
+      if (variables.challengeId) {
+        queryClient.invalidateQueries({ queryKey: ['cpa-enrollment', variables.challengeId] });
+      }
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'record_legal_acceptance' });
