@@ -40,8 +40,8 @@ export function useCpaGateContext(challengeId: string | undefined): CpaGateConte
     queryKey: ['cpa-gate-challenge', challengeId],
     queryFn: async (): Promise<(TemplateContextChallenge & { organization_id: string | null; industry_segment_id: string | null }) | null> => {
       if (!challengeId) return null;
-      const { data, error } = await supabase
-        .from('challenges')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('challenges') as any)
         .select(CHALLENGE_COLUMNS)
         .eq('id', challengeId)
         .maybeSingle();
@@ -49,10 +49,10 @@ export function useCpaGateContext(challengeId: string | undefined): CpaGateConte
         handleQueryError(error, { operation: 'fetch_challenge_for_cpa_gate' });
         return null;
       }
-      return data as (TemplateContextChallenge & { organization_id: string | null; industry_segment_id: string | null }) | null;
+      return (data ?? null) as (TemplateContextChallenge & { organization_id: string | null; industry_segment_id: string | null }) | null;
     },
     enabled: !!challengeId,
-    ...CACHE_USER,
+    ...CACHE_FREQUENT,
   });
 
   const orgId = challenge?.organization_id ?? null;
@@ -62,8 +62,8 @@ export function useCpaGateContext(challengeId: string | undefined): CpaGateConte
     queryKey: ['cpa-gate-org', orgId],
     queryFn: async (): Promise<(TemplateContextOrg & { hq_country_id: string | null }) | null> => {
       if (!orgId) return null;
-      const { data, error } = await supabase
-        .from('seeker_organizations')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('seeker_organizations') as any)
         .select(ORG_COLUMNS)
         .eq('id', orgId)
         .maybeSingle();
@@ -71,10 +71,10 @@ export function useCpaGateContext(challengeId: string | undefined): CpaGateConte
         handleQueryError(error, { operation: 'fetch_org_for_cpa_gate' });
         return null;
       }
-      return data as (TemplateContextOrg & { hq_country_id: string | null }) | null;
+      return (data ?? null) as (TemplateContextOrg & { hq_country_id: string | null }) | null;
     },
     enabled: !!orgId,
-    ...CACHE_USER,
+    ...CACHE_FREQUENT,
   });
 
   const { data: geo, isLoading: geoLoading } = useGeoContextForOrg(orgId ?? undefined);
@@ -83,8 +83,8 @@ export function useCpaGateContext(challengeId: string | undefined): CpaGateConte
     queryKey: ['cpa-gate-industry-name', industrySegmentId],
     queryFn: async (): Promise<string | null> => {
       if (!industrySegmentId) return null;
-      const { data, error } = await supabase
-        .from('industry_segments')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('industry_segments') as any)
         .select('name')
         .eq('id', industrySegmentId)
         .maybeSingle();
@@ -92,10 +92,11 @@ export function useCpaGateContext(challengeId: string | undefined): CpaGateConte
         handleQueryError(error, { operation: 'fetch_industry_segment_for_cpa_gate' });
         return null;
       }
-      return (data as { name?: string | null } | null)?.name ?? null;
+      const row = data as { name?: string | null } | null;
+      return row?.name ?? null;
     },
     enabled: !!industrySegmentId,
-    ...CACHE_USER,
+    ...CACHE_FREQUENT,
   });
 
   const variables = useMemo<CpaPreviewVariables | null>(() => {
