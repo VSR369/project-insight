@@ -8654,6 +8654,45 @@ export type Database = {
           },
         ]
       }
+      pending_role_legal_acceptance: {
+        Row: {
+          created_at: string
+          doc_code: string
+          id: string
+          org_id: string | null
+          resolved_at: string | null
+          resolved_log_id: string | null
+          role_code: string
+          source: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_code: string
+          id?: string
+          org_id?: string | null
+          resolved_at?: string | null
+          resolved_log_id?: string | null
+          role_code: string
+          source: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_code?: string
+          id?: string
+          org_id?: string | null
+          resolved_at?: string | null
+          resolved_log_id?: string | null
+          role_code?: string
+          source?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       performance_score_weights: {
         Row: {
           description: string | null
@@ -17262,6 +17301,16 @@ export type Database = {
       reset_enrollment_for_expertise_upgrade: {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: Json
+      }
+      resolve_active_legal_template: {
+        Args: { p_doc_code: string; p_org_id: string; p_role_code?: string }
+        Returns: {
+          content: string
+          document_code: string
+          source: string
+          template_id: string
+          version: string
+        }[]
       }
       resolve_challenge_governance: {
         Args: { p_challenge_id: string }
