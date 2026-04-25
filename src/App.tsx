@@ -18,6 +18,12 @@ import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { SeekerGuard } from "@/components/auth/SeekerGuard";
 const OrgShell = lazy(() => import("@/components/org/OrgShell").then(m => ({ default: m.OrgShell })));
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
+import { WorkforcePwaGate } from "@/components/auth/WorkforcePwaGate";
+
+// Workforce role-code sets used to scope challenge-level PWA enforcement.
+const CU_ROLES = ['CU', 'R5_MP', 'R5_AGG'] as const;
+const LC_ROLES = ['LC', 'R9'] as const;
+const FC_ROLES = ['FC', 'R8'] as const;
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleBasedRedirect } from "@/components/routing/RoleBasedRedirect";
 import { Skeleton } from "@/components/ui/skeleton";
