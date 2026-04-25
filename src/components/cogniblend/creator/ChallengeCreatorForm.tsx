@@ -48,6 +48,8 @@ import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useSkpaStatus } from '@/hooks/cogniblend/useSkpaStatus';
+import { SkpaAcceptanceDialog } from './SkpaAcceptanceDialog';
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -86,6 +88,9 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [publishedResult, setPublishedResult] = useState<{ challengeId: string; title: string } | null>(null);
   const [showQuickConfirm, setShowQuickConfirm] = useState(false);
   const [pendingQuickData, setPendingQuickData] = useState<CreatorFormValues | null>(null);
+  const [showSkpaDialog, setShowSkpaDialog] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = useState<CreatorFormValues | null>(null);
+  const { data: hasSkpa } = useSkpaStatus(user?.id);
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
   const isControlled = governanceMode === 'CONTROLLED';
@@ -265,6 +270,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const handleSubmit = form.handleSubmit(
     async (data) => {
       if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
+      // Gate: Creator must accept SKPA before first submission
+      if (hasSkpa === false) {
+        setPendingSubmitData(data);
+        setShowSkpaDialog(true);
+        return;
+      }
       // QUICK: open pre-publish confirmation modal first
       if (isQuick) {
         setPendingQuickData(data);
@@ -422,6 +433,26 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           solverAudience={pendingQuickData.solver_audience ?? 'ALL'}
           visibility={null}
           isSubmitting={isSubmitting}
+        />
+      )}
+      {user?.id && (
+        <SkpaAcceptanceDialog
+          userId={user.id}
+          open={showSkpaDialog}
+          onAccepted={async () => {
+            setShowSkpaDialog(false);
+            const data = pendingSubmitData;
+            setPendingSubmitData(null);
+            if (data) {
+              if (isQuick) {
+                setPendingQuickData(data);
+                setShowQuickConfirm(true);
+              } else {
+                await executeSubmit(data);
+              }
+            }
+          }}
+          onCancel={() => { setShowSkpaDialog(false); setPendingSubmitData(null); }}
         />
       )}
     </FormProvider>

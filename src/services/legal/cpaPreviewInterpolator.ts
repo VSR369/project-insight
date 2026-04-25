@@ -37,6 +37,24 @@ export interface CpaPreviewInput {
   seeker_org_name?: string | null;
   jurisdiction?: string | null;
   governing_law?: string | null;
+  // ── Extended (display-only; server has matching values where applicable) ──
+  seeker_legal_entity?: string | null;
+  seeker_country?: string | null;
+  seeker_industry?: string | null;
+  data_privacy_laws?: string | null;
+  regulatory_frameworks?: string | null;
+  industry_name?: string | null;
+  industry_certifications?: string | null;
+  industry_frameworks?: string | null;
+  user_full_name?: string | null;
+  user_email?: string | null;
+  user_role?: string | null;
+  acceptance_date?: string | null;
+  escrow_required?: string | null;
+  payment_mode?: string | null;
+  installment_count?: number | string | null;
+  platform_fee_pct?: number | string | null;
+  platform_name?: string | null;
 }
 
 /**
@@ -115,6 +133,24 @@ export function buildPreviewVariables(input: CpaPreviewInput): CpaPreviewVariabl
     problem_statement: safeString(input.problem_statement),
     scope: safeString(input.scope),
     submission_deadline: safeString(input.submission_deadline),
+    // ── Extended fields (empty string when not provided — same convention) ──
+    seeker_legal_entity: safeString(input.seeker_legal_entity),
+    seeker_country: safeString(input.seeker_country),
+    seeker_industry: safeString(input.seeker_industry),
+    data_privacy_laws: safeString(input.data_privacy_laws),
+    regulatory_frameworks: safeString(input.regulatory_frameworks),
+    industry_name: safeString(input.industry_name) || safeString(input.seeker_industry),
+    industry_certifications: safeString(input.industry_certifications),
+    industry_frameworks: safeString(input.industry_frameworks),
+    user_full_name: safeString(input.user_full_name),
+    user_email: safeString(input.user_email),
+    user_role: safeString(input.user_role),
+    acceptance_date: safeString(input.acceptance_date),
+    escrow_required: safeString(input.escrow_required),
+    payment_mode: safeString(input.payment_mode),
+    installment_count: safeString(input.installment_count),
+    platform_fee_pct: safeString(input.platform_fee_pct),
+    platform_name: safeString(input.platform_name) || 'CogniBlend',
   };
 }
 

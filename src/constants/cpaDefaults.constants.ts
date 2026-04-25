@@ -23,18 +23,12 @@ export const CPA_MODE_DESCRIPTIONS: Record<CpaGovernanceMode, string> = {
   CONTROLLED: 'Full legal agreement with anti-disintermediation, detailed IP assignment, and jurisdiction-specific terms.',
 };
 
-export const CPA_TEMPLATE_VARIABLES = [
-  { variable: '{{challenge_title}}', description: 'Title of the challenge' },
-  { variable: '{{problem_statement}}', description: 'Problem statement text' },
-  { variable: '{{scope}}', description: 'Challenge scope description' },
-  { variable: '{{ip_model}}', description: 'IP ownership model (e.g., Full Transfer, Licensed)' },
-  { variable: '{{governance_mode}}', description: 'Governance mode (QUICK/STRUCTURED/CONTROLLED)' },
-  { variable: '{{total_fee}}', description: 'Total prize amount' },
-  { variable: '{{currency}}', description: 'Currency code (e.g., USD, EUR)' },
-  { variable: '{{submission_deadline}}', description: 'Submission deadline date' },
-  { variable: '{{jurisdiction}}', description: 'Legal jurisdiction from geography context' },
-  { variable: '{{governing_law}}', description: 'Governing law from geography context' },
-] as const;
+import { ALL_TEMPLATE_VARIABLES } from '@/lib/cogniblend/legal/templateVariables';
+
+export const CPA_TEMPLATE_VARIABLES = ALL_TEMPLATE_VARIABLES.map((v) => ({
+  variable: `{{${v.name}}}`,
+  description: v.description,
+})) as ReadonlyArray<{ variable: string; description: string }>;
 
 export const CPA_DEFAULT_TEMPLATES: Record<CpaGovernanceMode, string> = {
   QUICK: `# Challenge Participation Agreement (Quick Mode)
