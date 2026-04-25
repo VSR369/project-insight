@@ -150,6 +150,7 @@ const LegalDocumentTemplatesPage = lazy(() => import("@/pages/admin/seeker-confi
 const LegalDocumentListPage = lazy(() => import("@/pages/admin/legal/LegalDocumentListPage"));
 const LegalDocumentEditorPage = lazy(() => import("@/pages/admin/legal/LegalDocumentEditorPage"));
 const LegalDocTriggerConfigPage = lazy(() => import("@/pages/admin/legal/LegalDocTriggerConfigPage"));
+const LegalAcceptanceLedgerPage = lazy(() => import("@/pages/admin/legal/LegalAcceptanceLedgerPage"));
 const PlatformTermsPage = lazy(() => import("@/pages/admin/platform-terms").then(m => ({ default: m.PlatformTermsPage })));
 const MembershipTiersPage = lazy(() => import("@/pages/admin/membership-tiers").then(m => ({ default: m.MembershipTiersPage })));
 const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ default: m.BaseFeesPage })));
