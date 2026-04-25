@@ -435,6 +435,26 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           isSubmitting={isSubmitting}
         />
       )}
+      {user?.id && (
+        <SkpaAcceptanceDialog
+          userId={user.id}
+          open={showSkpaDialog}
+          onAccepted={async () => {
+            setShowSkpaDialog(false);
+            const data = pendingSubmitData;
+            setPendingSubmitData(null);
+            if (data) {
+              if (isQuick) {
+                setPendingQuickData(data);
+                setShowQuickConfirm(true);
+              } else {
+                await executeSubmit(data);
+              }
+            }
+          }}
+          onCancel={() => { setShowSkpaDialog(false); setPendingSubmitData(null); }}
+        />
+      )}
     </FormProvider>
   );
 }
