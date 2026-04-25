@@ -782,6 +782,7 @@ const App = () => (
               <Route path="legal-documents/new" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentEditorPage /></PermissionGuard>} />
               <Route path="legal-documents/:templateId/edit" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentEditorPage /></PermissionGuard>} />
               <Route path="legal-documents/triggers" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocTriggerConfigPage /></PermissionGuard>} />
+              <Route path="legal-documents/ledger" element={<PermissionGuard permissionKey="seeker_config.view"><LegalAcceptanceLedgerPage /></PermissionGuard>} />
               <Route path="seeker-config/membership-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><MembershipTiersPage /></PermissionGuard>} />
               <Route path="seeker-config/base-fees" element={<PermissionGuard permissionKey="seeker_config.view"><BaseFeesPage /></PermissionGuard>} />
               <Route path="seeker-config/shadow-pricing" element={<PermissionGuard permissionKey="seeker_config.view_shadow_pricing"><ShadowPricingPage /></PermissionGuard>} />
