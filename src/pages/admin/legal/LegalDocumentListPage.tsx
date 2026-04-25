@@ -3,7 +3,7 @@
  * Route: /admin/legal-documents
  */
 import { useNavigate } from 'react-router-dom';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLegalDocumentTemplates } from '@/hooks/queries/useLegalDocumentTemplates';
 import { PlatformAgreementsSection } from '@/components/admin/legal/PlatformAgreementsSection';
@@ -27,17 +27,23 @@ export default function LegalDocumentListPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Legal Document Templates</h1>
           <p className="text-muted-foreground mt-1">
             Manage platform agreements and challenge legal documents
           </p>
         </div>
-        <Button onClick={() => navigate('/admin/legal-documents/new')}>
-          <Plus className="h-4 w-4 mr-1" />
-          <span className="hidden lg:inline">Add Document</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/admin/legal-documents/ledger')}>
+            <ScrollText className="h-4 w-4 mr-1" />
+            <span className="hidden lg:inline">Acceptance Ledger</span>
+          </Button>
+          <Button onClick={() => navigate('/admin/legal-documents/new')}>
+            <Plus className="h-4 w-4 mr-1" />
+            <span className="hidden lg:inline">Add Document</span>
+          </Button>
+        </div>
       </div>
 
       <PlatformAgreementsSection
