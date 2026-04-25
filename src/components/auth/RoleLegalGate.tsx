@@ -43,15 +43,12 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
   // Pick the first unresolved row to render
   const current: PendingRoleLegalRow | undefined = pending[0];
 
-  // Fetch the resolved template for the current pending row
-  const { data: template, isLoading: tmplLoading } = useQuery<ResolvedLegalTemplate | null>({
-    queryKey: ['resolve-legal-template', current?.org_id, current?.doc_code, current?.role_code],
-    queryFn: () => {
-      if (!current) return Promise.resolve(null);
-      return resolveActiveLegalTemplate(current.org_id, current.doc_code, current.role_code);
-    },
-    enabled: !!current,
-    staleTime: 5 * 60_000,
+  // Server-side assembled doc (canonical, fully-interpolated)
+  const { data: assembled, isLoading: tmplLoading, error: tmplError } = useAssembleRoleDoc({
+    userId: current?.user_id,
+    docCode: current?.doc_code,
+    orgId: current?.org_id,
+    roleCode: current?.role_code,
   });
 
   // When pending list becomes empty, signal completion
@@ -66,19 +63,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
     setAcceptedChecked(false);
   }, [current?.id]);
 
-  const interpolated = useMemo(() => {
-    if (!template?.content || !current) return '';
-    const mapping = getRoleDocMapping(current.role_code);
-    return interpolateCpaTemplate(
-      template.content,
-      {
-        user_role: mapping?.userRoleLabel ?? current.role_code,
-        acceptance_date: new Date().toISOString().slice(0, 10),
-        platform_name: 'CogniBlend',
-      },
-      'strict',
-    );
-  }, [template, current]);
+  const interpolated = assembled?.content ?? '';
 
   const handleAccept = useCallback(() => {
     if (!current || !template) return;
