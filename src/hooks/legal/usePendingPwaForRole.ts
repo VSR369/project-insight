@@ -9,7 +9,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { CACHE_USER } from '@/config/queryCache';
+import { CACHE_FREQUENT } from '@/config/queryCache';
 import type { PendingRoleLegalRow } from '@/hooks/queries/usePendingRoleLegalAcceptance';
 
 export function usePendingPwaForRole(
@@ -32,7 +32,7 @@ export function usePendingPwaForRole(
       return (data ?? []) as PendingRoleLegalRow[];
     },
     enabled: !!userId && roleCodes.length > 0,
-    ...CACHE_USER,
+    ...CACHE_FREQUENT,
     refetchOnWindowFocus: false,
   });
 }
