@@ -139,6 +139,27 @@ serve(async (req) => {
       console.log("[accept-reviewer-invitation] Assigned panel_reviewer role to:", user.id);
     }
 
+    // Insert pending PWA acceptance for first-login signature.
+    // ER role uses doc_code='PWA' (template resolution will pick org override
+    // for AGG seekers, platform default otherwise).
+    {
+      const { error: pendErr } = await supabase
+        .from("pending_role_legal_acceptance")
+        .upsert(
+          {
+            user_id: user.id,
+            org_id: null,
+            role_code: "ER",
+            doc_code: "PWA",
+            source: "reviewer_invite",
+          },
+          { onConflict: "user_id,role_code,doc_code,org_id", ignoreDuplicates: true },
+        );
+      if (pendErr) {
+        console.error("[accept-reviewer-invitation] pending legal insert failed:", pendErr.message);
+      }
+    }
+
     console.log("[accept-reviewer-invitation] Invitation accepted for reviewer:", reviewer.id);
 
     return new Response(
