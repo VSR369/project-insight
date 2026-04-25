@@ -34,16 +34,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const [legalGatePassed, setLegalGatePassed] = useState(cachedGatePassed);
   const [showLegalGate, setShowLegalGate] = useState(!cachedGatePassed);
   const [spaAccepted, setSpaAccepted] = useState(false);
+  const [roleLegalDone, setRoleLegalDone] = useState(false);
 
   const { isPureSolutionProvider, isLoading: rolesLoading } =
     useAudienceClassification(user?.id);
 
   // POSITIVE RULE: SPA shows ONLY for pure Solution Providers.
-  // Workforce (LC/FC/CU/ER/CR), platform admins, reviewers, seekers,
-  // and org users never see the SPA.
   const requiresSpa = isPureSolutionProvider;
 
   const { data: hasSpa, isLoading: spaLoading } = useSpaStatus(requiresSpa ? user?.id : undefined);
+
+  // First-login role agreement backlog (SPA / SKPA / PWA per role)
+  const { data: pendingRoleLegal = [], isLoading: pendingRoleLoading } =
+    usePendingRoleLegalAcceptance(user?.id);
 
   const handleAllAccepted = useCallback(() => {
     setLegalGatePassed(true);
@@ -56,7 +59,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
     await supabase.auth.signOut();
   }, []);
 
-  if (loading || rolesLoading || (requiresSpa && spaLoading && hasSpa === undefined)) {
+  const handleRoleLegalDone = useCallback(() => setRoleLegalDone(true), []);
+  const handleRoleLegalDeclined = useCallback(() => setRoleLegalDone(false), []);
+
+  if (
+    loading ||
+    rolesLoading ||
+    (requiresSpa && spaLoading && hasSpa === undefined) ||
+    pendingRoleLoading
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -68,7 +79,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Show legal gate for USER_REGISTRATION trigger (PMA acceptance)
+  // 1) PMA acceptance
   if (showLegalGate && !legalGatePassed) {
     return (
       <LegalGateModal
@@ -79,7 +90,19 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Show SPA gate ONLY for pure Solvers who haven't accepted yet
+  // 2) Role-level first-login signatures (SPA/SKPA/PWA per held role)
+  if (!roleLegalDone && pendingRoleLegal.length > 0) {
+    return (
+      <RoleLegalGate
+        userId={user.id}
+        onAllAccepted={handleRoleLegalDone}
+        onDeclined={handleRoleLegalDeclined}
+      />
+    );
+  }
+
+  // 3) Legacy SPA gate — kept as silent fallback for users who pre-existed
+  //    before pending_role_legal_acceptance backfill.
   if (requiresSpa && hasSpa === false && !spaAccepted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
