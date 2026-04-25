@@ -16667,6 +16667,13 @@ export type Database = {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
       }
+      backfill_pending_role_legal: {
+        Args: never
+        Returns: {
+          inserted_count: number
+          skipped_count: number
+        }[]
+      }
       book_interview_slot: {
         Args: {
           p_composite_slot_id: string
