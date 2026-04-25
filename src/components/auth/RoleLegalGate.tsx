@@ -66,14 +66,14 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
   const interpolated = assembled?.content ?? '';
 
   const handleAccept = useCallback(() => {
-    if (!current || !template) return;
+    if (!current || !assembled) return;
     acceptMutation.mutate(
       {
         pendingId: current.id,
         userId,
-        templateId: template.template_id,
+        templateId: assembled.template_id,
         docCode: current.doc_code,
-        documentVersion: template.version,
+        documentVersion: assembled.version,
         triggerEvent: 'FIRST_LOGIN',
       },
       {
@@ -82,7 +82,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
         },
       },
     );
-  }, [current, template, userId, acceptMutation]);
+  }, [current, assembled, userId, acceptMutation]);
 
   const handleDecline = useCallback(async () => {
     try {
@@ -106,6 +106,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
 
   const docTitle = DOC_TITLE[current.doc_code] ?? current.doc_code;
   const remaining = pending.length;
+  const errorMsg = tmplError instanceof Error ? tmplError.message : null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -114,13 +115,13 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
             {docTitle}
-            {template?.source && (
+            {assembled?.source && (
               <Badge variant="outline" className="ml-2 text-xs">
-                {template.source === 'ORG' ? 'Organization template' : 'Platform template'}
+                {assembled.source === 'ORG' ? 'Organization template' : 'Platform template'}
               </Badge>
             )}
-            {template?.version && (
-              <Badge variant="outline" className="ml-auto text-xs">v{template.version}</Badge>
+            {assembled?.version && (
+              <Badge variant="outline" className="ml-auto text-xs">v{assembled.version}</Badge>
             )}
           </CardTitle>
           {remaining > 1 && (
@@ -130,8 +131,14 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
           )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {tmplLoading || !template ? (
-            <Skeleton className="h-48 w-full" />
+          {tmplLoading || !assembled ? (
+            errorMsg ? (
+              <div className="rounded border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                {errorMsg}
+              </div>
+            ) : (
+              <Skeleton className="h-48 w-full" />
+            )
           ) : (
             <div className="max-h-[360px] overflow-y-auto rounded border bg-muted/50 p-3">
               <div
@@ -146,7 +153,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
               id="role-legal-accept"
               checked={acceptedChecked}
               onCheckedChange={(v) => setAcceptedChecked(v === true)}
-              disabled={tmplLoading || !template}
+              disabled={tmplLoading || !assembled}
             />
             <label htmlFor="role-legal-accept" className="text-sm cursor-pointer">
               I have read and agree to the {docTitle}.
@@ -163,7 +170,7 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
             </Button>
             <Button
               onClick={handleAccept}
-              disabled={!acceptedChecked || acceptMutation.isPending || !template}
+              disabled={!acceptedChecked || acceptMutation.isPending || !assembled}
               className="flex-1"
             >
               {acceptMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
