@@ -150,6 +150,7 @@ const LegalDocumentTemplatesPage = lazy(() => import("@/pages/admin/seeker-confi
 const LegalDocumentListPage = lazy(() => import("@/pages/admin/legal/LegalDocumentListPage"));
 const LegalDocumentEditorPage = lazy(() => import("@/pages/admin/legal/LegalDocumentEditorPage"));
 const LegalDocTriggerConfigPage = lazy(() => import("@/pages/admin/legal/LegalDocTriggerConfigPage"));
+const LegalAcceptanceLedgerPage = lazy(() => import("@/pages/admin/legal/LegalAcceptanceLedgerPage"));
 const PlatformTermsPage = lazy(() => import("@/pages/admin/platform-terms").then(m => ({ default: m.PlatformTermsPage })));
 const MembershipTiersPage = lazy(() => import("@/pages/admin/membership-tiers").then(m => ({ default: m.MembershipTiersPage })));
 const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ default: m.BaseFeesPage })));
@@ -781,6 +782,7 @@ const App = () => (
               <Route path="legal-documents/new" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentEditorPage /></PermissionGuard>} />
               <Route path="legal-documents/:templateId/edit" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentEditorPage /></PermissionGuard>} />
               <Route path="legal-documents/triggers" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocTriggerConfigPage /></PermissionGuard>} />
+              <Route path="legal-documents/ledger" element={<PermissionGuard permissionKey="seeker_config.view"><LegalAcceptanceLedgerPage /></PermissionGuard>} />
               <Route path="seeker-config/membership-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><MembershipTiersPage /></PermissionGuard>} />
               <Route path="seeker-config/base-fees" element={<PermissionGuard permissionKey="seeker_config.view"><BaseFeesPage /></PermissionGuard>} />
               <Route path="seeker-config/shadow-pricing" element={<PermissionGuard permissionKey="seeker_config.view_shadow_pricing"><ShadowPricingPage /></PermissionGuard>} />
