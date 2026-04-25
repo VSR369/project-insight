@@ -1,79 +1,133 @@
 
-# Follow-up: Hardening + Cleanup (3 items approved)
+# Final Fix Plan — Legal Template Interpolation & Enrollment Gates
 
-Implements the three open decisions from the previous plan.
+## Verdict on the submitted prompt
 
-## 1. Retire `/org/challenges/create` — redirect to Cogni wizard
+The plan correctly identifies real gaps (Creator-side SKPA gate, ER-side PWA gate, need for org/geo/industry-aware variables in workforce-facing docs). But large parts **conflict with code that already exists** and would silently break parity with server-side `assemble_cpa`. The single-paste prompt cannot be applied as-is. Below is what to keep, what to drop, and what to refactor.
 
-Replace the 367-line `src/pages/org/ChallengeCreatePage.tsx` with a one-line `<Navigate to="/cogni/challenges/create" replace />`. This preserves every existing deep-link (sidebar, OnboardingComplete, ChallengeListPage empty state, OrgDashboard CTA) without touching any of them.
+## Issues found (vs codebase + workspace rules)
 
-Keeps the legacy form's import graph (`useCreateChallenge`, `EngagementModelSelector`, etc.) intact in case other surfaces need it later.
+### A. Duplication / would replace working code
+1. **Proposed `templateInterpolation.ts` duplicates `src/services/legal/cpaPreviewInterpolator.ts`** — which already exists, has `buildPreviewVariables`, `interpolateCpaTemplate`, `analyzeTemplateCompleteness`, and is **explicitly documented as mirroring the server `assemble_cpa` RPC**. Replacing it diverges client preview from server output → solver sees different text than what gets stored in `challenge_legal_docs`.
+2. **Proposed `useTemplateContext` overlaps `useGeoContextForOrg`** (already resolves jurisdiction + governing-law from `geography_context` via org HQ country). Keep the existing hook; the new hook should *consume* it, not duplicate it.
+3. **Part F "MP Template Source Fix" is already done.** `CreatorLegalPreview.tsx` lines 78-87 already use `legalTemplateSource(engagementModel)` from `engagementModelRulesService` — MP reads `useLegalDocTemplates`, AGG reads `useOrgCpaTemplates`. The proposed `effectiveTemplate = orgTemplate ?? platformTemplate` would *regress* the rule (orgs on MP cannot override platform CPA — that's a deliberate platform-governance decision).
+4. **Part D3 says "add `useTemplateContext` to `CreatorLegalPreview`"** — it already accepts `templateContext: CpaPreviewVariables` (line 48). Don't change the prop shape.
 
-**File:** `src/pages/org/ChallengeCreatePage.tsx` (rewrite as redirect stub)
+### B. Server↔client parity violations
+5. **`IP_MODEL_LABELS` proposed in the new file disagrees with `IP_CLAUSE_TEXT` in `legalPreview.constants.ts`** (the server's text). Two truth sources for the same clause = solvers will accept text the DB never stored. **Block.**
+6. **`anti_disintermediation_period`/`penalty` hardcoded to "24 months / 150%"** — the server's `assemble_cpa` controls this via `ANTI_DISINT_CLAUSE_AGG`. Hardcoding here drifts. Keep the constant as the single source.
+7. **`buildResolvedValues` formats numbers with `'en-IN'`** unconditionally and dates with `'en-IN'` long form — diverges from the unformatted strings the server stores. CPA preview must be *byte-identical* to server output for the solver-acceptance audit trail.
 
-## 2. DELEGATED admin = sensitive tabs hidden (already done, no change)
+### C. Workspace rule violations (R1-R12)
+8. **`useTemplateContext` proposed at ~100 lines with 9 optional inputs is a "kitchen-sink" hook** — violates R2 (layer separation: it's doing service-layer aggregation in a hook) and R10 (single-responsibility). Should be a **service** under `src/services/legal/templateContextBuilder.ts` that pure-composes already-fetched data, with thin per-surface hooks calling it.
+9. **`useChallengeSubmit` returning `{ needsSkpaAcceptance: true }` mixes control-flow with mutation results** — violates R7/R9. The SKPA pre-check belongs in a separate `useSkpaStatus(userId)` hook (mirroring `usePwaStatus`) called by the form *before* invoking submit. Cleaner, no special return shape.
+10. **Part D2 adds two more `useQuery` calls inside `CpaEnrollmentGate`** for challenge + org. Component already has 1 query; with 3 it crosses the line into "data orchestration in a component" (R2). Move to one composite hook `useCpaGateContext(challengeId)`.
+11. **Inline supabase calls inside `CpaEnrollmentGate`/`PwaAcceptanceGate`** — violates R2 ("NEVER: Supabase in components"). Existing code already violates this; we should **not add more**. Use hooks under `src/hooks/queries/`.
+12. **`mode='preview'` injects raw HTML `<span style="…">`** — XSS risk if any template field somehow contains user-influenced text. Must use Tailwind classes via existing `LegalDocumentViewer` rendering, not inline `style=`.
+13. **Hardcoded strings** ("CogniBlend", "150% of challenge prize value", "24 months", "Platform Workforce Member", "Solution Provider") — must live in `src/constants/legal.constants.ts` (R10).
 
-This was already implemented in the previous plan via `OrgSettingsPage`'s `visibleTabs` filter. Confirming no further work needed — DELEGATED admins see only Profile / Admin / Subscription with an info banner.
+### D. Functional gaps the plan misses
+14. **No invalidation of `usePwaStatus` after acceptance** — proposed `pwaAccepted` local state will desync from cache; user navigating away sees gate again. Must `queryClient.invalidateQueries(['pwa-acceptance-status', userId])` in mutation `onSuccess`.
+15. **`ScrollToAcceptLegal.documentContent` is plain text rendered with `whitespace-pre-line`** — feeding it interpolated HTML (preview mode) will display raw `<span>` tags. The interpolation layer must be applied **before** the text is handed to this component, and only `'final'` mode (plain text with `[var name]`) is safe here.
+16. **No SKPA template seeded** — Part E1 checks `legal_acceptance_log` for `document_code='SKPA'` but doesn't verify the template actually exists in `legal_document_templates`. Need a guard + clear error if missing (similar to the AGG silent-failure issue).
+17. **ER (Expert Reviewer) gate location** — Part E3 wraps `ScreeningReviewPage`, but ER also reviews on `AISpecReviewPage` and `WinnerSelectionPage`. Single-page gate leaks. PWA acceptance is *user-scoped* not page-scoped; should be enforced once at the role-router level.
 
-## 3. RLS hardening — Primary-only writes on org configuration
+## Final fix plan — what to actually do
 
-Add two SECURITY DEFINER helpers and replace the broad "any org admin" write policies on four tables.
+Implement in this order. Each step is independent and reversible.
 
-### Helpers added
+### Step 1 — Extend the EXISTING interpolator (do not replace)
+File: `src/services/legal/cpaPreviewInterpolator.ts`
+- Add new optional fields to `CpaPreviewInput`: `seeker_legal_entity`, `seeker_country`, `seeker_industry`, `data_privacy_laws`, `industry_name`, `user_full_name`, `user_email`, `user_role`, `acceptance_date`, `escrow_required`, `payment_mode`, `installment_count`, `platform_fee_pct`.
+- Extend `buildPreviewVariables` to emit those keys when present, **using the same string-handling rules** (`safeString`, no locale formatting unless server does it).
+- No changes to existing keys, no new label maps (use constants file).
 
-```sql
-public.is_primary_seeking_admin(p_user_id UUID, p_organization_id UUID) → BOOLEAN
-public.is_legacy_org_owner(p_user_id UUID, p_tenant_id UUID) → BOOLEAN
-```
+File: `src/constants/legalPreview.constants.ts`
+- Add `SOLVER_AUDIENCE_LABELS`, `ENGAGEMENT_MODEL_LABELS`, `PLATFORM_NAME`, `DEFAULT_ANTI_DISINT_PERIOD`, `DEFAULT_ANTI_DISINT_PENALTY`. **Mirror exact server strings**.
 
-Both `STABLE SECURITY DEFINER` with `SET search_path = public`; granted to `authenticated`.
+### Step 2 — Variable registry (lightweight, no logic)
+File: `src/lib/cogniblend/legal/templateVariables.ts` (~50 lines, **descriptions only**)
+- Export `VARIABLES_BY_DOCUMENT` map for documentation/UI listing in `CpaVariableReference`. **No interpolation logic here.** Single source of truth = `cpaPreviewInterpolator.ts`.
 
-### Policies replaced
+### Step 3 — Context builder as a SERVICE, not a hook
+File: `src/services/legal/templateContextBuilder.ts` (~80 lines)
+- Pure function `buildCpaPreviewInput({ challenge, org, countryName, industrySegmentName, geoContext, industryPack, user, escrow, roleName }) → CpaPreviewInput`.
+- No data fetching. Composes already-fetched inputs.
 
-For each of:
-- `org_legal_document_templates`
-- `org_finance_config`
-- `org_compliance_config`
-- `org_custom_fields`
+File: `src/hooks/queries/useCpaGateContext.ts` (NEW, ~60 lines)
+- Single composite hook for `CpaEnrollmentGate`: fetches challenge + org + reuses `useGeoContextForOrg`, returns `CpaPreviewVariables` ready for `interpolateCpaTemplate`.
 
-Drop the existing `"Org admins can manage …"` policy (currently keys on `org_users.role IN ('admin','owner')`) and replace with:
+File: `src/hooks/queries/usePwaGateContext.ts` (NEW, ~40 lines)
+- Same pattern for `PwaAcceptanceGate` when `challengeId` is provided.
 
-```sql
-CREATE POLICY "Primary admin can manage <table>"
-  ON public.<table>
-  FOR ALL
-  USING  ( is_primary_seeking_admin(auth.uid(), organization_id)
-        OR is_legacy_org_owner(auth.uid(), tenant_id) )
-  WITH CHECK (same condition);
-```
+### Step 4 — Wire interpolation into the 3 acceptance surfaces (display only)
+- `CpaEnrollmentGate`: replace the 2 inline supabase queries with `useCpaGateContext(challengeId)`. Pass interpolated `content` (mode `'final'`) to `LegalDocumentViewer`. Component drops below 250 lines.
+- `PwaAcceptanceGate`: when `challengeId` present, call `usePwaGateContext(challengeId)` and interpolate. When absent (role-level acceptance), skip interpolation.
+- `ScrollToAcceptLegal`: **no API change.** Caller is responsible for passing already-interpolated text. Add a JSDoc note documenting this contract.
 
-Read policies (`"Org members can read …"`) are left untouched — every org member can still SEE the configuration; only the Primary admin (or pre-migration legacy owner) can change it.
+### Step 5 — Cache invalidation
+File: `src/hooks/cogniblend/useLegalAcceptance.ts`
+- In `useRecordLegalAcceptance.onSuccess`, invalidate: `['pwa-acceptance-status', userId]`, `['skpa-acceptance-status', userId]`, `['cpa-enrollment', challengeId]`. Fixes desync bug.
 
-### Why both helpers
+### Step 6 — SKPA gate for Creator (smallest viable path)
+File: `src/hooks/cogniblend/useSkpaStatus.ts` (NEW, mirrors `usePwaStatus`, ~25 lines)
+File: `src/components/cogniblend/creator/SkpaAcceptanceDialog.tsx` (NEW, ~120 lines — note R1 limit)
+- Uses `useLegalDocTemplates` + `ScrollToAcceptLegal` + `useRecordLegalAcceptance`.
+- If SKPA template missing → toast error, refuse to mount, log via `handleQueryError` (no silent skip).
 
-`is_primary_seeking_admin` is the new tier-based model. `is_legacy_org_owner` is a back-compat fallback for organizations that haven't been migrated to `seeking_org_admins` yet (so today's owners don't get locked out the moment this migration ships).
+File: `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` (MODIFY, +15 lines)
+- Before triggering `useChallengeSubmit().mutate(...)`, call `useSkpaStatus(user.id)`. If `!hasSkpa`, open `SkpaAcceptanceDialog`. On accept → re-trigger submit. **Do NOT modify `useChallengeSubmit` return shape.**
 
-### Impact
+### Step 7 — PWA gate for ER at the right level
+**Drop Part E3.** Instead:
+File: `src/components/auth/ReviewerGuard.tsx` (MODIFY, +10 lines)
+- Add `usePwaStatus` check; if reviewer + no PWA, render `PwaAcceptanceGate` instead of children.
+- Covers `ScreeningReviewPage`, `AISpecReviewPage`, `WinnerSelectionPage`, and any future ER page automatically.
 
-| Caller | Before | After |
-|--------|--------|-------|
-| PRIMARY SO Admin | ✅ write | ✅ write |
-| DELEGATED SO Admin | ✅ write (BUG) | ❌ no write |
-| Legacy `org_users.role='owner'` | ✅ write | ✅ write |
-| Legacy `org_users.role='admin'` | ✅ write | ❌ no write |
-| Other org members | read-only | read-only |
+### Step 8 — Constants extraction
+File: `src/constants/legalPreview.constants.ts`
+- Add: `PLATFORM_NAME`, `ROLE_LABELS` (`{ creator, solver, curator, lc, fc, er, workforce }`), `LEGAL_TRIGGER_EVENTS` (`CHALLENGE_SUBMIT`, `ENROLLMENT`, `ROLE_ACCEPTANCE`).
+- All hardcoded strings in new code reference these.
 
-The DELEGATED block closes the privacy hole the previous plan flagged: today a delegated admin who guesses `/org/settings?tab=legal-templates` could overwrite org legal templates. After this migration the UI hides the tab AND the database refuses the write.
+### Step 9 — Update `CpaVariableReference` and `cpaDefaults.constants.ts`
+- Replace 10-variable list with the full registry from `templateVariables.ts`. Keep description-only (no logic).
 
-### Risk
+## Files summary (revised)
 
-- Low. No schema changes, no data migration, only policy swap.
-- The legacy-owner fallback prevents accidental lockout.
-- Reversible — drop new policies, restore old ones.
+| File | Action | Notes |
+|---|---|---|
+| `src/services/legal/cpaPreviewInterpolator.ts` | EXTEND | Add fields to existing interpolator. Server parity preserved. |
+| `src/constants/legalPreview.constants.ts` | EXTEND | New label maps + role/event constants. |
+| `src/lib/cogniblend/legal/templateVariables.ts` | CREATE | Documentation-only registry, ~50 lines. |
+| `src/services/legal/templateContextBuilder.ts` | CREATE | Pure composer, ~80 lines. |
+| `src/hooks/queries/useCpaGateContext.ts` | CREATE | Composite hook for Cpa gate, ~60 lines. |
+| `src/hooks/queries/usePwaGateContext.ts` | CREATE | Composite hook for Pwa gate, ~40 lines. |
+| `src/hooks/cogniblend/useSkpaStatus.ts` | CREATE | Mirrors usePwaStatus, ~25 lines. |
+| `src/hooks/cogniblend/useLegalAcceptance.ts` | MODIFY | +5 lines invalidation. |
+| `src/components/cogniblend/creator/SkpaAcceptanceDialog.tsx` | CREATE | ~120 lines. |
+| `src/components/cogniblend/creator/ChallengeCreatorForm.tsx` | MODIFY | +15 lines, no submit-shape change. |
+| `src/components/cogniblend/solver/CpaEnrollmentGate.tsx` | MODIFY | Replace inline queries with `useCpaGateContext`; drop below 250 lines. |
+| `src/components/cogniblend/workforce/PwaAcceptanceGate.tsx` | MODIFY | Add optional interpolation via `usePwaGateContext`. |
+| `src/components/auth/ReviewerGuard.tsx` | MODIFY | +10 lines, role-level PWA gate. |
+| `src/components/org-settings/CpaVariableReference.tsx` | MODIFY | Pull list from new registry. |
+| `src/constants/cpaDefaults.constants.ts` | MODIFY | Re-export expanded variable list. |
+| `src/components/cogniblend/creator/CreatorLegalPreview.tsx` | NO CHANGE | Already correct. |
+| `src/services/engagementModelRulesService.ts` | NO CHANGE | Already correct (drop Part F). |
+| `src/hooks/cogniblend/useChallengeSubmit.ts` | NO CHANGE | Drop Part E1. |
 
-## Files changed
+## What is explicitly NOT done (with reason)
 
-1. `src/pages/org/ChallengeCreatePage.tsx` — replaced with redirect stub.
-2. New migration applied via Supabase migration tool — adds two helpers and swaps four ALL policies.
+- **No new `templateInterpolation.ts`** — would shadow the server-mirroring interpolator.
+- **No `useTemplateContext` mega-hook** — replaced by service + 2 small composite hooks.
+- **No MP fallback in `CreatorLegalPreview`** — Part F is already done correctly via `engagementModelRulesService`. Adding fallback would break the platform-governance rule that orgs on MP cannot override platform CPA.
+- **No `useChallengeSubmit` return-shape change** — SKPA gate is enforced in the form, not the mutation.
+- **No HTML `<span style>` injection in preview mode** — XSS-safe only if rendered via `LegalDocumentViewer` with sanitization; preview mode kept for the *creator-side editor only*, never for solver/CU/LC/FC acceptance gates.
 
-No other code changes needed.
+## Safety guarantees preserved
+
+- `legal_acceptance_log` schema: untouched.
+- `legal_document_templates`, `org_legal_document_templates` schemas: untouched.
+- `assemble_cpa` RPC: untouched. Client interpolator extended *in lock-step*; any new variable added to client must also be added to server in a follow-up migration before production rollout.
+- `seed_default_legal_docs`: untouched.
+- Public APIs of `ScrollToAcceptLegal`, `CpaEnrollmentGate`, `PwaAcceptanceGate`: unchanged (only internal queries swapped).
+- Existing tests in `Wave6EnrollmentFlow.test.tsx` continue to pass (component prop shape preserved).
