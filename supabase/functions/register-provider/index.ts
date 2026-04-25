@@ -89,6 +89,25 @@ Deno.serve(async (req: Request) => {
       )
     }
 
+    // Insert SPA pending acceptance for first-login signature.
+    {
+      const { error: pendErr } = await adminClient
+        .from('pending_role_legal_acceptance')
+        .upsert(
+          {
+            user_id: userId,
+            org_id: null,
+            role_code: 'SP',
+            doc_code: 'SPA',
+            source: 'self_register',
+          },
+          { onConflict: 'user_id,role_code,doc_code,org_id', ignoreDuplicates: true },
+        )
+      if (pendErr) {
+        console.error('register-provider pending legal insert failed:', pendErr.message)
+      }
+    }
+
     // Sign in the user to return a session
     const anonClient = createClient(SUPABASE_URL, ANON_KEY)
     const { data: sessionData, error: signInError } = await anonClient.auth.signInWithPassword({

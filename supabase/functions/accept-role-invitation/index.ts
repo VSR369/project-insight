@@ -106,6 +106,36 @@ serve(async (req) => {
       );
     }
 
+    // Insert pending_role_legal_acceptance for first-login signature.
+    // Map role_code → doc_code (mirror of resolve_active_legal_template inputs).
+    const ROLE_TO_DOC: Record<string, string> = {
+      R2: "SKPA",
+      R3: "SKPA", R4: "SKPA", R10_CR: "SKPA", CR: "SKPA",
+      R5_MP: "PWA", R5_AGG: "PWA", CU: "PWA",
+      R7_MP: "PWA", R7_AGG: "PWA", ER: "PWA",
+      R8: "PWA", FC: "PWA",
+      R9: "PWA", LC: "PWA",
+    };
+    const docCode = ROLE_TO_DOC[assignment.role_code];
+    if (docCode) {
+      const { error: pendErr } = await supabaseAdmin
+        .from("pending_role_legal_acceptance")
+        .upsert(
+          {
+            user_id: user.id,
+            org_id: assignment.org_id,
+            role_code: assignment.role_code,
+            doc_code: docCode,
+            source: "role_invite",
+          },
+          { onConflict: "user_id,role_code,doc_code,org_id", ignoreDuplicates: true },
+        );
+      if (pendErr) {
+        console.error("Failed to insert pending legal acceptance:", pendErr.message);
+        // Non-fatal — user can still proceed; lazy gate will catch them.
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
