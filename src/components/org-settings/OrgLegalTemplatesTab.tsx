@@ -20,6 +20,7 @@ import { useOrgLegalTemplates, useCreateOrgLegalTemplate, useUpdateOrgLegalTempl
 import { useOrgSubscription } from '@/hooks/queries/useOrgSettings';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { CpaTemplateSection } from './CpaTemplateSection';
+import { RoleTemplateOverridesSection } from './RoleTemplateOverridesSection';
 
 interface OrgLegalTemplatesTabProps { organizationId: string; }
 
@@ -50,14 +51,19 @@ export function OrgLegalTemplatesTab({ organizationId }: OrgLegalTemplatesTabPro
 
   return (
     <div className="space-y-6">
+      <RoleTemplateOverridesSection
+        organizationId={organizationId}
+        tenantId={tenantId}
+        engagementModel={engagementModel}
+      />
+      <Separator />
       {!isAggregator && engagementModel && (
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Org-level legal templates apply only to <strong>Aggregator (AGG)</strong> challenges.
+            Challenge-level CPA templates apply only to <strong>Aggregator (AGG)</strong> challenges.
             Your organization is currently on the <strong>{engagementModel}</strong> engagement
-            model — these templates will not be auto-attached to challenges. The platform's
-            canonical templates (SPA / SKPA / PWA) are used instead.
+            model — these CPA templates will not be auto-attached to challenges.
           </AlertDescription>
         </Alert>
       )}
