@@ -100,46 +100,49 @@ If RA_R2 misbehaves post-deploy:
 
 ---
 
-## Prompt 2 — Governance flags + safe BIU trigger
+## Prompt 2 — Governance flags + safe BIU trigger ✅ SHIPPED 2026-04-26
 
-### Migration
-- `ALTER TABLE challenges ADD COLUMN fc_review_required boolean NOT NULL DEFAULT false;`
-- BIU trigger defaults only when value is NULL — never overwrites a manual override, even on governance change:
+### Migration (applied)
+- `ALTER TABLE challenges ADD COLUMN fc_review_required boolean;` (nullable — NULL means "derive from mode").
+- `ALTER TABLE challenges ALTER COLUMN lc_review_required DROP NOT NULL, DROP DEFAULT;` so the trigger can distinguish "unset" from "explicitly false".
+- BIU trigger uses effective mode `COALESCE(governance_mode_override, governance_profile, 'STRUCTURED')` (the real column names — there is no `governance_mode` column on challenges). Defaults only when value is NULL — never overwrites a manual override, even when mode flips.
+- Backfill: existing `fc_review_required` populated from current effective mode (11 rows, 0 nulls remaining).
 
 ```sql
 CREATE OR REPLACE FUNCTION public.set_challenge_review_flags_default()
-RETURNS trigger LANGUAGE plpgsql AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE v_effective_mode text;
 BEGIN
+  v_effective_mode := UPPER(COALESCE(NEW.governance_mode_override, NEW.governance_profile, 'STRUCTURED'));
   IF TG_OP = 'INSERT' THEN
-    IF NEW.lc_review_required IS NULL THEN
-      NEW.lc_review_required := (NEW.governance_mode = 'CONTROLLED');
-    END IF;
-    IF NEW.fc_review_required IS NULL THEN
-      NEW.fc_review_required := (NEW.governance_mode = 'CONTROLLED');
-    END IF;
+    IF NEW.lc_review_required IS NULL THEN NEW.lc_review_required := (v_effective_mode = 'CONTROLLED'); END IF;
+    IF NEW.fc_review_required IS NULL THEN NEW.fc_review_required := (v_effective_mode = 'CONTROLLED'); END IF;
   ELSIF TG_OP = 'UPDATE' THEN
-    NEW.lc_review_required := COALESCE(NEW.lc_review_required, OLD.lc_review_required, NEW.governance_mode = 'CONTROLLED');
-    NEW.fc_review_required := COALESCE(NEW.fc_review_required, OLD.fc_review_required, NEW.governance_mode = 'CONTROLLED');
+    NEW.lc_review_required := COALESCE(NEW.lc_review_required, OLD.lc_review_required, (v_effective_mode = 'CONTROLLED'));
+    NEW.fc_review_required := COALESCE(NEW.fc_review_required, OLD.fc_review_required, (v_effective_mode = 'CONTROLLED'));
   END IF;
   RETURN NEW;
 END $$;
 ```
 
-### Code
-- `src/services/legal/governanceFlagsService.ts` — pure `resolveGovernanceFlags(c)` returning `{ lcRequired, fcRequired }`.
-- Refactor every legal/finance branch from inline `mode === 'CONTROLLED'` checks to `resolveGovernanceFlags(c)`. Preserve non-legal CONTROLLED checks (UI badges, narrative copy).
-- Open the prompt with the explicit grep, list every hit, then refactor:
-  ```
-  rg -n "governance_mode\s*===?\s*['\"]CONTROLLED['\"]" src/ supabase/functions/
-  rg -n "lc_review_required|lcRequired|fc_review_required|fcRequired" src/ supabase/functions/
-  ```
+### Code (shipped)
+- `src/services/legal/governanceFlagsService.ts` — pure `resolveGovernanceFlags(challenge)` returning `{ lcRequired, fcRequired, effectiveMode, source }`. Accepts both snake_case (DB row) and camelCase (mapped) shapes.
+- Refactored **legal/finance gating** call sites:
+  - `src/services/cogniblend/fcQueueService.ts` — FC queue filter now uses `fcRequired` (honors explicit overrides).
+  - `src/hooks/cogniblend/useEscrowDeposit.ts` — `canVerify` now gated on `fcRequired`.
+- **Intentionally NOT refactored** (preserved per plan — these are non-legal/finance CONTROLLED checks):
+  - Creator-form schemas, AI review drawers, phase timeline UI, escrow display copy, FC tab narrative — UI/UX rules tied to mode itself, not the LC/FC review gate.
+  - `escrowInstallmentValidationService.resolveExpectedFundingRole` — pure mode→role label mapper, not a gating decision.
 
-### Done-criteria
-A test under `src/services/legal/__tests__/governanceFlagsService.test.ts` asserting that explicit `lc_review_required=true` on a STRUCTURED challenge survives a UPDATE that flips `governance_mode` to QUICK and back (per Hole 2).
+### Done-criteria ✅
+`src/services/legal/__tests__/governanceFlagsService.test.ts` — **9 tests passing**. Includes the Hole-2 scenario (explicit `lc=true` on STRUCTURED survives flip → QUICK → STRUCTURED) and the inverse (explicit `fc=false` on CONTROLLED is preserved).
 
 ### Rollback
-1. `UPDATE challenges SET fc_review_required = false;` to neutralize the new flag.
-2. Drop trigger if regressed: `DROP TRIGGER trg_challenges_set_review_flags_biu ON challenges;` — falls back to inline mode checks (still present in any non-refactored sites). Keep the column; column drops are not reversible cleanly.
+1. Revert refactored call sites (`fcQueueService.ts`, `useEscrowDeposit.ts`) to inline `governance_mode === 'CONTROLLED'` checks.
+2. `DROP TRIGGER trg_challenges_set_review_flags_biu ON challenges; DROP FUNCTION public.set_challenge_review_flags_default();`
+3. `ALTER TABLE challenges ALTER COLUMN lc_review_required SET NOT NULL, SET DEFAULT false;` (after backfilling any NULLs).
+4. Optional column drop: `ALTER TABLE challenges DROP COLUMN fc_review_required;`.
+
 
 ---
 
