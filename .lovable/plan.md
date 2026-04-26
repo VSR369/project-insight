@@ -1,70 +1,62 @@
-# Phase 7 — Final Cleanup & SKPA Placement
+# Phase 8 — Legacy Reference Cleanup & SKPA Backfill
 
-Closes the remaining gaps from the v3 legal plan and removes dead code.
+Final cleanup that removes archived doc-code references from active UI surfaces and seeds missing SKPA acceptance for existing org admins.
 
-## Audit summary
+## Why this phase exists
 
-| Plan item | Status |
-|---|---|
-| Phase 1 — `assemble_role_doc` v_geo fix | Done |
-| Phase 2a — Remove per-page PWA gates from CU/LC/FC pages | Done |
-| Phase 2b — `WorkforcePwaGate` route wrappers in App.tsx | **Open** |
-| Phase 2c — Mount SKPA at org registration | **Open** |
-| Phase 3 — Role-grant auto-enqueue (DB trigger) | Done — covers all paths (edge functions + admin UIs all insert into `role_assignments`, trigger fires) |
-| Phase 4a — Relabel PWA → "Role Agreement (Prize & Work)" | Done |
-| Phase 4b — Deactivate ghost trigger_config rows (PMA/CA/PSA/IPAA/EPIA) | Already inactive in DB — no work needed |
-| Phase 5 — Template body content edits | Out of code scope (Platform Admin data work) |
-| Stale file deletions | **Open** |
+Audit revealed three correctness gaps after Phase 7:
 
-## What this phase does
+1. **Admin trigger-config UI exposes only archived codes.** `LegalDocTriggerForm.tsx` lists `PMA / CA / PSA / IPAA / EPIA` — none of the active Legal v3 codes are selectable. Platform Admins literally cannot configure triggers for SPA / SKPA / PWA / CPA_*.
+2. **Creator pre-submit summary shows 4 archived agreements.** `QuickLegalDocsSummary.tsx` hardcodes `PMA / CA / PSA / IPAA` as the QUICK-mode "auto-applied" docs. Wrong content presented to every creator submitting a QUICK challenge.
+3. **2 active R2 (Seeker Org Admin) users have no SKPA acceptance and no pending row.** They predate the trigger and the earlier backfill missed them — they will never see the SKPA gate without an explicit re-enqueue.
 
-### 1. Remove `WorkforcePwaGate` from routing
-PWA acceptance is now handled centrally by `RoleLegalGate` inside `AuthGuard` at first login. The per-route defensive guard is redundant and adds a query per navigation.
+Plus 2 cosmetic defaults (`'PMA'` → `'SPA'`) so a fresh "Create new document" lands on the active family.
 
-- `src/App.tsx` — drop the `WorkforcePwaGate` import; unwrap 6 routes (`/cogni/curation`, `/cogni/curation/:id`, `/cogni/curation/:id/preview`, `/cogni/curation/:id/diagnostics`, `/cogni/lc-queue`, `/cogni/fc-queue`) and any related ER routes.
+## Changes
 
-### 2. Mount SKPA at org registration
-SKPA must be signed during organisation onboarding, not deferred until the admin's next login.
+### Code (4 files, no new files, no deletions)
 
-- Add an SKPA acceptance step to `src/pages/registration/CompliancePage.tsx` (the natural legal-acceptance step in the flow). Block "Next" until accepted.
-- Use the existing `useAcceptRoleLegal` hook + `RoleLegalGate`-style document loader (server-assembled SKPA via `assemble_role_doc`).
-- The DB trigger already enqueues a pending SKPA row when `R2` is granted; this UI resolves it inline during registration instead of post-login.
-- Keep `RoleLegalGate` as the safety net for legacy R2 admins who registered before this change.
+**`src/components/admin/legal/LegalDocTriggerForm.tsx`**
+- `DOC_CODES` → `['SPA', 'SKPA', 'PWA', 'CPA_QUICK', 'CPA_STRUCTURED', 'CPA_CONTROLLED']`
+- Default `document_code` → `'SPA'` (was `'PMA'`)
 
-### 3. Delete dead files
+**`src/components/cogniblend/creator/QuickLegalDocsSummary.tsx`**
+- Replace hardcoded `QUICK_LEGAL_DOCS` array with `[{ code: 'CPA_QUICK', label: 'Challenge Participation Agreement (Quick)' }]`
+- Update fallback rendering when live templates haven't loaded yet
+- Adjust header copy: "Standard CPA will be auto-applied for QUICK-mode challenges. Solution Providers accept it at enrollment."
 
-- `src/components/auth/WorkforcePwaGate.tsx`
-- `src/hooks/legal/usePendingPwaForRole.ts`
+**`src/pages/admin/legal/LegalDocumentEditorPage.tsx`**
+- `defaultCode` fallback → `'SPA'` (was `'PMA'`)
 
-(Earlier cleanup already removed `PwaAcceptanceGate.tsx`, `SkpaAcceptanceDialog.tsx`, `usePwaGateContext.ts`.)
+**`src/components/admin/legal/LegalDocConfigSidebar.tsx`**
+- New-document Select default → `'SPA'` (was `'PMA'`)
 
-### 4. Phase 6 — Regression smoke (manual)
-After deploy, walk through the 5 scenarios in the v3 plan:
-1. New Seeker Org → SKPA appears once at registration step, never again.
-2. Grant CR → next login shows RA_CR once; subsequent challenge submits silent.
-3. Grant CU → next login shows RA_CU once; opening 3 curation workspaces silent.
-4. SP joins QUICK challenge ×2 → CPA_QUICK appears each time (correct, per-challenge).
-5. SP joins CONTROLLED+AGG → CPA_CONTROLLED with escrow + anti-disintermediation clauses.
+(`LegacyDocumentsSection.tsx` is correct as-is — it intentionally surfaces archived templates in a collapsed "Archived" group for read-only history.)
 
-## Out of scope
+### Data (1 migration)
 
-- **Phase 5 template content edits** — Platform Admin updates PWA / CPA_QUICK / CPA_STRUCTURED / CPA_CONTROLLED bodies in the admin UI after deploy. No code change.
-- `roleAssignmentLegalService.ts` — not needed; the database trigger `trg_role_assignment_create_pending_legal` handles every grant path (edge-function invitations and any direct admin inserts).
+Single SQL migration that seeds pending SKPA rows for active R2 admins with no existing SKPA acceptance and no unresolved pending row:
 
-## Files affected
+```sql
+INSERT INTO pending_role_legal_acceptance (user_id, role_code, doc_code, org_id, source, created_at)
+SELECT DISTINCT ra.user_id, 'R2', 'SKPA', ra.org_id, 'backfill', now()
+FROM role_assignments ra
+WHERE ra.role_code = 'R2' AND ra.status = 'active'
+  AND NOT EXISTS (
+    SELECT 1 FROM legal_acceptance_log la
+    WHERE la.user_id = ra.user_id AND la.document_code = 'SKPA' AND la.action = 'accepted')
+  AND NOT EXISTS (
+    SELECT 1 FROM pending_role_legal_acceptance p
+    WHERE p.user_id = ra.user_id AND p.doc_code = 'SKPA' AND p.resolved_at IS NULL);
+```
 
-**Edits (2)**
-- `src/App.tsx` — remove `WorkforcePwaGate` wrappers + import
-- `src/pages/registration/CompliancePage.tsx` — add SKPA acceptance gate
+Affects approximately 2 users (per current DB state). On their next login, `RoleLegalGate` will surface the SKPA — same path the new `SkpaRegistrationGate` uses for fresh registrations.
 
-**New (1)**
-- `src/components/registration/SkpaRegistrationGate.tsx` — small reusable component that renders the assembled SKPA, captures consent, and calls `useAcceptRoleLegal`
+## Out of scope (unchanged)
 
-**Deletes (2)**
-- `src/components/auth/WorkforcePwaGate.tsx`
-- `src/hooks/legal/usePendingPwaForRole.ts`
-
-No migrations. No edge function changes. No data migration.
+- **Phase 5 template content** (PWA per-role bodies, CPA_QUICK/STRUCTURED/CONTROLLED clause text) — Platform Admin data work in the admin UI.
+- **CPA template seeding** — DB shows 0 active CPA templates; admins must create them via `/admin/legal-documents` once the editor defaults are fixed in this phase.
 
 ## Effort
-One short cycle. Pure code cleanup + one new ~150-line registration gate component.
+
+One short cycle. Four small code edits + one tiny data migration. Type-check + visual spot-check.

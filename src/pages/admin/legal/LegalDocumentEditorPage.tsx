@@ -21,7 +21,8 @@ export default function LegalDocumentEditorPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isNew = !templateId || templateId === 'new';
-  const defaultCode = (searchParams.get('code') as DocumentCode) ?? 'PMA';
+  // Default to SPA (Legal v3 active family). Archived codes still openable via direct link.
+  const defaultCode = (searchParams.get('code') as DocumentCode) ?? 'SPA';
 
   const editor = useLegalDocEditor({ templateId, isNew, defaultCode });
   const [activeSection, setActiveSection] = React.useState<IpaaSectionKey>('abstract');

@@ -35,7 +35,10 @@ interface LegalDocTriggerFormProps {
   isLoading: boolean;
 }
 
-const DOC_CODES: DocumentCode[] = ['PMA', 'CA', 'PSA', 'IPAA', 'EPIA'];
+// Active legal document codes (Legal v3). Archived codes (PMA/CA/PSA/IPAA/EPIA)
+// are no longer selectable for new triggers — they remain visible only via the
+// LegacyDocumentsSection in the editor.
+const DOC_CODES: DocumentCode[] = ['SPA', 'SKPA', 'PWA', 'CPA_QUICK', 'CPA_STRUCTURED', 'CPA_CONTROLLED'];
 const MODES: AppliesMode[] = ['QUICK', 'STRUCTURED', 'CONTROLLED', 'ALL'];
 const EVENTS = Object.keys(TRIGGER_EVENT_LABELS) as TriggerEvent[];
 
@@ -55,7 +58,7 @@ export function LegalDocTriggerForm({ open, onOpenChange, trigger, onSubmit, isL
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      document_code: trigger?.document_code ?? 'PMA',
+      document_code: trigger?.document_code ?? 'SPA',
       document_section: trigger?.document_section ?? null,
       trigger_event: trigger?.trigger_event ?? 'USER_REGISTRATION',
       applies_to_mode: trigger?.applies_to_mode ?? 'ALL',
@@ -68,7 +71,7 @@ export function LegalDocTriggerForm({ open, onOpenChange, trigger, onSubmit, isL
   React.useEffect(() => {
     if (open) {
       form.reset({
-        document_code: trigger?.document_code ?? 'PMA',
+        document_code: trigger?.document_code ?? 'SPA',
         document_section: trigger?.document_section ?? null,
         trigger_event: trigger?.trigger_event ?? 'USER_REGISTRATION',
         applies_to_mode: trigger?.applies_to_mode ?? 'ALL',
