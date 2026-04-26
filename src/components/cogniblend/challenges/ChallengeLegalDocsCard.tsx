@@ -10,10 +10,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
+import { FileText, ShieldCheck, Clock, Eye, AlertTriangle } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
+import { useResolveQuickCpa } from '@/hooks/queries/useResolveQuickCpa';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 import {
   interpolateCpaTemplate,
@@ -71,6 +73,14 @@ export function ChallengeLegalDocsCard({
   const { data: templatePreviews } = useLegalTemplatePreview(
     challengeId, currentPhase, hasActualDocs, engagementModel, organizationId,
   );
+
+  // QUICK-mode: probe the resolver so we can (a) badge the source and
+  // (b) catch MissingPlatformCpaTemplateError with a friendly UI alert.
+  const quickProbe = useResolveQuickCpa({
+    organizationId,
+    engagementModel,
+    enabled: isQuickMode && !hasQuickOverride,
+  });
 
   // Phase 2 preview: show planned templates
   if (!hasActualDocs && templatePreviews && templatePreviews.length > 0) {
@@ -142,6 +152,12 @@ export function ChallengeLegalDocsCard({
           {isQuickMode && (
             <Badge variant="secondary" className="text-[10px] ml-2">Auto-applied</Badge>
           )}
+          {isQuickMode && !hasQuickOverride && quickProbe.template?.source === 'ORG' && (
+            <Badge variant="outline" className="text-[10px] ml-1">Org template</Badge>
+          )}
+          {isQuickMode && !hasQuickOverride && quickProbe.template?.source === 'PLATFORM_FALLBACK' && (
+            <Badge variant="outline" className="text-[10px] ml-1">Platform default</Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -193,6 +209,14 @@ export function ChallengeLegalDocsCard({
               ? 'This challenge is using a creator-provided challenge-specific replacement agreement.'
               : 'Platform default legal templates applied automatically. View-only.'}
           </p>
+        )}
+        {isQuickMode && !hasQuickOverride && quickProbe.isMissingPlatformTemplate && (
+          <Alert variant="destructive" className="mt-3">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Platform CPA template missing — contact Platform Admin.
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
       </Card>

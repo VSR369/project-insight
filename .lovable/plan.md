@@ -146,34 +146,32 @@ END $$;
 
 ---
 
-## Prompt 3 — AGG-Quick resolver + tightened health check + UI catch
+## Prompt 3 — AGG-Quick resolver + tightened health check + UI catch ✅ SHIPPED 2026-04-26
 
-### Service
-- `src/services/legal/engagementModelRulesService.ts` adds `resolveQuickCpaTemplate(orgId, engagementModel)` returning `{ template, source: 'ORG' | 'PLATFORM_FALLBACK' }`. Uses React Query cache key conventions consistent with `resolveActiveLegalTemplate`.
-- SQL helper `public.resolve_quick_cpa_template(org_id, engagement_model)` returns `(template_id, source)` for `assemble_cpa`.
-- Throws typed `MissingPlatformCpaTemplateError` when no fallback exists.
+### Migration (applied)
+- `ALTER TABLE legal_document_templates ADD COLUMN expires_at TIMESTAMPTZ;` (and same on `org_legal_document_templates`) — enables the tightened "effective-active" predicate `version_status='ACTIVE' AND (effective_date IS NULL OR effective_date <= now()) AND (expires_at IS NULL OR expires_at > now())`.
+- `resolve_quick_cpa_template(p_org_id, p_engagement_model)` SQL function — returns `(template_id, document_code, version, content, source)` where `source ∈ {'ORG','PLATFORM_FALLBACK'}`. AGG prefers org template, falls back to platform; MP always platform.
+- `legal_template_health()` SQL function — returns one row per required code (SPA, SKPA, PWA, RA_R2, CPA_QUICK, CPA_STRUCTURED, CPA_CONTROLLED) with effective-active status, version, effective date, expiry. Both functions: `SECURITY DEFINER` + `search_path=public`; `EXECUTE` granted to `authenticated`.
 
-### UI catch (Claude minor point)
-- `useChallengeCpaDoc.ts` catches `MissingPlatformCpaTemplateError` and surfaces a structured error to `ChallengeLegalDocsCard.tsx`, which renders an inline alert: "Platform CPA template missing — contact Platform Admin." Never a stack trace.
-- Source badge ("Org template" / "Platform default") in `ChallengeLegalDocsCard.tsx`.
+### Code (shipped)
+- `src/services/legal/quickCpaResolver.ts` — `resolveQuickCpaTemplate(orgId, model)` + typed `MissingPlatformCpaTemplateError` (`code='MISSING_PLATFORM_CPA_TEMPLATE'`).
+- `src/hooks/queries/useResolveQuickCpa.ts` — React Query wrapper distinguishing the typed missing-template error from generic errors and disabling retry on the typed error.
+- `src/hooks/queries/useLegalTemplateHealth.ts` — wraps the `legal_template_health` RPC.
+- `src/components/admin/legal/LegalSystemHealthCard.tsx` — admin probe with green/red badges, deep-link "Manage" button to `/admin/legal-documents`. Mounted at the top of `LegalDocumentListPage`.
+- `src/components/cogniblend/challenges/ChallengeLegalDocsCard.tsx` — for QUICK challenges without a creator override, badges the source (`Org template` vs `Platform default`) and renders an inline destructive `<Alert>` "Platform CPA template missing — contact Platform Admin." instead of a stack trace when the resolver throws `MissingPlatformCpaTemplateError`.
 
-### Admin health check
-- New `LegalSystemHealthCard.tsx` (or extend `CurationDiagnosticsPage`) probing per code: `SPA`, `SKPA`, `PWA`, `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED`. Effective-active definition (Claude's tightened predicate):
-  ```
-  version_status='ACTIVE'
-    AND (effective_date IS NULL OR effective_date <= now())
-    AND (expires_at IS NULL OR expires_at > now())
-  ```
-- Red state with deep link to `/admin/legal-documents` when missing.
-
-### Done-criteria
-Test asserting three-way fallback: ORG template present → ORG; ORG missing + PLATFORM present → PLATFORM_FALLBACK; both missing → throws `MissingPlatformCpaTemplateError`.
+### Done-criteria ✅
+`src/services/legal/__tests__/quickCpaResolver.test.ts` — **6 tests passing**. Covers ORG / PLATFORM_FALLBACK (AGG fallback + MP) / typed missing-template error / generic RPC error pass-through.
 
 ### Rollback
-Resolver returns the platform default already by design; if the resolver misbehaves, revert the call site in `useChallengeCpaDoc.ts` to `resolveActiveLegalTemplate(orgId, 'CPA_QUICK', null)` (existing behavior). One-line code revert.
+1. Drop the badge + alert blocks in `ChallengeLegalDocsCard.tsx` and remove `<LegalSystemHealthCard />` from `LegalDocumentListPage` → behavior matches pre-Prompt-3.
+2. `DROP FUNCTION public.resolve_quick_cpa_template(UUID, TEXT); DROP FUNCTION public.legal_template_health();`
+3. `ALTER TABLE legal_document_templates DROP COLUMN expires_at;` (same on `org_legal_document_templates`). No pre-existing call sites reference the column.
 
 ### Sequencing
-**Sequential after Prompt 2** — both touch `useChallengeCpaDoc.ts`.
+Sequential after Prompt 2 — leaves `useChallengeCpaDoc` untouched (sibling hook `useResolveQuickCpa` instead).
+
+
 
 ---
 

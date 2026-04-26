@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useLegalDocumentTemplates } from '@/hooks/queries/useLegalDocumentTemplates';
 import { PlatformAgreementsSection } from '@/components/admin/legal/PlatformAgreementsSection';
 import { LegacyDocumentsSection } from '@/components/admin/legal/LegacyDocumentsSection';
+import { LegalSystemHealthCard } from '@/components/admin/legal/LegalSystemHealthCard';
 import type { DocumentCode } from '@/types/legal.types';
 
 export default function LegalDocumentListPage() {
@@ -45,6 +46,8 @@ export default function LegalDocumentListPage() {
           </Button>
         </div>
       </div>
+
+      <LegalSystemHealthCard />
 
       <PlatformAgreementsSection
         templates={templates}
