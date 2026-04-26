@@ -1,6 +1,9 @@
 /**
  * OnboardingCompletePage — Post-registration welcome page (Step 6 / Completion).
  * Redesigned with checklist pattern, tips footer, hero section.
+ *
+ * Legal v3: Wrapped in SkpaRegistrationGate so the new Seeker Org Admin signs
+ * the SKPA inline before reaching the welcome checklist or dashboard.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   CheckCircle2, ArrowRight, Users, FileText, Search, Lightbulb, BookOpen, Circle,
 } from 'lucide-react';
+import { SkpaRegistrationGate } from '@/components/registration/SkpaRegistrationGate';
 
 export default function OnboardingCompletePage() {
   const navigate = useNavigate();
