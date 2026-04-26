@@ -4954,6 +4954,7 @@ export type Database = {
           document_name: string
           document_type: string
           effective_date: string | null
+          expires_at: string | null
           is_active: boolean
           is_mandatory: boolean
           original_file_name: string | null
@@ -4985,6 +4986,7 @@ export type Database = {
           document_name: string
           document_type: string
           effective_date?: string | null
+          expires_at?: string | null
           is_active?: boolean
           is_mandatory?: boolean
           original_file_name?: string | null
@@ -5016,6 +5018,7 @@ export type Database = {
           document_name?: string
           document_type?: string
           effective_date?: string | null
+          expires_at?: string | null
           is_active?: boolean
           is_mandatory?: boolean
           original_file_name?: string | null
@@ -8017,6 +8020,7 @@ export type Database = {
           document_name: string
           document_type: string
           effective_date: string | null
+          expires_at: string | null
           id: string
           is_active: boolean
           is_mandatory: boolean
@@ -8043,6 +8047,7 @@ export type Database = {
           document_name: string
           document_type?: string
           effective_date?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           is_mandatory?: boolean
@@ -8069,6 +8074,7 @@ export type Database = {
           document_name?: string
           document_type?: string
           effective_date?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
           is_mandatory?: boolean
@@ -17143,6 +17149,18 @@ export type Database = {
         Returns: boolean
       }
       is_supervisor_tier: { Args: { p_user_id: string }; Returns: boolean }
+      legal_template_health: {
+        Args: never
+        Returns: {
+          document_code: string
+          effective_date: string
+          expires_at: string
+          is_healthy: boolean
+          template_id: string
+          version: string
+          version_status: string
+        }[]
+      }
       log_audit: {
         Args: {
           p_action: string
@@ -17342,6 +17360,16 @@ export type Database = {
       resolve_challenge_governance: {
         Args: { p_challenge_id: string }
         Returns: string
+      }
+      resolve_quick_cpa_template: {
+        Args: { p_engagement_model: string; p_org_id: string }
+        Returns: {
+          content: string
+          document_code: string
+          source: string
+          template_id: string
+          version: string
+        }[]
       }
       role_required_doc_codes: {
         Args: { p_role_code: string }
