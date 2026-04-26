@@ -1,6 +1,6 @@
 import type { Database, Json } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
-import { resolveGovernanceMode } from '@/lib/governanceMode';
+import { resolveGovernanceFlags } from '@/services/legal/governanceFlagsService';
 
 export interface FcQueueItem {
   challengeId: string;
@@ -25,6 +25,8 @@ type ChallengeRow = Pick<
   | 'reward_structure'
   | 'current_phase'
   | 'fc_compliance_complete'
+  | 'fc_review_required'
+  | 'lc_review_required'
   | 'governance_profile'
   | 'governance_mode_override'
   | 'created_at'
@@ -68,7 +70,7 @@ export async function fetchFcQueueItems(userId: string): Promise<FcQueueItem[]> 
       supabase
         .from('challenges')
         .select(
-          'id, title, reward_structure, current_phase, fc_compliance_complete, governance_profile, governance_mode_override, created_at',
+          'id, title, reward_structure, current_phase, fc_compliance_complete, fc_review_required, lc_review_required, governance_profile, governance_mode_override, created_at',
         )
         .in('id', challengeIds),
       supabase
@@ -87,10 +89,8 @@ export async function fetchFcQueueItems(userId: string): Promise<FcQueueItem[]> 
 
   return ((challengeRows ?? []) as ChallengeRow[])
     .filter((row) => {
-      const governanceMode = resolveGovernanceMode(
-        row.governance_mode_override ?? row.governance_profile,
-      );
-      return governanceMode === 'CONTROLLED' && !row.fc_compliance_complete;
+      const { fcRequired } = resolveGovernanceFlags(row);
+      return fcRequired && !row.fc_compliance_complete;
     })
     .map((row) => {
       const reward = getRewardSummary(row.reward_structure);
