@@ -17088,6 +17088,10 @@ export type Database = {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: boolean
       }
+      has_active_legal_template: {
+        Args: { p_doc_code: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -17335,6 +17339,10 @@ export type Database = {
       resolve_challenge_governance: {
         Args: { p_challenge_id: string }
         Returns: string
+      }
+      role_required_doc_codes: {
+        Args: { p_role_code: string }
+        Returns: string[]
       }
       roles_equivalent: {
         Args: { p_role1: string; p_role2: string }
