@@ -33,8 +33,8 @@ export default function FcFinanceWorkspacePage() {
   const challengeQuery = useChallengeForFC(challengeId);
   const escrowContextQuery = useEscrowFundingContext(challengeId);
   const orgFinanceQuery = useOrgFinanceConfig(challengeQuery.data?.organization_id ?? '');
-  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(user?.id);
-  const [pwaAccepted, setPwaAccepted] = useState(false);
+  // Legal v3: PWA gate removed — FC role agreement is signed once at role
+  // grant via RoleLegalGate, not on every workspace entry.
 
   const challenge = challengeQuery.data;
   const fundingContext = escrowContextQuery.data;
@@ -53,7 +53,7 @@ export default function FcFinanceWorkspacePage() {
     return null;
   }, [challengeQuery.error, escrowContextQuery.error]);
 
-  if (challengeQuery.isLoading || escrowContextQuery.isLoading || pwaLoading || orgFinanceQuery.isLoading) {
+  if (challengeQuery.isLoading || escrowContextQuery.isLoading || orgFinanceQuery.isLoading) {
     return <div className="mx-auto max-w-5xl space-y-4 p-6"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /><Skeleton className="h-40 w-full" /></div>;
   }
 
@@ -65,7 +65,7 @@ export default function FcFinanceWorkspacePage() {
     );
   }
 
-  if (!hasPwa && !pwaAccepted) return <div className="mx-auto max-w-2xl p-6"><PwaAcceptanceGate userId={user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} /></div>;
+  // (PWA gate removed — see Legal v3 note above.)
   if (!hasAccess) return <div className="mx-auto max-w-5xl p-6"><Card><CardContent className="py-10 text-center"><AlertCircle className="mx-auto mb-3 h-10 w-10 text-destructive" /><p className="text-lg font-semibold">Access Denied</p><p className="mt-1 text-sm text-muted-foreground">You need the Finance Coordinator (FC) role to access this workspace.</p><Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/dashboard')}>Return to Dashboard</Button></CardContent></Card></div>;
   if (govMode === 'QUICK' || govMode === 'STRUCTURED') return <div className="mx-auto max-w-5xl p-6"><Card><CardContent className="py-10 text-center"><Shield className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><p className="text-lg font-semibold text-foreground">Not applicable for {govMode.charAt(0) + govMode.slice(1).toLowerCase()} governance</p><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{govMode === 'STRUCTURED' ? 'In Structured governance, escrow is handled by the Curator. Finance Coordinator workflow applies only to Controlled governance.' : 'Finance Coordinator workflow applies only to Controlled governance.'}</p><Button variant="outline" className="mt-4" onClick={() => navigate('/cogni/fc-queue')}><ArrowLeft className="mr-1.5 h-4 w-4" />Back to FC Queue</Button></CardContent></Card></div>;
 
