@@ -83,13 +83,8 @@ export default function LcLegalWorkspacePage() {
     );
   }
 
-  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <PwaAcceptanceGate userId={user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
-      </div>
-    );
-  }
+  // Legal v3: PWA gate removed — LC role agreement is signed once at role
+  // grant via RoleLegalGate, not on every workspace entry.
 
   if (!hasAccess) {
     return (

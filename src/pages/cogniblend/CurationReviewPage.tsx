@@ -129,22 +129,8 @@ export default function CurationReviewPage() {
     return <div className="p-6 text-center text-muted-foreground">Challenge not found.</div>;
   }
 
-  // Phase 4: PWA gate is MP-only — non-MP challenges never wait on the query.
-  if (opModel === 'MP' && pwaLoading) {
-    return (
-      <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
-        <Skeleton className="h-7 w-64" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-  if (opModel === 'MP' && !hasPwa && !pwaAccepted) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <PwaAcceptanceGate userId={o.user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
-      </div>
-    );
-  }
+  // Legal v3: PWA gate removed — workforce role agreement is signed once at
+  // role grant via RoleLegalGate, not on every workspace entry.
 
   const isReadOnly =
     (o.challenge.current_phase ?? 0) > 2 ||
