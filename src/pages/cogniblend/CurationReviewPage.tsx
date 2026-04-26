@@ -76,13 +76,9 @@ const PreFlightGateDialog = lazy(() =>
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
-  const [pwaAccepted, setPwaAccepted] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => !hasSeenGuide(o.challengeId ?? ''));
 
   const opModel = (o.challenge as any)?.operating_model ?? 'IP';
-  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
-    opModel === 'MP' ? o.user?.id : undefined
-  );
 
 
   // Warn before navigating away during active wave execution
