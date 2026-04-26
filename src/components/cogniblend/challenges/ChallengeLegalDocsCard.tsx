@@ -152,6 +152,12 @@ export function ChallengeLegalDocsCard({
           {isQuickMode && (
             <Badge variant="secondary" className="text-[10px] ml-2">Auto-applied</Badge>
           )}
+          {isQuickMode && !hasQuickOverride && quickProbe.template?.source === 'ORG' && (
+            <Badge variant="outline" className="text-[10px] ml-1">Org template</Badge>
+          )}
+          {isQuickMode && !hasQuickOverride && quickProbe.template?.source === 'PLATFORM_FALLBACK' && (
+            <Badge variant="outline" className="text-[10px] ml-1">Platform default</Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
