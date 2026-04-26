@@ -1,21 +1,26 @@
 /**
  * roleToDocumentMap — Single source of truth that maps a role code held by
- * a user to the legal document that user must sign at first login.
+ * a user to the legal document that user must sign at role grant.
  *
- * Ownership matrix (final, authoritative):
+ * Ownership matrix (final, authoritative — Legal v3):
  *
- *   Role                     | MP invited by    | AGG invited by   | First-login doc
- *   -------------------------|------------------|------------------|----------------
- *   Seeker Admin (R2)        | self-register    | self-register    | SKPA
- *   Creator (R3/R4/R10_CR)   | Seeker Admin     | Seeker Admin     | SKPA
- *   Curator (R5_*)           | Platform Admin   | Seeker Admin     | PWA
- *   Expert Reviewer (R7_*)   | Platform Admin   | Seeker Admin     | PWA
- *   Legal Coordinator (R9)   | Seeker Admin     | Seeker Admin     | PWA
- *   Finance Coordinator (R8) | Seeker Admin     | Seeker Admin     | PWA
- *   Solution Provider (SP)   | self / VIP / inv | self / VIP / inv | SPA
+ *   Role                     | Granted by        | Role-grant doc | Notes
+ *   -------------------------|-------------------|----------------|--------------------
+ *   Seeker Admin (R2)        | self-register     | SKPA           | Signed at ORG REG.
+ *   Creator (R3/R4/R10_CR)   | PA or Seeker Admin| PWA (RA_CR)    | Role agreement.
+ *   Curator (R5_*)           | PA or Seeker Admin| PWA (RA_CU)    | Role agreement.
+ *   Expert Reviewer (R7_*)   | PA or Seeker Admin| PWA (RA_ER)    | Role agreement.
+ *   Legal Coordinator (R9)   | Seeker Admin      | PWA (RA_LC)    | Role agreement.
+ *   Finance Coordinator (R8) | Seeker Admin      | PWA (RA_FC)    | Role agreement.
+ *   Solution Provider (SP)   | self / VIP / inv  | SPA            | At SP signup.
  *
- * Mirror this table into `pending_role_legal_acceptance` backfill SQL
- * and into `RoleLegalGate` rendering.
+ * IMPORTANT — Creator (CR) was previously mapped to SKPA. This was wrong:
+ * SKPA is the org↔platform contract signed once by the Seeker Org Admin at
+ * organisation registration. Creator is a USER ROLE granted to a person —
+ * it requires its own role-enrollment signature from the PWA family.
+ *
+ * The single PWA template is interpolated per role via {{role_code}} and
+ * {{role_label}}, so one template body serves all 5 workforce roles.
  */
 
 export type LegalDocCode = 'SPA' | 'SKPA' | 'PWA' | 'CPA';
@@ -28,14 +33,14 @@ export interface RoleDocMapping {
 }
 
 const MAP: Record<string, RoleDocMapping> = {
-  // Seeker Admin
+  // Seeker Admin — signs SKPA at org registration (still PWA-family-distinct).
   R2: { docCode: 'SKPA', userRoleLabel: 'Seeking Organization Admin' },
 
-  // Creator
-  R3: { docCode: 'SKPA', userRoleLabel: 'Challenge Creator' },
-  R4: { docCode: 'SKPA', userRoleLabel: 'Challenge Creator' },
-  R10_CR: { docCode: 'SKPA', userRoleLabel: 'Challenge Creator' },
-  CR: { docCode: 'SKPA', userRoleLabel: 'Challenge Creator' },
+  // Creator — role agreement (PWA family). Previously incorrectly mapped to SKPA.
+  R3: { docCode: 'PWA', userRoleLabel: 'Challenge Creator' },
+  R4: { docCode: 'PWA', userRoleLabel: 'Challenge Creator' },
+  R10_CR: { docCode: 'PWA', userRoleLabel: 'Challenge Creator' },
+  CR: { docCode: 'PWA', userRoleLabel: 'Challenge Creator' },
 
   // Curator
   R5_MP: { docCode: 'PWA', userRoleLabel: 'Curator' },
