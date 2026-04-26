@@ -2250,6 +2250,7 @@ export type Database = {
           expected_outcomes: Json | null
           extended_brief: Json | null
           fc_compliance_complete: boolean
+          fc_review_required: boolean | null
           functional_area: string | null
           governance_mode_override: string | null
           governance_profile: string | null
@@ -2261,7 +2262,7 @@ export type Database = {
           is_deleted: boolean
           is_qa_closed: boolean
           lc_compliance_complete: boolean
-          lc_review_required: boolean
+          lc_review_required: boolean | null
           legal_review_content_hash: string | null
           management_fee: number | null
           master_status: string | null
@@ -2351,6 +2352,7 @@ export type Database = {
           expected_outcomes?: Json | null
           extended_brief?: Json | null
           fc_compliance_complete?: boolean
+          fc_review_required?: boolean | null
           functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
@@ -2362,7 +2364,7 @@ export type Database = {
           is_deleted?: boolean
           is_qa_closed?: boolean
           lc_compliance_complete?: boolean
-          lc_review_required?: boolean
+          lc_review_required?: boolean | null
           legal_review_content_hash?: string | null
           management_fee?: number | null
           master_status?: string | null
@@ -2452,6 +2454,7 @@ export type Database = {
           expected_outcomes?: Json | null
           extended_brief?: Json | null
           fc_compliance_complete?: boolean
+          fc_review_required?: boolean | null
           functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
@@ -2463,7 +2466,7 @@ export type Database = {
           is_deleted?: boolean
           is_qa_closed?: boolean
           lc_compliance_complete?: boolean
-          lc_review_required?: boolean
+          lc_review_required?: boolean | null
           legal_review_content_hash?: string | null
           management_fee?: number | null
           master_status?: string | null
