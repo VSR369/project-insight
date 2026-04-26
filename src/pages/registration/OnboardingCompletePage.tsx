@@ -146,5 +146,6 @@ export default function OnboardingCompletePage() {
         </div>
       </div>
     </div>
+    </SkpaRegistrationGate>
   );
 }
