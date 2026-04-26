@@ -57,10 +57,15 @@ export function useAcceptRoleLegal() {
       return { logId: log?.id as string | undefined };
     },
     onSuccess: (_d, variables) => {
+      // Pending backlog
       queryClient.invalidateQueries({ queryKey: ['pending-role-legal-acceptance', variables.userId] });
+      // Per-doc status flags consumed by guards/dialogs
       queryClient.invalidateQueries({ queryKey: ['spa-acceptance-status', variables.userId] });
       queryClient.invalidateQueries({ queryKey: ['skpa-acceptance-status', variables.userId] });
       queryClient.invalidateQueries({ queryKey: ['pwa-acceptance-status', variables.userId] });
+      // Server-assembled doc cache (RoleLegalGate body) and gate result
+      queryClient.invalidateQueries({ queryKey: ['assemble-role-doc', variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ['legal-gate'] });
     },
     onError: (e: Error) => {
       handleMutationError(e, { operation: 'accept_role_legal' });

@@ -36,8 +36,8 @@ function FreezeForLegalAction({
 import { CuratorComplianceTab } from "@/components/cogniblend/curation/CuratorComplianceTab";
 import { CuratorPackReviewPanel } from "@/components/cogniblend/curation/CuratorPackReviewPanel";
 import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
-import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
-import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
+// Legal v3: PWA is signed once at role grant via RoleLegalGate, not per-workspace.
+// The per-workspace PwaAcceptanceGate has been removed.
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
 import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
@@ -76,13 +76,9 @@ const PreFlightGateDialog = lazy(() =>
 
 export default function CurationReviewPage() {
   const o = useCurationPageOrchestrator();
-  const [pwaAccepted, setPwaAccepted] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => !hasSeenGuide(o.challengeId ?? ''));
 
   const opModel = (o.challenge as any)?.operating_model ?? 'IP';
-  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
-    opModel === 'MP' ? o.user?.id : undefined
-  );
 
 
   // Warn before navigating away during active wave execution
@@ -133,22 +129,8 @@ export default function CurationReviewPage() {
     return <div className="p-6 text-center text-muted-foreground">Challenge not found.</div>;
   }
 
-  // Phase 4: PWA gate is MP-only — non-MP challenges never wait on the query.
-  if (opModel === 'MP' && pwaLoading) {
-    return (
-      <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
-        <Skeleton className="h-7 w-64" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
-  if (opModel === 'MP' && !hasPwa && !pwaAccepted) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <PwaAcceptanceGate userId={o.user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
-      </div>
-    );
-  }
+  // Legal v3: PWA gate removed — workforce role agreement is signed once at
+  // role grant via RoleLegalGate, not on every workspace entry.
 
   const isReadOnly =
     (o.challenge.current_phase ?? 0) > 2 ||

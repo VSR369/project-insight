@@ -4,13 +4,12 @@
  *
  * Thin orchestrator. Source-doc upload → Pass 3 → Attached docs → Submit.
  */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Shield } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
-import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +18,8 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
+// Legal v3: PWA gate removed — LC role agreement is signed once at role
+// grant via RoleLegalGate, not on every workspace entry.
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { LcLegalSubmitFooter } from '@/components/cogniblend/lc/LcLegalSubmitFooter';
 import { LcFullChallengePreview } from '@/components/cogniblend/lc/LcFullChallengePreview';
@@ -46,10 +46,6 @@ export default function LcLegalWorkspacePage() {
   const { data: attachedDocs, isLoading: attachedLoading } = useAttachedLegalDocs(challengeId);
 
   const opModel = challenge?.operating_model ?? 'IP';
-  const { data: hasPwa, isLoading: pwaLoading } = usePwaStatus(
-    opModel === 'MP' ? user?.id : undefined,
-  );
-  const [pwaAccepted, setPwaAccepted] = useState(false);
 
   const actions = useLcLegalActions({ challengeId, userId: user?.id });
   const armRef = useRef<((prev: string, outcome: 'changed' | 'unchanged') => void) | null>(null);
@@ -87,13 +83,8 @@ export default function LcLegalWorkspacePage() {
     );
   }
 
-  if (opModel === 'MP' && !hasPwa && !pwaAccepted && !pwaLoading) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <PwaAcceptanceGate userId={user?.id ?? ''} onAccepted={() => setPwaAccepted(true)} />
-      </div>
-    );
-  }
+  // Legal v3: PWA gate removed — LC role agreement is signed once at role
+  // grant via RoleLegalGate, not on every workspace entry.
 
   if (!hasAccess) {
     return (
