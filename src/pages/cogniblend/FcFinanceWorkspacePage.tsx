@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Banknote, RefreshCcw, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
-import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
+// Legal v3: PWA gate removed — FC role agreement is signed once at role
+// grant via RoleLegalGate, not on every workspace entry.
 import { useChallengeForFC } from '@/hooks/cogniblend/useFcFinanceData';
 import { useEscrowFundingContext } from '@/hooks/cogniblend/useEscrowFundingContext';
 import { useFcFinanceSubmit } from '@/hooks/cogniblend/useFcFinanceSubmit';
@@ -14,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PwaAcceptanceGate } from '@/components/cogniblend/workforce/PwaAcceptanceGate';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { FcChallengeDetailView } from '@/components/cogniblend/fc/FcChallengeDetailView';
 import { FcFinanceStepIndicator } from '@/components/cogniblend/fc/FcFinanceStepIndicator';
