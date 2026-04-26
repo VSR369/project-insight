@@ -82,14 +82,14 @@ export interface LegalGateResult {
 }
 
 export const DOCUMENT_CODE_LABELS: Record<DocumentCode, string> = {
-  PMA: 'Platform Master Agreement',
-  CA: 'Challenge Agreement',
-  PSA: 'Participation & Submission Agreement',
-  IPAA: 'IP & Award Agreement',
-  EPIA: 'Escrow, Payment & Integrity Agreement',
+  PMA: 'Platform Master Agreement (archived)',
+  CA: 'Challenge Agreement (archived)',
+  PSA: 'Participation & Submission Agreement (archived)',
+  IPAA: 'IP & Award Agreement (archived)',
+  EPIA: 'Escrow, Payment & Integrity Agreement (archived)',
   SPA: 'Solution Provider Platform Agreement',
-  SKPA: 'Seeker Platform Agreement',
-  PWA: 'Prize & Work Agreement',
+  SKPA: 'Seeker Org Platform Agreement',
+  PWA: 'Role Agreement (Prize & Work)',
   CPA_QUICK: 'CPA Template (Quick)',
   CPA_STRUCTURED: 'CPA Template (Structured)',
   CPA_CONTROLLED: 'CPA Template (Controlled)',

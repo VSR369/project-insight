@@ -108,9 +108,15 @@ serve(async (req) => {
 
     // Insert pending_role_legal_acceptance for first-login signature.
     // Map role_code → doc_code (mirror of resolve_active_legal_template inputs).
+    // Mirror of public.trg_role_assignment_create_pending_legal mapping (Legal v3):
+    //   - R2 (Seeker Org Admin)         → SKPA (signed at org registration)
+    //   - R3/R4/R10_CR/CR (Creator)     → PWA  (workforce role agreement)
+    //   - R5/R7/R8/R9/CU/ER/FC/LC       → PWA  (workforce role agreement)
+    // Note: the DB trigger on role_assignments will also enqueue this row;
+    // this duplicate insert is idempotent via UPSERT and acts as a safety net.
     const ROLE_TO_DOC: Record<string, string> = {
       R2: "SKPA",
-      R3: "SKPA", R4: "SKPA", R10_CR: "SKPA", CR: "SKPA",
+      R3: "PWA", R4: "PWA", R10_CR: "PWA", CR: "PWA",
       R5_MP: "PWA", R5_AGG: "PWA", CU: "PWA",
       R7_MP: "PWA", R7_AGG: "PWA", ER: "PWA",
       R8: "PWA", FC: "PWA",

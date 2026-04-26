@@ -4,10 +4,9 @@
 
 export const LEDGER_DOC_CODE_OPTIONS = [
   { value: 'all', label: 'All documents' },
-  { value: 'PMA', label: 'PMA — Platform Master Agreement' },
   { value: 'SPA', label: 'SPA — Solution Provider Platform Agreement' },
-  { value: 'SKPA', label: 'SKPA — Seeking Org Platform Agreement' },
-  { value: 'PWA', label: 'PWA — Prize & Work Agreement' },
+  { value: 'SKPA', label: 'SKPA — Seeker Org Platform Agreement' },
+  { value: 'PWA', label: 'PWA — Role Agreement (Prize & Work)' },
   { value: 'CPA', label: 'CPA — Challenge Participation Agreement' },
 ] as const;
 
