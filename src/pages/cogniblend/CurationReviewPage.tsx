@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { useCallback, useEffect, lazy, Suspense } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
@@ -36,8 +36,8 @@ function FreezeForLegalAction({
 import { CuratorComplianceTab } from "@/components/cogniblend/curation/CuratorComplianceTab";
 import { CuratorPackReviewPanel } from "@/components/cogniblend/curation/CuratorPackReviewPanel";
 import { CuratorLegalReviewPanel } from "@/components/cogniblend/legal/CuratorLegalReviewPanel";
-import { usePwaStatus } from "@/hooks/cogniblend/usePwaStatus";
-import { PwaAcceptanceGate } from "@/components/cogniblend/workforce/PwaAcceptanceGate";
+// Legal v3: PWA is signed once at role grant via RoleLegalGate, not per-workspace.
+// The per-workspace PwaAcceptanceGate has been removed.
 import { CurationHeaderBar } from "@/components/cogniblend/curation/CurationHeaderBar";
 import { CurationSectionList } from "@/components/cogniblend/curation/CurationSectionList";
 import { CurationRightRail } from "@/components/cogniblend/curation/CurationRightRail";
