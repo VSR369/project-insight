@@ -1,4 +1,4 @@
-export type DocumentCode = 'PMA' | 'CA' | 'PSA' | 'IPAA' | 'EPIA' | 'SPA' | 'SKPA' | 'PWA' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED';
+export type DocumentCode = 'PMA' | 'CA' | 'PSA' | 'IPAA' | 'EPIA' | 'SPA' | 'SKPA' | 'PWA' | 'RA_R2' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED';
 export type VersionStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 export type AppliesModel = 'MARKETPLACE' | 'AGGREGATOR' | 'BOTH';
 export type AppliesMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED' | 'ALL';
@@ -90,6 +90,7 @@ export const DOCUMENT_CODE_LABELS: Record<DocumentCode, string> = {
   SPA: 'Solution Provider Platform Agreement',
   SKPA: 'Seeker Org Platform Agreement',
   PWA: 'Role Agreement (Prize & Work)',
+  RA_R2: 'Seeker Admin Role Agreement',
   CPA_QUICK: 'CPA Template (Quick)',
   CPA_STRUCTURED: 'CPA Template (Structured)',
   CPA_CONTROLLED: 'CPA Template (Controlled)',
