@@ -47,6 +47,8 @@ export default function LegalDocumentListPage() {
         </div>
       </div>
 
+      <LegalSystemHealthCard />
+
       <PlatformAgreementsSection
         templates={templates}
         onEdit={handleEdit}
