@@ -210,6 +210,14 @@ export function ChallengeLegalDocsCard({
               : 'Platform default legal templates applied automatically. View-only.'}
           </p>
         )}
+        {isQuickMode && !hasQuickOverride && quickProbe.isMissingPlatformTemplate && (
+          <Alert variant="destructive" className="mt-3">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Platform CPA template missing — contact Platform Admin.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
       </Card>
       {viewingDoc && (
