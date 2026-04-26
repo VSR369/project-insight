@@ -27,11 +27,10 @@ interface QuickLegalDocItem {
   template_id: string;
 }
 
+// Legal v3: QUICK challenges use a single auto-applied Challenge Participation
+// Agreement (CPA_QUICK). Archived codes (PMA/CA/PSA/IPAA) are no longer shown.
 const QUICK_LEGAL_DOCS: QuickLegalDocTemplate[] = [
-  { code: 'PMA', label: 'Platform Membership Agreement' },
-  { code: 'CA', label: 'Confidentiality Agreement' },
-  { code: 'PSA', label: 'Professional Services Agreement' },
-  { code: 'IPAA', label: 'IP Assignment Agreement' },
+  { code: 'CPA_QUICK', label: 'Challenge Participation Agreement (Quick)' },
 ];
 
 const QUICK_LEGAL_DOC_ORDER = QUICK_LEGAL_DOCS.map((doc) => doc.code);
@@ -106,7 +105,8 @@ export function QuickLegalDocsSummary({ engagementModel }: QuickLegalDocsSummary
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Standard platform agreements will be auto-applied on submission. These remain read-only in Quick mode.
+          The standard Challenge Participation Agreement will be auto-applied for this QUICK-mode challenge.
+          Solution Providers accept it once at enrollment. Read-only here.
         </p>
 
         <div className="flex items-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-xs text-muted-foreground">

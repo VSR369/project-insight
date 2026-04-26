@@ -53,7 +53,7 @@ export function LegalDocConfigSidebar({ config, onChange, templateId, isNew }: L
         <Label>Document Code</Label>
         {isNew ? (
           <Select
-            value={config.document_code ?? 'PMA'}
+            value={config.document_code ?? 'SPA'}
             onValueChange={(v) => onChange({ document_code: v as DocumentCode })}
           >
             <SelectTrigger><SelectValue /></SelectTrigger>
