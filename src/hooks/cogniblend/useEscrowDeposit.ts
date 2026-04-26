@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import { handleMutationError, handleQueryError } from '@/lib/errorHandler';
 import { getRewardTotal } from '@/services/cogniblend/escrowInstallments/escrowInstallmentNormalizationService';
-import { resolveGovernanceMode } from '@/lib/governanceMode';
+import { resolveGovernanceFlags } from '@/services/legal/governanceFlagsService';
 
 export interface EscrowRecord {
   id: string;
@@ -54,7 +54,7 @@ export function useEscrowDeposit(challengeId: string | undefined, userId: string
           .maybeSingle(),
         supabase
           .from('challenges')
-          .select('reward_structure, governance_profile, governance_mode_override')
+          .select('reward_structure, governance_profile, governance_mode_override, fc_review_required, lc_review_required')
           .eq('id', challengeId)
           .single(),
         userId
@@ -83,14 +83,20 @@ export function useEscrowDeposit(challengeId: string | undefined, userId: string
         throw installmentResult.error;
       }
 
-      const challenge = challengeResult.data as { reward_structure: unknown; governance_profile: string | null; governance_mode_override: string | null };
-      const governanceMode = resolveGovernanceMode(challenge.governance_mode_override ?? challenge.governance_profile);
+      const challenge = challengeResult.data as {
+        reward_structure: unknown;
+        governance_profile: string | null;
+        governance_mode_override: string | null;
+        fc_review_required: boolean | null;
+        lc_review_required: boolean | null;
+      };
+      const { fcRequired } = resolveGovernanceFlags(challenge);
       const rewardTotal = getRewardTotal(challenge.reward_structure);
 
       return {
         escrow: escrowResult.data as EscrowRecord | null,
         rewardTotal,
-        canVerify: governanceMode === 'CONTROLLED' && roleResult.data === true,
+        canVerify: fcRequired && roleResult.data === true,
         installmentCount: installmentResult.count ?? 0,
       };
     },
