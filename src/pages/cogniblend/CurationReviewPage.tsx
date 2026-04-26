@@ -5,7 +5,7 @@
  * all UI sections in CurationHeaderBar, CurationSectionList, CurationRightRail.
  */
 
-import { useCallback, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { useCurationPageOrchestrator } from "@/hooks/cogniblend/useCurationPageOrchestrator";
 import { useFreezeForLegalReview, useAssembleCpa } from "@/hooks/cogniblend/useFreezeActions";
 import { LegalReviewPanel } from "@/components/cogniblend/curation/LegalReviewPanel";
