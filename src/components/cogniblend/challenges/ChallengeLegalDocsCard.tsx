@@ -10,10 +10,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FileText, ShieldCheck, Clock, Eye } from 'lucide-react';
+import { FileText, ShieldCheck, Clock, Eye, AlertTriangle } from 'lucide-react';
 import { handleQueryError } from '@/lib/errorHandler';
 import { useLegalTemplatePreview } from '@/hooks/queries/useLegalTemplatePreview';
+import { useResolveQuickCpa } from '@/hooks/queries/useResolveQuickCpa';
 import { LegalDocumentViewer } from '@/components/legal/LegalDocumentViewer';
 import {
   interpolateCpaTemplate,
