@@ -74,6 +74,14 @@ export function ChallengeLegalDocsCard({
     challengeId, currentPhase, hasActualDocs, engagementModel, organizationId,
   );
 
+  // QUICK-mode: probe the resolver so we can (a) badge the source and
+  // (b) catch MissingPlatformCpaTemplateError with a friendly UI alert.
+  const quickProbe = useResolveQuickCpa({
+    organizationId,
+    engagementModel,
+    enabled: isQuickMode && !hasQuickOverride,
+  });
+
   // Phase 2 preview: show planned templates
   if (!hasActualDocs && templatePreviews && templatePreviews.length > 0) {
     return (
