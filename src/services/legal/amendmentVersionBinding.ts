@@ -115,12 +115,10 @@ export async function bindAmendmentToNewTemplateVersions(
       );
       newVersion = resolved?.version ?? null;
     } catch (err) {
-      logWarning(`Failed to resolve active template for ${docTypeUpper}; preserving current version`, {
-        operation: 'amendment_version_binding',
-        component: 'amendmentVersionBinding',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        details: { err: (err as Error).message } as any,
-      });
+      logWarning(
+        `Failed to resolve active template for ${docTypeUpper}; preserving current version: ${(err as Error).message}`,
+        { operation: 'amendment_version_binding', component: 'amendmentVersionBinding' },
+      );
       continue;
     }
 
