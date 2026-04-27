@@ -16617,6 +16617,7 @@ export type Database = {
       }
     }
     Functions: {
+      amendment_scope_normalize: { Args: { p_scope: string }; Returns: string }
       assemble_cpa: {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
