@@ -104,11 +104,23 @@ UI surfaces:
 QUICK         draft ──(creator publishes)──► ACTIVE
 STRUCTURED    draft ──(creator publishes)──► DRAFT ──(curator approves)──► ACTIVE
                                                   └──(curator rejects)──► draft
-CONTROLLED    draft ──(creator publishes)──► DRAFT ──(curator approves)──► IN_REVIEW
-              IN_REVIEW ──(LC + FC approve)──► ACTIVE
-              IN_REVIEW ──(LC rejects)──────► DRAFT
-              IN_REVIEW ──(FC rejects)──────► DRAFT
+CONTROLLED    draft ──(creator publishes)──► DRAFT ──(curator approves)──► ACTIVE *
+                                                  └──(curator rejects)──► draft
+              * lc_review_required + fc_review_required flags remain TRUE
+                until cleared by complete_legal_review (LC) and the FC
+                equivalent. Downstream actions (Phase 7+ progression,
+                solver enrollment opens, escrow funding) are gated on
+                these flags, NOT on master_status.
 ```
+
+> **Implementation note (gating mechanism).** CONTROLLED challenges use
+> **flag-based** gating (`challenges.lc_review_required`,
+> `challenges.fc_review_required`), not a separate `IN_REVIEW` master
+> status. Curator approval transitions `phase_status='ACTIVE'` immediately
+> while leaving the LC/FC gates raised. This matches what every
+> dashboard query, queue filter, and sidebar visibility rule already
+> consumes. A potential future enhancement to add a true `IN_REVIEW`
+> state-based gate is captured as a deferred item (see §11).
 
 ### Amendment scope → signatory matrix
 
@@ -116,22 +128,23 @@ CONTROLLED    draft ──(creator publishes)──► DRAFT ──(curator appr
 > CONTROLLED governance**. In STRUCTURED, the Curator's re-approval
 > substitutes for both. In QUICK, no curator/LC/FC re-sign occurs.
 > Solution Provider re-accept applies across **all** governance modes
-> whenever the CPA version changes.
+> whenever the amendment is material (LEGAL, SCOPE_CHANGE, FINANCIAL,
+> ESCROW, GOVERNANCE_CHANGE).
 
-**Why LC re-signs on FINANCIAL changes and FC on LEGAL changes (CONTROLLED only):** they signed the assembled CPA as a whole. `legal_acceptance_log` and `legal_acceptance_ledger` are version-bound. Any clause change increments CPA version; every prior signatory of that version has a stale approval. Re-acknowledgment is required for audit-trail integrity, not optional.
+**Why LC re-signs on FINANCIAL/ESCROW changes and FC re-signs on LEGAL changes (CONTROLLED only):** both signed the assembled CPA as a whole. `legal_acceptance_log` and `legal_acceptance_ledger` are version-bound. Any clause change increments CPA version; every prior signatory of that version has a stale approval. Re-acknowledgment is required for audit-trail integrity, not optional.
 
-| Canonical scope (`amendment_scope_normalize`) | LC re-sign (CONTROLLED only) | FC re-sign (CONTROLLED only) | CR re-accept | SP re-accept (all modes) |
-|-----------------------------------------------|-------------------------------|-------------------------------|--------------|---------------------------|
-| `LEGAL`                                       | yes                           | **yes**                       | yes          | yes                       |
-| `FINANCIAL`                                   | **yes**                       | yes                           | yes          | yes (material)            |
-| `ESCROW`                                      | **yes**                       | yes                           | yes          | yes (material)            |
-| `EDITORIAL`                                   | no                            | no                            | no           | no                        |
-| `SCOPE_CHANGE`                                | yes                           | yes                           | yes          | yes                       |
-| `GOVERNANCE_CHANGE` (escalation only)         | yes (newly enqueued, initial) | yes (newly enqueued, initial) | yes          | yes                       |
-| `OTHER`                                       | conservative: no              | conservative: no              | yes          | conservative: no          |
+| Canonical scope (`amendment_scope_normalize`) | LC re-sign (CONTROLLED only) | FC re-sign (CONTROLLED only) | CR re-accept | SP re-accept (all modes, when material) |
+|-----------------------------------------------|-------------------------------|-------------------------------|--------------|------------------------------------------|
+| `LEGAL`                                       | yes                           | yes                           | yes          | yes                                      |
+| `FINANCIAL`                                   | yes                           | yes                           | yes          | yes (material)                           |
+| `ESCROW`                                      | yes                           | yes                           | yes          | yes (material)                           |
+| `EDITORIAL`                                   | no                            | no                            | no           | no                                       |
+| `SCOPE_CHANGE`                                | no (unless paired)            | no (unless paired)            | yes          | yes                                      |
+| `GOVERNANCE_CHANGE` (escalation only)         | yes (newly enqueued, initial) | yes (newly enqueued, initial) | yes          | yes                                      |
+| `OTHER`                                       | conservative: no              | conservative: no              | yes          | conservative: no                         |
 
 Source of truth for the matrix: `src/services/legal/amendmentScopeService.ts`
-(`resolveSignatoryMatrix`, `shouldRequireSolverReacceptance`, `isMaterialAmendment`). Signatory mapping is asserted by 17 unit tests in `__tests__/amendmentScopeService.test.ts`.
+(`resolveSignatoryMatrix`, `shouldRequireSolverReacceptance`, `isMaterialAmendment`). Signatory mapping is asserted by unit tests in `__tests__/amendmentScopeService.test.ts` and the cross-mode regression matrix in `__tests__/amendmentMatrix.test.ts`.
 
 ### GOVERNANCE_CHANGE post-publish — restricted
 
