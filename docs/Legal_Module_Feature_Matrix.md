@@ -42,6 +42,8 @@ Both tables are **append-only** (security/architecture/append-only-audit-governa
 
 QUICK Creator override: `CreatorLegalPreview.tsx` allows the Creator to substitute the platform `RA_R2` with org-specific text **for QUICK challenges only**. STRUCTURED/CONTROLLED always use the platform RA_R2.
 
+> **Note — R2 dual-signing asymmetry (intentional).** R2 is the **only** role that signs both an org-binding document (`SKPA`) and a personal role agreement (`RA_R2`). This is intentional: R2 is simultaneously the legal signatory for the seeking organization (org-binding) and a role-actor on the platform in their own right (role-grant). Other workforce roles (CR, CU, ER, FC, LC) inherit `SKPA` coverage transitively via R2's signature and only sign their PWA-family role agreement. SP signs only `SPA` because Solvers may be unaffiliated with any seeker organization. The dual-doc behavior is enforced deterministically by `deriveRequiredSignatures` via the priority array `['SPA','SKPA','RA_R2','PWA']` (see `src/services/legal/roleToDocumentMap.ts`).
+
 ---
 
 ## §3 — Governance × gate matrix (flag-driven)
