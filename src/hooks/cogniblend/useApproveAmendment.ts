@@ -141,15 +141,16 @@ export function useApproveAmendment() {
         const withdrawalNote = isMaterial
           ? ' You have 7 days to withdraw without penalty.'
           : '';
-        const legalNote = scopeAreas.includes('Legal Terms')
-          ? ' Legal terms have been updated — re-acceptance required.'
+        const legalNote = requiresSolverReaccept
+          ? ' Re-acceptance required to keep your enrollment active.'
           : '';
+        const scopeLabel = canonicalScopes.length > 0 ? canonicalScopes.join(', ') : 'minor updates';
 
         const rows = solverIds.map((uid) => ({
           user_id: uid,
           notification_type: 'AMENDMENT_PUBLISHED',
           title: 'Challenge Updated',
-          message: `"${challengeTitle}" has been updated (v${nextVersion}.0). Changes: ${scopeAreas.join(', ')}.${withdrawalNote}${legalNote}`,
+          message: `"${challengeTitle}" has been updated (v${nextVersion}.0). Changes: ${scopeLabel}.${withdrawalNote}${legalNote}`,
           challenge_id: challengeId,
           is_read: false,
         }));
@@ -159,8 +160,8 @@ export function useApproveAmendment() {
         }
       }
 
-      // 7. Create legal re-acceptance records when scope includes Legal Terms
-      if (scopeAreas.includes('Legal Terms') && solverIds.length > 0) {
+      // 7. Create solver re-acceptance records when LEGAL or SCOPE_CHANGE in scope
+      if (requiresSolverReaccept && solverIds.length > 0) {
         const reacceptDeadline = new Date(
           Date.now() + REACCEPTANCE_WINDOW_DAYS * 24 * 60 * 60 * 1000
         ).toISOString();
@@ -181,13 +182,39 @@ export function useApproveAmendment() {
         }
 
         logInfo(
-          `Created ${solverIds.length} legal re-acceptance records with ${REACCEPTANCE_WINDOW_DAYS}-day deadline`,
+          `Created ${solverIds.length} solver re-acceptance records with ${REACCEPTANCE_WINDOW_DAYS}-day deadline`,
           { operation: 'approve_amendment', component: 'useApproveAmendment' },
         );
       }
 
+      // 8. Fan out routed notifications to LC / FC / CU per scope matrix
+      const routedEvents = resolveAmendmentRoutingEvents(canonicalScopes);
+      const challengeMessage = `"${challengeTitle}" amendment v${nextVersion}.0 approved. Scopes: ${
+        canonicalScopes.join(', ') || 'none'
+      }.`;
+      await Promise.all(
+        routedEvents.map((eventType) =>
+          sendRoutedNotification({
+            challengeId,
+            phase: 99,
+            eventType,
+            title: 'Amendment Approved',
+            message: challengeMessage,
+          }),
+        ),
+      );
+      if (requiresSolverReaccept && solverIds.length > 0) {
+        await sendRoutedNotification({
+          challengeId,
+          phase: 99,
+          eventType: 'AMENDMENT_REACCEPT_REQUIRED',
+          title: 'Solver Re-acceptance Required',
+          message: `${solverIds.length} solver(s) must re-accept the amended package for "${challengeTitle}".`,
+        });
+      }
+
       logInfo(
-        `Amendment #${amendment.amendment_number} approved. Version ${nextVersion}. Material: ${isMaterial}`,
+        `Amendment #${amendment.amendment_number} approved. Version ${nextVersion}. Material: ${isMaterial}. Scopes: ${canonicalScopes.join(',')}. Routed events: ${routedEvents.join(',')}.`,
         { operation: 'approve_amendment', component: 'useApproveAmendment' },
       );
     },
