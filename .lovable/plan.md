@@ -38,7 +38,7 @@ I verified Claude's claims against the actual codebase. Three of the "real gaps"
 
 ---
 
-## Prompt 1 — RA_R2 + uniform array + correct table targeting
+## Prompt 1 — RA_R2 + uniform array + correct table targeting ✅ SHIPPED 2026-04-26 (test backfilled 2026-04-27)
 
 ### Migration
 - Insert `RA_R2` template into `legal_doc_templates` (version 1, `version_status='DRAFT'`).
