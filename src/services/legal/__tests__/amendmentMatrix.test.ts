@@ -56,7 +56,7 @@ interface MatrixCase {
 const MATRIX: MatrixCase[] = [
   {
     scope: 'LEGAL',
-    expectedControlled: ['LC', 'CR', 'SP'],
+    expectedControlled: ['LC', 'FC', 'CR', 'SP'],
     expectedStructured: ['CR', 'SP'],
     expectedQuick: ['SP'],
     spReaccept: true,
@@ -64,19 +64,19 @@ const MATRIX: MatrixCase[] = [
   },
   {
     scope: 'FINANCIAL',
-    expectedControlled: ['FC', 'CR'],
-    expectedStructured: ['CR'],
-    expectedQuick: [],
-    spReaccept: false,
+    expectedControlled: ['LC', 'FC', 'CR', 'SP'],
+    expectedStructured: ['CR', 'SP'],
+    expectedQuick: ['SP'],
+    spReaccept: true,
     material: true,
   },
   {
     scope: 'ESCROW',
-    expectedControlled: ['FC', 'CR'],
-    expectedStructured: ['CR'],
-    expectedQuick: [],
-    spReaccept: false,
-    material: false, // ESCROW alone is not in the materiality set per service
+    expectedControlled: ['LC', 'FC', 'CR', 'SP'],
+    expectedStructured: ['CR', 'SP'],
+    expectedQuick: ['SP'],
+    spReaccept: true,
+    material: true, // ESCROW clauses are part of the version-bound CPA
   },
   {
     scope: 'EDITORIAL',
@@ -96,11 +96,11 @@ const MATRIX: MatrixCase[] = [
   },
   {
     scope: 'GOVERNANCE_CHANGE',
-    expectedControlled: ['LC', 'FC', 'CR'],
-    expectedStructured: ['CR'],
+    expectedControlled: ['LC', 'FC', 'CR', 'SP'],
+    expectedStructured: ['CR', 'SP'],
     // QUICK is not a valid post-publish target; included for completeness.
-    expectedQuick: [],
-    spReaccept: false,
+    expectedQuick: ['SP'],
+    spReaccept: true,
     material: true,
   },
   {

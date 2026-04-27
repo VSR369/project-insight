@@ -102,22 +102,33 @@ export function normalizeScopes(rawScopes: readonly string[]): CanonicalScope[] 
  * the amended package. Pure mapping — the actual user-id resolution and
  * record creation happens in hooks.
  *
- * Matrix rationale:
- *   LEGAL              → LC re-signs SPA, CR re-accepts, SP re-accepts
- *   FINANCIAL          → FC re-signs, CR re-accepts (no SP impact unless reward)
- *   ESCROW             → FC re-signs, CR re-accepts
- *   EDITORIAL          → No signatory impact (informational only)
- *   SCOPE_CHANGE       → CR re-accepts, SP re-accepts (changes deliverables)
- *   GOVERNANCE_CHANGE  → LC + FC + CR re-sign (mode escalation forces full pack)
- *   OTHER              → Conservative: CR re-accepts
+ * SOURCE OF TRUTH: §5 of docs/Legal_Module_Feature_Matrix.md (amendment matrix).
+ *
+ * Matrix rationale (CONTROLLED-flavored — governance-mode mask is applied
+ * downstream in amendmentMatrix to derive STRUCTURED/QUICK behavior):
+ *   LEGAL              → LC + FC re-sign (both signed the assembled CPA;
+ *                        any clause change increments CPA version and
+ *                        invalidates every prior signatory). CR re-accepts.
+ *                        SP re-accepts (legal terms always solver-facing).
+ *   FINANCIAL          → LC + FC re-sign (FC owns the change; LC re-signs
+ *                        because the CPA version they signed is stale).
+ *                        CR re-accepts. SP re-accepts (material change).
+ *   ESCROW             → Same as FINANCIAL (escrow terms are version-bound
+ *                        clauses of the same assembled CPA).
+ *   EDITORIAL          → No signatory impact (informational only).
+ *   SCOPE_CHANGE       → CR + SP re-accept (changes deliverables; FC/LC
+ *                        unaffected unless paired with another scope).
+ *   GOVERNANCE_CHANGE  → LC + FC + CR re-sign (mode escalation forces full
+ *                        pack). SP re-accepts (assurance regime changed).
+ *   OTHER              → Conservative: CR re-accepts only.
  */
 const SIGNATORY_MATRIX: Record<CanonicalScope, readonly SignatoryRole[]> = {
-  LEGAL: ['LC', 'CR', 'SP'],
-  FINANCIAL: ['FC', 'CR'],
-  ESCROW: ['FC', 'CR'],
+  LEGAL: ['LC', 'FC', 'CR', 'SP'],
+  FINANCIAL: ['LC', 'FC', 'CR', 'SP'],
+  ESCROW: ['LC', 'FC', 'CR', 'SP'],
   EDITORIAL: [],
   SCOPE_CHANGE: ['CR', 'SP'],
-  GOVERNANCE_CHANGE: ['LC', 'FC', 'CR'],
+  GOVERNANCE_CHANGE: ['LC', 'FC', 'CR', 'SP'],
   OTHER: ['CR'],
 };
 
@@ -154,21 +165,36 @@ export function resolveAmendmentRoutingEvents(
 
 /**
  * Whether enrolled solvers must re-accept the package as a result of
- * this amendment. True iff LEGAL or SCOPE_CHANGE is in scope.
+ * this amendment. True for every material scope: LEGAL, SCOPE_CHANGE,
+ * FINANCIAL, ESCROW, GOVERNANCE_CHANGE. EDITORIAL and OTHER alone do
+ * not trigger SP re-accept.
+ *
+ * Aligned with §5 of docs/Legal_Module_Feature_Matrix.md (SP re-accept
+ * column "all modes"). Aligned with isMaterialAmendment + ESCROW.
  */
 export function shouldRequireSolverReacceptance(
   scopes: readonly CanonicalScope[],
 ): boolean {
-  return scopes.includes('LEGAL') || scopes.includes('SCOPE_CHANGE');
+  return (
+    scopes.includes('LEGAL') ||
+    scopes.includes('SCOPE_CHANGE') ||
+    scopes.includes('FINANCIAL') ||
+    scopes.includes('ESCROW') ||
+    scopes.includes('GOVERNANCE_CHANGE')
+  );
 }
 
 /**
  * Whether this amendment is "material" enough to open the 7-day
  * solver withdrawal window. Material = LEGAL, SCOPE_CHANGE, FINANCIAL,
- * or GOVERNANCE_CHANGE. EDITORIAL alone is non-material.
+ * ESCROW, or GOVERNANCE_CHANGE. EDITORIAL and OTHER alone are non-material.
  */
 export function isMaterialAmendment(scopes: readonly CanonicalScope[]): boolean {
   return scopes.some((s) =>
-    s === 'LEGAL' || s === 'SCOPE_CHANGE' || s === 'FINANCIAL' || s === 'GOVERNANCE_CHANGE',
+    s === 'LEGAL' ||
+    s === 'SCOPE_CHANGE' ||
+    s === 'FINANCIAL' ||
+    s === 'ESCROW' ||
+    s === 'GOVERNANCE_CHANGE',
   );
 }

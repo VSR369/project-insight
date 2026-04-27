@@ -104,11 +104,23 @@ UI surfaces:
 QUICK         draft ──(creator publishes)──► ACTIVE
 STRUCTURED    draft ──(creator publishes)──► DRAFT ──(curator approves)──► ACTIVE
                                                   └──(curator rejects)──► draft
-CONTROLLED    draft ──(creator publishes)──► DRAFT ──(curator approves)──► IN_REVIEW
-              IN_REVIEW ──(LC + FC approve)──► ACTIVE
-              IN_REVIEW ──(LC rejects)──────► DRAFT
-              IN_REVIEW ──(FC rejects)──────► DRAFT
+CONTROLLED    draft ──(creator publishes)──► DRAFT ──(curator approves)──► ACTIVE *
+                                                  └──(curator rejects)──► draft
+              * lc_review_required + fc_review_required flags remain TRUE
+                until cleared by complete_legal_review (LC) and the FC
+                equivalent. Downstream actions (Phase 7+ progression,
+                solver enrollment opens, escrow funding) are gated on
+                these flags, NOT on master_status.
 ```
+
+> **Implementation note (gating mechanism).** CONTROLLED challenges use
+> **flag-based** gating (`challenges.lc_review_required`,
+> `challenges.fc_review_required`), not a separate `IN_REVIEW` master
+> status. Curator approval transitions `phase_status='ACTIVE'` immediately
+> while leaving the LC/FC gates raised. This matches what every
+> dashboard query, queue filter, and sidebar visibility rule already
+> consumes. A potential future enhancement to add a true `IN_REVIEW`
+> state-based gate is captured as a deferred item (see §11).
 
 ### Amendment scope → signatory matrix
 
@@ -116,22 +128,23 @@ CONTROLLED    draft ──(creator publishes)──► DRAFT ──(curator appr
 > CONTROLLED governance**. In STRUCTURED, the Curator's re-approval
 > substitutes for both. In QUICK, no curator/LC/FC re-sign occurs.
 > Solution Provider re-accept applies across **all** governance modes
-> whenever the CPA version changes.
+> whenever the amendment is material (LEGAL, SCOPE_CHANGE, FINANCIAL,
+> ESCROW, GOVERNANCE_CHANGE).
 
-**Why LC re-signs on FINANCIAL changes and FC on LEGAL changes (CONTROLLED only):** they signed the assembled CPA as a whole. `legal_acceptance_log` and `legal_acceptance_ledger` are version-bound. Any clause change increments CPA version; every prior signatory of that version has a stale approval. Re-acknowledgment is required for audit-trail integrity, not optional.
+**Why LC re-signs on FINANCIAL/ESCROW changes and FC re-signs on LEGAL changes (CONTROLLED only):** both signed the assembled CPA as a whole. `legal_acceptance_log` and `legal_acceptance_ledger` are version-bound. Any clause change increments CPA version; every prior signatory of that version has a stale approval. Re-acknowledgment is required for audit-trail integrity, not optional.
 
-| Canonical scope (`amendment_scope_normalize`) | LC re-sign (CONTROLLED only) | FC re-sign (CONTROLLED only) | CR re-accept | SP re-accept (all modes) |
-|-----------------------------------------------|-------------------------------|-------------------------------|--------------|---------------------------|
-| `LEGAL`                                       | yes                           | **yes**                       | yes          | yes                       |
-| `FINANCIAL`                                   | **yes**                       | yes                           | yes          | yes (material)            |
-| `ESCROW`                                      | **yes**                       | yes                           | yes          | yes (material)            |
-| `EDITORIAL`                                   | no                            | no                            | no           | no                        |
-| `SCOPE_CHANGE`                                | yes                           | yes                           | yes          | yes                       |
-| `GOVERNANCE_CHANGE` (escalation only)         | yes (newly enqueued, initial) | yes (newly enqueued, initial) | yes          | yes                       |
-| `OTHER`                                       | conservative: no              | conservative: no              | yes          | conservative: no          |
+| Canonical scope (`amendment_scope_normalize`) | LC re-sign (CONTROLLED only) | FC re-sign (CONTROLLED only) | CR re-accept | SP re-accept (all modes, when material) |
+|-----------------------------------------------|-------------------------------|-------------------------------|--------------|------------------------------------------|
+| `LEGAL`                                       | yes                           | yes                           | yes          | yes                                      |
+| `FINANCIAL`                                   | yes                           | yes                           | yes          | yes (material)                           |
+| `ESCROW`                                      | yes                           | yes                           | yes          | yes (material)                           |
+| `EDITORIAL`                                   | no                            | no                            | no           | no                                       |
+| `SCOPE_CHANGE`                                | no (unless paired)            | no (unless paired)            | yes          | yes                                      |
+| `GOVERNANCE_CHANGE` (escalation only)         | yes (newly enqueued, initial) | yes (newly enqueued, initial) | yes          | yes                                      |
+| `OTHER`                                       | conservative: no              | conservative: no              | yes          | conservative: no                         |
 
 Source of truth for the matrix: `src/services/legal/amendmentScopeService.ts`
-(`resolveSignatoryMatrix`, `shouldRequireSolverReacceptance`, `isMaterialAmendment`). Signatory mapping is asserted by 17 unit tests in `__tests__/amendmentScopeService.test.ts`.
+(`resolveSignatoryMatrix`, `shouldRequireSolverReacceptance`, `isMaterialAmendment`). Signatory mapping is asserted by unit tests in `__tests__/amendmentScopeService.test.ts` and the cross-mode regression matrix in `__tests__/amendmentMatrix.test.ts`.
 
 ### GOVERNANCE_CHANGE post-publish — restricted
 
@@ -238,6 +251,7 @@ These behaviors are **frozen** by Phase 9 v4 and verified by the regression cont
 | 4      | State machine + amendment matrix + serialization + audit     | ✅ Shipped 2026-04-27 |
 | 5      | Spec rewrite (this document)                                 | ✅ Shipped 2026-04-27 |
 | 4.1    | Amendment version binding (LC/FC/CR ledger + template bump)  | ✅ Shipped 2026-04-27 |
+| 4b     | Signatory matrix correction + SP re-accept gate alignment    | ✅ Shipped 2026-04-27 |
 
 **Phase 9 v4 — closed.**
 
@@ -245,15 +259,35 @@ These behaviors are **frozen** by Phase 9 v4 and verified by the regression cont
 
 | ID    | Finding                                                                                          | Disposition                     |
 |-------|--------------------------------------------------------------------------------------------------|---------------------------------|
-| A1    | `complete_phase` has no `IN_REVIEW` state. CONTROLLED Phase 3→4 sets `phase_status='PUBLISHED'` regardless of `lc_review_required` / `fc_review_required`. State-machine diagram in §5 documents the **intended** behavior; runtime currently transitions straight to ACTIVE. | **Deferred** — high-blast-radius RPC change requires its own migration cycle. Track in next phase. |
+| A1    | State-based `IN_REVIEW` gating for CONTROLLED challenges (vs. current flag-based `lc_review_required` / `fc_review_required`). See §11. | **Deferred** — high-blast-radius RPC change. Spec now documents flag-based mechanism honestly. |
 | A2    | Template body text for `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED` not authored.   | **Out of engineering scope** — Platform Admin operational task. |
 
 Test coverage:
-- `governanceFlagsService.test.ts` — 9 tests (default derivation + override survival).
-- `quickCpaResolver.test.ts` — 6 tests (fallback + RPC errors).
-- `amendmentScopeService.test.ts` — 17 tests (normalization + signatory matrix + routed events + reaccept gate + materiality).
-- `amendmentMatrix.test.ts` — 37 tests (cross-mode governance × scope regression matrix).
-- `roleToDocumentMap.test.ts` — 28 tests (R2 dual-mapping + signature priority + dedupe).
-- `amendmentVersionBinding.test.ts` — 5 tests (template bump + ledger fan-out + scope routing).
+- `governanceFlagsService.test.ts` — 9 tests.
+- `quickCpaResolver.test.ts` — 6 tests.
+- `amendmentScopeService.test.ts` — 20 tests (matrix corrected per v4b: LEGAL/FINANCIAL/ESCROW/GOVERNANCE_CHANGE all include LC+FC+CR+SP; SP re-accept covers all material scopes).
+- `amendmentMatrix.test.ts` — 37 tests (cross-mode regression matrix updated per v4b).
+- `roleToDocumentMap.test.ts` — 28 tests.
+- `amendmentVersionBinding.test.ts` — 6 tests (added GOVERNANCE_CHANGE coverage in v4b).
 
-**Total: 102 passing tests across 6 suites.**
+**Total: 106 passing tests across 6 suites.**
+
+---
+
+## §11 — Deferred: state-based `IN_REVIEW` gating (Decision A1)
+
+**Current mechanism (flag-based, shipped):** Curator approval of a CONTROLLED challenge transitions `phase_status='ACTIVE'` immediately. The challenge row carries `lc_review_required=TRUE` and `fc_review_required=TRUE` flags. Downstream actions — Phase 7+ progression, solver enrollment opening, escrow funding initiation, amendment fan-out routing — are all gated on these flags being cleared by `complete_legal_review` (LC) and the FC equivalent.
+
+**Why we did not implement state-based `IN_REVIEW`:** adding `IN_REVIEW` to the `master_status` allowed set would require coordinated changes to:
+
+- `update_master_status` (add the new state).
+- `complete_phase` (emit `IN_REVIEW` for CONTROLLED in lieu of `ACTIVE`).
+- `complete_legal_review` (transition `IN_REVIEW → ACTIVE` once both gates are cleared).
+- Every dashboard query filtering on `master_status` (cogni dashboards, queue badges, status pills).
+- Sidebar visibility logic (`nonQuickRoleCodes`).
+- RLS policies that branch on `master_status`.
+- Amendment governance escalation guard (must accept `IN_REVIEW` as valid pre-publish state).
+
+**When to revisit:** if audit reviewers or compliance require a single source of truth on the challenge row for "this challenge is mid-LC/FC review" (rather than inferring it from two boolean flags), or if dashboards begin to leak CONTROLLED challenges into "ACTIVE" lists during the LC/FC review window, lift this from deferred to active.
+
+**Reference:** the original Phase 9 v4 spec (and Claude's audit) described `IN_REVIEW` as the intended state. The flag-based mechanism is functionally equivalent for every consumer that already exists; the deferred work is purely a model-fidelity refactor.
