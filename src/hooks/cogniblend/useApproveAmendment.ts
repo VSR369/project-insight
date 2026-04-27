@@ -13,6 +13,7 @@ import {
   shouldRequireSolverReacceptance,
   isMaterialAmendment,
 } from '@/services/legal/amendmentScopeService';
+import { bindAmendmentToNewTemplateVersions } from '@/services/legal/amendmentVersionBinding';
 import { sendRoutedNotification } from '@/services/notificationRoutingService';
 
 /* ─── Types ──────────────────────────────────────────────── */
