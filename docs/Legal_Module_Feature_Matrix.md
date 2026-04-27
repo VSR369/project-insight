@@ -265,12 +265,12 @@ These behaviors are **frozen** by Phase 9 v4 and verified by the regression cont
 Test coverage:
 - `governanceFlagsService.test.ts` — 9 tests.
 - `quickCpaResolver.test.ts` — 6 tests.
-- `amendmentScopeService.test.ts` — 19 tests (matrix corrected per v4b: LEGAL/FINANCIAL/ESCROW/GOVERNANCE_CHANGE all include LC+FC+CR+SP; SP re-accept covers all material scopes).
+- `amendmentScopeService.test.ts` — 20 tests (matrix corrected per v4b: LEGAL/FINANCIAL/ESCROW/GOVERNANCE_CHANGE all include LC+FC+CR+SP; SP re-accept covers all material scopes).
 - `amendmentMatrix.test.ts` — 37 tests (cross-mode regression matrix updated per v4b).
 - `roleToDocumentMap.test.ts` — 28 tests.
 - `amendmentVersionBinding.test.ts` — 6 tests (added GOVERNANCE_CHANGE coverage in v4b).
 
-**Total: 105 passing tests across 6 suites.**
+**Total: 106 passing tests across 6 suites.**
 
 ---
 
