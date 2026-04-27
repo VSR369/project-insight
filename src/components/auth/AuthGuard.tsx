@@ -49,9 +49,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
     usePendingRoleLegalAcceptance(user?.id);
 
   const handleAllAccepted = useCallback(() => {
-    setLegalGatePassed(true);
-    setShowLegalGate(false);
     sessionStorage.setItem(LEGAL_GATE_KEY, 'true');
+    startTransition(() => {
+      setLegalGatePassed(true);
+      setShowLegalGate(false);
+    });
   }, []);
 
   const handleDeclined = useCallback(async () => {
@@ -59,8 +61,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
     await supabase.auth.signOut();
   }, []);
 
-  const handleRoleLegalDone = useCallback(() => setRoleLegalDone(true), []);
+  const handleRoleLegalDone = useCallback(
+    () => startTransition(() => setRoleLegalDone(true)),
+    [],
+  );
   const handleRoleLegalDeclined = useCallback(() => setRoleLegalDone(false), []);
+
+  const handleSpaAccepted = useCallback(
+    () => startTransition(() => setSpaAccepted(true)),
+    [],
+  );
 
   if (
     loading ||
