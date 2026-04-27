@@ -116,10 +116,23 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (requiresSpa && hasSpa === false && !spaAccepted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <SpaAcceptanceGate userId={user.id} onAccepted={() => setSpaAccepted(true)} />
+        <SpaAcceptanceGate userId={user.id} onAccepted={handleSpaAccepted} />
       </div>
     );
   }
 
-  return <>{children}</>;
+  // Wrap children in Suspense so lazy-loaded routes can suspend safely
+  // when a gate transitions from "blocked" to "render children" mid-mutation.
+  // Prevents React #426 (sync update during suspending render).
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
 }
