@@ -42,6 +42,8 @@ Both tables are **append-only** (security/architecture/append-only-audit-governa
 
 QUICK Creator override: `CreatorLegalPreview.tsx` allows the Creator to substitute the platform `RA_R2` with org-specific text **for QUICK challenges only**. STRUCTURED/CONTROLLED always use the platform RA_R2.
 
+> **Note — R2 dual-signing asymmetry (intentional).** R2 is the **only** role that signs both an org-binding document (`SKPA`) and a personal role agreement (`RA_R2`). This is intentional: R2 is simultaneously the legal signatory for the seeking organization (org-binding) and a role-actor on the platform in their own right (role-grant). Other workforce roles (CR, CU, ER, FC, LC) inherit `SKPA` coverage transitively via R2's signature and only sign their PWA-family role agreement. SP signs only `SPA` because Solvers may be unaffiliated with any seeker organization. The dual-doc behavior is enforced deterministically by `deriveRequiredSignatures` via the priority array `['SPA','SKPA','RA_R2','PWA']` (see `src/services/legal/roleToDocumentMap.ts`).
+
 ---
 
 ## §3 — Governance × gate matrix (flag-driven)
@@ -235,11 +237,23 @@ These behaviors are **frozen** by Phase 9 v4 and verified by the regression cont
 | 3      | AGG-Quick CPA resolver + health check + UI catch             | ✅ Shipped 2026-04-26 |
 | 4      | State machine + amendment matrix + serialization + audit     | ✅ Shipped 2026-04-27 |
 | 5      | Spec rewrite (this document)                                 | ✅ Shipped 2026-04-27 |
+| 4.1    | Amendment version binding (LC/FC/CR ledger + template bump)  | ✅ Shipped 2026-04-27 |
 
 **Phase 9 v4 — closed.**
+
+### Post-v4 follow-ups (audit-driven, deferred)
+
+| ID    | Finding                                                                                          | Disposition                     |
+|-------|--------------------------------------------------------------------------------------------------|---------------------------------|
+| A1    | `complete_phase` has no `IN_REVIEW` state. CONTROLLED Phase 3→4 sets `phase_status='PUBLISHED'` regardless of `lc_review_required` / `fc_review_required`. State-machine diagram in §5 documents the **intended** behavior; runtime currently transitions straight to ACTIVE. | **Deferred** — high-blast-radius RPC change requires its own migration cycle. Track in next phase. |
+| A2    | Template body text for `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED` not authored.   | **Out of engineering scope** — Platform Admin operational task. |
 
 Test coverage:
 - `governanceFlagsService.test.ts` — 9 tests (default derivation + override survival).
 - `quickCpaResolver.test.ts` — 6 tests (fallback + RPC errors).
 - `amendmentScopeService.test.ts` — 17 tests (normalization + signatory matrix + routed events + reaccept gate + materiality).
-- `amendmentMatrix.test.ts` — cross-mode (governance × scope) regression matrix.
+- `amendmentMatrix.test.ts` — 37 tests (cross-mode governance × scope regression matrix).
+- `roleToDocumentMap.test.ts` — 28 tests (R2 dual-mapping + signature priority + dedupe).
+- `amendmentVersionBinding.test.ts` — 5 tests (template bump + ledger fan-out + scope routing).
+
+**Total: 102 passing tests across 6 suites.**

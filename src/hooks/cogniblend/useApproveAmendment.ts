@@ -13,6 +13,7 @@ import {
   shouldRequireSolverReacceptance,
   isMaterialAmendment,
 } from '@/services/legal/amendmentScopeService';
+import { bindAmendmentToNewTemplateVersions } from '@/services/legal/amendmentVersionBinding';
 import { sendRoutedNotification } from '@/services/notificationRoutingService';
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -92,12 +93,26 @@ export function useApproveAmendment() {
         .select('id, document_type, tier, status, template_version, document_name')
         .eq('challenge_id', challengeId);
 
+      // 4a. Bind new CPA template version to in-scope docs + write version-pinned ledger rows.
+      // Service looks up CU/LC/FC signatories internally. Failure is fatal.
+      const binding = await bindAmendmentToNewTemplateVersions({
+        challengeId,
+        organizationId: challenge?.organization_id ?? null,
+        canonicalScopes,
+        newPackageVersion: nextVersion,
+        approvedBy: userId,
+      });
+
       const snapshot = {
         challenge,
-        legal_docs: legalDocs ?? [],
+        legal_docs: binding.snapshotLegalDocs.length > 0 ? binding.snapshotLegalDocs : (legalDocs ?? []),
         published_at: now,
         published_by: userId,
         amendment_number: amendment.amendment_number,
+        version_binding: {
+          docs_bumped: binding.docsBumped,
+          ledger_rows_written: binding.ledgerRowsWritten,
+        },
       };
 
       const { error: versionErr } = await supabase
