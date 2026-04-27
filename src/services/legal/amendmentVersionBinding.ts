@@ -78,7 +78,23 @@ function isFinanceScope(scopes: CanonicalScope[]): boolean {
 export async function bindAmendmentToNewTemplateVersions(
   payload: VersionBindingPayload,
 ): Promise<VersionBindingResult> {
-  const { challengeId, organizationId, canonicalScopes, newPackageVersion, approvedBy, signatoryUserIds } = payload;
+  const { challengeId, organizationId, canonicalScopes, newPackageVersion, approvedBy } = payload;
+
+  // 0. Resolve signatories — caller-provided wins; otherwise look up from user_challenge_roles.
+  let signatoryUserIds = payload.signatoryUserIds;
+  if (!signatoryUserIds) {
+    const { data: roleRows } = await supabase
+      .from('user_challenge_roles')
+      .select('user_id, role_code')
+      .eq('challenge_id', challengeId)
+      .eq('is_active', true)
+      .in('role_code', ['CU', 'LC', 'FC']);
+    signatoryUserIds = {
+      curatorId: roleRows?.find((r) => r.role_code === 'CU')?.user_id ?? null,
+      lcId: roleRows?.find((r) => r.role_code === 'LC')?.user_id ?? null,
+      fcId: roleRows?.find((r) => r.role_code === 'FC')?.user_id ?? null,
+    };
+  }
 
   // 1. Load existing challenge_legal_docs.
   const { data: docs, error: docsErr } = await supabase
