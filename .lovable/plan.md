@@ -278,7 +278,25 @@ After Prompts 1, 2, 3.
 
 ---
 
-## Prompt 5 — Spec rewrite (`Legal_Module_Feature_Matrix.md`)
+## Prompt 5 — Spec rewrite (`Legal_Module_Feature_Matrix.md`) ✅ SHIPPED 2026-04-27
+
+**Authored:** `docs/Legal_Module_Feature_Matrix.md` (245 LOC) — canonical spec covering:
+- §1 Document inventory (incl. RA_R2; two-ledger model log/ledger by design).
+- §2 Role × document gating (R2 → SKPA + RA_R2; QUICK-only Creator override).
+- §3 Governance × gate matrix (flag-driven via `resolveGovernanceFlags`; non-recompute on governance change documented).
+- §4 AGG-Quick fallback + source badge + tightened effective-active health predicate.
+- §5 State machine + corrected amendment matrix (verbatim header note + GOVERNANCE_CHANGE row).
+- §6 Amendment workflow operations (concurrent-serialization rule, fan-out routing table, SLA tiers, withdrawal window, ledger version-binding audit).
+- §7 Rollback runbook per Phase 9 component.
+- §8 Untouched contracts (regression guarantees frozen).
+- §9 Phase 9 v4 status table.
+
+**Closing regression test:** `src/services/legal/__tests__/amendmentMatrix.test.ts` (153 LOC, 37 tests) — cross-mode (governance × scope) matrix asserting signatory + reaccept resolution per the spec.
+
+**Phase 9 v4 — closed.** Aggregate test coverage: 69 tests, 4 suites, all green.
+
+**Original plan content below for traceability:**
+
 
 - §1 add `RA_R2`. Document `legal_acceptance_log` (role-grant scope) vs `legal_acceptance_ledger` (challenge CPA scope) — they coexist by design.
 - §2 R2 row → `SKPA + RA_R2`. Creator override clarified: QUICK only.
