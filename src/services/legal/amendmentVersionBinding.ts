@@ -30,12 +30,13 @@ export interface VersionBindingPayload {
   canonicalScopes: CanonicalScope[];
   newPackageVersion: number;
   approvedBy: string;
-  signatoryUserIds: {
-    /** Curator user ID (always required to re-sign on material amendments). */
+  /**
+   * Optional pre-resolved signatory IDs. When omitted, the service looks them
+   * up from `user_challenge_roles` (active CU / LC / FC for this challenge).
+   */
+  signatoryUserIds?: {
     curatorId?: string | null;
-    /** Legal Coordinator user ID (CONTROLLED only, when LEGAL/SCOPE_CHANGE in scope). */
     lcId?: string | null;
-    /** Finance Coordinator user ID (CONTROLLED only, when FINANCIAL/ESCROW in scope). */
     fcId?: string | null;
   };
 }
