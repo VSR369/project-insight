@@ -6,7 +6,7 @@
  *
  * PERF: Legal gate result cached in sessionStorage to avoid RPC on every navigation.
  */
-import { ReactNode, useState, useCallback } from 'react';
+import { ReactNode, useState, useCallback, Suspense, startTransition } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
