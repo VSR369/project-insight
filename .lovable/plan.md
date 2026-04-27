@@ -175,7 +175,22 @@ Sequential after Prompt 2 — leaves `useChallengeCpaDoc` untouched (sibling hoo
 
 ---
 
-## Prompt 4 — State machine + corrected amendment matrix + concurrent-amendment serialization + audit
+## Prompt 4 — State machine + corrected amendment matrix + concurrent-amendment serialization + audit ✅ SHIPPED 2026-04-27
+
+**DB foundation (migration 20260427_amendment_state_machine):**
+- ✅ Partial unique index `uq_amendment_records_one_in_flight` — one in-flight amendment per challenge.
+- ✅ BEFORE UPDATE trigger `trg_challenges_governance_escalation_only` — STRUCTURED → CONTROLLED is the only post-publish governance change permitted (current_phase ≥ 4); pre-publish unrestricted.
+- ✅ SQL helper `amendment_scope_normalize(text)` — canonical scope buckets, mirrors client service.
+- ✅ Extended `notification_routing.event_type` CHECK + seeded routing rows for `AMENDMENT_APPROVED_LEGAL`, `AMENDMENT_APPROVED_FINANCIAL`, `AMENDMENT_APPROVED_GOVERNANCE_ESCALATION`, `AMENDMENT_REACCEPT_REQUIRED`.
+
+**TS layer:**
+- ✅ `src/services/legal/amendmentScopeService.ts` — pure normalizer + signatory matrix + routed-events resolver + reaccept gate (174 LOC).
+- ✅ 17 unit tests covering aliases, dedupe ordering, signatory matrix per scope, routing events, reaccept gate, materiality.
+- ✅ `useInitiateAmendment` translates Postgres 23505 to "An amendment is already in flight…" friendly error.
+- ✅ `useApproveAmendment` now drives material/reaccept decisions from canonical scopes (not the brittle `'Legal Terms'` string match) and fans out routed notifications via `sendRoutedNotification(phase=99, eventType=…)` per the matrix.
+
+**Original plan content below for traceability:**
+
 
 ### Target state machine (audit oracle)
 
