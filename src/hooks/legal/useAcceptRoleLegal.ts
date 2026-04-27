@@ -33,7 +33,9 @@ export function useAcceptRoleLegal() {
           template_id: payload.templateId,
           document_code: payload.docCode,
           document_version: payload.documentVersion,
-          action: 'accepted',
+          // Must be uppercase to satisfy legal_acceptance_log_action_check
+          // CHECK (action IN ('ACCEPTED','DECLINED')). See AcceptanceAction type.
+          action: 'ACCEPTED',
           trigger_event: payload.triggerEvent,
           accepted_at: acceptedAt,
           ip_address: ipAddress || null,
