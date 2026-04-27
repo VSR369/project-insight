@@ -187,10 +187,14 @@ export function shouldRequireSolverReacceptance(
 /**
  * Whether this amendment is "material" enough to open the 7-day
  * solver withdrawal window. Material = LEGAL, SCOPE_CHANGE, FINANCIAL,
- * or GOVERNANCE_CHANGE. EDITORIAL alone is non-material.
+ * ESCROW, or GOVERNANCE_CHANGE. EDITORIAL and OTHER alone are non-material.
  */
 export function isMaterialAmendment(scopes: readonly CanonicalScope[]): boolean {
   return scopes.some((s) =>
-    s === 'LEGAL' || s === 'SCOPE_CHANGE' || s === 'FINANCIAL' || s === 'GOVERNANCE_CHANGE',
+    s === 'LEGAL' ||
+    s === 'SCOPE_CHANGE' ||
+    s === 'FINANCIAL' ||
+    s === 'ESCROW' ||
+    s === 'GOVERNANCE_CHANGE',
   );
 }
