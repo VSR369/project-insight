@@ -93,12 +93,41 @@ export function useApproveAmendment() {
         .select('id, document_type, tier, status, template_version, document_name')
         .eq('challenge_id', challengeId);
 
+      // 4a. Resolve LC/FC/CU user IDs to bind the new template version against.
+      const { data: roleRows } = await supabase
+        .from('user_challenge_roles')
+        .select('user_id, role_code')
+        .eq('challenge_id', challengeId)
+        .eq('is_active', true)
+        .in('role_code', ['CU', 'LC', 'FC']);
+
+      const signatoryUserIds = {
+        curatorId: roleRows?.find((r) => r.role_code === 'CU')?.user_id ?? null,
+        lcId: roleRows?.find((r) => r.role_code === 'LC')?.user_id ?? null,
+        fcId: roleRows?.find((r) => r.role_code === 'FC')?.user_id ?? null,
+      };
+
+      // 4b. Bind new CPA template version to in-scope docs + write version-pinned ledger rows.
+      // Failure is fatal: we cannot publish a new package version with stale legal versions.
+      const binding = await bindAmendmentToNewTemplateVersions({
+        challengeId,
+        organizationId: challenge?.organization_id ?? null,
+        canonicalScopes,
+        newPackageVersion: nextVersion,
+        approvedBy: userId,
+        signatoryUserIds,
+      });
+
       const snapshot = {
         challenge,
-        legal_docs: legalDocs ?? [],
+        legal_docs: binding.snapshotLegalDocs.length > 0 ? binding.snapshotLegalDocs : (legalDocs ?? []),
         published_at: now,
         published_by: userId,
         amendment_number: amendment.amendment_number,
+        version_binding: {
+          docs_bumped: binding.docsBumped,
+          ledger_rows_written: binding.ledgerRowsWritten,
+        },
       };
 
       const { error: versionErr } = await supabase
