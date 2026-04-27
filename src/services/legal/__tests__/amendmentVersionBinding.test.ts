@@ -203,4 +203,33 @@ describe('bindAmendmentToNewTemplateVersions', () => {
     const flat = mockState.ledgerInserts.flat();
     expect(flat.map((r) => r.user_id).sort()).toEqual(['cu-explicit', 'lc-explicit']);
   });
+
+  it('GOVERNANCE_CHANGE bumps CPA and writes ledger for CU + LC (legal-class doc)', async () => {
+    // Per Phase 9 v4b matrix: GOVERNANCE_CHANGE → LC + FC + CR + SP. The legal-class
+    // CPA doc routes the LC + CR ledger entries; the FC entry would attach to a
+    // finance-class doc if one were in scope here.
+    mockState.legalDocs = [
+      { id: 'doc-cpa', document_type: 'CPA', tier: 'TIER_1', status: 'SIGNED', template_version: 'v1', document_name: 'CPA' },
+    ];
+    mockState.roleRows = [
+      { user_id: 'user-cu', role_code: 'CU' },
+      { user_id: 'user-lc', role_code: 'LC' },
+      { user_id: 'user-fc', role_code: 'FC' },
+    ];
+
+    const result = await bindAmendmentToNewTemplateVersions({
+      challengeId: 'c1',
+      organizationId: 'org1',
+      canonicalScopes: ['GOVERNANCE_CHANGE'],
+      newPackageVersion: 2,
+      approvedBy: 'approver',
+    });
+
+    expect(result.docsBumped).toBe(1);
+    const flat = mockState.ledgerInserts.flat();
+    // CU (BOTH gate) + LC (LEGAL gate) on the CPA doc; FC has FINANCE gate so does not match the legal-class CPA doc.
+    expect(flat).toHaveLength(2);
+    expect(flat.map((r) => r.user_id).sort()).toEqual(['user-cu', 'user-lc']);
+    expect(flat.every((r) => r.document_version === 'v2')).toBe(true);
+  });
 });
