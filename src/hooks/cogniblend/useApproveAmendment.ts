@@ -48,14 +48,15 @@ export function useApproveAmendment() {
 
       if (aErr || !amendment) throw new Error(aErr?.message ?? 'Amendment not found');
 
-      // Parse scope
-      let isMaterial = false;
-      let scopeAreas: string[] = [];
+      // Parse scope and normalize to canonical buckets
+      let rawAreas: string[] = [];
       try {
         const parsed = JSON.parse(amendment.scope_of_change ?? '{}');
-        scopeAreas = parsed.areas ?? [];
-        isMaterial = parsed.is_material === true;
-      } catch { /* plain text */ }
+        rawAreas = Array.isArray(parsed.areas) ? parsed.areas : [];
+      } catch { /* plain text scope */ }
+      const canonicalScopes = normalizeScopes(rawAreas);
+      const isMaterial = isMaterialAmendment(canonicalScopes);
+      const requiresSolverReaccept = shouldRequireSolverReacceptance(canonicalScopes);
 
       const nextVersion = (amendment.version_before ?? 1) + 1;
       const now = new Date().toISOString();
