@@ -251,6 +251,7 @@ These behaviors are **frozen** by Phase 9 v4 and verified by the regression cont
 | 4      | State machine + amendment matrix + serialization + audit     | ✅ Shipped 2026-04-27 |
 | 5      | Spec rewrite (this document)                                 | ✅ Shipped 2026-04-27 |
 | 4.1    | Amendment version binding (LC/FC/CR ledger + template bump)  | ✅ Shipped 2026-04-27 |
+| 4b     | Signatory matrix correction + SP re-accept gate alignment    | ✅ Shipped 2026-04-27 |
 
 **Phase 9 v4 — closed.**
 
@@ -258,15 +259,35 @@ These behaviors are **frozen** by Phase 9 v4 and verified by the regression cont
 
 | ID    | Finding                                                                                          | Disposition                     |
 |-------|--------------------------------------------------------------------------------------------------|---------------------------------|
-| A1    | `complete_phase` has no `IN_REVIEW` state. CONTROLLED Phase 3→4 sets `phase_status='PUBLISHED'` regardless of `lc_review_required` / `fc_review_required`. State-machine diagram in §5 documents the **intended** behavior; runtime currently transitions straight to ACTIVE. | **Deferred** — high-blast-radius RPC change requires its own migration cycle. Track in next phase. |
+| A1    | State-based `IN_REVIEW` gating for CONTROLLED challenges (vs. current flag-based `lc_review_required` / `fc_review_required`). See §11. | **Deferred** — high-blast-radius RPC change. Spec now documents flag-based mechanism honestly. |
 | A2    | Template body text for `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED` not authored.   | **Out of engineering scope** — Platform Admin operational task. |
 
 Test coverage:
-- `governanceFlagsService.test.ts` — 9 tests (default derivation + override survival).
-- `quickCpaResolver.test.ts` — 6 tests (fallback + RPC errors).
-- `amendmentScopeService.test.ts` — 17 tests (normalization + signatory matrix + routed events + reaccept gate + materiality).
-- `amendmentMatrix.test.ts` — 37 tests (cross-mode governance × scope regression matrix).
-- `roleToDocumentMap.test.ts` — 28 tests (R2 dual-mapping + signature priority + dedupe).
-- `amendmentVersionBinding.test.ts` — 5 tests (template bump + ledger fan-out + scope routing).
+- `governanceFlagsService.test.ts` — 9 tests.
+- `quickCpaResolver.test.ts` — 6 tests.
+- `amendmentScopeService.test.ts` — 19 tests (matrix corrected per v4b: LEGAL/FINANCIAL/ESCROW/GOVERNANCE_CHANGE all include LC+FC+CR+SP; SP re-accept covers all material scopes).
+- `amendmentMatrix.test.ts` — 37 tests (cross-mode regression matrix updated per v4b).
+- `roleToDocumentMap.test.ts` — 28 tests.
+- `amendmentVersionBinding.test.ts` — 6 tests (added GOVERNANCE_CHANGE coverage in v4b).
 
-**Total: 102 passing tests across 6 suites.**
+**Total: 105 passing tests across 6 suites.**
+
+---
+
+## §11 — Deferred: state-based `IN_REVIEW` gating (Decision A1)
+
+**Current mechanism (flag-based, shipped):** Curator approval of a CONTROLLED challenge transitions `phase_status='ACTIVE'` immediately. The challenge row carries `lc_review_required=TRUE` and `fc_review_required=TRUE` flags. Downstream actions — Phase 7+ progression, solver enrollment opening, escrow funding initiation, amendment fan-out routing — are all gated on these flags being cleared by `complete_legal_review` (LC) and the FC equivalent.
+
+**Why we did not implement state-based `IN_REVIEW`:** adding `IN_REVIEW` to the `master_status` allowed set would require coordinated changes to:
+
+- `update_master_status` (add the new state).
+- `complete_phase` (emit `IN_REVIEW` for CONTROLLED in lieu of `ACTIVE`).
+- `complete_legal_review` (transition `IN_REVIEW → ACTIVE` once both gates are cleared).
+- Every dashboard query filtering on `master_status` (cogni dashboards, queue badges, status pills).
+- Sidebar visibility logic (`nonQuickRoleCodes`).
+- RLS policies that branch on `master_status`.
+- Amendment governance escalation guard (must accept `IN_REVIEW` as valid pre-publish state).
+
+**When to revisit:** if audit reviewers or compliance require a single source of truth on the challenge row for "this challenge is mid-LC/FC review" (rather than inferring it from two boolean flags), or if dashboards begin to leak CONTROLLED challenges into "ACTIVE" lists during the LC/FC review window, lift this from deferred to active.
+
+**Reference:** the original Phase 9 v4 spec (and Claude's audit) described `IN_REVIEW` as the intended state. The flag-based mechanism is functionally equivalent for every consumer that already exists; the deferred work is purely a model-fidelity refactor.
