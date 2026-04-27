@@ -42,20 +42,32 @@ describe('normalizeScopes', () => {
 });
 
 describe('resolveSignatoryMatrix', () => {
-  it('LEGAL → LC + CR + SP', () => {
-    expect(resolveSignatoryMatrix(['LEGAL'])).toEqual(['LC', 'CR', 'SP']);
+  it('LEGAL → LC + FC + CR + SP (FC re-signs because CPA version is shared)', () => {
+    expect(resolveSignatoryMatrix(['LEGAL'])).toEqual(['LC', 'FC', 'CR', 'SP']);
   });
 
-  it('FINANCIAL → FC + CR', () => {
-    expect(resolveSignatoryMatrix(['FINANCIAL'])).toEqual(['FC', 'CR']);
+  it('FINANCIAL → LC + FC + CR + SP (LC re-signs stale CPA; SP material change)', () => {
+    expect(resolveSignatoryMatrix(['FINANCIAL'])).toEqual(['LC', 'FC', 'CR', 'SP']);
   });
 
-  it('GOVERNANCE_CHANGE → LC + FC + CR', () => {
-    expect(resolveSignatoryMatrix(['GOVERNANCE_CHANGE'])).toEqual(['LC', 'FC', 'CR']);
+  it('ESCROW → LC + FC + CR + SP (escrow clauses are version-bound to the same CPA)', () => {
+    expect(resolveSignatoryMatrix(['ESCROW'])).toEqual(['LC', 'FC', 'CR', 'SP']);
+  });
+
+  it('SCOPE_CHANGE → CR + SP (LC/FC unaffected unless paired)', () => {
+    expect(resolveSignatoryMatrix(['SCOPE_CHANGE'])).toEqual(['CR', 'SP']);
+  });
+
+  it('GOVERNANCE_CHANGE → LC + FC + CR + SP (mode escalation)', () => {
+    expect(resolveSignatoryMatrix(['GOVERNANCE_CHANGE'])).toEqual(['LC', 'FC', 'CR', 'SP']);
   });
 
   it('EDITORIAL → no signatories', () => {
     expect(resolveSignatoryMatrix(['EDITORIAL'])).toEqual([]);
+  });
+
+  it('OTHER → CR only (conservative)', () => {
+    expect(resolveSignatoryMatrix(['OTHER'])).toEqual(['CR']);
   });
 
   it('combines and dedupes across multiple scopes', () => {
@@ -87,15 +99,17 @@ describe('resolveAmendmentRoutingEvents', () => {
 });
 
 describe('shouldRequireSolverReacceptance', () => {
-  it('true for LEGAL or SCOPE_CHANGE', () => {
+  it('true for every material scope (LEGAL / SCOPE_CHANGE / FINANCIAL / ESCROW / GOVERNANCE_CHANGE)', () => {
     expect(shouldRequireSolverReacceptance(['LEGAL'])).toBe(true);
     expect(shouldRequireSolverReacceptance(['SCOPE_CHANGE'])).toBe(true);
+    expect(shouldRequireSolverReacceptance(['FINANCIAL'])).toBe(true);
+    expect(shouldRequireSolverReacceptance(['ESCROW'])).toBe(true);
+    expect(shouldRequireSolverReacceptance(['GOVERNANCE_CHANGE'])).toBe(true);
   });
 
-  it('false for FINANCIAL/ESCROW/EDITORIAL/OTHER alone', () => {
-    expect(shouldRequireSolverReacceptance(['FINANCIAL'])).toBe(false);
-    expect(shouldRequireSolverReacceptance(['ESCROW'])).toBe(false);
+  it('false for EDITORIAL / OTHER alone', () => {
     expect(shouldRequireSolverReacceptance(['EDITORIAL'])).toBe(false);
+    expect(shouldRequireSolverReacceptance(['OTHER'])).toBe(false);
   });
 });
 
