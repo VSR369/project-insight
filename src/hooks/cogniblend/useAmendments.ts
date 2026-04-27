@@ -122,7 +122,8 @@ export function useInitiateAmendment() {
         ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         : null;
 
-      // 5. Insert amendment_record
+      // 5. Insert amendment_record. The DB partial unique index
+      // uq_amendment_records_one_in_flight serializes concurrent attempts.
       const { error: insertErr } = await supabase.from('amendment_records').insert({
         challenge_id: challengeId,
         amendment_number: nextNumber,
@@ -135,7 +136,15 @@ export function useInitiateAmendment() {
         created_by: userId,
       });
 
-      if (insertErr) throw new Error(insertErr.message);
+      if (insertErr) {
+        // Postgres 23505 = unique_violation → another amendment is in flight.
+        if ((insertErr as { code?: string }).code === '23505') {
+          throw new Error(
+            'An amendment is already in flight on this challenge. Wait for it to be approved or rejected before starting another.',
+          );
+        }
+        throw new Error(insertErr.message);
+      }
 
       // 5. Audit trail
       const { error: auditErr } = await supabase.from('audit_trail').insert({
