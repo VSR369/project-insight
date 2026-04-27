@@ -8,7 +8,7 @@
  *
  * Mounted inside `AuthGuard` after the PMA / SPA legacy gates.
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, startTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,10 +51,12 @@ export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGa
     roleCode: current?.role_code,
   });
 
-  // When pending list becomes empty, signal completion
+  // When pending list becomes empty, signal completion.
+  // Wrapped in startTransition so the parent's swap to lazy children does
+  // not throw React #426 (sync suspending update).
   useEffect(() => {
     if (!pendingLoading && pending.length === 0) {
-      onAllAccepted();
+      startTransition(() => onAllAccepted());
     }
   }, [pendingLoading, pending.length, onAllAccepted]);
 

@@ -1,68 +1,53 @@
+# Fix: React #426 crash after accepting legal document
+
 ## Root cause
 
-The "Accept & Continue" button in `RoleLegalGate` (PWA / SPA / SKPA first-login dialog) crashes with:
+After clicking **Accept & Continue** on the PWA gate:
 
-> new row for relation "legal_acceptance_log" violates check constraint "legal_acceptance_log_action_check"
+1. `useAcceptRoleLegal` insert succeeds → invalidates `pending-role-legal-acceptance`.
+2. The refetch returns `[]`, so `RoleLegalGate`'s `useEffect` synchronously calls `onAllAccepted()`.
+3. `AuthGuard` flips `roleLegalDone = true` and immediately swaps in `{children}` — which is a `React.lazy()`-loaded route module (Organization Portal). The lazy chunk suspends.
+4. `AuthGuard` renders `{children}` directly, with **no `Suspense` boundary of its own**. The suspension happens during a synchronous, non-transition update inside the post-mutation effect chain → React throws **#426** ("update before hydration / suspending sync").
 
-The DB constraint requires uppercase values:
+The same gap was previously fixed in `AdminGuard` (it wraps `{children}` in `Suspense`) and recorded in `mem://architecture/auth/guard-stability-and-resilience`. `AuthGuard` was never updated to the same pattern, so it still trips whenever a gate transitions from "blocked" to "render children" in response to a network event (mutation success, refetch).
 
-```
-CHECK (action = ANY (ARRAY['ACCEPTED'::text, 'DECLINED'::text]))
-```
+## Fix
 
-But `useAcceptRoleLegal.ts` line 36 inserts lowercase `'accepted'`. Postgres rejects the row, the pending row is never resolved, and the user is permanently stuck on the gate screen.
+Two small, surgical changes — no behavior change for any other path.
 
-This is the only writer to `legal_acceptance_log` that uses the wrong case. All other writers (`useLegalAcceptanceLog`, `usePriorAcceptanceCheck` reader, the `AcceptanceAction` type in `src/types/legal.types.ts`) already use uppercase `'ACCEPTED'` / `'DECLINED'`. The other lowercase `'accepted'` strings found in the codebase write to different columns (`challenge_legal_docs.ai_review_status`, JSONB `version_history` entries) and are not affected by this constraint.
+### 1. Wrap `AuthGuard`'s children in `Suspense`
 
-## Fix (one-line change, zero schema risk)
+`src/components/auth/AuthGuard.tsx` — replace the final `return <>{children}</>;` with a `Suspense` boundary that uses the same loader the rest of the file already shows during gate checks. This gives React a stable fallback if the children's lazy chunk suspends mid-transition.
 
-**File:** `src/hooks/legal/useAcceptRoleLegal.ts`
+### 2. Defer the gate-pass state updates with `startTransition`
 
-Change line 36 from:
+In `AuthGuard.tsx`, mark the three "gate cleared" state setters as transitions so React can interrupt them safely when the next render suspends:
 
-```ts
-action: 'accepted',
-```
+- `handleAllAccepted` (PMA)
+- `handleRoleLegalDone` (Role Legal — the one in this bug)
+- `setSpaAccepted(true)` callback (legacy SPA)
 
-to:
+Each becomes `React.startTransition(() => setX(true))`. This pairs with the existing `BrowserRouter future={{ v7_startTransition: true }}` setting in `App.tsx` and matches the documented resilience pattern.
 
-```ts
-action: 'ACCEPTED',
-```
+### 3. (Defensive) Defer `onAllAccepted` inside `RoleLegalGate`
 
-That alone unblocks the PWA gate completely. Also strengthen the type to prevent regressions:
+In `src/components/auth/RoleLegalGate.tsx`, wrap the `onAllAccepted()` call inside the empty-list `useEffect` in `startTransition` as well. This protects against the same crash if any future caller forgets to wrap their setter.
 
-1. Import `AcceptanceAction` from `@/types/legal.types` and either:
-   - Hard-code `action: 'ACCEPTED'` (the hook only ever accepts — no decline path through this entry point), **or**
-   - Add an `action: AcceptanceAction` field to the payload and pass it from `RoleLegalGate` (preferred if a decline flow lands later).
+## Why this is the right fix (not a workaround)
 
-For now we go with option 1 since `RoleLegalGate` has no decline branch — `handleRoleLegalDeclined` in `AuthGuard.tsx` only resets local state, it does not call this mutation.
+- The `legal_acceptance_log` insert itself is succeeding (constraint bug was already fixed last turn). The pending row is being resolved correctly. Verifiable from the auth log: a fresh token was issued at the moment of click, and no DB error came back.
+- The crash is purely a client-side render-timing issue, identical in shape to the previously-fixed `AdminGuard` case. Solving it at the guard layer (Suspense + transition) is the architecturally correct location — every gate that conditionally swaps in lazy children needs this, not just the legal one.
+- No DB migration, no RLS change, no edge-function change. Read-only legal acceptance flow stays exactly as designed (Phase 9 v4).
 
-## Verification steps after the fix
+## Files to edit
 
-1. Reload `/org/dashboard` as `soadmin@test.local` (the user from the failing trace).
-2. The PWA gate appears (one pending row exists for this user).
-3. Scroll to bottom → check the box → click "Accept & Continue".
-4. Expect:
-   - `POST /rest/v1/legal_acceptance_log` returns 201
-   - `PATCH /rest/v1/pending_role_legal_acceptance` resolves the row
-   - React Query invalidates `pending-role-legal-acceptance`, `pwa-acceptance-status`, `assemble-role-doc`, `legal-gate`
-   - User lands on `/org/dashboard` content
-5. Refresh — gate does not reappear (resolved row is filtered out by `is null` on `resolved_at`).
+- `src/components/auth/AuthGuard.tsx` — add `Suspense` wrapper around `{children}`; wrap three state-setter callbacks in `startTransition`.
+- `src/components/auth/RoleLegalGate.tsx` — wrap `onAllAccepted()` call in `startTransition` inside the completion `useEffect`.
 
-## Why no migration is needed
+## Validation after applying
 
-- The constraint is correct per the data contract documented in `src/types/legal.types.ts` (`AcceptanceAction = 'ACCEPTED' | 'DECLINED'`).
-- All read paths and the prior-acceptance check already query uppercase.
-- Loosening the constraint to accept lowercase would corrupt audit reconstruction and break `usePriorAcceptanceCheck`. The application code is wrong, not the DB.
-
-## Out of scope (no action needed, but noted)
-
-- `useLcPass3Mutations.ts:94` and `useCuratorLegalReview.ts:261` write `action: 'accepted'` into JSONB `version_history` on `challenge_legal_docs` — different column, no constraint, intentionally lowercase. **Leave as-is.**
-- Phase 9 v4 / v4b backfill logic is functioning correctly. The pending row that triggered the gate was enqueued by `trg_legal_template_activated_backfill` exactly as designed; the gate failed only because of the casing bug above.
-
-## Files to change
-
-- `src/hooks/legal/useAcceptRoleLegal.ts` — one-line value change (lowercase → uppercase).
-
-No DB migration. No new files. No type changes required.
+1. Sign in as a workforce-role user with an open PWA pending row.
+2. Scroll, check the box, click **Accept & Continue**.
+3. Expect: success toast, the gate unmounts, `/org/dashboard` renders, **no error boundary**.
+4. Re-login → no PWA gate (acceptance persisted).
+5. Re-run existing legal flow (PMA / SPA legacy) to confirm no regression on those paths.

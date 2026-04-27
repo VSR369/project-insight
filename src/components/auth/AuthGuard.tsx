@@ -6,7 +6,7 @@
  *
  * PERF: Legal gate result cached in sessionStorage to avoid RPC on every navigation.
  */
-import { ReactNode, useState, useCallback } from 'react';
+import { ReactNode, useState, useCallback, Suspense, startTransition } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
@@ -49,9 +49,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
     usePendingRoleLegalAcceptance(user?.id);
 
   const handleAllAccepted = useCallback(() => {
-    setLegalGatePassed(true);
-    setShowLegalGate(false);
     sessionStorage.setItem(LEGAL_GATE_KEY, 'true');
+    startTransition(() => {
+      setLegalGatePassed(true);
+      setShowLegalGate(false);
+    });
   }, []);
 
   const handleDeclined = useCallback(async () => {
@@ -59,8 +61,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
     await supabase.auth.signOut();
   }, []);
 
-  const handleRoleLegalDone = useCallback(() => setRoleLegalDone(true), []);
+  const handleRoleLegalDone = useCallback(
+    () => startTransition(() => setRoleLegalDone(true)),
+    [],
+  );
   const handleRoleLegalDeclined = useCallback(() => setRoleLegalDone(false), []);
+
+  const handleSpaAccepted = useCallback(
+    () => startTransition(() => setSpaAccepted(true)),
+    [],
+  );
 
   if (
     loading ||
@@ -106,10 +116,23 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (requiresSpa && hasSpa === false && !spaAccepted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <SpaAcceptanceGate userId={user.id} onAccepted={() => setSpaAccepted(true)} />
+        <SpaAcceptanceGate userId={user.id} onAccepted={handleSpaAccepted} />
       </div>
     );
   }
 
-  return <>{children}</>;
+  // Wrap children in Suspense so lazy-loaded routes can suspend safely
+  // when a gate transitions from "blocked" to "render children" mid-mutation.
+  // Prevents React #426 (sync update during suspending render).
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
 }
