@@ -79,11 +79,7 @@ const DELEGATED_TABS: TabId[] = ['profile', 'admin', 'subscription'];
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
   const { data: currentOrg } = useCurrentOrg();
-  const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
-
-  const isSOAdmin = !!currentAdmin;
-  const isPrimary = currentAdmin?.admin_tier === 'PRIMARY';
-  const isDelegated = isSOAdmin && !isPrimary;
+  const { isPrimary, isDelegated, isLoading: tierLoading } = useCurrentAdminTier();
 
   const visibleTabs: TabId[] = useMemo(
     () => (isDelegated ? DELEGATED_TABS : ALL_TABS),
@@ -99,6 +95,20 @@ export default function OrgSettingsPage() {
     nextParams.set('tab', next);
     setSearch(nextParams, { replace: true });
   };
+
+  // Defensive loading guard — prevents a flash of ALL_TABS before tier resolves.
+  // OrgProvider already gates render on organizationId, but useCurrentAdminTier
+  // still has its own round-trip; skeleton until that settles.
+  if (tierLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <>
