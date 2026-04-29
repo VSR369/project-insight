@@ -100,16 +100,11 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
     });
   };
 
-  // Read-only locked field display
   const LockedField = ({ label, value, icon: Icon }: { label: string; value: string; icon?: React.ElementType }) => (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <Label className="text-sm font-medium text-muted-foreground">{label}</Label>
-        <Lock className="h-3 w-3 text-muted-foreground" />
-      </div>
+      <div className="flex items-center gap-2"><Label className="text-sm font-medium text-muted-foreground">{label}</Label><Lock className="h-3 w-3 text-muted-foreground" /></div>
       <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border text-sm text-foreground">
-        {Icon && <Icon className="h-4 w-4 text-muted-foreground shrink-0" />}
-        <span>{value || '—'}</span>
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground shrink-0" />}<span>{value || '—'}</span>
       </div>
     </div>
   );

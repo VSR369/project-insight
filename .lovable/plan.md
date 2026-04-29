@@ -200,3 +200,5 @@ Reply **"approve 10c.5"** to start with the override-consumer wiring and editor 
 - ⏭️ **Phase 10b** — awaiting approval.
 - ⏭️ **Phase 10d** — awaiting approval.
 - ⏭️ **Phase 10e** — partially complete (service tests done); FSM/regex/scope tests awaiting approval.
+
+- ✅ **Phase 10b** — ProfileTab gained `linkedin_url` + employee/revenue band Selects (extracted `ProfileExtraFieldsSection` + `profileFormSchema`). OrgComplianceTab now displays read-only `seeker_compliance` registration profile (ITAR/SOC2/ISO27001/GDPR/HIPAA/NDA/data-residency/export-control) above the operational config form. OrgBillingPage gained a `BillingInfoCard` editing `seeker_billing_info` (entity, email, address, PO, tax ID). No migration needed — Claude's `data_residency_country_legacy_text` concern was based on a misread; `seeker_compliance.data_residency_id` is already an FK and `org_compliance_config.data_residency_country` is a separate operational override.
