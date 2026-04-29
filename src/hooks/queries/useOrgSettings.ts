@@ -122,6 +122,7 @@ export function useUpdateOrgProfile() {
       timezone?: string | null;
       employee_count_range?: string | null;
       annual_revenue_range?: string | null;
+      registration_number?: string | null;
     }) => {
       const withAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
