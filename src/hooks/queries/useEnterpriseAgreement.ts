@@ -110,9 +110,9 @@ export function useEnterpriseAgreementAudit(agreementId: string | null | undefin
       if (!agreementId) return [];
       const { data, error } = await supabase
         .from('enterprise_agreement_audit')
-        .select('id, agreement_id, organization_id, event_type, actor_id, old_values, new_values, changed_fields, created_at')
+        .select('id, agreement_id, organization_id, action, previous_status, new_status, changed_fields, notes, performed_by, performed_at')
         .eq('agreement_id', agreementId)
-        .order('created_at', { ascending: false })
+        .order('performed_at', { ascending: false })
         .limit(100);
       if (error) throw new Error(error.message);
       return (data ?? []) as EnterpriseAgreementAuditRow[];
@@ -128,8 +128,9 @@ export function useEnterpriseFeatureGateKeys() {
     queryFn: async (): Promise<EnterpriseFeatureGateKey[]> => {
       const { data, error } = await supabase
         .from('md_enterprise_feature_gate_keys')
-        .select('key, label, description, default_enabled, display_order')
-        .order('display_order', { ascending: true });
+        .select('id, key, display_name, description, category, sort_order, is_active')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
       if (error) throw new Error(error.message);
       return (data ?? []) as EnterpriseFeatureGateKey[];
     },
