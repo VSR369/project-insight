@@ -27,6 +27,7 @@ export function useOrgProfile(organizationId?: string) {
         .select(`
           id, tenant_id, organization_name, legal_entity_name, trade_brand_name,
           organization_type_id, employee_count_range, annual_revenue_range,
+          registration_number,
           founding_year, hq_country_id, hq_state_province_id, hq_city,
           hq_address_line1, hq_address_line2, hq_postal_code,
           website_url, linkedin_url, organization_description, logo_url,

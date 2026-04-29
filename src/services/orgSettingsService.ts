@@ -30,6 +30,8 @@ const EDITABLE_FIELDS = new Set([
   'timezone',
   'employee_count_range',
   'annual_revenue_range',
+  'registration_number',
+  'linkedin_url',
 ]);
 
 export function isFieldEditable(fieldName: string): boolean {
