@@ -88,8 +88,13 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   // SECTION 2: useState hooks
   // ══════════════════════════════════════
-  // TODO: TEMP BYPASS — was: useState(() => !!state.step2?.email_verified)
-  const [emailVerified, setEmailVerified] = useState(true);
+  // OTP gate (BR-REG-006). When the env flag is OFF, email is treated as
+  // pre-verified to keep dev/preview frictionless. Production cutover MUST
+  // set VITE_ENABLE_REGISTRATION_OTP=true (see docs/runbooks/production-cutover.md).
+  const otpRequired = isRegistrationOtpEnabled();
+  const [emailVerified, setEmailVerified] = useState(() =>
+    otpRequired ? !!state.step2?.email_verified : true,
+  );
   const [adminDesignation, setAdminDesignation] = useState<'self' | 'separate'>(
     state.step2?.admin_designation ?? 'self'
   );
