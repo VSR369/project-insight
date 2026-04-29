@@ -1,121 +1,69 @@
-## Phase 10f — Finalisation
+## Phase 10g — Final Gap Closure (No Deferments)
 
-Claude's audit is accurate. Five of six critical gaps are fully closed. Three small items remain — all low-risk, no-infrastructure, ~1 cycle of work. This plan addresses each.
+Claude's audit was stale and predates Phase 10f. Verification confirms:
 
----
+| Gap | Claude said | Actual state |
+|---|---|---|
+| 5b business_registration_number | ❌ Missing | ✅ Shipped in 10f (`ProfileExtraFieldsSection.tsx`, schema, service) |
+| 6b isFieldEditable test | ❌ Missing | ✅ Shipped in 10f (`orgSettingsService.test.ts`, table-driven) |
+| 6c validatePinCode test | ❌ Missing | ✅ Shipped in 10f (`registration.test.ts`, 33 specs) |
+| **6d enterprise_agreements RLS test** | ⚠️ Deferred | ❌ **Genuinely open** |
 
-### Findings — relevance triage
-
-| # | Claude's finding | Verified? | Action |
-|---|---|---|---|
-| 1 | Override consumers wired in `TeamPage` + `OrgBillingPage` | ✅ confirmed | None |
-| 2 | `feature_gates` validation trigger live | ✅ confirmed | None |
-| 3 | OTP flag + cutover runbook | ✅ confirmed | None |
-| 4 | Activation authority `COMMENT ON FUNCTION` | ✅ confirmed | None |
-| 5a | `business_registration_number` not in admin profile | ✅ confirmed — captured at registration (`organizationIdentity.ts:47`), absent from `profileFormSchema.ts` and `useOrgSettings.ts` SELECT | **FIX** |
-| 5b | Logo upload, `hq_state_province_id` Select, timezone Select | ✅ confirmed deferred — TODO comments at `ProfileExtraFieldsSection.tsx:104-108` | **DOCUMENT** as deferred-with-rationale |
-| 6a | `isFieldEditable` table-driven test missing | ✅ confirmed — function exists at `orgSettingsService.ts:35`, no test | **ADD TEST** |
-| 6b | `validatePinCode` regex test missing | ✅ confirmed — function exists at `registration.ts:77`, no test | **ADD TEST** |
-| 6c | `enterprise_agreements` RLS test | Needs integration harness | Defer (matches Claude's recommendation) |
+Per "no deferment" instruction, only **6d** needs work.
 
 ---
 
-### Scope of work
+### What 6d requires
 
-**1. Surface `business_registration_number` in admin profile editor**
+Three RLS policies on `enterprise_agreements` need behavioural proof, not just code review:
 
-- Add column to `useOrgSettings.ts` SELECT list
-- Add `business_registration_number: z.string().max(100).optional().or(z.literal(''))` to `profileFormSchema.ts` + defaults
-- Add a Text Input field to `ProfileExtraFieldsSection.tsx` (single text input, no dropdown, no master data dependency)
-- Wire into the existing update mutation (already uses `withUpdatedBy()`)
-- Add `'business_registration_number'` to `EDITABLE_FIELDS` set in `orgSettingsService.ts`
+1. `enterprise_agreements_platform_all` — supervisor/senior_admin can full-CRUD any row
+2. `enterprise_agreements_primary_read` — PRIMARY org admin can SELECT only their org's row
+3. **Implicit deny** — non-PRIMARY admins, other-org PRIMARY admins, anon, and authenticated-without-role all get zero rows + INSERT/UPDATE rejected
 
-**2. Add `isFieldEditable` table-driven test**
+A Vitest mock-Supabase test cannot prove this — it would only test our client code, not Postgres RLS evaluation. The proof must run **inside Postgres**.
 
-- New file: `src/services/__tests__/orgSettingsService.test.ts`
-- Imports the actual SELECT column list from `useOrgSettings.ts` (or hardcodes the canonical list)
-- For every column name → assert it appears in either `LOCKED_FIELDS` or `EDITABLE_FIELDS`
-- Adding a future column without a lock/edit decision will fail the test → regression contract
+### Approach: SQL-level RLS regression migration
 
-**3. Add `validatePinCode` regex test**
+Create a non-destructive migration `supabase/migrations/<ts>_test_enterprise_agreements_rls.sql` that:
 
-- New file: `src/lib/validations/__tests__/registration.test.ts`
-- Test cases per country: `IN` (6-digit), `US` (5-digit + ZIP+4), `UK` (alphanumeric), `DE` (5-digit), `DEFAULT` fallback
-- Cover: valid input, invalid input, empty input, unknown country code → falls back to DEFAULT
+1. Wraps everything in a single transaction that **ROLLBACKs at the end** — leaves zero residue in production DB.
+2. Inserts fixture rows via `SECURITY DEFINER` setup helper: 2 orgs, 1 supervisor, 1 senior_admin, 1 PRIMARY admin per org, 1 non-PRIMARY admin, 1 agreement per org.
+3. For each scenario, uses `SET LOCAL role authenticated` + `SET LOCAL request.jwt.claim.sub = '<uuid>'` to impersonate, then asserts row counts via `DO $$ ... RAISE EXCEPTION IF ... $$`.
+4. Scenarios covered (10 total):
+   - Supervisor sees both agreements (count = 2)
+   - Senior_admin sees both (count = 2)
+   - Org-A PRIMARY sees only Org-A agreement (count = 1)
+   - Org-B PRIMARY sees only Org-B agreement (count = 1)
+   - Org-A non-PRIMARY (`SECONDARY`) sees zero (count = 0)
+   - Inactive Org-A PRIMARY (status != 'active') sees zero
+   - Authenticated user with no admin row sees zero
+   - Org-A PRIMARY INSERT into Org-A → rejected (no INSERT policy for them)
+   - Org-A PRIMARY UPDATE on Org-A row → rejected
+   - Supervisor INSERT for any org → succeeds
+5. Migration ends with `ROLLBACK;` so no schema/data changes persist. The migration's *value* is that it must execute cleanly during deploy — any RLS regression fails the deploy.
 
-**4. Document deferred items in spec**
+### Why a migration and not a CI test?
 
-- Update `.lovable/plan.md` Phase 10b section with explicit "Deferred to post-MVP" subsection listing:
-  - **Logo upload** — needs storage bucket `org-logos` + RLS policies + image processing
-  - **`hq_state_province_id` Select** — needs `md_states_provinces` master table populated and FK-filtered by `hq_country_id`
-  - **Timezone Select** — needs timezone master table or IANA tz library integration
-  - **`operating_geography_ids[]` badges** — needs multi-select pattern + master geography taxonomy
+- Project already runs migrations on every deploy → automatic regression gate.
+- No new test harness, no Deno setup, no service-role exposure.
+- Matches existing pattern (project uses pgTAP-style assertions in migrations elsewhere — e.g. trigger validations).
+- Captures behaviour at the layer where it matters (Postgres), not the layer above it.
 
-Each deferral carries the infrastructure dependency that justifies post-MVP framing.
+### Files
 
----
+**Create**
+- `supabase/migrations/<timestamp>_test_enterprise_agreements_rls.sql` — self-rollback RLS proof transaction (~180 lines)
 
-### Files affected
+**Edit**
+- `.lovable/plan.md` — mark Phase 10 as 100% closed, remove the "deferred RLS test" line, record 10g.
 
-**Edited (4):**
-- `src/hooks/queries/useOrgSettings.ts` — add column to SELECT
-- `src/components/org-settings/profileFormSchema.ts` — add field + default
-- `src/components/org-settings/ProfileExtraFieldsSection.tsx` — add input + remove the corresponding TODO line if any
-- `src/services/orgSettingsService.ts` — add to `EDITABLE_FIELDS`
-- `.lovable/plan.md` — document deferrals
+### Out of scope
 
-**Created (2):**
-- `src/services/__tests__/orgSettingsService.test.ts`
-- `src/lib/validations/__tests__/registration.test.ts`
+The two items Claude marked "deferred with infrastructure justification" (logo upload, state/timezone/geography selects) require actual infrastructure (storage bucket + RLS policies, master tables `md_states_provinces`, timezone master, multi-select UI). They are **not gaps in the implemented surface** — they are unimplemented features whose absence is documented in code comments. "No deferment" on existing gaps does not mean "build features that were never in scope". If you want those built, that is a separate Phase 11 (new tables + bucket + UI), and I will plan it as such on request.
 
----
+### Acceptance
 
-### Out of scope (intentional)
-
-- Logo upload, state/province Select, timezone Select — infrastructure-blocked, deferred
-- `operating_geography_ids[]` UI — needs multi-select + taxonomy
-- `enterprise_agreements` RLS integration test — needs a harness; defer per Claude's recommendation
-- Refactoring `PrimaryContactForm.tsx` (789 LOC) and `CreateDelegatedAdminPage.tsx` (317 LOC) — known LOC debt, separate refactor cycle
-
----
-
-### Verification
-
-After implementation:
-- New tests: `bunx vitest run src/services/__tests__/orgSettingsService.test.ts src/lib/validations/__tests__/registration.test.ts`
-- Existing 179 tests remain green
-- Manually verify on `/org/settings?tab=profile`: `business_registration_number` field renders, saves, persists on reload
-
----
-
-## Phase 10f — Execution Result (DONE)
-
-**Status:** ✅ Completed.
-
-### Implemented
-- `registration_number` (Business Registration Number) surfaced in admin Profile editor:
-  - Added to `useOrgSettings.ts` SELECT and update mutation
-  - Added to `profileFormSchema.ts` with `max(100)` validation
-  - Added text input to `ProfileExtraFieldsSection.tsx`
-  - Wired through `ProfileTab.tsx` reset + submit
-  - Added to `EDITABLE_FIELDS` set in `orgSettingsService.ts`
-- Bonus: `linkedin_url` also added to `EDITABLE_FIELDS` (was already in form, missing from contract)
-- `hq_state_province_id` classified as **LOCKED** (depends on locked `hq_country_id`)
-
-### Tests
-- `src/services/__tests__/orgSettingsService.test.ts` — 7 tests (table-driven editability contract; caught a missing classification on first run)
-- `src/lib/validations/__tests__/registration.test.ts` — 33 tests (per-country pin code regex: IN, US, GB, DEFAULT)
-- **All 106 targeted Phase 10 tests pass** (40 new + 66 existing — no regressions)
-
-### Deferred to post-MVP (infrastructure-blocked)
-- **Logo upload** — needs `org-logos` storage bucket + RLS + image processing pipeline
-- **`hq_state_province_id` Select** — needs `md_states_provinces` master table populated + FK-filtered by `hq_country_id`
-- **Timezone Select** — needs timezone master table or IANA tz library integration
-- **`operating_geography_ids[]` badges** — needs multi-select pattern + master geography taxonomy
-- **`enterprise_agreements` RLS integration test** — needs integration harness (cross-tenant DB test rig)
-
-### Known carry-over LOC debt (separate refactor cycle)
-- `PrimaryContactForm.tsx` (789 LOC) — exceeds 250 LOC limit
-- `CreateDelegatedAdminPage.tsx` (317 LOC) — exceeds 250 LOC limit
-
-The seeking-org enrollment + admin/delegate-admin module is now considered **production-ready** modulo the production-cutover OTP flag flip documented in `docs/runbooks/production-cutover.md`.
+- Migration applies and self-rolls-back cleanly on local + preview deploy.
+- Any future change that weakens an RLS policy (e.g. dropping the `admin_tier = 'PRIMARY'` clause) makes the migration fail with a clear `RAISE EXCEPTION` message naming the broken scenario.
+- `.lovable/plan.md` shows Phase 10 closed with no open or deferred items in the seeking-org module.
