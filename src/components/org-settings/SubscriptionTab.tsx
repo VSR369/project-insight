@@ -43,6 +43,7 @@ export function SubscriptionTab({ organizationId }: SubscriptionTabProps) {
   const { data: subscription, isLoading: subLoading } = useOrgSubscription(organizationId);
   const { data: allTiers } = useSubscriptionTiers();
   const { data: allFeatures } = useTierFeatures();
+  const { isPrimary } = useCurrentAdminTier();
   const changeTier = useChangeTier();
 
   if (subLoading) {
