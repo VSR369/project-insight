@@ -14,6 +14,7 @@ const LOCKED_FIELDS = new Set([
   'legal_entity_name',
   'organization_type_id',
   'hq_country_id', // changing country cascades currency/pricing — requires special flow
+  'hq_state_province_id', // depends on hq_country_id (locked) — must move together via dedicated address-change flow
   'founding_year',
 ]);
 
