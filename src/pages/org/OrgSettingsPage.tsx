@@ -79,7 +79,7 @@ const DELEGATED_TABS: TabId[] = ['profile', 'admin', 'subscription'];
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
   const { data: currentOrg } = useCurrentOrg();
-  const { isPrimary, isDelegated, isLoading: tierLoading } = useCurrentAdminTier();
+  const { isDelegated, isLoading: tierLoading } = useCurrentAdminTier();
 
   const visibleTabs: TabId[] = useMemo(
     () => (isDelegated ? DELEGATED_TABS : ALL_TABS),
