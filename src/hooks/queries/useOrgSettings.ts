@@ -29,7 +29,7 @@ export function useOrgProfile(organizationId?: string) {
           organization_type_id, employee_count_range, annual_revenue_range,
           founding_year, hq_country_id, hq_state_province_id, hq_city,
           hq_address_line1, hq_address_line2, hq_postal_code,
-          website_url, organization_description, logo_url,
+          website_url, linkedin_url, organization_description, logo_url,
           preferred_currency, date_format, number_format, timezone,
           is_enterprise, subsidized_discount_pct, registration_step,
           organization_types:organization_type_id(id, name),
@@ -112,12 +112,15 @@ export function useUpdateOrgProfile() {
       organization_name?: string;
       trade_brand_name?: string | null;
       website_url?: string | null;
+      linkedin_url?: string | null;
       organization_description?: string | null;
       hq_address_line1?: string | null;
       hq_address_line2?: string | null;
       hq_city?: string | null;
       hq_postal_code?: string | null;
       timezone?: string | null;
+      employee_count_range?: string | null;
+      annual_revenue_range?: string | null;
     }) => {
       const withAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
