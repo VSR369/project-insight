@@ -85,3 +85,37 @@ After implementation:
 - New tests: `bunx vitest run src/services/__tests__/orgSettingsService.test.ts src/lib/validations/__tests__/registration.test.ts`
 - Existing 179 tests remain green
 - Manually verify on `/org/settings?tab=profile`: `business_registration_number` field renders, saves, persists on reload
+
+---
+
+## Phase 10f — Execution Result (DONE)
+
+**Status:** ✅ Completed.
+
+### Implemented
+- `registration_number` (Business Registration Number) surfaced in admin Profile editor:
+  - Added to `useOrgSettings.ts` SELECT and update mutation
+  - Added to `profileFormSchema.ts` with `max(100)` validation
+  - Added text input to `ProfileExtraFieldsSection.tsx`
+  - Wired through `ProfileTab.tsx` reset + submit
+  - Added to `EDITABLE_FIELDS` set in `orgSettingsService.ts`
+- Bonus: `linkedin_url` also added to `EDITABLE_FIELDS` (was already in form, missing from contract)
+- `hq_state_province_id` classified as **LOCKED** (depends on locked `hq_country_id`)
+
+### Tests
+- `src/services/__tests__/orgSettingsService.test.ts` — 7 tests (table-driven editability contract; caught a missing classification on first run)
+- `src/lib/validations/__tests__/registration.test.ts` — 33 tests (per-country pin code regex: IN, US, GB, DEFAULT)
+- **All 106 targeted Phase 10 tests pass** (40 new + 66 existing — no regressions)
+
+### Deferred to post-MVP (infrastructure-blocked)
+- **Logo upload** — needs `org-logos` storage bucket + RLS + image processing pipeline
+- **`hq_state_province_id` Select** — needs `md_states_provinces` master table populated + FK-filtered by `hq_country_id`
+- **Timezone Select** — needs timezone master table or IANA tz library integration
+- **`operating_geography_ids[]` badges** — needs multi-select pattern + master geography taxonomy
+- **`enterprise_agreements` RLS integration test** — needs integration harness (cross-tenant DB test rig)
+
+### Known carry-over LOC debt (separate refactor cycle)
+- `PrimaryContactForm.tsx` (789 LOC) — exceeds 250 LOC limit
+- `CreateDelegatedAdminPage.tsx` (317 LOC) — exceeds 250 LOC limit
+
+The seeking-org enrollment + admin/delegate-admin module is now considered **production-ready** modulo the production-cutover OTP flag flip documented in `docs/runbooks/production-cutover.md`.
