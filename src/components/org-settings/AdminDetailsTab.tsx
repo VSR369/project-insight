@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import {
-  UserCircle, Lock, Mail, Phone, Building2, CalendarDays, Clock, Loader2, Send, AlertTriangle,
+  UserCircle, Lock, Mail, Phone, CalendarDays, Clock, Loader2, Send, AlertTriangle,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
