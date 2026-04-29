@@ -1,53 +1,67 @@
-# Fix: React #426 crash after accepting legal document
+# Phase 10a — Org Console Stabilization (SHIPPED)
 
-## Root cause
+Status: **Shipped — 4 confirmed defects fixed, 12 regression tests added (all green).**
 
-After clicking **Accept & Continue** on the PWA gate:
+## What changed
 
-1. `useAcceptRoleLegal` insert succeeds → invalidates `pending-role-legal-acceptance`.
-2. The refetch returns `[]`, so `RoleLegalGate`'s `useEffect` synchronously calls `onAllAccepted()`.
-3. `AuthGuard` flips `roleLegalDone = true` and immediately swaps in `{children}` — which is a `React.lazy()`-loaded route module (Organization Portal). The lazy chunk suspends.
-4. `AuthGuard` renders `{children}` directly, with **no `Suspense` boundary of its own**. The suspension happens during a synchronous, non-transition update inside the post-mutation effect chain → React throws **#426** ("update before hydration / suspending sync").
+### 10a.1 — Delegated tab restriction now actually works
+`src/pages/org/OrgSettingsPage.tsx`
 
-The same gap was previously fixed in `AdminGuard` (it wraps `{children}` in `Suspense`) and recorded in `mem://architecture/auth/guard-stability-and-resilience`. `AuthGuard` was never updated to the same pattern, so it still trips whenever a gate transitions from "blocked" to "render children" in response to a network event (mutation success, refetch).
+- Replaced `useCurrentSeekerAdmin(organizationId)` (which hardcoded `admin_tier='PRIMARY'` and returned `null` for delegated admins, causing `isDelegated=false` → all 10 tabs visible) with `useCurrentAdminTier()` which queries by `(user_id, organization_id, status='active')` and returns whatever tier the row has.
+- Added a defensive loading skeleton via `tierLoading` while the tier query resolves. `OrgProvider` already gates render on `organizationId`, but the tier-resolution round-trip is independent — skeleton prevents a flash of `ALL_TABS` before settling.
+- Removed unused `isPrimary` destructure.
 
-## Fix
+### 10a.2 — Raw UUIDs hidden in production
+`src/components/org-settings/AdminDetailsTab.tsx`
 
-Two small, surgical changes — no behavior change for any other path.
+- Removed the `User ID` and `Organization ID` `LockedField` blocks from the visible card.
+- Moved both into a DEV-only `<details>` disclosure ("Show technical IDs") so support engineers can still copy them locally; production users never see them.
 
-### 1. Wrap `AuthGuard`'s children in `Suspense`
+### 10a.3 — `Created By` / `Modified By` resolve to person names
+`src/hooks/queries/useOrgAdminHooks.ts` + `src/components/org-settings/AdminDetailsTab.tsx`
 
-`src/components/auth/AuthGuard.tsx` — replace the final `return <>{children}</>;` with a `Suspense` boundary that uses the same loader the rest of the file already shows during gate checks. This gives React a stable fallback if the children's lazy chunk suspends mid-transition.
+- New `resolveAdminNames` helper batch-fetches `(full_name, email)` from `seeking_org_admins` for any UUIDs referenced by `created_by` / `updated_by`.
+- Self-reference (admin created their own row) is handled by seeding the map with the admin's own contact info.
+- Resolution table:
+  - `null` UUID → `'System'`
+  - UUID found → `'Anna Schmidt (anna@vsr.example.com)'`
+  - UUID not found → `'Unknown user'`
+- Rendered fields show `name (email)` instead of raw UUIDs.
 
-### 2. Defer the gate-pass state updates with `startTransition`
+### 10a.4 — Fields no longer look like console output
+`src/components/org-settings/AdminDetailsTab.tsx:59`
 
-In `AuthGuard.tsx`, mark the three "gate cleared" state setters as transitions so React can interrupt them safely when the next render suspends:
+- `LockedField` value paragraph: `font-mono bg-muted/50` → `font-normal text-foreground bg-muted/30`.
+- `Lock` icon next to the label remains as the read-only affordance.
 
-- `handleAllAccepted` (PMA)
-- `handleRoleLegalDone` (Role Legal — the one in this bug)
-- `setSpaAccepted(true)` callback (legacy SPA)
+## Tests added
 
-Each becomes `React.startTransition(() => setX(true))`. This pairs with the existing `BrowserRouter future={{ v7_startTransition: true }}` setting in `App.tsx` and matches the documented resilience pattern.
+- `src/pages/org/__tests__/OrgSettingsTabs.test.ts` — 7 specs locking the visible-tabs computation:
+  - PRIMARY → all 10 tabs
+  - DELEGATED → exactly `['profile','admin','subscription']`
+  - non-admin org user → all 10 tabs (RLS protects mutations)
+  - URL tampering with hidden tabs → fallback to `profile`
+  - Valid tab requests honoured for both tiers
+  - Null URL param → `profile`
+- `src/hooks/queries/__tests__/useOrgAdminDetails.resolver.test.ts` — 5 specs locking the audit-user resolution contract:
+  - null UUID → `System`
+  - known UUID → resolved name + email
+  - unknown UUID → `Unknown user`
+  - never returns a raw UUID as the display name
+  - self-reference covered by seeded map
 
-### 3. (Defensive) Defer `onAllAccepted` inside `RoleLegalGate`
+All 12 tests green (`bunx vitest run` 1.74s).
 
-In `src/components/auth/RoleLegalGate.tsx`, wrap the `onAllAccepted()` call inside the empty-list `useEffect` in `startTransition` as well. This protects against the same crash if any future caller forgets to wrap their setter.
+## Rollback
 
-## Why this is the right fix (not a workaround)
+`git revert <PR-sha>`. No DB state to undo. No data migration. No edge function redeploy.
+The only behavioural change is that delegated admins now see 3 tabs instead of 10; rolling back makes them see 10 again, and RLS continues to gate every sensitive mutation regardless.
 
-- The `legal_acceptance_log` insert itself is succeeding (constraint bug was already fixed last turn). The pending row is being resolved correctly. Verifiable from the auth log: a fresh token was issued at the moment of click, and no DB error came back.
-- The crash is purely a client-side render-timing issue, identical in shape to the previously-fixed `AdminGuard` case. Solving it at the guard layer (Suspense + transition) is the architecturally correct location — every gate that conditionally swaps in lazy children needs this, not just the legal one.
-- No DB migration, no RLS change, no edge-function change. Read-only legal acceptance flow stays exactly as designed (Phase 9 v4).
+## Next steps (PAUSED, awaiting approval)
 
-## Files to edit
+- **Phase 10c — Enterprise Tier Configuration**: requires schema migration. I will post the **complete migration SQL** (table DDL, every RLS policy, both triggers, view definition, and rollback runbook) as a separate plan for schema-level approval before any DB change runs.
+- **Phase 10b — Surface registration data in admin** (after 10c).
+- **Phase 10d — OTP restoration + tempPassword surface + audit field-name dictionary**.
+- **Phase 10e — Five additional Vitest specs**.
 
-- `src/components/auth/AuthGuard.tsx` — add `Suspense` wrapper around `{children}`; wrap three state-setter callbacks in `startTransition`.
-- `src/components/auth/RoleLegalGate.tsx` — wrap `onAllAccepted()` call in `startTransition` inside the completion `useEffect`.
-
-## Validation after applying
-
-1. Sign in as a workforce-role user with an open PWA pending row.
-2. Scroll, check the box, click **Accept & Continue**.
-3. Expect: success toast, the gate unmounts, `/org/dashboard` renders, **no error boundary**.
-4. Re-login → no PWA gate (acceptance persisted).
-5. Re-run existing legal flow (PMA / SPA legacy) to confirm no regression on those paths.
+Reply with the next phase to authorise (e.g. "approve 10c migration draft").

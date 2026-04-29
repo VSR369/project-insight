@@ -10,7 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import {
-  UserCircle, Lock, Mail, Phone, Building2, CalendarDays, Clock, Loader2, Send, AlertTriangle,
+  UserCircle, Lock, Mail, Phone, CalendarDays, Clock, Loader2, Send, AlertTriangle,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -56,7 +56,7 @@ function LockedField({ label, value, icon }: { label: string; value: string | nu
         {label}
         <Lock className="h-3 w-3 text-muted-foreground/50" />
       </p>
-      <p className="text-sm text-foreground font-mono bg-muted/50 rounded px-3 py-2 border border-border">
+      <p className="text-sm text-foreground font-normal bg-muted/30 rounded px-3 py-2 border border-border">
         {value || '—'}
       </p>
     </div>
@@ -177,11 +177,6 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <LockedField
-              label="User ID"
-              value={adminDetails?.user_id}
-              icon={<Lock className="h-3 w-3" />}
-            />
-            <LockedField
               label="Full Name"
               value={adminDetails?.full_name}
               icon={<UserCircle className="h-3 w-3" />}
@@ -195,11 +190,6 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
               label="Phone Number"
               value={adminDetails?.phone}
               icon={<Phone className="h-3 w-3" />}
-            />
-            <LockedField
-              label="Organization ID"
-              value={adminDetails?.organization_id}
-              icon={<Building2 className="h-3 w-3" />}
             />
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Status</p>
@@ -216,7 +206,11 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
             />
             <LockedField
               label="Created By"
-              value={adminDetails?.created_by ?? 'System'}
+              value={
+                adminDetails?.created_by_email
+                  ? `${adminDetails?.created_by_name} (${adminDetails.created_by_email})`
+                  : adminDetails?.created_by_name ?? 'System'
+              }
               icon={<UserCircle className="h-3 w-3" />}
             />
             <LockedField
@@ -226,7 +220,11 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
             />
             <LockedField
               label="Last Modified By"
-              value={adminDetails?.updated_by}
+              value={
+                adminDetails?.updated_by_email
+                  ? `${adminDetails?.updated_by_name} (${adminDetails.updated_by_email})`
+                  : adminDetails?.updated_by_name ?? 'System'
+              }
               icon={<UserCircle className="h-3 w-3" />}
             />
             <LockedField
@@ -235,6 +233,19 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
               icon={<Clock className="h-3 w-3" />}
             />
           </div>
+
+          {/* DEV-only: technical IDs for support engineers. Hidden in production. */}
+          {import.meta.env.DEV && (
+            <details className="mt-6 text-xs text-muted-foreground">
+              <summary className="cursor-pointer hover:text-foreground">
+                Show technical IDs (dev only)
+              </summary>
+              <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2 font-mono">
+                <div><span className="text-muted-foreground">User ID:</span> {adminDetails?.user_id ?? '—'}</div>
+                <div><span className="text-muted-foreground">Org ID:</span> {adminDetails?.organization_id ?? '—'}</div>
+              </div>
+            </details>
+          )}
         </CardContent>
       </Card>
 
