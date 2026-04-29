@@ -194,6 +194,10 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
 
           <Separator />
 
+          <ProfileExtraFieldsSection form={form} />
+
+          <Separator />
+
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <MapPin className="h-4 w-4" /> Address Details
           </h3>
