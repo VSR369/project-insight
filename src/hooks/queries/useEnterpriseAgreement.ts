@@ -191,6 +191,17 @@ export type AgreementStatus =
   | 'expired'
   | 'terminated';
 
+/**
+ * Transition an Enterprise agreement through its FSM (draft → in_negotiation →
+ * signed → active → expired/terminated).
+ *
+ * ACTIVATION AUTHORITY (decision of record, Phase 10c.7):
+ * The DB-side `enforce_enterprise_agreement_fsm` trigger restricts the
+ * `signed → active` transition to platform supervisor / senior_admin only.
+ * Org PRIMARY admins record their signature out-of-band; Platform Admin
+ * records who signed in `signed_by_org_user` when flipping to active.
+ * Do not relax this without a security review.
+ */
 export function useTransitionAgreementStatus() {
   const qc = useQueryClient();
   return useMutation({
