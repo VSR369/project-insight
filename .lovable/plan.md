@@ -174,3 +174,29 @@ This unblocks 10c.5's edits to the overrides section without bloating the file f
 ## 5. Approval gates
 
 Reply **"approve 10c.5"** to start with the override-consumer wiring and editor split. After it lands and tests pass I'll request approval for 10c.6, then 10c.7, then 10b, 10d, 10e in turn.
+---
+
+## 6. Decisions of record
+
+### Enterprise Agreement activation authority — Platform-only (Option A)
+- The DB trigger `enforce_enterprise_agreement_fsm` permits the `signed → active` transition only when `auth.uid()` is a platform supervisor or senior_admin.
+- Org PRIMARY admins do NOT self-activate. They sign the MSA out-of-band; Platform Admin records who signed in `signed_by_org_user` when activating.
+- Codified in: SQL `COMMENT ON FUNCTION enforce_enterprise_agreement_fsm` (Phase 10c.6 migration) + JSDoc on `useTransitionAgreementStatus`.
+- Do not relax without a security review.
+
+### feature_gates schema integrity — write-time validation
+- `validate_feature_gate_keys()` BEFORE INSERT OR UPDATE OF feature_gates trigger:
+  - Rejects keys not in active `md_enterprise_feature_gate_keys`.
+  - Rejects non-boolean values.
+- Read-side defence-in-depth via `isFeatureGateEnabled()` in `enterpriseLimitsService`.
+
+---
+
+## 7. Progress log
+
+- ✅ **Phase 10c.5** — `enterpriseLimitsService` (10/10 tests green), `useEnterpriseLimits` hook, editor split into 4 files (host now <90 LOC), TeamPage and OrgBillingPage now consume effective limits via the override-aware hook.
+- ✅ **Phase 10c.6** — `validate_feature_gate_keys` trigger live on `enterprise_agreements`.
+- ✅ **Phase 10c.7** — Activation-authority decision documented in SQL `COMMENT ON FUNCTION` and `useTransitionAgreementStatus` JSDoc.
+- ⏭️ **Phase 10b** — awaiting approval.
+- ⏭️ **Phase 10d** — awaiting approval.
+- ⏭️ **Phase 10e** — partially complete (service tests done); FSM/regex/scope tests awaiting approval.
