@@ -768,7 +768,7 @@ export function PrimaryContactForm() {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button type="submit" disabled={isSubmitting}> {/* TODO: TEMP BYPASS — removed !emailVerified */}
+            <Button type="submit" disabled={isSubmitting || (otpRequired && !emailVerified)}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
