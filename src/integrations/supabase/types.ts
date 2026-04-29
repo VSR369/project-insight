@@ -3602,6 +3602,153 @@ export type Database = {
         }
         Relationships: []
       }
+      enterprise_agreement_audit: {
+        Row: {
+          action: string
+          agreement_id: string
+          changed_fields: Json | null
+          id: string
+          new_status: string | null
+          notes: string | null
+          organization_id: string
+          performed_at: string
+          performed_by: string | null
+          previous_status: string | null
+        }
+        Insert: {
+          action: string
+          agreement_id: string
+          changed_fields?: Json | null
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          organization_id: string
+          performed_at?: string
+          performed_by?: string | null
+          previous_status?: string | null
+        }
+        Update: {
+          action?: string
+          agreement_id?: string
+          changed_fields?: Json | null
+          id?: string
+          new_status?: string | null
+          notes?: string | null
+          organization_id?: string
+          performed_at?: string
+          performed_by?: string | null
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_agreement_audit_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "enterprise_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enterprise_agreement_audit_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_active_enterprise_agreement"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enterprise_agreements: {
+        Row: {
+          acv_amount: number | null
+          agreement_status: string
+          billing_cadence: string
+          contract_end_date: string | null
+          contract_start_date: string | null
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          feature_gates: Json
+          governance_mode_override: string | null
+          id: string
+          max_challenges_override: number | null
+          max_storage_gb_override: number | null
+          max_users_override: number | null
+          msa_document_url: string | null
+          notes: string | null
+          organization_id: string
+          signed_at: string | null
+          signed_by_org_user: string | null
+          signed_by_platform_user: string | null
+          tier_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          acv_amount?: number | null
+          agreement_status?: string
+          billing_cadence?: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          feature_gates?: Json
+          governance_mode_override?: string | null
+          id?: string
+          max_challenges_override?: number | null
+          max_storage_gb_override?: number | null
+          max_users_override?: number | null
+          msa_document_url?: string | null
+          notes?: string | null
+          organization_id: string
+          signed_at?: string | null
+          signed_by_org_user?: string | null
+          signed_by_platform_user?: string | null
+          tier_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          acv_amount?: number | null
+          agreement_status?: string
+          billing_cadence?: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          feature_gates?: Json
+          governance_mode_override?: string | null
+          id?: string
+          max_challenges_override?: number | null
+          max_storage_gb_override?: number | null
+          max_users_override?: number | null
+          msa_document_url?: string | null
+          notes?: string | null
+          organization_id?: string
+          signed_at?: string | null
+          signed_by_org_user?: string | null
+          signed_by_platform_user?: string | null
+          tier_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_agreements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enterprise_agreements_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enterprise_contact_requests: {
         Row: {
           assigned_to: string | null
@@ -5759,6 +5906,42 @@ export type Database = {
           name?: string
           updated_at?: string | null
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      md_enterprise_feature_gate_keys: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          key: string
+          sort_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          key: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          sort_order?: number
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -16541,6 +16724,45 @@ export type Database = {
             columns: ["solver_eligibility_id"]
             isOneToOne: false
             referencedRelation: "md_solver_eligibility"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_org_active_enterprise_agreement: {
+        Row: {
+          acv_amount: number | null
+          agreement_status: string | null
+          billing_cadence: string | null
+          contract_end_date: string | null
+          contract_start_date: string | null
+          created_at: string | null
+          currency_code: string | null
+          feature_gates: Json | null
+          governance_mode_override: string | null
+          id: string | null
+          max_challenges_override: number | null
+          max_storage_gb_override: number | null
+          max_users_override: number | null
+          organization_id: string | null
+          signed_at: string | null
+          tier_code: string | null
+          tier_id: string | null
+          tier_name: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enterprise_agreements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enterprise_agreements_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
             referencedColumns: ["id"]
           },
         ]

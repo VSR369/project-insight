@@ -1,67 +1,78 @@
-# Phase 10a — Org Console Stabilization (SHIPPED)
+# Phase 10c — Enterprise Tier Configuration (MIGRATION SHIPPED — UI PENDING)
 
-Status: **Shipped — 4 confirmed defects fixed, 12 regression tests added (all green).**
+Status: **Migration applied. Awaiting user approval, then UI wiring (hooks + Platform Admin page + Org read-only card).**
 
-## What changed
+## What just landed (DB layer)
 
-### 10a.1 — Delegated tab restriction now actually works
-`src/pages/org/OrgSettingsPage.tsx`
+### Tables
+- `md_enterprise_feature_gate_keys` — 7 seeded gates (sso, white_label, api_access, dedicated_support, audit_export, custom_integrations, priority_ai)
+- `enterprise_agreements` — per-org negotiated terms: ACV, ISO-4217 currency, billing cadence, contract dates, override caps (challenges/users/storage), `governance_mode_override`, `feature_gates` JSONB, MSA URL, signers
+- `enterprise_agreement_audit` — append-only forensic trail; UPDATE/DELETE blocked by `block_ent_audit_mutations()` trigger
 
-- Replaced `useCurrentSeekerAdmin(organizationId)` (which hardcoded `admin_tier='PRIMARY'` and returned `null` for delegated admins, causing `isDelegated=false` → all 10 tabs visible) with `useCurrentAdminTier()` which queries by `(user_id, organization_id, status='active')` and returns whatever tier the row has.
-- Added a defensive loading skeleton via `tierLoading` while the tier query resolves. `OrgProvider` already gates render on `organizationId`, but the tier-resolution round-trip is independent — skeleton prevents a flash of `ALL_TABS` before settling.
-- Removed unused `isPrimary` destructure.
+### Triggers
+- `enforce_enterprise_agreement_fsm()` — gates `draft → in_negotiation → signed → active → expired/terminated`. **Activation requires platform supervisor/senior_admin** + non-null contract dates.
+- `write_enterprise_agreement_audit()` — auto-writes audit row on every INSERT/UPDATE
+- `sync_enterprise_governance_override()` — on activation, upserts `org_governance_overrides` row from `governance_mode_override`
+- `trg_enterprise_agreements_updated_at` — standard timestamp maintenance
 
-### 10a.2 — Raw UUIDs hidden in production
-`src/components/org-settings/AdminDetailsTab.tsx`
+### View
+- `v_org_active_enterprise_agreement` — read-only effective terms (joins tier code/name)
 
-- Removed the `User ID` and `Organization ID` `LockedField` blocks from the visible card.
-- Moved both into a DEV-only `<details>` disclosure ("Show technical IDs") so support engineers can still copy them locally; production users never see them.
+### RLS
+- Platform `supervisor` / `senior_admin`: full CRUD on agreements + read on audit
+- Org `seeking_org_admins.admin_tier='PRIMARY'`: SELECT only on their org's agreement + audit
+- Delegated admins: no access
+- `md_enterprise_feature_gate_keys`: read for all authenticated, write for platform admins only
 
-### 10a.3 — `Created By` / `Modified By` resolve to person names
-`src/hooks/queries/useOrgAdminHooks.ts` + `src/components/org-settings/AdminDetailsTab.tsx`
+### Unique constraint
+- `idx_enterprise_agreements_active_per_org` — only one `active` agreement per organization
 
-- New `resolveAdminNames` helper batch-fetches `(full_name, email)` from `seeking_org_admins` for any UUIDs referenced by `created_by` / `updated_by`.
-- Self-reference (admin created their own row) is handled by seeding the map with the admin's own contact info.
-- Resolution table:
-  - `null` UUID → `'System'`
-  - UUID found → `'Anna Schmidt (anna@vsr.example.com)'`
-  - UUID not found → `'Unknown user'`
-- Rendered fields show `name (email)` instead of raw UUIDs.
+## Linter
+506 pre-existing repo-wide issues (security definer views, mutable function search paths in unrelated functions). Our new functions all use `SECURITY DEFINER SET search_path = public`. Our new view is plain `CREATE OR REPLACE VIEW` with no `SECURITY DEFINER`. Nothing in this migration adds new findings.
 
-### 10a.4 — Fields no longer look like console output
-`src/components/org-settings/AdminDetailsTab.tsx:59`
+## Next (after migration approval — types.ts regenerates first)
 
-- `LockedField` value paragraph: `font-mono bg-muted/50` → `font-normal text-foreground bg-muted/30`.
-- `Lock` icon next to the label remains as the read-only affordance.
+1. **Hooks** (`src/hooks/queries/useEnterpriseAgreement.ts`)
+   - `useActiveEnterpriseAgreement(orgId)` — reads `v_org_active_enterprise_agreement`
+   - `useEnterpriseAgreements(orgId?)` — platform admin list
+   - `useUpsertEnterpriseAgreement()` / `useTransitionAgreementStatus()` — platform mutations
+   - `useEnterpriseFeatureGateKeys()` — lookup
+   - `useEnterpriseAgreementAudit(agreementId)` — forensic trail
 
-## Tests added
+2. **Platform Admin page** (`src/pages/admin/EnterpriseAgreementsPage.tsx` + components in `src/components/admin/enterprise/`)
+   - Route `/admin/enterprise-agreements`
+   - Guard with `<TierGuard requiredTier="senior_admin">`
+   - Org search → agreement editor (commercial, overrides, feature gates, MSA upload, status FSM)
+   - Audit trail viewer
+   - Files <250 lines each (form / status timeline / feature-gate matrix split)
 
-- `src/pages/org/__tests__/OrgSettingsTabs.test.ts` — 7 specs locking the visible-tabs computation:
-  - PRIMARY → all 10 tabs
-  - DELEGATED → exactly `['profile','admin','subscription']`
-  - non-admin org user → all 10 tabs (RLS protects mutations)
-  - URL tampering with hidden tabs → fallback to `profile`
-  - Valid tab requests honoured for both tiers
-  - Null URL param → `profile`
-- `src/hooks/queries/__tests__/useOrgAdminDetails.resolver.test.ts` — 5 specs locking the audit-user resolution contract:
-  - null UUID → `System`
-  - known UUID → resolved name + email
-  - unknown UUID → `Unknown user`
-  - never returns a raw UUID as the display name
-  - self-reference covered by seeded map
+3. **Org Settings read-only card** (`src/components/org-settings/EnterpriseAgreementCard.tsx`)
+   - Shown in `OrgSettingsPage` Subscription tab when org tier = `enterprise` AND PRIMARY admin
+   - Renders ACV, dates, billing cadence, effective overrides, enabled feature gates, audit timeline
+   - "Contact your account manager to amend" CTA — no edit affordances
 
-All 12 tests green (`bunx vitest run` 1.74s).
+4. **Regression tests** (Vitest)
+   - FSM rejects illegal transitions
+   - Non-platform user cannot flip to `active` (RLS + trigger)
+   - Activation triggers governance_overrides upsert
+   - Audit table rejects UPDATE / DELETE
+   - Delegated admin cannot SELECT agreement
+   - PRIMARY admin can SELECT only their org's agreement
 
 ## Rollback
+```sql
+DROP VIEW IF EXISTS public.v_org_active_enterprise_agreement;
+DROP TABLE IF EXISTS public.enterprise_agreement_audit CASCADE;
+DROP TABLE IF EXISTS public.enterprise_agreements CASCADE;
+DROP TABLE IF EXISTS public.md_enterprise_feature_gate_keys CASCADE;
+DROP FUNCTION IF EXISTS public.enforce_enterprise_agreement_fsm() CASCADE;
+DROP FUNCTION IF EXISTS public.write_enterprise_agreement_audit() CASCADE;
+DROP FUNCTION IF EXISTS public.sync_enterprise_governance_override() CASCADE;
+DROP FUNCTION IF EXISTS public.block_ent_audit_mutations() CASCADE;
+```
+No data migration to undo. `org_governance_overrides` rows created by activation sync remain harmless if the parent agreement disappears (they're independent records).
 
-`git revert <PR-sha>`. No DB state to undo. No data migration. No edge function redeploy.
-The only behavioural change is that delegated admins now see 3 tabs instead of 10; rolling back makes them see 10 again, and RLS continues to gate every sensitive mutation regardless.
+---
 
-## Next steps (PAUSED, awaiting approval)
-
-- **Phase 10c — Enterprise Tier Configuration**: requires schema migration. I will post the **complete migration SQL** (table DDL, every RLS policy, both triggers, view definition, and rollback runbook) as a separate plan for schema-level approval before any DB change runs.
-- **Phase 10b — Surface registration data in admin** (after 10c).
-- **Phase 10d — OTP restoration + tempPassword surface + audit field-name dictionary**.
-- **Phase 10e — Five additional Vitest specs**.
-
-Reply with the next phase to authorise (e.g. "approve 10c migration draft").
+# Phase 10a — Org Console Stabilization (SHIPPED — see prior plan history in git)
+12 regression tests green. Tab gating, audit name resolution, UUID hiding, and font-mono cleanup all live.
