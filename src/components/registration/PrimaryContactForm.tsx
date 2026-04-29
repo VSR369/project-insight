@@ -381,7 +381,7 @@ export function PrimaryContactForm() {
                   type="email"
                   placeholder="name@company.com"
                   className="text-base"
-                  // TODO: TEMP BYPASS — was: disabled={emailVerified}
+                  disabled={otpRequired && emailVerified}
                 />
               </FormControl>
               <EmailDomainBlocker
