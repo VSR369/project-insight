@@ -79,17 +79,25 @@ export const primaryContactSchema = z.object({
     .min(1, 'Please select a preferred language'),
 
   // BR-REG-006: OTP verification gate (env-flagged via VITE_ENABLE_REGISTRATION_OTP).
-  // When the flag is OFF (dev default), accepts any boolean (defaults to true).
-  // When the flag is ON (production), requires explicit `true` from a verified OTP flow.
-  is_email_verified: isRegistrationOtpEnabled()
-    ? z.literal(true, { errorMap: () => ({ message: 'Email verification required' }) })
-    : z.boolean().default(true),
+  // The flag is read at PARSE time (in superRefine below) so that env changes
+  // and tests using `vi.stubEnv` are honoured without rebuilding the schema.
+  is_email_verified: z.boolean().default(true),
 
   password: passwordField,
   confirm_password: z.string(),
-}).refine((data) => data.password === data.confirm_password, {
-  message: "Passwords don't match",
-  path: ['confirm_password'],
-});
+})
+  .superRefine((data, ctx) => {
+    if (isRegistrationOtpEnabled() && data.is_email_verified !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['is_email_verified'],
+        message: 'Email verification required',
+      });
+    }
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Passwords don't match",
+    path: ['confirm_password'],
+  });
 
 export type PrimaryContactFormValues = z.infer<typeof primaryContactSchema>;
