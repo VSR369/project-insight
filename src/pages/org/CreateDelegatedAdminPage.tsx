@@ -70,6 +70,8 @@ export default function CreateDelegatedAdminPage() {
   const [pendingFormData, setPendingFormData] = useState<FormValues | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [inlineScopeOverlap, setInlineScopeOverlap] = useState<{ name: string; email: string }[]>([]);
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [revealAdmin, setRevealAdmin] = useState<{ name: string; email: string } | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createAdminSchema),
