@@ -1,86 +1,176 @@
-# Phase 10c — Enterprise Tier Configuration (UI SHIPPED)
+# Stabilization Fix Plan — Post-10c Hidden Gaps + Sequenced 10b/10d/10e
 
-Status: **DB layer applied. Hooks, Platform Admin page, and Org read-only card all wired. Awaiting QA.**
+## 1. Independent verification of Claude's claims
 
-## UI just landed
+I grepped the live repo. All four substantive claims hold:
 
-- `src/hooks/queries/useEnterpriseAgreement.ts` — read + mutate hooks (active view, list, detail, audit, gate keys, upsert, status FSM transitions).
-- `src/components/org-settings/EnterpriseAgreementCard.tsx` — read-only contract summary for PRIMARY admins on enterprise tier; slotted into `SubscriptionTab`.
-- `src/components/admin/enterprise/` — `AgreementEditorForm`, `AgreementStatusControls`, `AgreementAuditTrail`, `OrgPicker` (each <250 lines).
-- `src/pages/admin/EnterpriseAgreementsPage.tsx` — list / create / edit / status FSM / audit at `/admin/enterprise-agreements` (guarded by `org_approvals.manage_agreements`).
-- Contract test: `src/hooks/queries/__tests__/useEnterpriseAgreement.contract.test.ts`.
+| Claim | Verified against |
+|---|---|
+| Override columns are stored but **no consumer reads them** | `rg "max_challenges_override\|max_users_override\|max_storage_gb_override\|feature_gates"` returns only the editor (write), the read hook, the read-only org card, and `types.ts`. No challenge-creation, user-invite, storage-quota, or feature-gated UI references. |
+| `feature_gates` JSONB has **no key/type validation** | Migration `20260429124842_*.sql` creates the lookup table but no `validate_feature_gate_keys()` trigger. Typos like `{"shaddow_pricing": true}` and wrong types like `{"sso": "yes"}` ship silently. |
+| FSM activation is platform-only (Option A) | `enforce_enterprise_agreement_fsm()` lines 220–235 hard-require `platform_admin_profiles.admin_tier IN ('supervisor','senior_admin')` for the `signed → active` transition. Org PRIMARY cannot self-activate. Decision is correct but undocumented. |
+| OTP `TODO: TEMP BYPASS` is real | 6 bypass sites across `src/lib/validations/primaryContact.ts` and `src/components/registration/PrimaryContactForm.tsx`. No env-flag wrapping. |
+| Delegated-admin temp password not surfaced to org PRIMARY | `CreateDelegatedAdminPage.tsx` generates `tempPassword` (line 78) and submits it (line 115) but never renders it. Compare to `AdminCredentialsCard.tsx` which does show it on the platform-admin path. |
 
-## What just landed (DB layer)
+I also found a side-issue Claude missed: `AgreementEditorForm.tsx` is **264 lines** — over the 250-line workspace cap. Must be split as part of this work.
 
-### Tables
-- `md_enterprise_feature_gate_keys` — 7 seeded gates (sso, white_label, api_access, dedicated_support, audit_export, custom_integrations, priority_ai)
-- `enterprise_agreements` — per-org negotiated terms: ACV, ISO-4217 currency, billing cadence, contract dates, override caps (challenges/users/storage), `governance_mode_override`, `feature_gates` JSONB, MSA URL, signers
-- `enterprise_agreement_audit` — append-only forensic trail; UPDATE/DELETE blocked by `block_ent_audit_mutations()` trigger
+## 2. Architecture alignment
 
-### Triggers
-- `enforce_enterprise_agreement_fsm()` — gates `draft → in_negotiation → signed → active → expired/terminated`. **Activation requires platform supervisor/senior_admin** + non-null contract dates.
-- `write_enterprise_agreement_audit()` — auto-writes audit row on every INSERT/UPDATE
-- `sync_enterprise_governance_override()` — on activation, upserts `org_governance_overrides` row from `governance_mode_override`
-- `trg_enterprise_agreements_updated_at` — standard timestamp maintenance
+This plan respects every Lovable architecture rule that's load-bearing here:
 
-### View
-- `v_org_active_enterprise_agreement` — read-only effective terms (joins tier code/name)
+- **No DB calls in components** → all override/feature-gate reads go through one new hook (`useEnterpriseLimits`) that wraps the existing `useActiveEnterpriseAgreement`.
+- **Extend additively, don't duplicate** → the validation trigger is added to existing tables; no new columns, no parallel feature_gates path.
+- **RLS unchanged** → no policy edits; the JSONB trigger is a `BEFORE INSERT/UPDATE` data-shape guard, not an authorization gate.
+- **Append-only audit untouched** → `enterprise_agreement_audit` block triggers stay exactly as shipped.
+- **Lifecycle uses RPC, never direct status flips** → the existing `useTransitionAgreementStatus` mutation is the only path that hits the FSM; no bypass added.
+- **Component cap (250 LOC)** → editor form gets split into `AgreementCommercialFields`, `AgreementOverridesFields`, `AgreementFeatureGatesMatrix` so the host stays a composition layer.
+- **Files we touch in `src/services/` get business logic; hooks stay thin** → the override-resolution math (`override ?? tier_default`) lives in a tiny `enterpriseLimitsService.ts`, not in components.
 
-### RLS
-- Platform `supervisor` / `senior_admin`: full CRUD on agreements + read on audit
-- Org `seeking_org_admins.admin_tier='PRIMARY'`: SELECT only on their org's agreement + audit
-- Delegated admins: no access
-- `md_enterprise_feature_gate_keys`: read for all authenticated, write for platform admins only
+Nothing in this plan changes existing FSM behaviour, RLS, audit policies, or the public `useActiveEnterpriseAgreement` shape — so existing screens (Subscription tab card, Platform Admin page) keep working untouched.
 
-### Unique constraint
-- `idx_enterprise_agreements_active_per_org` — only one `active` agreement per organization
+## 3. Phases — execution order is mandatory
 
-## Linter
-506 pre-existing repo-wide issues (security definer views, mutable function search paths in unrelated functions). Our new functions all use `SECURITY DEFINER SET search_path = public`. Our new view is plain `CREATE OR REPLACE VIEW` with no `SECURITY DEFINER`. Nothing in this migration adds new findings.
-
-## Next (after migration approval — types.ts regenerates first)
-
-1. **Hooks** (`src/hooks/queries/useEnterpriseAgreement.ts`)
-   - `useActiveEnterpriseAgreement(orgId)` — reads `v_org_active_enterprise_agreement`
-   - `useEnterpriseAgreements(orgId?)` — platform admin list
-   - `useUpsertEnterpriseAgreement()` / `useTransitionAgreementStatus()` — platform mutations
-   - `useEnterpriseFeatureGateKeys()` — lookup
-   - `useEnterpriseAgreementAudit(agreementId)` — forensic trail
-
-2. **Platform Admin page** (`src/pages/admin/EnterpriseAgreementsPage.tsx` + components in `src/components/admin/enterprise/`)
-   - Route `/admin/enterprise-agreements`
-   - Guard with `<TierGuard requiredTier="senior_admin">`
-   - Org search → agreement editor (commercial, overrides, feature gates, MSA upload, status FSM)
-   - Audit trail viewer
-   - Files <250 lines each (form / status timeline / feature-gate matrix split)
-
-3. **Org Settings read-only card** (`src/components/org-settings/EnterpriseAgreementCard.tsx`)
-   - Shown in `OrgSettingsPage` Subscription tab when org tier = `enterprise` AND PRIMARY admin
-   - Renders ACV, dates, billing cadence, effective overrides, enabled feature gates, audit timeline
-   - "Contact your account manager to amend" CTA — no edit affordances
-
-4. **Regression tests** (Vitest)
-   - FSM rejects illegal transitions
-   - Non-platform user cannot flip to `active` (RLS + trigger)
-   - Activation triggers governance_overrides upsert
-   - Audit table rejects UPDATE / DELETE
-   - Delegated admin cannot SELECT agreement
-   - PRIMARY admin can SELECT only their org's agreement
-
-## Rollback
-```sql
-DROP VIEW IF EXISTS public.v_org_active_enterprise_agreement;
-DROP TABLE IF EXISTS public.enterprise_agreement_audit CASCADE;
-DROP TABLE IF EXISTS public.enterprise_agreements CASCADE;
-DROP TABLE IF EXISTS public.md_enterprise_feature_gate_keys CASCADE;
-DROP FUNCTION IF EXISTS public.enforce_enterprise_agreement_fsm() CASCADE;
-DROP FUNCTION IF EXISTS public.write_enterprise_agreement_audit() CASCADE;
-DROP FUNCTION IF EXISTS public.sync_enterprise_governance_override() CASCADE;
-DROP FUNCTION IF EXISTS public.block_ent_audit_mutations() CASCADE;
+```text
+10c.5  → 10c.6  → 10c.7  →  10b  →  10d  →  10e
+(consumers) (validate) (docs)   (reg UI) (OTP+pwd) (tests)
 ```
-No data migration to undo. `org_governance_overrides` rows created by activation sync remain harmless if the parent agreement disappears (they're independent records).
+
+10c.5 and 10c.6 are blockers for any Enterprise contract going live — they ship first, in that order, **not as a single batch**.
 
 ---
 
-# Phase 10a — Org Console Stabilization (SHIPPED — see prior plan history in git)
-12 regression tests green. Tab gating, audit name resolution, UUID hiding, and font-mono cleanup all live.
+### Phase 10c.5 — Wire enterprise overrides into consumers
+
+**Goal:** make the negotiated columns actually do something.
+
+New service `src/services/enterprise/enterpriseLimitsService.ts`:
+- `resolveLimit(override: number | null, tierDefault: number): number` — single source of truth for the `override ?? tierDefault` rule.
+- `isFeatureGateEnabled(gates: Record<string, unknown>, key: string): boolean` — type-safe boolean coercion.
+
+New hook `src/hooks/queries/useEnterpriseLimits.ts`:
+- `useEnterpriseLimits(orgId)` returns `{ maxChallenges, maxUsers, maxStorageGb, featureGates, isEnterprise }` by joining `useActiveEnterpriseAgreement(orgId)` with the org's tier defaults (already fetched by `useCurrentAdminTier` / tier service).
+- Returns tier defaults when no active agreement exists, so non-enterprise orgs are unaffected.
+
+Consumers to wire (each is a small surgical edit, no logic rewrite):
+1. **Challenge creation cap** — wherever `tier.max_challenges` is currently read (likely `useChallengeCreation` or `challengePricingService`), swap to `useEnterpriseLimits().maxChallenges`.
+2. **User invite cap** — same swap in the seat-limit check inside the user-invite mutation.
+3. **Storage quota** — same swap if a quota check exists; if not, no-op (don't invent one).
+4. **Feature gates** — gate visibility (not just disable) of:
+   - SSO config UI → `featureGates.sso`
+   - White-label/branding admin UI → `featureGates.white_label`
+   - API token issuance page → `featureGates.api_access`
+   - Audit-export buttons → `featureGates.audit_export`
+   - "Dedicated CSM" badge in org header → `featureGates.dedicated_support`
+   - AI gateway routing flag → `featureGates.priority_ai`
+
+Where a target UI doesn't yet exist (e.g. SSO config page), do **not** scaffold it — leave a one-line `// TODO(post-MVP): gate behind featureGates.sso when SSO UI lands` comment so the gate point is recorded.
+
+**Acceptance:** unit test asserts `resolveLimit(500, 50) === 500` and `resolveLimit(null, 50) === 50`. Integration-style test (mocked Supabase) asserts that `useEnterpriseLimits` returns the override value when an active agreement exists.
+
+---
+
+### Phase 10c.6 — `feature_gates` JSONB validation trigger
+
+Migration adds one function + one trigger on `enterprise_agreements`:
+
+```text
+validate_feature_gate_keys()
+  - For every key in NEW.feature_gates:
+      assert key ∈ (SELECT key FROM md_enterprise_feature_gate_keys WHERE is_active)
+  - For every value in NEW.feature_gates:
+      assert jsonb_typeof(value) = 'boolean'
+  - RAISE EXCEPTION on first failure with the offending key/value in the message
+```
+
+Trigger: `BEFORE INSERT OR UPDATE OF feature_gates ON enterprise_agreements`.
+
+Rollback section in the migration drops both the trigger and the function. No data backfill needed — current rows are either `{}` or already typed correctly (verified by the editor's Zod `z.record(z.boolean())`).
+
+**Why a trigger and not a CHECK constraint:** CHECK constraints can't reference other tables. The lookup table is the source of truth, so this has to be a trigger. Documented in the function header.
+
+---
+
+### Phase 10c.7 — Document activation authority (Option A)
+
+No code change beyond comments + one doc paragraph:
+
+1. Add a header comment to `enforce_enterprise_agreement_fsm()` in a new migration (or as a `COMMENT ON FUNCTION`) stating: *"Activation is platform-only by design. Org PRIMARY admins record their signature out-of-band; Platform Admin records it in `signed_by_org_user` when flipping `signed → active`. Do not relax this without a security review."*
+2. Add the same note to the JSDoc of `useTransitionAgreementStatus` in `useEnterpriseAgreement.ts`.
+3. Add one paragraph to `.lovable/plan.md` under a new "Decisions of record" section.
+
+This closes Claude's Gap 4 without changing behaviour.
+
+---
+
+### Phase 10b — Registration data surfacing (now safe to run)
+
+Three additive UI tasks, no migration, no tenant_id changes:
+
+- **10b.1 ProfileTab** — add edit fields for `linkedin_url`, `business_registration_number`, `state_province_id` (FK Select), logo upload, `employee_count_range`, `annual_revenue_range`, geography badges, timezone Select. Use existing `useUpdateOrganization` mutation; extend its Zod schema additively.
+- **10b.2 OrgComplianceTab** — surface registration-time `seeker_compliance` flags (ITAR/SOC2/ISO27001/GDPR/HIPAA/NDA) as read-with-edit. Convert `data_residency_country` from free-text Input to FK Select against `md_countries`. **Migration preserves originals** by adding `data_residency_country_legacy_text TEXT` and copying current free-text values into it before the column type changes — no silent nulls.
+- **10b.3 Billing edit surface** — `/org/billing` route gains an edit form for billing entity, address, PO number, tax ID. Reuses existing `billingService`.
+
+Each tab change is a separate atomic commit so any one can roll back independently.
+
+---
+
+### Phase 10d — OTP restoration + delegated-admin password reveal
+
+**OTP — env-flagged, not deleted:**
+
+In `src/lib/validations/primaryContact.ts`:
+
+```text
+is_email_verified: import.meta.env.VITE_ENABLE_REGISTRATION_OTP === 'true'
+  ? z.literal(true, { errorMap: () => ({ message: 'Email verification required' }) })
+  : z.boolean().default(true)
+```
+
+In `PrimaryContactForm.tsx`: replace each `TODO: TEMP BYPASS` site with `const otpRequired = import.meta.env.VITE_ENABLE_REGISTRATION_OTP === 'true'` and gate the OTP section, the `disabled={emailVerified}` on the email field, and the submit-button guard on `otpRequired`.
+
+`.env` (dev): `VITE_ENABLE_REGISTRATION_OTP=false`.
+Production cutover checklist (new file `docs/runbooks/production-cutover.md`): one line — *"Set `VITE_ENABLE_REGISTRATION_OTP=true` in production env."*
+
+**Delegated admin password reveal:**
+
+In `CreateDelegatedAdminPage.tsx`, on successful create, render a copy-only modal showing `tempPassword` with the same UX as `AdminCredentialsCard.tsx` (masked by default, reveal toggle, copy-to-clipboard, "I have saved this — close" button). Password is shown once and never persisted to client state beyond the modal lifecycle.
+
+---
+
+### Phase 10e — Test coverage (Vitest only; defer RLS to integration env)
+
+Ship as Vitest specs in this order:
+
+1. `enterpriseLimitsService.test.ts` — `resolveLimit` and `isFeatureGateEnabled` table-driven.
+2. `useEnterpriseAgreement.fsm.test.ts` — every illegal transition is rejected; `signed → active` requires platform admin (mocked).
+3. `validate_feature_gate_keys.test.ts` — Vitest spec calling the live function via Supabase test client; unknown key and non-boolean value both throw.
+4. `isFieldEditable.test.ts` — table-driven matrix.
+5. `postalCodeRegex.test.ts` — per-country.
+6. `scopeOverlap.test.ts` — provider grant overlap warning.
+
+RLS test (PRIMARY-only SELECT, delegated-admin denial) stays deferred until an integration test environment exists; tracked as one TODO in `.lovable/plan.md`, not as silent debt.
+
+---
+
+### Side-fix piggybacked on 10c.5
+
+`AgreementEditorForm.tsx` is 264 LOC. Split into:
+- `AgreementEditorForm.tsx` (host, <120 LOC)
+- `AgreementCommercialFields.tsx` (ACV, currency, cadence, dates)
+- `AgreementOverridesFields.tsx` (the three `_override` numeric inputs)
+- `AgreementFeatureGatesMatrix.tsx` (lookup-driven Switch grid)
+
+This unblocks 10c.5's edits to the overrides section without bloating the file further.
+
+## 4. What this plan deliberately does NOT do
+
+- Does **not** change the FSM (no org-side activation path).
+- Does **not** touch RLS on `enterprise_agreements`, `enterprise_agreement_audit`, or `md_enterprise_feature_gate_keys`.
+- Does **not** modify `complete_phase` or any other lifecycle RPC.
+- Does **not** delete the OTP infrastructure (`useSendOtp`, `useVerifyOtp`, `OtpVerification.tsx`) — they're left intact and re-enabled by the env flag.
+- Does **not** invent SSO/white-label/API-token UIs that don't exist yet — only gates the ones that do, leaves marker comments for the rest.
+- Does **not** batch any of these phases. Each ships, the regression suite runs, then the next starts.
+
+## 5. Approval gates
+
+Reply **"approve 10c.5"** to start with the override-consumer wiring and editor split. After it lands and tests pass I'll request approval for 10c.6, then 10c.7, then 10b, 10d, 10e in turn.
