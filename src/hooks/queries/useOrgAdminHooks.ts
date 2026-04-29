@@ -26,9 +26,46 @@ export interface OrgAdminDetails {
   invitation_status: string | null;
   joined_at: string | null;
   created_by: string | null;
+  created_by_name: string | null;
+  created_by_email: string | null;
   created_at: string | null;
   updated_by: string | null;
+  updated_by_name: string | null;
+  updated_by_email: string | null;
   updated_at: string | null;
+}
+
+/**
+ * Resolves a set of auth.user UUIDs to display names by looking them up
+ * in seeking_org_admins (which holds full_name + email for every admin
+ * who would have caused an audit-field write on org_users).
+ *
+ * Returns a Map keyed by user_id. Missing UUIDs are simply absent from
+ * the map; the caller decides the fallback label ('System' / 'Unknown user').
+ */
+async function resolveAdminNames(
+  userIds: (string | null | undefined)[],
+): Promise<Map<string, { name: string; email: string }>> {
+  const ids = Array.from(new Set(userIds.filter((u): u is string => !!u)));
+  if (ids.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('seeking_org_admins')
+    .select('user_id, full_name, email')
+    .in('user_id', ids);
+
+  if (error) throw new Error(error.message);
+
+  const map = new Map<string, { name: string; email: string }>();
+  for (const row of data ?? []) {
+    if (row.user_id) {
+      map.set(row.user_id, {
+        name: row.full_name ?? 'Unknown user',
+        email: row.email ?? '',
+      });
+    }
+  }
+  return map;
 }
 
 export function useOrgAdminDetails(organizationId?: string) {
@@ -72,6 +109,21 @@ export function useOrgAdminDetails(organizationId?: string) {
         ? [contact.phone_country_code, contact.phone_number].filter(Boolean).join(' ')
         : null;
 
+      // Resolve audit-field UUIDs to names. Self-reference (admin created their
+      // own row) is handled by injecting their own contact name into the map.
+      const nameMap = await resolveAdminNames([adminUser.created_by, adminUser.updated_by]);
+      if (adminUser.user_id && fullName && !nameMap.has(adminUser.user_id)) {
+        nameMap.set(adminUser.user_id, { name: fullName, email: contact?.email ?? '' });
+      }
+
+      const resolveAuditUser = (uuid: string | null) => {
+        if (!uuid) return { name: 'System', email: '' };
+        return nameMap.get(uuid) ?? { name: 'Unknown user', email: '' };
+      };
+
+      const createdByResolved = resolveAuditUser(adminUser.created_by);
+      const updatedByResolved = resolveAuditUser(adminUser.updated_by);
+
       return {
         user_id: adminUser.user_id,
         full_name: fullName,
@@ -82,8 +134,12 @@ export function useOrgAdminDetails(organizationId?: string) {
         invitation_status: adminUser.invitation_status,
         joined_at: adminUser.joined_at,
         created_by: adminUser.created_by,
+        created_by_name: createdByResolved.name,
+        created_by_email: createdByResolved.email || null,
         created_at: adminUser.created_at,
         updated_by: adminUser.updated_by,
+        updated_by_name: updatedByResolved.name,
+        updated_by_email: updatedByResolved.email || null,
         updated_at: adminUser.updated_at,
       };
     },
