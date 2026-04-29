@@ -33,6 +33,7 @@ import { ArrowLeft, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 import { DelegatedAdminLimitWarning } from '@/components/rbac/DelegatedAdminLimitWarning';
+import { TempPasswordRevealDialog } from '@/components/org/TempPasswordRevealDialog';
 
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
