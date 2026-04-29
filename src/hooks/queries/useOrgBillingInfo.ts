@@ -51,7 +51,7 @@ export function useOrgBillingInfo(organizationId: string | null | undefined) {
         handleQueryError(error, { operation: 'fetch_org_billing_info' });
         return null;
       }
-      return data as OrgBillingInfoRow | null;
+      return data as unknown as OrgBillingInfoRow | null;
     },
     enabled: !!organizationId,
     staleTime: 60 * 1000,
