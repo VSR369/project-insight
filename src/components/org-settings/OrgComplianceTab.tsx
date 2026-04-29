@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { useOrgComplianceConfig, useUpsertOrgComplianceConfig } from '@/hooks/queries/useOrgComplianceConfig';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { ComplianceRegistrationDisplay } from './ComplianceRegistrationDisplay';
 
 const schema = z.object({
   export_control_enabled: z.boolean().default(false),
@@ -69,12 +70,14 @@ export function OrgComplianceTab({ organizationId }: OrgComplianceTabProps) {
   if (isLoading) return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />Compliance Configuration</CardTitle>
-        <CardDescription>Export control, data residency, and sanctions screening settings.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="space-y-6">
+      <ComplianceRegistrationDisplay organizationId={organizationId} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />Compliance Configuration</CardTitle>
+          <CardDescription>Operational defaults applied to new challenges. Distinct from the registration profile above.</CardDescription>
+        </CardHeader>
+        <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField control={form.control} name="export_control_enabled" render={({ field }) => (
@@ -116,5 +119,6 @@ export function OrgComplianceTab({ organizationId }: OrgComplianceTabProps) {
         </Form>
       </CardContent>
     </Card>
+    </div>
   );
 }
