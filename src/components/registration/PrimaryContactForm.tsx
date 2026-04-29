@@ -29,6 +29,7 @@ import {
   extractDomain,
   isInstitutionalDomain,
 } from '@/lib/validations/primaryContact';
+import { isRegistrationOtpEnabled } from '@/lib/featureFlags';
 
 import {
   Form,
