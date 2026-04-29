@@ -128,7 +128,7 @@ export function PrimaryContactForm() {
       department_functional_area_id: '',
       timezone: state.step2?.timezone ?? detectedTimezone ?? '',
       preferred_language_id: state.step2?.preferred_language_id ?? '',
-      is_email_verified: true, // TODO: TEMP BYPASS — was conditional on state.step2?.email_verified
+      is_email_verified: otpRequired ? !!state.step2?.email_verified : true,
       password: '',
       confirm_password: '',
     },
