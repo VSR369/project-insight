@@ -141,13 +141,8 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
       </div>
 
       <Separator />
-
-      {/* Primary Industry editor (drives challenge default-fill) */}
       <PrimaryIndustrySection organizationId={organizationId} />
-
       <Separator />
-
-      {/* Editable Fields */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <h3 className="text-sm font-semibold text-foreground">Editable Profile</h3>
