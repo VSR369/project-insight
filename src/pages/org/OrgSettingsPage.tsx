@@ -43,9 +43,10 @@ import { AuditTrailTable } from '@/components/org-settings/AuditTrailTable';
 
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
-import { useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import { useCurrentAdminTier } from '@/hooks/useCurrentAdminTier';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type TabId =
   | 'profile'
