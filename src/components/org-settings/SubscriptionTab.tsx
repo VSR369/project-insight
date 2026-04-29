@@ -11,6 +11,8 @@ import { format } from 'date-fns';
 
 import { useOrgSubscription, useChangeTier } from '@/hooks/queries/useOrgSettings';
 import { useSubscriptionTiers, useTierFeatures } from '@/hooks/queries/usePlanSelectionData';
+import { useCurrentAdminTier } from '@/hooks/useCurrentAdminTier';
+import { EnterpriseAgreementCard } from '@/components/org-settings/EnterpriseAgreementCard';
 import { determineTierChangeType } from '@/services/orgSettingsService';
 
 import { Button } from '@/components/ui/button';
