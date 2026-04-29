@@ -101,10 +101,15 @@ export function AgreementEditorForm({ organizationId, agreement, onSaved }: Prop
   const onSubmit = async (values: FormValues) => {
     const payload = {
       ...values,
+      organization_id: values.organization_id,
+      tier_id: values.tier_id,
       msa_document_url: values.msa_document_url ? values.msa_document_url : null,
+      feature_gates: values.feature_gates,
     };
     const saved = await upsert.mutateAsync(
-      agreement ? { id: agreement.id, ...payload } : payload,
+      agreement
+        ? ({ id: agreement.id, ...payload } as Parameters<typeof upsert.mutateAsync>[0])
+        : (payload as Parameters<typeof upsert.mutateAsync>[0]),
     );
     onSaved?.(saved.id);
   };
