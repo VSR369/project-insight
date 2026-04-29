@@ -56,7 +56,7 @@ function LockedField({ label, value, icon }: { label: string; value: string | nu
         {label}
         <Lock className="h-3 w-3 text-muted-foreground/50" />
       </p>
-      <p className="text-sm text-foreground font-mono bg-muted/50 rounded px-3 py-2 border border-border">
+      <p className="text-sm text-foreground font-normal bg-muted/30 rounded px-3 py-2 border border-border">
         {value || '—'}
       </p>
     </div>
