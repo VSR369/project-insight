@@ -312,6 +312,7 @@ const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
 const MembershipPage = lazy(() => import("@/pages/org/MembershipPage"));
 const ParentDashboardPage = lazy(() => import("@/pages/org/ParentDashboardPage"));
 const SaasAgreementPage = lazy(() => import("@/pages/admin/SaasAgreementPage"));
+const EnterpriseAgreementsPage = lazy(() => import("@/pages/admin/EnterpriseAgreementsPage"));
 const SeekerOrgApprovalsPage = lazy(() => import("@/pages/admin/seeker-org-approvals/SeekerOrgApprovalsPage"));
 const SeekerOrgReviewPage = lazy(() => import("@/pages/admin/seeker-org-approvals/SeekerOrgReviewPage"));
 const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
