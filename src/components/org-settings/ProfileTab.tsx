@@ -8,13 +8,17 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Lock, Globe, Building2, MapPin } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 
 import { useOrgProfile, useOrgIndustries, useUpdateOrgProfile } from '@/hooks/queries/useOrgSettings';
-import { isFieldEditable } from '@/services/orgSettingsService';
 import { PrimaryIndustrySection } from './PrimaryIndustrySection';
+import { ProfileExtraFieldsSection } from './ProfileExtraFieldsSection';
+import {
+  profileFormSchema,
+  PROFILE_FORM_DEFAULTS,
+  type ProfileFormValues,
+} from './profileFormSchema';
 
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
@@ -26,21 +30,6 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
-
-const profileSchema = z.object({
-  organization_name: z.string().min(2, 'Organization name must be at least 2 characters').max(200),
-  trade_brand_name: z.string().max(200).optional().or(z.literal('')),
-  website_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
-  organization_description: z.string().max(2000).optional().or(z.literal('')),
-  hq_address_line1: z.string().max(255).optional().or(z.literal('')),
-  hq_address_line2: z.string().max(255).optional().or(z.literal('')),
-  hq_city: z.string().max(100).optional().or(z.literal('')),
-  hq_postal_code: z.string().max(20).optional().or(z.literal('')),
-  timezone: z.string().max(100).optional().or(z.literal('')),
-});
-
-type ProfileFormValues = z.infer<typeof profileSchema>;
 
 interface ProfileTabProps {
   organizationId: string;
@@ -52,18 +41,8 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
   const updateProfile = useUpdateOrgProfile();
 
   const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      organization_name: '',
-      trade_brand_name: '',
-      website_url: '',
-      organization_description: '',
-      hq_address_line1: '',
-      hq_address_line2: '',
-      hq_city: '',
-      hq_postal_code: '',
-      timezone: '',
-    },
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: PROFILE_FORM_DEFAULTS,
   });
 
   useEffect(() => {
@@ -72,12 +51,15 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
         organization_name: profile.organization_name || '',
         trade_brand_name: profile.trade_brand_name || '',
         website_url: profile.website_url || '',
+        linkedin_url: (profile as { linkedin_url?: string | null }).linkedin_url || '',
         organization_description: profile.organization_description || '',
         hq_address_line1: profile.hq_address_line1 || '',
         hq_address_line2: profile.hq_address_line2 || '',
         hq_city: profile.hq_city || '',
         hq_postal_code: profile.hq_postal_code || '',
         timezone: profile.timezone || '',
+        employee_count_range: profile.employee_count_range || '',
+        annual_revenue_range: profile.annual_revenue_range || '',
       });
     }
   }, [profile, form]);
@@ -106,12 +88,15 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
       organization_name: data.organization_name,
       trade_brand_name: data.trade_brand_name || null,
       website_url: data.website_url || null,
+      linkedin_url: data.linkedin_url || null,
       organization_description: data.organization_description || null,
       hq_address_line1: data.hq_address_line1 || null,
       hq_address_line2: data.hq_address_line2 || null,
       hq_city: data.hq_city || null,
       hq_postal_code: data.hq_postal_code || null,
       timezone: data.timezone || null,
+      employee_count_range: data.employee_count_range || null,
+      annual_revenue_range: data.annual_revenue_range || null,
     });
   };
 
