@@ -128,7 +128,10 @@ export default function CreateDelegatedAdminPage() {
       toast.warning(`You are at ${newPct}% of your delegated admin limit (${newActiveCount}/${maxAllowed}).`);
     }
 
-    navigate('/org/admin-management');
+    // Surface the temp password to the org PRIMARY (10d.2). Navigation is
+    // deferred until the dialog is acknowledged & closed.
+    setRevealAdmin({ name: data.full_name, email: data.email });
+    setRevealOpen(true);
   };
 
   const onSubmit = async (data: FormValues) => {
