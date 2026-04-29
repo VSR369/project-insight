@@ -85,7 +85,7 @@ export default function OrgBillingPage() {
           />
           <ShadowUsageSummary
             challengesUsed={subscription?.challenges_used ?? 0}
-            challengeLimit={subscription?.challenge_limit_snapshot ?? null}
+            challengeLimit={effectiveChallengeLimit}
             shadowChargePerChallenge={subscription?.per_challenge_fee_snapshot ?? 0}
             currencyCode={subscription?.shadow_currency_code ?? 'USD'}
             periodStart={subscription?.current_period_start ?? undefined}
