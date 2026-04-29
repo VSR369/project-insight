@@ -29,6 +29,7 @@ import {
   extractDomain,
   isInstitutionalDomain,
 } from '@/lib/validations/primaryContact';
+import { isRegistrationOtpEnabled } from '@/lib/featureFlags';
 
 import {
   Form,
@@ -87,8 +88,13 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   // SECTION 2: useState hooks
   // ══════════════════════════════════════
-  // TODO: TEMP BYPASS — was: useState(() => !!state.step2?.email_verified)
-  const [emailVerified, setEmailVerified] = useState(true);
+  // OTP gate (BR-REG-006). When the env flag is OFF, email is treated as
+  // pre-verified to keep dev/preview frictionless. Production cutover MUST
+  // set VITE_ENABLE_REGISTRATION_OTP=true (see docs/runbooks/production-cutover.md).
+  const otpRequired = isRegistrationOtpEnabled();
+  const [emailVerified, setEmailVerified] = useState(() =>
+    otpRequired ? !!state.step2?.email_verified : true,
+  );
   const [adminDesignation, setAdminDesignation] = useState<'self' | 'separate'>(
     state.step2?.admin_designation ?? 'self'
   );
@@ -122,7 +128,7 @@ export function PrimaryContactForm() {
       department_functional_area_id: '',
       timezone: state.step2?.timezone ?? detectedTimezone ?? '',
       preferred_language_id: state.step2?.preferred_language_id ?? '',
-      is_email_verified: true, // TODO: TEMP BYPASS — was conditional on state.step2?.email_verified
+      is_email_verified: otpRequired ? !!state.step2?.email_verified : true,
       password: '',
       confirm_password: '',
     },
@@ -375,7 +381,7 @@ export function PrimaryContactForm() {
                   type="email"
                   placeholder="name@company.com"
                   className="text-base"
-                  // TODO: TEMP BYPASS — was: disabled={emailVerified}
+                  disabled={otpRequired && emailVerified}
                 />
               </FormControl>
               <EmailDomainBlocker
@@ -388,9 +394,8 @@ export function PrimaryContactForm() {
           )}
         />
 
-        {/* OTP Verification */}
-        {/* TODO: TEMP BYPASS — OTP section hidden */}
-        {false && watchedEmail && !isEmailBlocked && (
+        {/* OTP Verification (env-flagged via VITE_ENABLE_REGISTRATION_OTP) */}
+        {otpRequired && watchedEmail && !isEmailBlocked && (
           <OtpVerification
             email={watchedEmail}
             isVerified={emailVerified}
@@ -763,7 +768,7 @@ export function PrimaryContactForm() {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button type="submit" disabled={isSubmitting}> {/* TODO: TEMP BYPASS — removed !emailVerified */}
+            <Button type="submit" disabled={isSubmitting || (otpRequired && !emailVerified)}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

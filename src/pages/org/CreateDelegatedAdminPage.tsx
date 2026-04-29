@@ -33,6 +33,7 @@ import { ArrowLeft, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 import { DelegatedAdminLimitWarning } from '@/components/rbac/DelegatedAdminLimitWarning';
+import { TempPasswordRevealDialog } from '@/components/org/TempPasswordRevealDialog';
 
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
@@ -69,6 +70,8 @@ export default function CreateDelegatedAdminPage() {
   const [pendingFormData, setPendingFormData] = useState<FormValues | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [inlineScopeOverlap, setInlineScopeOverlap] = useState<{ name: string; email: string }[]>([]);
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [revealAdmin, setRevealAdmin] = useState<{ name: string; email: string } | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createAdminSchema),
@@ -125,7 +128,10 @@ export default function CreateDelegatedAdminPage() {
       toast.warning(`You are at ${newPct}% of your delegated admin limit (${newActiveCount}/${maxAllowed}).`);
     }
 
-    navigate('/org/admin-management');
+    // Surface the temp password to the org PRIMARY (10d.2). Navigation is
+    // deferred until the dialog is acknowledged & closed.
+    setRevealAdmin({ name: data.full_name, email: data.email });
+    setRevealOpen(true);
   };
 
   const onSubmit = async (data: FormValues) => {
@@ -291,6 +297,20 @@ export default function CreateDelegatedAdminPage() {
           setPendingFormData(null);
         }}
       />
+
+      {revealAdmin && (
+        <TempPasswordRevealDialog
+          open={revealOpen}
+          adminName={revealAdmin.name}
+          adminEmail={revealAdmin.email}
+          tempPassword={tempPassword}
+          onClose={() => {
+            setRevealOpen(false);
+            setRevealAdmin(null);
+            navigate('/org/admin-management');
+          }}
+        />
+      )}
     </div>
     </FeatureErrorBoundary>
   );

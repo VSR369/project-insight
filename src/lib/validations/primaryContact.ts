@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import { isRegistrationOtpEnabled } from '@/lib/featureFlags';
 
 /** Domains that are always allowed (academic, government) */
 const ALLOWED_DOMAIN_PATTERNS = ['.edu', '.ac.', '.gov'];
@@ -77,8 +78,12 @@ export const primaryContactSchema = z.object({
   preferred_language_id: z.string()
     .min(1, 'Please select a preferred language'),
 
-  // TODO: TEMP BYPASS — was z.literal(true) requiring OTP verification
-  is_email_verified: z.boolean().default(true),
+  // BR-REG-006: OTP verification gate (env-flagged via VITE_ENABLE_REGISTRATION_OTP).
+  // When the flag is OFF (dev default), accepts any boolean (defaults to true).
+  // When the flag is ON (production), requires explicit `true` from a verified OTP flow.
+  is_email_verified: isRegistrationOtpEnabled()
+    ? z.literal(true, { errorMap: () => ({ message: 'Email verification required' }) })
+    : z.boolean().default(true),
 
   password: passwordField,
   confirm_password: z.string(),
