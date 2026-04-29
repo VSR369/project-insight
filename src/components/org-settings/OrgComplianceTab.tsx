@@ -119,5 +119,6 @@ export function OrgComplianceTab({ organizationId }: OrgComplianceTabProps) {
         </Form>
       </CardContent>
     </Card>
+    </div>
   );
 }
