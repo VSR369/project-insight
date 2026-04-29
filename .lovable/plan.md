@@ -1,69 +1,121 @@
-## Phase 10g — Final Gap Closure (No Deferments)
+## Root Cause Analysis — Why Phase 10g Went Into a Loop
 
-Claude's audit was stale and predates Phase 10f. Verification confirms:
+The loop was **not** an application runtime issue and not an RLS infinite-recursion issue. It was caused by using the Supabase migration tool as an ad-hoc integration-test runner with fixture data. Each retry exposed another existing table constraint.
 
-| Gap | Claude said | Actual state |
-|---|---|---|
-| 5b business_registration_number | ❌ Missing | ✅ Shipped in 10f (`ProfileExtraFieldsSection.tsx`, schema, service) |
-| 6b isFieldEditable test | ❌ Missing | ✅ Shipped in 10f (`orgSettingsService.test.ts`, table-driven) |
-| 6c validatePinCode test | ❌ Missing | ✅ Shipped in 10f (`registration.test.ts`, 33 specs) |
-| **6d enterprise_agreements RLS test** | ⚠️ Deferred | ❌ **Genuinely open** |
+### What actually happened
 
-Per "no deferment" instruction, only **6d** needs work.
+The attempted RLS proof inserted fixture rows into production schema tables (`seeker_organizations`, `platform_admin_profiles`, `seeking_org_admins`, `enterprise_agreements`) inside a migration-style SQL block. Those fixture inserts repeatedly failed because the current schema has legitimate constraints/triggers:
+
+1. `seeker_organizations.governance_profile` must be one of `QUICK`, `STRUCTURED`, `CONTROLLED`.
+2. `platform_admin_profiles.industry_expertise` must contain at least one industry UUID.
+3. `platform_admin_profiles.user_id` has a foreign key to `auth.users`.
+4. `seeking_org_admins.user_id` also has a foreign key to `auth.users`.
+5. `seeking_org_admins.designation_method` must be one of `SELF`, `SEPARATE`, `DELEGATED`, `TRANSFER`.
+6. `seeking_org_admins.admin_tier` must be one of `PRIMARY`, `DELEGATED` — not `SECONDARY`.
+7. `seeking_org_admins.status` must be one of `pending_activation`, `active`, `suspended`, `transferred`, `deactivated` — not `inactive`.
+
+The data was not left behind: verification shows zero Phase 10g fixture orgs, agreements, or admin rows persisted.
+
+### Primary root cause
+
+**Wrong execution vehicle.** A schema migration is the wrong place to run a stateful, data-dependent RLS integration test. The migration tool should be used for schema changes. The RLS test is not a schema change; it is a test harness concern.
+
+### Secondary root cause
+
+**Synthetic fixture assumptions were invalid.** The first plan assumed we could freely create fake admin users and rows. In this schema, admin user IDs are FK-bound to `auth.users`, and related tables have strict business-rule checks.
 
 ---
 
-### What 6d requires
+## Fix Plan — Break the Loop and Close the RLS Gap Correctly
 
-Three RLS policies on `enterprise_agreements` need behavioural proof, not just code review:
+### 1. Stop using migrations for Phase 10g test data
 
-1. `enterprise_agreements_platform_all` — supervisor/senior_admin can full-CRUD any row
-2. `enterprise_agreements_primary_read` — PRIMARY org admin can SELECT only their org's row
-3. **Implicit deny** — non-PRIMARY admins, other-org PRIMARY admins, anon, and authenticated-without-role all get zero rows + INSERT/UPDATE rejected
+Do not retry the SQL migration approach. It will remain brittle because it depends on production auth users, table triggers, and business constraints.
 
-A Vitest mock-Supabase test cannot prove this — it would only test our client code, not Postgres RLS evaluation. The proof must run **inside Postgres**.
+No schema migration is needed for this gap.
 
-### Approach: SQL-level RLS regression migration
+### 2. Add a dedicated SQL RLS regression harness file, not a migration
 
-Create a non-destructive migration `supabase/migrations/<ts>_test_enterprise_agreements_rls.sql` that:
+Create a repo-only SQL test file, for example:
 
-1. Wraps everything in a single transaction that **ROLLBACKs at the end** — leaves zero residue in production DB.
-2. Inserts fixture rows via `SECURITY DEFINER` setup helper: 2 orgs, 1 supervisor, 1 senior_admin, 1 PRIMARY admin per org, 1 non-PRIMARY admin, 1 agreement per org.
-3. For each scenario, uses `SET LOCAL role authenticated` + `SET LOCAL request.jwt.claim.sub = '<uuid>'` to impersonate, then asserts row counts via `DO $$ ... RAISE EXCEPTION IF ... $$`.
-4. Scenarios covered (10 total):
-   - Supervisor sees both agreements (count = 2)
-   - Senior_admin sees both (count = 2)
-   - Org-A PRIMARY sees only Org-A agreement (count = 1)
-   - Org-B PRIMARY sees only Org-B agreement (count = 1)
-   - Org-A non-PRIMARY (`SECONDARY`) sees zero (count = 0)
-   - Inactive Org-A PRIMARY (status != 'active') sees zero
-   - Authenticated user with no admin row sees zero
-   - Org-A PRIMARY INSERT into Org-A → rejected (no INSERT policy for them)
-   - Org-A PRIMARY UPDATE on Org-A row → rejected
-   - Supervisor INSERT for any org → succeeds
-5. Migration ends with `ROLLBACK;` so no schema/data changes persist. The migration's *value* is that it must execute cleanly during deploy — any RLS regression fails the deploy.
+`supabase/tests/enterprise_agreements_rls.test.sql`
 
-### Why a migration and not a CI test?
+This file will document and execute the RLS assertions in environments where a test database/harness is available, but it will **not** run as a production migration.
 
-- Project already runs migrations on every deploy → automatic regression gate.
-- No new test harness, no Deno setup, no service-role exposure.
-- Matches existing pattern (project uses pgTAP-style assertions in migrations elsewhere — e.g. trigger validations).
-- Captures behaviour at the layer where it matters (Postgres), not the layer above it.
+It should:
 
-### Files
+- Wrap the entire test in a transaction and rollback at the end.
+- Create or select fixture auth users only in a test database context.
+- Insert fixture org/admin/agreement rows using schema-valid values:
+  - `governance_profile = 'QUICK'`
+  - `designation_method = 'SELF'`
+  - non-primary admin tier = `DELEGATED`
+  - inactive-equivalent status = `deactivated`
+- Assert these cases:
+  - supervisor sees both agreements
+  - senior_admin sees both agreements
+  - org A PRIMARY sees only org A
+  - org B PRIMARY sees only org B
+  - DELEGATED admin sees zero
+  - deactivated PRIMARY sees zero
+  - authenticated user without admin row sees zero
+  - PRIMARY admin cannot INSERT
+  - PRIMARY admin cannot UPDATE
+  - supervisor can INSERT
 
-**Create**
-- `supabase/migrations/<timestamp>_test_enterprise_agreements_rls.sql` — self-rollback RLS proof transaction (~180 lines)
+### 3. Add a lightweight repo regression test for policy presence
 
-**Edit**
-- `.lovable/plan.md` — mark Phase 10 as 100% closed, remove the "deferred RLS test" line, record 10g.
+Create a Vitest test that parses the enterprise migration SQL and verifies the critical policy clauses exist:
 
-### Out of scope
+`src/services/enterprise/__tests__/enterpriseAgreementRlsPolicyContract.test.ts`
 
-The two items Claude marked "deferred with infrastructure justification" (logo upload, state/timezone/geography selects) require actual infrastructure (storage bucket + RLS policies, master tables `md_states_provinces`, timezone master, multi-select UI). They are **not gaps in the implemented surface** — they are unimplemented features whose absence is documented in code comments. "No deferment" on existing gaps does not mean "build features that were never in scope". If you want those built, that is a separate Phase 11 (new tables + bucket + UI), and I will plan it as such on request.
+Assertions:
 
-### Acceptance
+- `enterprise_agreements_platform_all` exists.
+- Platform policy is `FOR ALL TO authenticated`.
+- Platform policy requires `admin_tier IN ('supervisor','senior_admin')`.
+- `enterprise_agreements_primary_read` exists.
+- Primary policy is `FOR SELECT TO authenticated`.
+- Primary policy includes:
+  - `soa.user_id = auth.uid()`
+  - `soa.organization_id = enterprise_agreements.organization_id`
+  - `soa.status = 'active'`
+  - `soa.admin_tier = 'PRIMARY'`
+- No INSERT/UPDATE/DELETE policy exists for org PRIMARY admins.
 
-- Migration applies and self-rolls-back cleanly on local + preview deploy.
-- Any future change that weakens an RLS policy (e.g. dropping the `admin_tier = 'PRIMARY'` clause) makes the migration fail with a clear `RAISE EXCEPTION` message naming the broken scenario.
-- `.lovable/plan.md` shows Phase 10 closed with no open or deferred items in the seeking-org module.
+This does not replace a real DB integration test, but it gives immediate CI coverage without mutating the database.
+
+### 4. Update `.lovable/plan.md` accurately
+
+Replace the current Phase 10g migration-based plan with:
+
+- Claude's stale findings 5b/6b/6c are already fixed by Phase 10f.
+- 6d is closed by:
+  1. a non-production SQL RLS harness file, and
+  2. a repo-level policy contract test.
+- No production data mutations and no schema migrations are required.
+
+### 5. Validation after implementation
+
+Run the project tests after adding the Vitest policy contract test. Expected outcome:
+
+- Existing Phase 10f tests remain passing.
+- New policy-contract test passes.
+- No database migration retries.
+- No fixture data remains in Supabase.
+
+---
+
+## Why this fixes the actual loop
+
+The loop was caused by repeatedly applying a data-mutating SQL block through the migration path. This plan removes data mutation from the deployment path entirely.
+
+The RLS gap is still addressed, but with the correct split:
+
+```text
+Fast CI safety:      Vitest policy-contract test
+True RLS proof:      SQL harness file for test DB execution
+Production deploy:   no fixture data, no schema churn
+```
+
+This gives auditability without turning production migrations into a fragile test runner.
