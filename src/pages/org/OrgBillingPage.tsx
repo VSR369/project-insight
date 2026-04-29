@@ -16,6 +16,7 @@ import { computeUsageSummary, validateTopUp } from '@/services/billingService';
 import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
 import { ShadowUsageSummary } from '@/components/org-settings/ShadowUsageSummary';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { BillingInfoCard } from '@/components/org-billing/BillingInfoCard';
 
 import { CreditCard, Receipt, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -149,8 +150,13 @@ export default function OrgBillingPage() {
         </div>
       )}
 
+      {/* Phase 10b.3: Billing entity / address / PO / tax ID editor */}
+      <div className="mt-6">
+        <BillingInfoCard organizationId={organizationId} tenantId={tenantId} />
+      </div>
+
       {/* Tabs: Invoices / Top-Ups */}
-      <Tabs defaultValue="invoices">
+      <Tabs defaultValue="invoices" className="mt-6">
         <TabsList>
           <TabsTrigger value="invoices"><Receipt className="h-4 w-4 mr-1" /> Invoices</TabsTrigger>
           <TabsTrigger value="topups"><Package className="h-4 w-4 mr-1" /> Top-Ups</TabsTrigger>
