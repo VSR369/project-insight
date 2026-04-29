@@ -808,6 +808,7 @@ const App = () => (
               <Route path="seeker-config/legal-thresholds" element={<PermissionGuard permissionKey="seeker_config.view"><LegalReviewThresholdsPage /></PermissionGuard>} />
 
               <Route path="saas-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><SaasAgreementPage /></PermissionGuard>} />
+              <Route path="enterprise-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><EnterpriseAgreementsPage /></PermissionGuard>} />
               {/* Org Approvals — permission: org_approvals.view */}
               <Route path="seeker-org-approvals" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgApprovalsPage /></PermissionGuard>} />
               <Route path="seeker-org-approvals/:orgId" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgReviewPage /></PermissionGuard>} />
