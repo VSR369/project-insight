@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod';
+import { isRegistrationOtpEnabled } from '@/lib/featureFlags';
 
 /** Domains that are always allowed (academic, government) */
 const ALLOWED_DOMAIN_PATTERNS = ['.edu', '.ac.', '.gov'];
