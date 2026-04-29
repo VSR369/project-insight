@@ -1,6 +1,14 @@
-# Phase 10c — Enterprise Tier Configuration (MIGRATION SHIPPED — UI PENDING)
+# Phase 10c — Enterprise Tier Configuration (UI SHIPPED)
 
-Status: **Migration applied. Awaiting user approval, then UI wiring (hooks + Platform Admin page + Org read-only card).**
+Status: **DB layer applied. Hooks, Platform Admin page, and Org read-only card all wired. Awaiting QA.**
+
+## UI just landed
+
+- `src/hooks/queries/useEnterpriseAgreement.ts` — read + mutate hooks (active view, list, detail, audit, gate keys, upsert, status FSM transitions).
+- `src/components/org-settings/EnterpriseAgreementCard.tsx` — read-only contract summary for PRIMARY admins on enterprise tier; slotted into `SubscriptionTab`.
+- `src/components/admin/enterprise/` — `AgreementEditorForm`, `AgreementStatusControls`, `AgreementAuditTrail`, `OrgPicker` (each <250 lines).
+- `src/pages/admin/EnterpriseAgreementsPage.tsx` — list / create / edit / status FSM / audit at `/admin/enterprise-agreements` (guarded by `org_approvals.manage_agreements`).
+- Contract test: `src/hooks/queries/__tests__/useEnterpriseAgreement.contract.test.ts`.
 
 ## What just landed (DB layer)
 

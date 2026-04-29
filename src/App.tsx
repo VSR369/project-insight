@@ -312,6 +312,7 @@ const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
 const MembershipPage = lazy(() => import("@/pages/org/MembershipPage"));
 const ParentDashboardPage = lazy(() => import("@/pages/org/ParentDashboardPage"));
 const SaasAgreementPage = lazy(() => import("@/pages/admin/SaasAgreementPage"));
+const EnterpriseAgreementsPage = lazy(() => import("@/pages/admin/EnterpriseAgreementsPage"));
 const SeekerOrgApprovalsPage = lazy(() => import("@/pages/admin/seeker-org-approvals/SeekerOrgApprovalsPage"));
 const SeekerOrgReviewPage = lazy(() => import("@/pages/admin/seeker-org-approvals/SeekerOrgReviewPage"));
 const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
@@ -807,6 +808,7 @@ const App = () => (
               <Route path="seeker-config/legal-thresholds" element={<PermissionGuard permissionKey="seeker_config.view"><LegalReviewThresholdsPage /></PermissionGuard>} />
 
               <Route path="saas-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><SaasAgreementPage /></PermissionGuard>} />
+              <Route path="enterprise-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><EnterpriseAgreementsPage /></PermissionGuard>} />
               {/* Org Approvals — permission: org_approvals.view */}
               <Route path="seeker-org-approvals" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgApprovalsPage /></PermissionGuard>} />
               <Route path="seeker-org-approvals/:orgId" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgReviewPage /></PermissionGuard>} />
