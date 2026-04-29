@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgUsers, useInviteOrgUser, useUpdateOrgUserRole, useDeactivateOrgUser, useOrgRoles } from '@/hooks/queries/useTeamData';
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
+import { useEnterpriseLimits } from '@/hooks/queries/useEnterpriseLimits';
 import { validateUserInvite } from '@/services/teamService';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useCurrentAdminTier } from '@/hooks/useCurrentAdminTier';
@@ -29,14 +30,22 @@ export default function TeamPage() {
   const { data: users, isLoading: usersLoading } = useOrgUsers(organizationId);
   const { data: roles } = useOrgRoles(tenantId);
   const { data: subscription } = useOrgSubscription(organizationId);
+  const enterpriseLimits = useEnterpriseLimits(organizationId);
   const inviteMutation = useInviteOrgUser();
   const updateRoleMutation = useUpdateOrgUserRole();
   const deactivateMutation = useDeactivateOrgUser();
 
+  // Phase 10c.5: prefer Enterprise agreement override (max_users_override)
+  // over the tier default. `useEnterpriseLimits` returns the resolved value
+  // when an active agreement exists, otherwise falls through to tier defaults.
   const tierLimits = {
-    maxUsers: subscription?.md_subscription_tiers?.max_users ?? null,
-    maxChallenges: subscription?.md_subscription_tiers?.max_challenges ?? null,
-    isEnterprise: subscription?.md_subscription_tiers?.is_enterprise ?? false,
+    maxUsers: enterpriseLimits.maxUsers ?? subscription?.md_subscription_tiers?.max_users ?? null,
+    maxChallenges:
+      enterpriseLimits.maxChallenges ?? subscription?.md_subscription_tiers?.max_challenges ?? null,
+    isEnterprise:
+      enterpriseLimits.hasActiveAgreement ||
+      enterpriseLimits.isEnterpriseTier ||
+      (subscription?.md_subscription_tiers?.is_enterprise ?? false),
   };
 
   const validation = validateUserInvite(users?.length ?? 0, tierLimits);

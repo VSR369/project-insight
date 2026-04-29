@@ -11,6 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrgSubscription, useOrgInvoices, useOrgTopUps, usePurchaseTopUp } from '@/hooks/queries/useBillingData';
+import { useEnterpriseLimits } from '@/hooks/queries/useEnterpriseLimits';
 import { computeUsageSummary, validateTopUp } from '@/services/billingService';
 import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
 import { ShadowUsageSummary } from '@/components/org-settings/ShadowUsageSummary';
@@ -28,11 +29,17 @@ export default function OrgBillingPage() {
   const { data: subscription, isLoading: subLoading } = useOrgSubscription(organizationId);
   const { data: invoices, isLoading: invLoading } = useOrgInvoices(organizationId);
   const { data: topUps } = useOrgTopUps(organizationId);
+  const enterpriseLimits = useEnterpriseLimits(organizationId);
   const purchaseTopUp = usePurchaseTopUp();
+
+  // Phase 10c.5: Enterprise agreement overrides take precedence over the
+  // snapshot challenge_limit_snapshot when an active agreement is in place.
+  const effectiveChallengeLimit =
+    enterpriseLimits.maxChallenges ?? subscription?.challenge_limit_snapshot ?? null;
 
   const usage = subscription ? computeUsageSummary(
     subscription.challenges_used ?? 0,
-    subscription.challenge_limit_snapshot,
+    effectiveChallengeLimit,
     subscription.per_challenge_fee_snapshot ?? 0
   ) : null;
 
@@ -78,7 +85,7 @@ export default function OrgBillingPage() {
           />
           <ShadowUsageSummary
             challengesUsed={subscription?.challenges_used ?? 0}
-            challengeLimit={subscription?.challenge_limit_snapshot ?? null}
+            challengeLimit={effectiveChallengeLimit}
             shadowChargePerChallenge={subscription?.per_challenge_fee_snapshot ?? 0}
             currencyCode={subscription?.shadow_currency_code ?? 'USD'}
             periodStart={subscription?.current_period_start ?? undefined}
