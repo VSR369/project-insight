@@ -394,9 +394,8 @@ export function PrimaryContactForm() {
           )}
         />
 
-        {/* OTP Verification */}
-        {/* TODO: TEMP BYPASS — OTP section hidden */}
-        {false && watchedEmail && !isEmailBlocked && (
+        {/* OTP Verification (env-flagged via VITE_ENABLE_REGISTRATION_OTP) */}
+        {otpRequired && watchedEmail && !isEmailBlocked && (
           <OtpVerification
             email={watchedEmail}
             isVerified={emailVerified}
