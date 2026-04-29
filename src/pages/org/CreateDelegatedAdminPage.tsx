@@ -297,6 +297,20 @@ export default function CreateDelegatedAdminPage() {
           setPendingFormData(null);
         }}
       />
+
+      {revealAdmin && (
+        <TempPasswordRevealDialog
+          open={revealOpen}
+          adminName={revealAdmin.name}
+          adminEmail={revealAdmin.email}
+          tempPassword={tempPassword}
+          onClose={() => {
+            setRevealOpen(false);
+            setRevealAdmin(null);
+            navigate('/org/admin-management');
+          }}
+        />
+      )}
     </div>
     </FeatureErrorBoundary>
   );
