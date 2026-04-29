@@ -45,13 +45,13 @@ function useOrgTierDefaults(orgId: string | null | undefined) {
       const { data, error } = await supabase
         .from('seeker_subscriptions')
         .select(
-          'tier_id, md_subscription_tiers:tier_id(id, code, name, max_challenges, max_users, is_enterprise)',
+          'tier_id, md_subscription_tiers!seeker_subscriptions_tier_id_fkey(id, code, name, max_challenges, max_users, is_enterprise)',
         )
         .eq('organization_id', orgId)
         .eq('status', 'active')
         .maybeSingle();
       if (error) throw new Error(error.message);
-      const tier = data?.md_subscription_tiers as
+      const tier = data?.md_subscription_tiers as unknown as
         | {
             id: string;
             code: string;
