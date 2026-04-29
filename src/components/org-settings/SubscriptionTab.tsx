@@ -78,8 +78,15 @@ export function SubscriptionTab({ organizationId }: SubscriptionTabProps) {
 
   const otherTiers = allTiers?.filter(t => t.id !== subscription.tier_id && !t.is_enterprise) ?? [];
 
+  const isEnterprise = currentTier?.code === 'enterprise' || currentTier?.is_enterprise === true;
+
   return (
     <div className="space-y-8">
+      {/* Enterprise read-only contract summary (PRIMARY admin + enterprise tier only) */}
+      {isEnterprise && isPrimary && (
+        <EnterpriseAgreementCard organizationId={organizationId} />
+      )}
+
       {/* Current Plan */}
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
