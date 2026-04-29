@@ -101,10 +101,28 @@ export function ProfileExtraFieldsSection({ form }: Props) {
         )} />
       </div>
 
+      <FormField control={form.control} name="registration_number" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Business registration number</FormLabel>
+          <FormControl>
+            <Input
+              {...field}
+              type="text"
+              placeholder="e.g. CIN, EIN, Companies House no."
+              className="text-base"
+              maxLength={100}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )} />
+
       {/*
-        TODO(post-MVP): logo upload (needs storage bucket + RLS policy);
-        TODO(post-MVP): hq_state_province_id Select (needs md_states_provinces filtered by hq_country_id);
-        TODO(post-MVP): timezone Select (needs timezone master table).
+        Deferred to post-MVP (infrastructure-blocked):
+          - logo upload                 (needs storage bucket + RLS policy)
+          - hq_state_province_id Select (needs md_states_provinces filtered by hq_country_id)
+          - timezone Select             (needs timezone master table)
+          - operating_geography_ids[]   (needs multi-select + master geography taxonomy)
       */}
     </div>
   );

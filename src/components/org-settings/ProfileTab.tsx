@@ -60,6 +60,7 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
         timezone: profile.timezone || '',
         employee_count_range: profile.employee_count_range || '',
         annual_revenue_range: profile.annual_revenue_range || '',
+        registration_number: (profile as { registration_number?: string | null }).registration_number || '',
       });
     }
   }, [profile, form]);
@@ -97,6 +98,7 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
       timezone: data.timezone || null,
       employee_count_range: data.employee_count_range || null,
       annual_revenue_range: data.annual_revenue_range || null,
+      registration_number: data.registration_number || null,
     });
   };
 

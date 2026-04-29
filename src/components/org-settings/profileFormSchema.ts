@@ -19,6 +19,7 @@ export const profileFormSchema = z.object({
   timezone: z.string().max(100).optional().or(z.literal('')),
   employee_count_range: z.string().max(20).optional().or(z.literal('')),
   annual_revenue_range: z.string().max(20).optional().or(z.literal('')),
+  registration_number: z.string().max(100).optional().or(z.literal('')),
 });
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -36,4 +37,5 @@ export const PROFILE_FORM_DEFAULTS: ProfileFormValues = {
   timezone: '',
   employee_count_range: '',
   annual_revenue_range: '',
+  registration_number: '',
 };
