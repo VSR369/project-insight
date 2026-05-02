@@ -1,4 +1,4 @@
-export type DocumentCode = 'PMA' | 'CA' | 'PSA' | 'IPAA' | 'EPIA' | 'SPA' | 'SKPA' | 'PWA' | 'RA_R2' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED';
+export type DocumentCode = 'PMA' | 'CA' | 'PSA' | 'IPAA' | 'EPIA' | 'SPA' | 'SKPA' | 'PWA' | 'RA_R2' | 'CPA_QUICK' | 'CPA_STRUCTURED' | 'CPA_CONTROLLED' | 'PRIVACY_POLICY' | 'DPA';
 export type VersionStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 export type AppliesModel = 'MARKETPLACE' | 'AGGREGATOR' | 'BOTH';
 export type AppliesMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED' | 'ALL';
@@ -94,6 +94,8 @@ export const DOCUMENT_CODE_LABELS: Record<DocumentCode, string> = {
   CPA_QUICK: 'CPA Template (Quick)',
   CPA_STRUCTURED: 'CPA Template (Structured)',
   CPA_CONTROLLED: 'CPA Template (Controlled)',
+  PRIVACY_POLICY: 'Privacy Policy',
+  DPA: 'Data Processing Agreement',
 };
 
 export const TRIGGER_EVENT_LABELS: Record<TriggerEvent, string> = {

@@ -5,7 +5,7 @@ import { Shield } from 'lucide-react';
 import { PlatformAgreementCard } from './PlatformAgreementCard';
 import type { LegalDocTemplate, DocumentCode } from '@/types/legal.types';
 
-const PLATFORM_CODES: DocumentCode[] = ['SPA', 'SKPA', 'PWA'];
+const PLATFORM_CODES: DocumentCode[] = ['SPA', 'SKPA', 'PWA', 'PRIVACY_POLICY', 'DPA'];
 
 interface PlatformAgreementsSectionProps {
   templates: LegalDocTemplate[];
@@ -29,7 +29,7 @@ export function PlatformAgreementsSection({ templates, onEdit, onCreate }: Platf
     <section>
       <div className="flex items-center gap-2 mb-4">
         <Shield className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">Platform Agreements (3)</h2>
+        <h2 className="text-lg font-semibold">Platform Agreements ({PLATFORM_CODES.length})</h2>
       </div>
       <div className="rounded-lg border border-primary/10 bg-primary/5 p-3 mb-4">
         <p className="text-sm text-muted-foreground">
