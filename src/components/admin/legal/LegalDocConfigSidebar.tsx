@@ -24,7 +24,20 @@ const ROLE_OPTIONS = [
   { value: 'SOLVER', label: 'Solution Provider' },
 ] as const;
 
-const DOC_CODES = Object.keys(DOCUMENT_CODE_LABELS) as DocumentCode[];
+// Active platform document codes available for creation. Archived families
+// (PMA, CA, PSA, IPAA, EPIA) are intentionally excluded — they remain editable
+// via direct link but should not be offered as new-document options.
+const DOC_CODES: DocumentCode[] = [
+  'SPA',
+  'SKPA',
+  'PWA',
+  'RA_R2',
+  'CPA_QUICK',
+  'CPA_STRUCTURED',
+  'CPA_CONTROLLED',
+  'PRIVACY_POLICY',
+  'DPA',
+];
 
 interface LegalDocConfigSidebarProps {
   config: Partial<LegalDocTemplate>;
@@ -53,10 +66,10 @@ export function LegalDocConfigSidebar({ config, onChange, templateId, isNew }: L
         <Label>Document Code</Label>
         {isNew ? (
           <Select
-            value={config.document_code ?? 'SPA'}
+            value={config.document_code ?? undefined}
             onValueChange={(v) => onChange({ document_code: v as DocumentCode })}
           >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Select document code…" /></SelectTrigger>
             <SelectContent>
               {DOC_CODES.map((c) => (
                 <SelectItem key={c} value={c}>

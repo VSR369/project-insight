@@ -1,71 +1,47 @@
-## Root Cause Analysis
+## Problem
 
-The Compliance step (Step 3 of seeker org registration) shows two acceptance checkboxes:
-- "I accept the Privacy Policy" → links to `/privacy` (static stub)
-- "I accept the Data Processing Agreement" → links to `/dpa` (static stub)
+When a Platform Admin clicks **Create** on the **Privacy Policy** or **Data Processing Agreement** card, the editor opens at `/admin/legal-documents/new?code=PRIVACY_POLICY` (or `?code=DPA`), but the right‑hand "Document Code" panel shows **SPA — Solution Provider Platform…** as if a brand‑new SPA were being created. The Document Name, Description, Targeting and Applies‑to fields are also empty / unrelated to Privacy Policy.
 
-Currently `src/components/registration/ComplianceForm.tsx` (lines 451, 476) renders these as plain anchor tags pointing to non-existent routes. **No content is ever fetched from the database**, so even if a Platform Admin uploads these documents, they cannot reach the user.
+## Root Cause
 
-Additionally, the legal template registry has **no codes for Privacy Policy or DPA**:
+1. `useLegalDocEditor` only seeds `config` from a loaded template. When `isNew = true` it leaves `config` as `{}`, so `config.document_code` is `undefined`.
+2. `LegalDocConfigSidebar` then falls back to a hard‑coded literal: `value={config.document_code ?? 'SPA'}`. The URL `?code=` parameter is never propagated into `config`.
+3. The `Document Code` dropdown lists every code in `DOCUMENT_CODE_LABELS`, including archived families (PMA, CA, PSA, IPAA, EPIA) and CPA templates that should not be hand‑created from this page.
+4. Because `config.document_code` is undefined on Save, the `handleSave` payload uses `defaultCode` for the insert but the sidebar UI keeps showing the wrong code, which is exactly the mismatch the screenshot captures.
 
-- `DocumentCode` union (`src/types/legal.types.ts`) only includes: `PMA, CA, PSA, IPAA, EPIA, SPA, SKPA, PWA, RA_R2, CPA_QUICK/STRUCTURED/CONTROLLED`.
-- DB CHECK constraint `legal_document_templates_document_code_check` enforces the same list — so an admin **cannot** create a Privacy Policy or DPA template today even if they tried.
-- The Platform Agreements admin section (`PlatformAgreementsSection.tsx`) only surfaces SPA / SKPA / PWA cards.
+A secondary contributor: the previous migration seeds DRAFT rows for `PRIVACY_POLICY` and `DPA`, so the card should normally show **Edit Draft**. The Create path still has to be correct, but after the seed runs the user will mostly land on Edit anyway.
 
-So the chain is broken at three layers: DB constraint blocks codes → admin UI has no card → registration form doesn't query/stream content.
+## Fix (scoped, no behavioural changes elsewhere)
 
-The good news: the rest of the legal subsystem (template upload via `useLegalDocUpload`, viewer via `LegalDocumentViewer`, acceptance ledger via `useLegalAcceptance`) is fully built and reusable.
+### 1. `src/hooks/admin/useLegalDocEditor.ts`
+Seed `config` from `defaultCode` on first mount when `isNew` is true, so the sidebar reflects the URL parameter:
+- On mount (when `isNew && !template`), initialise `config` with:
+  - `document_code: defaultCode`
+  - `document_name: DOCUMENT_CODE_LABELS[defaultCode]` (sensible default; user can edit)
+  - `applies_to_model: 'BOTH'`, `applies_to_mode: 'ALL'`, `is_mandatory: true`, `applies_to_roles: ['ALL']`
+- Do not overwrite later edits — guard with a `didInitRef` so this runs once.
 
-## Proposed Fix (non-breaking, additive only)
+### 2. `src/components/admin/legal/LegalDocConfigSidebar.tsx`
+- Remove the hard‑coded `'SPA'` fallback in the Select. Use `config.document_code` directly; if missing, render an empty placeholder via `<SelectValue placeholder="Select code…" />`.
+- Restrict the dropdown to the **active platform document codes only**, so the editor never offers archived families:
+  - `SPA`, `SKPA`, `PWA`, `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED`, `PRIVACY_POLICY`, `DPA`
+- Keep `DOCUMENT_CODE_LABELS` as the label source (no schema change).
 
-### 1. Database migration (additive)
-- Extend `legal_document_templates_document_code_check` to also allow `'PRIVACY_POLICY'` and `'DPA'`.
-- Extend the same enum on `legal_doc_trigger_config.document_code` if it has its own CHECK.
-- Seed two `DRAFT` rows (one per code) so admins immediately see "Upload" cards. No content backfill — admin must upload.
-- No data deletion, no column drops, no existing-row mutation.
+### 3. `src/pages/admin/legal/LegalDocumentEditorPage.tsx`
+No structural change. The page already reads `?code=` into `defaultCode` and passes it into the hook — once the hook seeds `config`, the sidebar will display the correct code automatically.
 
-### 2. Type & label additions
-- Add `'PRIVACY_POLICY' | 'DPA'` to `DocumentCode` in `src/types/legal.types.ts`.
-- Add labels in `DOCUMENT_CODE_LABELS`.
+## Out of Scope / Untouched
 
-### 3. Admin UI surface
-- Extend `PLATFORM_CODES` in `PlatformAgreementsSection.tsx` from `['SPA','SKPA','PWA']` to `['SPA','SKPA','PWA','PRIVACY_POLICY','DPA']`. Grid already responsive (`lg:grid-cols-3`) — no layout change needed; cards wrap.
-- Reuse existing `PlatformAgreementCard` + edit/upload flow as-is.
+- Database schema, migrations, RLS, and the `legal_document_templates` rows are unchanged.
+- The streaming flow into registration (`PlatformLegalAcceptCard`, `usePlatformLegalTemplate`) is unchanged.
+- The Edit path (existing template) is unchanged — `config` is still seeded from the loaded template as today.
+- IPAA section editing logic is untouched.
 
-### 4. Registration Compliance form — stream content
-Replace the two static `<a href>` stubs with a **read + accept** pattern, mirroring the existing `LegalDocumentViewer` approach used elsewhere:
+## Acceptance Criteria
 
-- New small hook `usePlatformLegalDoc(code)` in `src/hooks/queries/usePlatformLegalDoc.ts` that fetches the latest `ACTIVE` row from `legal_document_templates` for the given code (sorted by `version` desc, `effective_date` desc).
-- In `ComplianceForm.tsx`, for each of Privacy Policy and DPA, render a compact **"View & Accept"** card:
-  - Document title + version badge
-  - "View document" button → opens a `Dialog` containing `<LegalDocumentViewer content={doc.content} onScrollProgress={...} />`
-  - Acceptance checkbox is **disabled until** the user has opened the dialog and scrolled to ≥ 95% (consistent with platform's existing acceptance gating used in the legal module).
-  - Loading skeleton while fetching; "Document not yet published — please contact platform admin" empty state if no `ACTIVE` row exists (does NOT block existing flow if admin hasn't uploaded — checkbox stays disabled with a clear message; this is intentional and prevents silent acceptance of empty content).
-- Submission unchanged — still writes `privacy_policy_accepted` / `dpa_accepted` booleans into `seeker_organizations_compliance` via `useUpsertCompliance`.
-- Optionally also write a row into `legal_acceptance_ledger` (existing table) per accepted document for the audit trail; gated behind hook reuse — no schema change.
-
-### 5. What is NOT changed
-- No change to `seeker_organizations` or its `governance_profile` (the recently-fixed default stays).
-- No change to existing SPA/SKPA/PWA flow.
-- No change to compliance schema fields, mutation hook, or navigation.
-- No change to RLS policies (templates table is already readable by authenticated users for ACTIVE rows).
-
-## Technical Notes
-
-- DB change is a `DROP CONSTRAINT … ADD CONSTRAINT … CHECK (... 'PRIVACY_POLICY','DPA')` plus seed inserts wrapped in `ON CONFLICT DO NOTHING`.
-- Admin uploads use the existing `useLegalDocUpload` (`mammoth`-based DOCX/TXT → HTML) + `LegalDocEditorPanel` flow — no new upload pipeline needed.
-- `LegalDocumentViewer` already handles scroll-progress reporting; just wire its callback to enable the checkbox.
-- Files touched (≤6, all small):
-  1. `supabase/migrations/<new>.sql` — extend CHECK + seed two DRAFT rows.
-  2. `src/types/legal.types.ts` — add codes + labels.
-  3. `src/components/admin/legal/PlatformAgreementsSection.tsx` — extend `PLATFORM_CODES` (one-line change).
-  4. `src/hooks/queries/usePlatformLegalDoc.ts` — new (~40 lines).
-  5. `src/components/registration/PlatformLegalAcceptCard.tsx` — new compact component (~120 lines, well under 250-line limit).
-  6. `src/components/registration/ComplianceForm.tsx` — replace the two static `<a>` blocks with `<PlatformLegalAcceptCard code="PRIVACY_POLICY" … />` and `<PlatformLegalAcceptCard code="DPA" … />`. Keeps the form file under the size budget.
-
-## Outcome
-
-After approval:
-- Platform Admin → Legal Documents page now shows "Privacy Policy" and "Data Processing Agreement" cards alongside SPA/SKPA/PWA. Admin uploads a `.docx` or `.txt`, publishes the version → it becomes `ACTIVE`.
-- Seeker org registering on `/registration/compliance` sees a "View document" button per agreement; opens a styled viewer with the admin's content; must scroll to enable the acceptance checkbox; acceptance recorded as today (plus optional ledger entry).
-- If admin hasn't uploaded yet, the registrant sees a clear "not yet published" message and the checkbox stays disabled — no silent broken-link experience.
+1. Clicking **Create** on the **Privacy Policy** card opens the editor with the right panel showing `PRIVACY_POLICY — Privacy Policy` selected, and Document Name pre‑filled as "Privacy Policy".
+2. Same for **Data Processing Agreement** (`DPA — Data Processing Agreement`).
+3. Clicking **Create** on **SPA / SKPA / PWA** still defaults to that code (existing behaviour preserved).
+4. The Document Code dropdown no longer offers archived codes (PMA, CA, PSA, IPAA, EPIA).
+5. Editing an existing template continues to load its real code and metadata.
+6. Saving a brand‑new Privacy Policy / DPA writes a row with `document_code = 'PRIVACY_POLICY'` / `'DPA'` (matches the CHECK constraint already in place).
