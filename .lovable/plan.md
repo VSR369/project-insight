@@ -1,48 +1,52 @@
-# Phase 10 — Final Status
+## Root cause
 
-## Phase 10g — RLS Gap Closed (No Migrations Required)
+When clicking **Save & Continue** on the Organization Identity (Step 1) registration tab, the insert into `seeker_organizations` fails with:
 
-### What broke before
-The earlier 10g attempt looped because it tried to run a stateful RLS test as a database migration. Each retry hit a different real schema constraint:
-- `seeker_organizations.governance_profile` enum
-- `platform_admin_profiles.industry_expertise` BR-MPA-003 trigger
-- `platform_admin_profiles.user_id` FK to `auth.users`
-- `seeking_org_admins.user_id` FK to `auth.users`
-- `seeking_org_admins.designation_method` enum
-- `seeking_org_admins.admin_tier` enum (`PRIMARY`/`DELEGATED`, no `SECONDARY`)
-- `seeking_org_admins.status` enum (`active`/`deactivated`/..., no `inactive`)
+> new row for relation "seeker_organizations" violates check constraint "seeker_organizations_governance_profile_check"
 
-No fixture data persisted (verified empty). Root cause: wrong execution vehicle.
+Investigation shows a contradictory schema state on `public.seeker_organizations.governance_profile`:
 
-### What ships in 10g
+- **Column default**: `'LIGHTWEIGHT'::text` (legacy term)
+- **NOT NULL**: yes
+- **CHECK constraint** `seeker_organizations_governance_profile_check`:
+  `governance_profile = ANY (ARRAY['QUICK','STRUCTURED','CONTROLLED'])`
 
-1. **`supabase/tests/enterprise_agreements_rls.test.sql`** — manual / CI SQL harness. Wraps fixture inserts + 10 RLS scenarios in a `BEGIN…ROLLBACK`. Run with `psql -f`. Never used as a migration.
-2. **`src/services/enterprise/__tests__/enterpriseAgreementRlsPolicyContract.test.ts`** — 11-spec Vitest contract test that parses the canonical migration SQL and proves the policies still contain every required clause:
-   - `enterprise_agreements_platform_all` is `FOR ALL TO authenticated` with the supervisor/senior_admin guard in both `USING` and `WITH CHECK`.
-   - `enterprise_agreements_primary_read` is `FOR SELECT TO authenticated` with `user_id`, `organization_id`, `status='active'`, `admin_tier='PRIMARY'` clauses.
-   - No INSERT / UPDATE / DELETE policy exists for org admins.
-   - RLS is enabled on the table.
+The registration insert (`src/hooks/queries/useRegistrationData.ts` ~ line 353) intentionally does not set `governance_profile` (it is a Phase-2 governance decision, not a registration field). Postgres applies the default `'LIGHTWEIGHT'`, which immediately violates the CHECK constraint, so every new-org registration fails.
 
-If anyone weakens a policy in the migration, this test fails in CI before deploy.
+This is a schema drift left over from the standardized-naming refactor (see `mem://cogniblend/architecture/standardized-naming-and-terminology`) — the constraint was modernized but the column default was not.
 
----
+## Fix
 
-## Phase 10 — Closed Items
+A single, additive migration to align the default with the constraint and repair any rows that already drifted.
 
-| # | Item | Status |
-|---|------|--------|
-| 5b | `business_registration_number` editable in admin Profile | ✅ 10f |
-| 6b | `isFieldEditable` table-driven test | ✅ 10f |
-| 6c | `validatePinCode` per-country regex test | ✅ 10f |
-| 6d | `enterprise_agreements` RLS coverage | ✅ 10g (SQL harness + Vitest contract) |
+### Migration
 
-## Phase 10 — Documented Post-MVP Items
+```sql
+-- 1. Repair any pre-existing invalid values so the new default install
+--    cannot fail and the column remains queryable safely.
+UPDATE public.seeker_organizations
+SET governance_profile = 'QUICK'
+WHERE governance_profile NOT IN ('QUICK','STRUCTURED','CONTROLLED');
 
-These are not gaps in shipped functionality; they are unimplemented features whose absence is recorded in code comments and require new infrastructure (storage bucket, master tables, multi-select UI).
+-- 2. Replace the legacy default with the canonical entry-tier value.
+ALTER TABLE public.seeker_organizations
+  ALTER COLUMN governance_profile SET DEFAULT 'QUICK';
+```
 
-- Logo upload on Profile tab (needs `org-documents` storage bucket + RLS).
-- HQ state/province Select (needs `md_states_provinces` master with country filter).
-- Timezone Select (needs timezone master table).
-- Operating geography badges (needs multi-select + master geography taxonomy).
+`'QUICK'` is the correct entry default per the project's standardized terminology (QUICK = Express tier, the lowest-rigor profile new orgs start on; they can be promoted to STRUCTURED/CONTROLLED later via the curator/admin governance flow).
 
-If you want any of these built, that is Phase 11 — request it explicitly.
+### Why no app-code change
+
+- `useRegistrationData.useCreateOrganization` is correct as written — registration must NOT decide governance posture for the org. Passing `governance_profile` from the wizard would violate the principle that mode is set later by the platform/curator (see `mem://cogniblend/governance/mode-resolution-and-normalization-policy`).
+- The `seeker_organizations_governance_profile_check` constraint stays as is — it is the authoritative allowed set.
+
+### Verification
+
+After the migration:
+1. Reload `/registration/organization-identity`, fill the form, click **Save & Continue** — the insert succeeds and the wizard advances to Step 2.
+2. `SELECT governance_profile FROM seeker_organizations ORDER BY created_at DESC LIMIT 1` returns `QUICK`.
+3. No app code changes; existing org rows that were already valid are untouched.
+
+## Out of scope
+
+- The unrelated `DialogContent` a11y warnings and the `Select uncontrolled→controlled` warning shown in console — separate hygiene items, not blockers for this tab.
