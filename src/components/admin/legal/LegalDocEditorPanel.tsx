@@ -48,11 +48,18 @@ export function LegalDocEditorPanel({ content, contentVersion, onContentChange }
     },
   });
 
+  // Sync incoming content into the TipTap instance whenever the underlying
+  // string changes OR the parent bumps `contentVersion` (used for forced
+  // resets like file uploads / IPAA section switches). We compare against the
+  // current HTML to avoid clobbering in-progress edits and cursor position.
   React.useEffect(() => {
-    if (editor && content) {
-      editor.commands.setContent(content);
-    }
-  }, [editor, contentVersion]);
+    if (!editor) return;
+    const incoming = content ?? '';
+    const current = editor.getHTML();
+    if (current === incoming) return;
+    // emitUpdate=false so this programmatic set does not re-trigger onUpdate
+    editor.commands.setContent(incoming, false);
+  }, [editor, content, contentVersion]);
 
   if (!editor) return null;
 

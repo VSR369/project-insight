@@ -1,47 +1,107 @@
-## Problem
+## Root Cause Analysis
 
-When a Platform Admin clicks **Create** on the **Privacy Policy** or **Data Processing Agreement** card, the editor opens at `/admin/legal-documents/new?code=PRIVACY_POLICY` (or `?code=DPA`), but the right‑hand "Document Code" panel shows **SPA — Solution Provider Platform…** as if a brand‑new SPA were being created. The Document Name, Description, Targeting and Applies‑to fields are also empty / unrelated to Privacy Policy.
+I inspected the database, the editor hook, and the registration acceptance card. The findings:
 
-## Root Cause
+### Finding 1 — Publish IS persisting (the perceived bug is a display issue)
+Querying `legal_document_templates` directly:
 
-1. `useLegalDocEditor` only seeds `config` from a loaded template. When `isNew = true` it leaves `config` as `{}`, so `config.document_code` is `undefined`.
-2. `LegalDocConfigSidebar` then falls back to a hard‑coded literal: `value={config.document_code ?? 'SPA'}`. The URL `?code=` parameter is never propagated into `config`.
-3. The `Document Code` dropdown lists every code in `DOCUMENT_CODE_LABELS`, including archived families (PMA, CA, PSA, IPAA, EPIA) and CPA templates that should not be hand‑created from this page.
-4. Because `config.document_code` is undefined on Save, the `handleSave` payload uses `defaultCode` for the insert but the sidebar UI keeps showing the wrong code, which is exactly the mismatch the screenshot captures.
+| document_code | version_status | is_active | content length |
+|---|---|---|---|
+| DPA | ACTIVE | true | **5614 chars** |
+| DPA | DRAFT | false | 0 |
+| PRIVACY_POLICY | DRAFT | false | 0 |
 
-A secondary contributor: the previous migration seeds DRAFT rows for `PRIVACY_POLICY` and `DPA`, so the card should normally show **Edit Draft**. The Create path still has to be correct, but after the seed runs the user will mostly land on Edit anyway.
+So the DPA you edited and published **did save 5614 chars of HTML to the `content` column** and was correctly flipped to `ACTIVE`. The Publish flow works.
 
-## Fix (scoped, no behavioural changes elsewhere)
+The reason it *looks* broken is Finding 2 — when you re-open the editor, the canvas is empty, so you assume nothing was saved.
 
-### 1. `src/hooks/admin/useLegalDocEditor.ts`
-Seed `config` from `defaultCode` on first mount when `isNew` is true, so the sidebar reflects the URL parameter:
-- On mount (when `isNew && !template`), initialise `config` with:
-  - `document_code: defaultCode`
-  - `document_name: DOCUMENT_CODE_LABELS[defaultCode]` (sensible default; user can edit)
-  - `applies_to_model: 'BOTH'`, `applies_to_mode: 'ALL'`, `is_mandatory: true`, `applies_to_roles: ['ALL']`
-- Do not overwrite later edits — guard with a `didInitRef` so this runs once.
+### Finding 2 — Editor shows empty on Edit (real bug)
+In `LegalDocEditorPanel.tsx`:
 
-### 2. `src/components/admin/legal/LegalDocConfigSidebar.tsx`
-- Remove the hard‑coded `'SPA'` fallback in the Select. Use `config.document_code` directly; if missing, render an empty placeholder via `<SelectValue placeholder="Select code…" />`.
-- Restrict the dropdown to the **active platform document codes only**, so the editor never offers archived families:
-  - `SPA`, `SKPA`, `PWA`, `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED`, `PRIVACY_POLICY`, `DPA`
-- Keep `DOCUMENT_CODE_LABELS` as the label source (no schema change).
+```ts
+React.useEffect(() => {
+  if (editor && content) editor.commands.setContent(content);
+}, [editor, contentVersion]);   // depends on contentVersion only
+```
 
-### 3. `src/pages/admin/legal/LegalDocumentEditorPage.tsx`
-No structural change. The page already reads `?code=` into `defaultCode` and passes it into the hook — once the hook seeds `config`, the sidebar will display the correct code automatically.
+On mount the template query is still loading, so `content === ''`. When the template resolves and `editorState.content` becomes the 5614-char HTML, this effect does **not** re-run because `contentVersion` is still `0`. Result: blank editor even though data exists.
 
-## Out of Scope / Untouched
+`contentVersion` is only bumped on file uploads, never on initial template load or when switching IPAA sections.
 
-- Database schema, migrations, RLS, and the `legal_document_templates` rows are unchanged.
-- The streaming flow into registration (`PlatformLegalAcceptCard`, `usePlatformLegalTemplate`) is unchanged.
-- The Edit path (existing template) is unchanged — `config` is still seeded from the loaded template as today.
-- IPAA section editing logic is untouched.
+### Finding 3 — Privacy Policy is not yet streamable
+There is no `ACTIVE` row for `PRIVACY_POLICY` (only an empty DRAFT seeded by the prior migration). Once Finding 2 is fixed, the admin can paste content + Publish and the registration card will pick it up automatically — `usePlatformLegalTemplate` already filters `is_active=true` and reads `template_content ?? content`.
 
-## Acceptance Criteria
+### Finding 4 — Minor noise
+`LegalDocPublishDialog` triggers a "Function components cannot be given refs" warning (Radix passes a ref through `AlertDialogAction`). Cosmetic, not blocking.
 
-1. Clicking **Create** on the **Privacy Policy** card opens the editor with the right panel showing `PRIVACY_POLICY — Privacy Policy` selected, and Document Name pre‑filled as "Privacy Policy".
-2. Same for **Data Processing Agreement** (`DPA — Data Processing Agreement`).
-3. Clicking **Create** on **SPA / SKPA / PWA** still defaults to that code (existing behaviour preserved).
-4. The Document Code dropdown no longer offers archived codes (PMA, CA, PSA, IPAA, EPIA).
-5. Editing an existing template continues to load its real code and metadata.
-6. Saving a brand‑new Privacy Policy / DPA writes a row with `document_code = 'PRIVACY_POLICY'` / `'DPA'` (matches the CHECK constraint already in place).
+---
+
+## Fix Plan
+
+### A. Make the editor reliably load saved content (`LegalDocEditorPanel.tsx`)
+Replace the version-only dependency with content-aware sync that runs whenever the incoming `content` string changes AND differs from what TipTap currently has — without clobbering the user's in-progress edits:
+
+```ts
+React.useEffect(() => {
+  if (!editor) return;
+  const current = editor.getHTML();
+  // Skip if identical (prevents cursor jump while typing)
+  if (current === content) return;
+  // Only push when (a) editor is empty, or (b) caller bumped contentVersion
+  // (used by file upload + IPAA section switch)
+  editor.commands.setContent(content || '', false);
+}, [editor, content, contentVersion]);
+```
+
+### B. Bump `contentVersion` in the hook on real content swaps (`useLegalDocEditor.ts`)
+- When the template query resolves for the first time → `setContentVersion(v => v + 1)`.
+- In `handleSectionContentChange` callers / IPAA section switching path → bump version when the active section changes (handled in the page by passing `activeSection` into `contentVersion`).
+
+This guarantees the TipTap instance is reseeded after async load and after section switches.
+
+### C. Strengthen `handlePublish` to use the freshest code (`useLegalDocEditor.ts`)
+`handlePublish` currently prefers `template?.document_code` over `config.document_code`. For brand-new docs this can be stale until the template query refetches. Reorder priority:
+
+```ts
+const code = (config.document_code ?? template?.document_code ?? defaultCode) as string;
+```
+
+Also, after `handleSave()` inside publish for new docs, await one tick for `persistedId` to settle before publishing — otherwise the publish call no-ops.
+
+### D. Mirror content into both columns on save (defensive, `useLegalDocumentTemplates.ts`)
+Some readers (legacy) hit `template_content`, some hit `content`. To eliminate the read/write mismatch permanently, on every `useSaveLegalDocDraft` and `useCreateLegalDocTemplate`, write the HTML into **both** `content` and `template_content`. The registration card and admin preview already read `template_content ?? content` so this is forward-compatible and removes a class of bugs.
+
+### E. Confirm streaming into Seeker enrollment
+No code change needed in `PlatformLegalAcceptCard` / `usePlatformLegalTemplate` — they already:
+- filter `is_active=true`
+- order by `effective_date DESC`
+- coalesce `template_content ?? content`
+
+After fixes A–D, once the admin opens DPA, sees the 5614-char content, optionally edits, and clicks Publish → the seeker enrollment Compliance step will stream the published HTML into the "View" dialog, with the scroll-95% gate already wired.
+
+For Privacy Policy: the empty DRAFT row is a placeholder. Admin needs to open it, paste content, and Publish. After fix A, the editor will correctly show what they type / paste, and publish will persist + stream.
+
+### F. Fix the ref warning (`LegalDocPublishDialog.tsx`)
+Wrap the component in `React.forwardRef` (or simply ensure no parent passes a ref). Low priority but trivial — done in same pass.
+
+---
+
+## Files Touched
+- `src/components/admin/legal/LegalDocEditorPanel.tsx` — content-aware sync effect
+- `src/hooks/admin/useLegalDocEditor.ts` — bump `contentVersion` on template load + section change; reorder code priority in `handlePublish`
+- `src/pages/admin/legal/LegalDocumentEditorPage.tsx` — pass section-aware version to panel
+- `src/hooks/queries/useLegalDocumentTemplates.ts` — mirror HTML into `content` + `template_content` on save & create
+- `src/components/admin/legal/LegalDocPublishDialog.tsx` — `forwardRef` wrapper
+
+## What This Does NOT Change
+- DB schema (no migration needed — both columns already exist)
+- RLS policies (already correct: supervisor / senior_admin can write; everyone reads `is_active=true`)
+- `PlatformLegalAcceptCard` UX or scroll gate
+- Any other legal document family (SPA / SKPA / PWA / CPA_*)
+
+## Verification Steps After Implementation
+1. Open `/admin/legal-documents/<DPA id>/edit` → editor shows the 5614 chars instead of blank.
+2. Edit, wait 2s → "All changes saved" appears; DB `updated_at` advances.
+3. Click Publish → row stays `ACTIVE`, `effective_date` = today.
+4. Open Privacy Policy DRAFT, paste content, Publish → DB row flips `ACTIVE` with content.
+5. Start a Seeker registration → Compliance step → click "View" on Privacy Policy and DPA → admin-published HTML streams into the dialog → scroll to bottom → checkboxes enable.
