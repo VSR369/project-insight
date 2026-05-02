@@ -11,6 +11,7 @@ import {
   useCreateLegalDocTemplate,
 } from '@/hooks/queries/useLegalDocumentTemplates';
 import { DOCUMENT_CODE_LABELS } from '@/types/legal.types';
+import { getDefaultTemplateContent } from '@/constants/legalDefaults.constants';
 import type { DocumentCode, LegalDocTemplate } from '@/types/legal.types';
 import type { IpaaSectionKey } from '@/components/admin/legal/LegalDocSectionTabs';
 
@@ -80,6 +81,15 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
       applies_to_roles: ['ALL'],
       is_mandatory: true,
     });
+    // Pre-fill the canvas with a starter template for codes that have one
+    // (RA_R2 + CPA_*). Markdown is rendered as plain text by TipTap; admins
+    // can re-format with the toolbar — far better than starting empty.
+    const seed = getDefaultTemplateContent(defaultCode);
+    if (seed) {
+      setEditorState((prev) => ({ ...prev, content: seed, contentJson: null }));
+      setIsDirty(true);
+      setContentVersion((v) => v + 1);
+    }
   }, [isNew, defaultCode]);
 
   // Sync template data into local state. Bump contentVersion so the TipTap
