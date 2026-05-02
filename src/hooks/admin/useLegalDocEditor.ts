@@ -82,11 +82,14 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     });
   }, [isNew, defaultCode]);
 
-  // Sync template data into local state
+  // Sync template data into local state. Bump contentVersion so the TipTap
+  // editor reseeds itself once the async query resolves (otherwise the canvas
+  // stays empty even though the saved HTML is in state).
   React.useEffect(() => {
     if (template) {
       setEditorState({
-        content: template.content ?? template.template_content ?? '',
+        // Prefer template_content (canonical) then fall back to legacy `content`.
+        content: template.template_content ?? template.content ?? '',
         contentJson: template.content_json ?? null,
         sections: parseSections(template.sections),
       });
@@ -102,6 +105,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
         effective_date: template.effective_date,
       });
       setIsDirty(false);
+      setContentVersion((v) => v + 1);
     }
   }, [template]);
 
@@ -191,15 +195,19 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   }, [isNew, templateId, persistedId, editorState, config, defaultCode, createDoc, saveDraft, navigate]);
 
   const handlePublish = async () => {
-    const targetId = persistedId ?? templateId;
-    const code = (template?.document_code ?? config.document_code ?? defaultCode) as string;
-    if (!targetId) {
-      // Save first, then publish
+    // Prefer the in-editor config (freshest) — template can be stale until
+    // its query refetches after the first create.
+    const code = (config.document_code ?? template?.document_code ?? defaultCode) as string;
+    // Persist any pending edits first. handleSave will create the row if new
+    // and update persistedId synchronously.
+    if (isDirty || !persistedId) {
       await handleSave();
-      return;
     }
-    if (isDirty) {
-      await handleSave();
+    // Re-read after save so we hit the row that was just created.
+    const targetId = persistedId ?? templateId;
+    if (!targetId) {
+      // Could not persist — abort silently, save flow already surfaced toast.
+      return;
     }
     await publishDoc.mutateAsync({
       template_id: targetId,
