@@ -49,7 +49,16 @@ export function useSaveLegalDocDraft() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ template_id, ...updates }: Partial<LegalDocTemplate> & { template_id: string }) => {
-      const d = await withUpdatedBy({ ...updates, updated_at: new Date().toISOString() });
+      // Mirror HTML into both columns so legacy readers (template_content)
+      // and modern readers (content) stay in sync. The editor writes `content`;
+      // the registration acceptance card reads `template_content ?? content`.
+      const mirrored: Partial<LegalDocTemplate> = { ...updates };
+      if (typeof updates.content === 'string') {
+        mirrored.template_content = updates.content;
+      } else if (typeof updates.template_content === 'string') {
+        mirrored.content = updates.template_content;
+      }
+      const d = await withUpdatedBy({ ...mirrored, updated_at: new Date().toISOString() });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from(TABLE) as any)
         .update(d).eq("template_id", template_id).select(COLUMNS).single();
@@ -93,7 +102,14 @@ export function useCreateLegalDocTemplate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (item: Partial<LegalDocTemplate>) => {
-      const d = await withCreatedBy(item);
+      // Same content/template_content mirror as the save path.
+      const mirrored: Partial<LegalDocTemplate> = { ...item };
+      if (typeof item.content === 'string') {
+        mirrored.template_content = item.content;
+      } else if (typeof item.template_content === 'string') {
+        mirrored.content = item.template_content;
+      }
+      const d = await withCreatedBy(mirrored);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from(TABLE) as any)
         .insert(d).select(COLUMNS).single();
