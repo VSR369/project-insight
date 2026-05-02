@@ -116,7 +116,21 @@ export function LegalSystemHealthCard() {
               size="sm"
               variant="outline"
               type="button"
-              onClick={() => navigate('/admin/legal-documents')}
+              onClick={() => {
+                const codes = unhealthy.map((u) => u.document_code);
+                const anchor = codes.includes('RA_R2')
+                  ? '#role-agreements'
+                  : codes.some((c) => c.startsWith('CPA_'))
+                    ? '#cpa-templates'
+                    : '';
+                navigate(`/admin/legal-documents${anchor}`);
+                if (anchor) {
+                  // Scroll into view on next tick (after route resolves)
+                  setTimeout(() => {
+                    document.querySelector(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 100);
+                }
+              }}
               className="shrink-0"
             >
               Manage <ExternalLink className="ml-1 h-3 w-3" />

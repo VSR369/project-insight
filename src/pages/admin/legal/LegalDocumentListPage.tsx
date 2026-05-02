@@ -7,6 +7,8 @@ import { Plus, Loader2, ScrollText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLegalDocumentTemplates } from '@/hooks/queries/useLegalDocumentTemplates';
 import { PlatformAgreementsSection } from '@/components/admin/legal/PlatformAgreementsSection';
+import { RoleAgreementsSection } from '@/components/admin/legal/RoleAgreementsSection';
+import { CpaTemplatesSection } from '@/components/admin/legal/CpaTemplatesSection';
 import { LegacyDocumentsSection } from '@/components/admin/legal/LegacyDocumentsSection';
 import { LegalSystemHealthCard } from '@/components/admin/legal/LegalSystemHealthCard';
 import type { DocumentCode } from '@/types/legal.types';
@@ -50,6 +52,18 @@ export default function LegalDocumentListPage() {
       <LegalSystemHealthCard />
 
       <PlatformAgreementsSection
+        templates={templates}
+        onEdit={handleEdit}
+        onCreate={handleCreate}
+      />
+
+      <RoleAgreementsSection
+        templates={templates}
+        onEdit={handleEdit}
+        onCreate={handleCreate}
+      />
+
+      <CpaTemplatesSection
         templates={templates}
         onEdit={handleEdit}
         onCreate={handleCreate}
