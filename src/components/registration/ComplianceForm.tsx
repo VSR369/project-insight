@@ -48,6 +48,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
+import { PlatformLegalAcceptCard } from '@/components/registration/PlatformLegalAcceptCard';
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 
@@ -434,24 +435,17 @@ export function ComplianceForm() {
           <FormField
             control={form.control}
             name="privacy_policy_accepted"
-            render={({ field }) => (
-              <FormItem className="flex items-start gap-3 rounded-lg border border-border p-3">
+            render={({ field, fieldState }) => (
+              <FormItem>
                 <FormControl>
-                  <Checkbox
-                    checked={field.value === true}
-                    onCheckedChange={field.onChange}
-                    className="mt-0.5"
+                  <PlatformLegalAcceptCard
+                    documentCode="PRIVACY_POLICY"
+                    fallbackTitle="Privacy Policy"
+                    accepted={field.value === true}
+                    onAcceptedChange={field.onChange}
+                    errorMessage={fieldState.error?.message}
                   />
                 </FormControl>
-                <div className="space-y-0.5">
-                  <FormLabel className="cursor-pointer text-sm font-medium">
-                    I accept the Privacy Policy *
-                  </FormLabel>
-                  <p className="text-xs text-muted-foreground">
-                    I have read and agree to the platform's <a href="/privacy" className="text-primary underline">Privacy Policy</a>.
-                  </p>
-                </div>
-                <FormMessage />
               </FormItem>
             )}
           />
@@ -459,24 +453,17 @@ export function ComplianceForm() {
           <FormField
             control={form.control}
             name="dpa_accepted"
-            render={({ field }) => (
-              <FormItem className="flex items-start gap-3 rounded-lg border border-border p-3">
+            render={({ field, fieldState }) => (
+              <FormItem>
                 <FormControl>
-                  <Checkbox
-                    checked={field.value === true}
-                    onCheckedChange={field.onChange}
-                    className="mt-0.5"
+                  <PlatformLegalAcceptCard
+                    documentCode="DPA"
+                    fallbackTitle="Data Processing Agreement"
+                    accepted={field.value === true}
+                    onAcceptedChange={field.onChange}
+                    errorMessage={fieldState.error?.message}
                   />
                 </FormControl>
-                <div className="space-y-0.5">
-                  <FormLabel className="cursor-pointer text-sm font-medium">
-                    I accept the Data Processing Agreement *
-                  </FormLabel>
-                  <p className="text-xs text-muted-foreground">
-                    I have read and agree to the <a href="/dpa" className="text-primary underline">Data Processing Agreement</a>.
-                  </p>
-                </div>
-                <FormMessage />
               </FormItem>
             )}
           />
