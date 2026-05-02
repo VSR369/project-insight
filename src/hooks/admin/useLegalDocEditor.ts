@@ -143,54 +143,92 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     return result;
   };
 
+  // Track the persisted template id (set after first create for "new" path)
+  const [persistedId, setPersistedId] = React.useState<string | undefined>(
+    isNew ? undefined : templateId
+  );
+  React.useEffect(() => {
+    if (!isNew && templateId) setPersistedId(templateId);
+  }, [isNew, templateId]);
+
+  const savingRef = React.useRef(false);
+
   const handleSave = React.useCallback(async () => {
-    const effectiveCode = (config.document_code as DocumentCode) ?? defaultCode;
-    if (isNew) {
-      const result = await createDoc.mutateAsync({
-        document_code: effectiveCode,
-        document_type: effectiveCode.toLowerCase(),
-        document_name: config.document_name ?? `New ${effectiveCode} Document`,
-        tier: 'TIER_1',
-        version: '1.0',
-        version_status: 'DRAFT',
-        content: editorState.content,
-        content_json: editorState.contentJson,
-        sections: buildSectionsPayload(),
-        ...config,
-      } as Partial<LegalDocTemplate>);
-      navigate(`/admin/legal-documents/${result.template_id}/edit`, { replace: true });
-    } else {
-      await saveDraft.mutateAsync({
-        template_id: templateId!,
-        content: editorState.content,
-        content_json: editorState.contentJson,
-        sections: buildSectionsPayload(),
-        ...config,
-      });
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      const effectiveCode = (config.document_code as DocumentCode) ?? defaultCode;
+      const targetId = persistedId ?? (isNew ? undefined : templateId);
+      if (!targetId) {
+        const result = await createDoc.mutateAsync({
+          document_code: effectiveCode,
+          document_type: effectiveCode.toLowerCase(),
+          document_name: config.document_name ?? `New ${effectiveCode} Document`,
+          tier: 'TIER_1',
+          version: '1.0',
+          version_status: 'DRAFT',
+          content: editorState.content,
+          content_json: editorState.contentJson,
+          sections: buildSectionsPayload(),
+          ...config,
+        } as Partial<LegalDocTemplate>);
+        setPersistedId(result.template_id);
+        // Update URL silently so Publish + subsequent saves target this row
+        navigate(`/admin/legal-documents/${result.template_id}/edit`, { replace: true });
+      } else {
+        await saveDraft.mutateAsync({
+          template_id: targetId,
+          content: editorState.content,
+          content_json: editorState.contentJson,
+          sections: buildSectionsPayload(),
+          ...config,
+        });
+      }
+      setIsDirty(false);
+    } finally {
+      savingRef.current = false;
     }
-    setIsDirty(false);
-  }, [isNew, templateId, editorState, config, defaultCode, createDoc, saveDraft, navigate]);
+  }, [isNew, templateId, persistedId, editorState, config, defaultCode, createDoc, saveDraft, navigate]);
 
   const handlePublish = async () => {
-    if (!templateId || !template?.document_code) return;
+    const targetId = persistedId ?? templateId;
+    const code = (template?.document_code ?? config.document_code ?? defaultCode) as string;
+    if (!targetId) {
+      // Save first, then publish
+      await handleSave();
+      return;
+    }
+    if (isDirty) {
+      await handleSave();
+    }
     await publishDoc.mutateAsync({
-      template_id: templateId,
-      document_code: template.document_code,
+      template_id: targetId,
+      document_code: code,
     });
     setShowPublish(false);
   };
 
-  // Auto-save every 30 seconds when dirty and not new
+  // Auto-save (debounced) whenever dirty — covers both new and existing docs
   React.useEffect(() => {
-    if (isNew || !isDirty) return;
+    if (!isDirty) return;
+    const timer = setTimeout(() => {
+      handleSave();
+    }, 2_000);
+    return () => clearTimeout(timer);
+  }, [isDirty, editorState, config, handleSave]);
+
+  // Periodic safety net for long editing sessions
+  React.useEffect(() => {
+    if (!isDirty) return;
     const timer = setInterval(() => {
       handleSave();
     }, AUTO_SAVE_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [isNew, isDirty, handleSave]);
+  }, [isDirty, handleSave]);
 
   const isSaving = saveDraft.isPending || createDoc.isPending;
-  const currentCode = template?.document_code ?? defaultCode;
+  const currentCode = template?.document_code ?? (config.document_code as DocumentCode) ?? defaultCode;
+  const canPublish = !!(persistedId ?? (!isNew && templateId));
 
   return {
     template,
@@ -201,6 +239,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     isDirty,
     isSaving,
     currentCode,
+    canPublish,
     showPublish,
     setShowPublish,
     contentVersion,

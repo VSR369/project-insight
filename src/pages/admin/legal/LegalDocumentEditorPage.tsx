@@ -71,20 +71,26 @@ export default function LegalDocumentEditorPage() {
             {editor.template.version_status}
           </Badge>
         )}
-        {editor.isDirty && (
-          <span className="text-xs text-muted-foreground italic">unsaved</span>
-        )}
+        {editor.isSaving ? (
+          <span className="text-xs text-muted-foreground italic flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" /> Auto-saving…
+          </span>
+        ) : editor.isDirty ? (
+          <span className="text-xs text-muted-foreground italic">unsaved changes</span>
+        ) : editor.canPublish ? (
+          <span className="text-xs text-muted-foreground italic">All changes saved</span>
+        ) : null}
         <div className="ml-auto flex gap-2">
           <LegalDocUploadHandler
             templateId={templateId}
             hasContent={editor.editorState.content.length > 0}
             onContentUploaded={handleUploadContent}
           />
-          <Button variant="outline" size="sm" onClick={editor.handleSave} disabled={editor.isSaving}>
+          <Button variant="outline" size="sm" onClick={editor.handleSave} disabled={editor.isSaving || !editor.isDirty}>
             {editor.isSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             Save Draft
           </Button>
-          <Button size="sm" onClick={() => editor.setShowPublish(true)} disabled={isNew || editor.isPublishing}>
+          <Button size="sm" onClick={() => editor.setShowPublish(true)} disabled={!editor.canPublish || editor.isPublishing}>
             Publish
           </Button>
         </div>
