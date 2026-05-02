@@ -1,107 +1,55 @@
-## Root Cause Analysis
+## Goal
 
-I inspected the database, the editor hook, and the registration acceptance card. The findings:
+Eliminate the workaround for creating `RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED`, and clarify in-UI that the single PWA template dynamically serves all 5 workforce roles.
 
-### Finding 1 — Publish IS persisting (the perceived bug is a display issue)
-Querying `legal_document_templates` directly:
+## What's wrong today
 
-| document_code | version_status | is_active | content length |
-|---|---|---|---|
-| DPA | ACTIVE | true | **5614 chars** |
-| DPA | DRAFT | false | 0 |
-| PRIVACY_POLICY | DRAFT | false | 0 |
+- The Legal Documents list only renders **Platform Agreement cards** (SPA / SKPA / PWA / PRIVACY_POLICY / DPA). The remaining 4 required codes (`RA_R2`, `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED`) appear in the **Health card** as "Missing" but have **no Create button anywhere** — admins must guess to use generic "+ Add Document" and pick the code from a dropdown.
+- The Health card's "Manage" button just sends the user back to the same page that lacks Create CTAs for these codes.
+- There is no on-screen explanation that PWA = all 5 workforce roles via `{{user_role}}` interpolation, so it looks like Creator/Curator/Reviewer/FC/LC role agreements are missing when they aren't.
 
-So the DPA you edited and published **did save 5614 chars of HTML to the `content` column** and was correctly flipped to `ACTIVE`. The Publish flow works.
+## Changes
 
-The reason it *looks* broken is Finding 2 — when you re-open the editor, the canvas is empty, so you assume nothing was saved.
+### 1. New "Role Agreements" section on the Legal Documents page
+Add `RoleAgreementsSection.tsx` that renders **one card for `RA_R2`** (using the existing `PlatformAgreementCard`) plus an explanatory banner:
 
-### Finding 2 — Editor shows empty on Edit (real bug)
-In `LegalDocEditorPanel.tsx`:
+> "All other workforce roles — Creator, Curator, Expert Reviewer, Finance Coordinator, Legal Coordinator — are covered by the single **PWA** template above. The role label is injected dynamically at signature time via `{{user_role}}`."
 
-```ts
-React.useEffect(() => {
-  if (editor && content) editor.commands.setContent(content);
-}, [editor, contentVersion]);   // depends on contentVersion only
-```
+If `RA_R2` is missing, the card shows "Create" → routes to `/admin/legal-documents/new?code=RA_R2`.
 
-On mount the template query is still loading, so `content === ''`. When the template resolves and `editorState.content` becomes the 5614-char HTML, this effect does **not** re-run because `contentVersion` is still `0`. Result: blank editor even though data exists.
+### 2. New "Challenge Participation Agreements (CPA)" section
+Add `CpaTemplatesSection.tsx` rendering 3 cards (one per governance mode) with mode-colored badges (reusing `CPA_MODE_COLORS`, `CPA_MODE_DESCRIPTIONS` from `cpaDefaults.constants.ts`). Each missing card has a "Create" button → `/admin/legal-documents/new?code=CPA_QUICK|STRUCTURED|CONTROLLED`.
 
-`contentVersion` is only bumped on file uploads, never on initial template load or when switching IPAA sections.
+### 3. Auto-seed default content for new CPAs and RA_R2
+In `useLegalDocEditor.ts`, when on the `new` route AND `?code=CPA_*`, pre-fill the editor with `CPA_DEFAULT_TEMPLATES[mode]` (already defined in `src/constants/cpaDefaults.constants.ts`). For `?code=RA_R2`, seed a minimal Seeker-Admin role-agreement skeleton (new constant `RA_R2_DEFAULT_TEMPLATE` in `src/constants/legalDefaults.constants.ts`).
 
-### Finding 3 — Privacy Policy is not yet streamable
-There is no `ACTIVE` row for `PRIVACY_POLICY` (only an empty DRAFT seeded by the prior migration). Once Finding 2 is fixed, the admin can paste content + Publish and the registration card will pick it up automatically — `usePlatformLegalTemplate` already filters `is_active=true` and reads `template_content ?? content`.
+This means clicking "Create" lands the admin in the editor with a usable starting draft — they only need to review and Publish.
 
-### Finding 4 — Minor noise
-`LegalDocPublishDialog` triggers a "Function components cannot be given refs" warning (Radix passes a ref through `AlertDialogAction`). Cosmetic, not blocking.
+### 4. Health card "Manage" deep-links to the right card
+Update `LegalSystemHealthCard.tsx` so each missing row's row-level action (or the bottom Manage button) anchors-scrolls to the relevant section (`#role-agreements`, `#cpa-templates`).
 
----
+### 5. Sidebar dropdown polish
+In `LegalDocConfigSidebar.tsx`, group the document code dropdown into sections (Platform / Role / CPA / Privacy) for clarity when the generic "+ Add Document" is used.
 
-## Fix Plan
+## Files
 
-### A. Make the editor reliably load saved content (`LegalDocEditorPanel.tsx`)
-Replace the version-only dependency with content-aware sync that runs whenever the incoming `content` string changes AND differs from what TipTap currently has — without clobbering the user's in-progress edits:
+- **New:** `src/components/admin/legal/RoleAgreementsSection.tsx`
+- **New:** `src/components/admin/legal/CpaTemplatesSection.tsx`
+- **New:** `src/constants/legalDefaults.constants.ts` (RA_R2 skeleton)
+- **Edit:** `src/pages/admin/legal/LegalDocumentListPage.tsx` — mount the two new sections
+- **Edit:** `src/hooks/admin/useLegalDocEditor.ts` — seed default content by `?code=`
+- **Edit:** `src/components/admin/legal/LegalSystemHealthCard.tsx` — anchor links
+- **Edit:** `src/components/admin/legal/LegalDocConfigSidebar.tsx` — grouped dropdown
 
-```ts
-React.useEffect(() => {
-  if (!editor) return;
-  const current = editor.getHTML();
-  // Skip if identical (prevents cursor jump while typing)
-  if (current === content) return;
-  // Only push when (a) editor is empty, or (b) caller bumped contentVersion
-  // (used by file upload + IPAA section switch)
-  editor.commands.setContent(content || '', false);
-}, [editor, content, contentVersion]);
-```
+## Out of scope
 
-### B. Bump `contentVersion` in the hook on real content swaps (`useLegalDocEditor.ts`)
-- When the template query resolves for the first time → `setContentVersion(v => v + 1)`.
-- In `handleSectionContentChange` callers / IPAA section switching path → bump version when the active section changes (handled in the page by passing `activeSection` into `contentVersion`).
+- No DB schema changes. No changes to `roleToDocumentMap.ts` (the PWA-covers-5-roles model is correct).
+- No changes to the signature/gate flow.
 
-This guarantees the TipTap instance is reseeded after async load and after section switches.
+## Acceptance
 
-### C. Strengthen `handlePublish` to use the freshest code (`useLegalDocEditor.ts`)
-`handlePublish` currently prefers `template?.document_code` over `config.document_code`. For brand-new docs this can be stale until the template query refetches. Reorder priority:
-
-```ts
-const code = (config.document_code ?? template?.document_code ?? defaultCode) as string;
-```
-
-Also, after `handleSave()` inside publish for new docs, await one tick for `persistedId` to settle before publishing — otherwise the publish call no-ops.
-
-### D. Mirror content into both columns on save (defensive, `useLegalDocumentTemplates.ts`)
-Some readers (legacy) hit `template_content`, some hit `content`. To eliminate the read/write mismatch permanently, on every `useSaveLegalDocDraft` and `useCreateLegalDocTemplate`, write the HTML into **both** `content` and `template_content`. The registration card and admin preview already read `template_content ?? content` so this is forward-compatible and removes a class of bugs.
-
-### E. Confirm streaming into Seeker enrollment
-No code change needed in `PlatformLegalAcceptCard` / `usePlatformLegalTemplate` — they already:
-- filter `is_active=true`
-- order by `effective_date DESC`
-- coalesce `template_content ?? content`
-
-After fixes A–D, once the admin opens DPA, sees the 5614-char content, optionally edits, and clicks Publish → the seeker enrollment Compliance step will stream the published HTML into the "View" dialog, with the scroll-95% gate already wired.
-
-For Privacy Policy: the empty DRAFT row is a placeholder. Admin needs to open it, paste content, and Publish. After fix A, the editor will correctly show what they type / paste, and publish will persist + stream.
-
-### F. Fix the ref warning (`LegalDocPublishDialog.tsx`)
-Wrap the component in `React.forwardRef` (or simply ensure no parent passes a ref). Low priority but trivial — done in same pass.
-
----
-
-## Files Touched
-- `src/components/admin/legal/LegalDocEditorPanel.tsx` — content-aware sync effect
-- `src/hooks/admin/useLegalDocEditor.ts` — bump `contentVersion` on template load + section change; reorder code priority in `handlePublish`
-- `src/pages/admin/legal/LegalDocumentEditorPage.tsx` — pass section-aware version to panel
-- `src/hooks/queries/useLegalDocumentTemplates.ts` — mirror HTML into `content` + `template_content` on save & create
-- `src/components/admin/legal/LegalDocPublishDialog.tsx` — `forwardRef` wrapper
-
-## What This Does NOT Change
-- DB schema (no migration needed — both columns already exist)
-- RLS policies (already correct: supervisor / senior_admin can write; everyone reads `is_active=true`)
-- `PlatformLegalAcceptCard` UX or scroll gate
-- Any other legal document family (SPA / SKPA / PWA / CPA_*)
-
-## Verification Steps After Implementation
-1. Open `/admin/legal-documents/<DPA id>/edit` → editor shows the 5614 chars instead of blank.
-2. Edit, wait 2s → "All changes saved" appears; DB `updated_at` advances.
-3. Click Publish → row stays `ACTIVE`, `effective_date` = today.
-4. Open Privacy Policy DRAFT, paste content, Publish → DB row flips `ACTIVE` with content.
-5. Start a Seeker registration → Compliance step → click "View" on Privacy Policy and DPA → admin-published HTML streams into the dialog → scroll to bottom → checkboxes enable.
+1. Legal Documents page shows 3 sections: Platform Agreements, Role Agreements (with RA_R2 + explainer), CPA Templates (3 mode cards).
+2. Each missing doc has a visible Create button on its own card.
+3. Clicking Create lands in the editor with seeded default content for that code.
+4. Publishing makes the Health card flip from "Missing" → "OK".
+5. UI explains why only RA_R2 is listed and PWA serves the other 5 roles.
