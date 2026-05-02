@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -24,19 +24,13 @@ const ROLE_OPTIONS = [
   { value: 'SOLVER', label: 'Solution Provider' },
 ] as const;
 
-// Active platform document codes available for creation. Archived families
-// (PMA, CA, PSA, IPAA, EPIA) are intentionally excluded — they remain editable
-// via direct link but should not be offered as new-document options.
-const DOC_CODES: DocumentCode[] = [
-  'SPA',
-  'SKPA',
-  'PWA',
-  'RA_R2',
-  'CPA_QUICK',
-  'CPA_STRUCTURED',
-  'CPA_CONTROLLED',
-  'PRIVACY_POLICY',
-  'DPA',
+// Active platform document codes available for creation, grouped by family.
+// Archived codes (PMA, CA, PSA, IPAA, EPIA) are intentionally excluded.
+const DOC_CODE_GROUPS: { label: string; codes: DocumentCode[] }[] = [
+  { label: 'Platform Agreements', codes: ['SPA', 'SKPA', 'PWA'] },
+  { label: 'Role Agreements', codes: ['RA_R2'] },
+  { label: 'Challenge Participation Agreements', codes: ['CPA_QUICK', 'CPA_STRUCTURED', 'CPA_CONTROLLED'] },
+  { label: 'Privacy & Data', codes: ['PRIVACY_POLICY', 'DPA'] },
 ];
 
 interface LegalDocConfigSidebarProps {
@@ -71,10 +65,15 @@ export function LegalDocConfigSidebar({ config, onChange, templateId, isNew }: L
           >
             <SelectTrigger><SelectValue placeholder="Select document code…" /></SelectTrigger>
             <SelectContent>
-              {DOC_CODES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c} — {DOCUMENT_CODE_LABELS[c]}
-                </SelectItem>
+              {DOC_CODE_GROUPS.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.codes.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c} — {DOCUMENT_CODE_LABELS[c]}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
