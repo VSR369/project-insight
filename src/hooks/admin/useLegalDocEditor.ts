@@ -239,6 +239,7 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     isDirty,
     isSaving,
     currentCode,
+    canPublish,
     showPublish,
     setShowPublish,
     contentVersion,
