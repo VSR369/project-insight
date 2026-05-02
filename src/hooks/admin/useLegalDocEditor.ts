@@ -10,6 +10,7 @@ import {
   usePublishLegalDoc,
   useCreateLegalDocTemplate,
 } from '@/hooks/queries/useLegalDocumentTemplates';
+import { DOCUMENT_CODE_LABELS } from '@/types/legal.types';
 import type { DocumentCode, LegalDocTemplate } from '@/types/legal.types';
 import type { IpaaSectionKey } from '@/components/admin/legal/LegalDocSectionTabs';
 
@@ -64,6 +65,22 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
   const [isDirty, setIsDirty] = React.useState(false);
   const [showPublish, setShowPublish] = React.useState(false);
   const [contentVersion, setContentVersion] = React.useState(0);
+
+  // Seed config defaults for the "new" path so the sidebar reflects the URL ?code=
+  // parameter (e.g. PRIVACY_POLICY / DPA) instead of falling back to a stale literal.
+  const didInitNewRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!isNew || didInitNewRef.current) return;
+    didInitNewRef.current = true;
+    setConfig({
+      document_code: defaultCode,
+      document_name: DOCUMENT_CODE_LABELS[defaultCode] ?? '',
+      applies_to_model: 'BOTH',
+      applies_to_mode: 'ALL',
+      applies_to_roles: ['ALL'],
+      is_mandatory: true,
+    });
+  }, [isNew, defaultCode]);
 
   // Sync template data into local state
   React.useEffect(() => {
