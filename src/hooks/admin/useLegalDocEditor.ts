@@ -12,6 +12,7 @@ import {
 } from '@/hooks/queries/useLegalDocumentTemplates';
 import { DOCUMENT_CODE_LABELS } from '@/types/legal.types';
 import { getDefaultTemplateContent } from '@/constants/legalDefaults.constants';
+import { markdownToHtml } from '@/utils/markdownToHtml';
 import type { DocumentCode, LegalDocTemplate } from '@/types/legal.types';
 import type { IpaaSectionKey } from '@/components/admin/legal/LegalDocSectionTabs';
 
@@ -86,7 +87,11 @@ export function useLegalDocEditor({ templateId, isNew, defaultCode }: UseEditorP
     // can re-format with the toolbar — far better than starting empty.
     const seed = getDefaultTemplateContent(defaultCode);
     if (seed) {
-      setEditorState((prev) => ({ ...prev, content: seed, contentJson: null }));
+      // Seed templates are authored in Markdown for legibility. TipTap is an
+      // HTML editor, so convert before injecting — otherwise hashes/asterisks
+      // render as literal characters.
+      const seedHtml = seed.trim().startsWith('<') ? seed : markdownToHtml(seed);
+      setEditorState((prev) => ({ ...prev, content: seedHtml, contentJson: null }));
       setIsDirty(true);
       setContentVersion((v) => v + 1);
     }
