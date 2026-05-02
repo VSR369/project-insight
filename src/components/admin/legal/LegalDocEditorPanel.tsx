@@ -58,7 +58,7 @@ export function LegalDocEditorPanel({ content, contentVersion, onContentChange }
     const current = editor.getHTML();
     if (current === incoming) return;
     // emitUpdate=false so this programmatic set does not re-trigger onUpdate
-    editor.commands.setContent(incoming, false);
+    editor.commands.setContent(incoming, { emitUpdate: false });
   }, [editor, content, contentVersion]);
 
   if (!editor) return null;
