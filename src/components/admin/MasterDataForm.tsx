@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type FieldType = "text" | "number" | "textarea" | "switch" | "select";
+export type FieldType = "text" | "number" | "textarea" | "switch" | "select" | "multiselect";
 
 export interface SelectOption {
   value: string;
@@ -193,6 +193,62 @@ export function MasterDataForm<TData extends FieldValues>({
               ))}
             </SelectContent>
           </Select>
+        );
+      }
+      case "multiselect": {
+        const selectedIds = (Array.isArray(field.value) ? (field.value as string[]) : []) ?? [];
+        const opts = options ?? [];
+        const available = opts.filter((o) => !selectedIds.includes(o.value));
+        const selected = opts.filter((o) => selectedIds.includes(o.value));
+        return (
+          <div className="space-y-2">
+            {available.length > 0 && (
+              <Select
+                value={undefined}
+                onValueChange={(val) => {
+                  if (!val) return;
+                  field.onChange([...selectedIds, val]);
+                }}
+                disabled={disabled || isLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={placeholder || "Add..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {available.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {selected.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {selected.map((opt) => (
+                  <span
+                    key={opt.value}
+                    className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground"
+                  >
+                    {opt.label}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${opt.label}`}
+                      className="hover:text-destructive"
+                      onClick={() =>
+                        field.onChange(selectedIds.filter((id) => id !== opt.value))
+                      }
+                      disabled={disabled || isLoading}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No items selected.</p>
+            )}
+          </div>
         );
       }
       default:
