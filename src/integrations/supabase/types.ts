@@ -8452,6 +8452,57 @@ export type Database = {
           },
         ]
       }
+      org_type_industry_segments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          display_order: number
+          id: string
+          industry_id: string
+          is_active: boolean
+          org_type_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          id?: string
+          industry_id: string
+          is_active?: boolean
+          org_type_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          id?: string
+          industry_id?: string
+          is_active?: boolean
+          org_type_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_type_industry_segments_industry_id_fkey"
+            columns: ["industry_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_type_industry_segments_org_type_id_fkey"
+            columns: ["org_type_id"]
+            isOneToOne: false
+            referencedRelation: "organization_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_type_seeker_rules: {
         Row: {
           compliance_required: boolean
