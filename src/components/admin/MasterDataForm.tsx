@@ -204,7 +204,7 @@ export function MasterDataForm<TData extends FieldValues>({
           <div className="space-y-2">
             {available.length > 0 && (
               <Select
-                value=""
+                value={undefined}
                 onValueChange={(val) => {
                   if (!val) return;
                   field.onChange([...selectedIds, val]);
