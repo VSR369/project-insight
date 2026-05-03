@@ -22,10 +22,23 @@ const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 // ============================================================
 // Industries (industry_segments — used for org registration)
 // ============================================================
-export function useIndustries() {
+export function useIndustries(orgTypeId?: string) {
   return useQuery({
-    queryKey: ['industry_segments_for_reg'],
+    queryKey: ['industry_segments_for_reg', orgTypeId ?? 'all'],
     queryFn: async () => {
+      if (orgTypeId) {
+        const { data, error } = await supabase
+          .from('org_type_industry_segments')
+          .select('display_order, industry_segments!inner(id, code, name, is_active)')
+          .eq('org_type_id', orgTypeId)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+        if (error) throw new Error(error.message);
+        return (data ?? [])
+          .map((r: { industry_segments: { id: string; code: string; name: string; is_active: boolean } }) => r.industry_segments)
+          .filter((i) => i?.is_active)
+          .map(({ id, code, name }) => ({ id, code, name }));
+      }
       const { data, error } = await supabase
         .from('industry_segments')
         .select('id, code, name')

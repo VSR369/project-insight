@@ -22,11 +22,12 @@ interface IndustryTagSelectorProps {
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  orgTypeId?: string;
 }
 
-export function IndustryTagSelector({ value, onChange, disabled }: IndustryTagSelectorProps) {
+export function IndustryTagSelector({ value, onChange, disabled, orgTypeId }: IndustryTagSelectorProps) {
   const [open, setOpen] = useState(false);
-  const { data: industries, isLoading } = useIndustries();
+  const { data: industries, isLoading } = useIndustries(orgTypeId);
 
   if (isLoading) return <Skeleton className="h-10 w-full" />;
 
@@ -66,30 +67,38 @@ export function IndustryTagSelector({ value, onChange, disabled }: IndustryTagSe
         </PopoverTrigger>
         <PopoverContent className="w-full min-w-[300px] p-2" align="start">
           <div className="max-h-60 overflow-y-auto space-y-1">
-            {items.map((item) => {
-              const isSelected = value.includes(item.id);
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => toggleItem(item.id)}
-                  className={cn(
-                    'w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors text-left',
-                    isSelected && 'bg-accent',
-                  )}
-                >
-                  <div className={cn(
-                    'flex h-4 w-4 items-center justify-center rounded border shrink-0',
-                    isSelected
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'border-input',
-                  )}>
-                    {isSelected && <Check className="h-3 w-3" />}
-                  </div>
-                  {item.name}
-                </button>
-              );
-            })}
+            {items.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-muted-foreground">
+                {orgTypeId
+                  ? 'No industries are configured for this organization type yet.'
+                  : 'Select an organization type first to see relevant industries.'}
+              </p>
+            ) : (
+              items.map((item) => {
+                const isSelected = value.includes(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggleItem(item.id)}
+                    className={cn(
+                      'w-full flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors text-left',
+                      isSelected && 'bg-accent',
+                    )}
+                  >
+                    <div className={cn(
+                      'flex h-4 w-4 items-center justify-center rounded border shrink-0',
+                      isSelected
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-input',
+                    )}>
+                      {isSelected && <Check className="h-3 w-3" />}
+                    </div>
+                    {item.name}
+                  </button>
+                );
+              })
+            )}
           </div>
         </PopoverContent>
       </Popover>

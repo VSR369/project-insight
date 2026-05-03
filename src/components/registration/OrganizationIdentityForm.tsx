@@ -146,6 +146,16 @@ export function OrganizationIdentityForm() {
     form.setValue('state_province_id', '');
   }, [watchedCountryId, form]);
 
+  // Reset industries when org type changes (different org types expose different industries)
+  const initialOrgTypeRef = useRef(state.step1?.organization_type_id ?? '');
+  useEffect(() => {
+    if (initialOrgTypeRef.current && watchedOrgTypeId === initialOrgTypeRef.current) {
+      initialOrgTypeRef.current = '';
+      return;
+    }
+    form.setValue('industry_ids', []);
+  }, [watchedOrgTypeId, form]);
+
   // Update context with locale info when country changes
   useEffect(() => {
     if (countryLocale) {
@@ -494,7 +504,7 @@ export function OrganizationIdentityForm() {
               <FormItem>
                 <FormLabel>Industries *</FormLabel>
                 <FormControl>
-                  <IndustryTagSelector value={field.value} onChange={field.onChange} />
+                  <IndustryTagSelector value={field.value} onChange={field.onChange} orgTypeId={watchedOrgTypeId} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
