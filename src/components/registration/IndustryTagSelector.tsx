@@ -22,11 +22,12 @@ interface IndustryTagSelectorProps {
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  orgTypeId?: string;
 }
 
-export function IndustryTagSelector({ value, onChange, disabled }: IndustryTagSelectorProps) {
+export function IndustryTagSelector({ value, onChange, disabled, orgTypeId }: IndustryTagSelectorProps) {
   const [open, setOpen] = useState(false);
-  const { data: industries, isLoading } = useIndustries();
+  const { data: industries, isLoading } = useIndustries(orgTypeId);
 
   if (isLoading) return <Skeleton className="h-10 w-full" />;
 
