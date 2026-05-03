@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type FieldType = "text" | "number" | "textarea" | "switch" | "select";
+export type FieldType = "text" | "number" | "textarea" | "switch" | "select" | "multiselect";
 
 export interface SelectOption {
   value: string;
