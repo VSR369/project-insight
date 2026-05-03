@@ -504,7 +504,7 @@ export function OrganizationIdentityForm() {
               <FormItem>
                 <FormLabel>Industries *</FormLabel>
                 <FormControl>
-                  <IndustryTagSelector value={field.value} onChange={field.onChange} />
+                  <IndustryTagSelector value={field.value} onChange={field.onChange} orgTypeId={watchedOrgTypeId} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
