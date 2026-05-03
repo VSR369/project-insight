@@ -1,74 +1,66 @@
-## Root cause
+## Goal
+When a Seeker selects an **Organization Type** during registration, the **Industry Segment** picker should only show the industries relevant to that org type. Today both lists are independent — every org sees every industry.
 
-Inspected `legal_document_templates`. Found three concrete defects:
+## Current State (verified in DB)
 
-1. **CPA templates store raw Markdown.** `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED` `template_content` starts with `# Challenge Participation Agreement…`, `## 1. Parties`, `- **Challenge:**…`. TipTap is an HTML editor — it renders these as flat lines of plain text. No headings, no bullets, no spacing.
-2. **The seed loader feeds raw Markdown to the editor.** `getDefaultTemplateContent()` in `src/constants/legalDefaults.constants.ts` returns the markdown string verbatim. `useLegalDocEditor` writes it straight into `editorState.content`, and `LegalDocEditorPanel` passes it to TipTap — which displays `#` and `**` as literal characters.
-3. **`RA_R2`, `PRIVACY_POLICY`, `DPA` share the wrong body.** All three currently hold the JBM "Digital Workforce" proposal HTML (5,524–5,614 chars, identical opening). They are HTML-formatted but the content is wrong / placeholder for a different document.
+**Organization Types present:**
+- Academic Institution, School, College (×2 duplicates), University
+- Government Entity
+- NGO/Non-Profit
+- Large Enterprise, Medium Enterprise, Small Enterprise, Micro Enterprise, MSME, Start-up
+- Internal Department
 
-Net effect: every CPA published from the seeded defaults is unreadable, and the three privacy/role docs hold mis-seeded copy.
+**Industry Segments present (12):** Consulting, Education, Electronics & High-Tech, Energy, Finance, FMCG, Healthcare, Manufacturing (Auto Components), Retail, Technology, Technology (India IT Services), Travel/Hospitality.
 
-## Fix plan
+Most of the industries you listed (e.g. Pre-Primary Education, Curriculum Development, ECCE, Aerospace & Defense, Pharmaceuticals, etc.) **do not exist yet** and must be created.
 
-### A. Stop seeding raw Markdown — convert at the seed boundary
+`industry_segments` and `organization_types` are not currently linked by any join table.
 
-In `src/hooks/admin/useLegalDocEditor.ts`, change the `?code=` seeding branch to run the seed string through `markdownToHtml()` (already exists at `src/utils/markdownToHtml.ts` and supports headings, lists, bold, paragraphs). The editor will then receive valid HTML and render proper headings, bullets, and spacing.
+---
 
+## Plan
+
+### 1. Schema — new join table
+Create `org_type_industry_segments` (additive, follows project standards):
 ```text
-const seed = getDefaultTemplateContent(defaultCode);
-if (seed) {
-  const html = markdownToHtml(seed);          // NEW
-  setEditorState(prev => ({ ...prev, content: html, contentJson: null }));
-  ...
-}
+id              uuid PK
+org_type_id     uuid FK → organization_types(id)
+industry_id     uuid FK → industry_segments(id)
+display_order   int
+is_active       bool default true
+created_at/by, updated_at/by
+UNIQUE (org_type_id, industry_id)
 ```
+RLS: read-open to authenticated; write-restricted to platform admin (mirrors other md_ tables).
 
-This single change fixes every future "Create" action for `RA_R2` and the three CPA modes.
+### 2. Seed Industry Segments (insert only what's missing; keep existing ones)
 
-### B. Rewrite the seed templates as well-structured Markdown
+**Academic Institution** → Pre-Primary Education · Primary & Middle Education · Secondary & Higher Secondary Education · Undergraduate (UG) Institutions · Postgraduate (PG) & Research Institutions
+*(also map School → Pre-Primary, Primary, Secondary; College → UG; University → UG + PG)*
 
-Tighten `src/constants/legalDefaults.constants.ts` and `src/constants/cpaDefaults.constants.ts` so the source markdown produces clean HTML after conversion:
+**Government Entity** → Public Education Administration · Educational Policy & Governance · Curriculum Development & Assessment Boards · Higher Education Regulation & Accreditation · Public Health & School Nutrition · Teacher Certification & Institutional Training · Public Educational Infrastructure Development · Academic Research & Public Grant Funding
 
-- Use `#` for the title, `##` for clauses, `###` for sub-clauses (5.1, 5.2…).
-- Blank line between every block (heading, paragraph, list) — required by the parser to break paragraphs correctly.
-- Bullet lists for parties / definitions / deliverables, using `- ` consistently.
-- Bold (`**Label:**`) for inline labels (Challenge, Prize, Deadline) followed by the value on the same line.
-- Numbered sub-points stay under their parent heading via blank-line separation, not by inlining.
-- Add missing standard sections to QUICK/STRUCTURED so they render as multi-section contracts (Acceptance, Governing Law, Confidentiality where appropriate).
+**NGO/Non-Profit** → ECCE · Child Rights & Educational Advocacy · SEN & Inclusive Education · Digital Literacy & EdTech Accessibility · Girl Child & Marginalized Community Education · Skill Development & Vocational Training · Educational Funding/Endowments/Scholarships · Teacher Capacity Building · Community-Based Learning & Literacy Programs
 
-### C. Repair the existing rows in the database
+**Enterprise / Startup family** (Large, Medium, Small, Micro, MSME, Start-up — all six get the same set) →
+Manufacturing (Auto Components) *(keep)* · Automotive & Auto Components · Aerospace & Defense · Pharmaceuticals & Life Sciences · Healthcare & Hospitals · Biotechnology · Chemicals & Petrochemicals · Oil & Gas / Energy · Power & Utilities (Renewable / Conventional) · Construction & Infrastructure · Real Estate · Technology *(keep)* · Technology (India IT Services) *(keep)*
 
-Run a migration that:
+### 3. Backend hook
+Update `useIndustries()` in `src/hooks/queries/useRegistrationData.ts` to accept an optional `orgTypeId`. When provided, join through `org_type_industry_segments` and return only mapped active industries. When absent, fall back to the full list (preserves existing callers).
 
-1. **Backs up** current `template_content` / `content_html` into a one-time `template_content_backup` JSONB column on the affected rows (or to an audit row) so nothing is lost.
-2. For `CPA_QUICK`, `CPA_STRUCTURED`, `CPA_CONTROLLED` — replace `template_content` (and `content` legacy column, if populated) with the **HTML** version produced from the new structured Markdown. Bumps `version` and re-publishes (`version_status='ACTIVE'`).
-3. For `RA_R2` — replace the mis-seeded JBM HTML with the proper Seeker-Org-Admin Role Agreement HTML rendered from the new template.
-4. For `PRIVACY_POLICY` and `DPA` — these need correct content, not the JBM proposal. Provide a structured starter HTML for each (Privacy Policy: data controller, categories collected, lawful basis, retention, subject rights, contact; DPA: parties, processing scope, sub-processors, security measures, data transfers, breach notification, audits, term, governing law). Mark as `version_status='ACTIVE'` so the Health card clears.
-5. Updates `updated_at` and `updated_by` for audit.
+### 4. UI wiring
+- `IndustryTagSelector` gets an optional `orgTypeId` prop.
+- `OrganizationIdentityForm`: pass the currently selected `organization_type_id` into the selector. Clear `industry_ids` whenever org type changes (via RHF watcher) so stale selections don't persist.
+- Empty-state message in the popover when an org type has no mapped industries yet ("No industries configured for this organization type").
 
-Because the migration needs to write final HTML, the SQL will embed the converted HTML strings directly (generated locally from the same Markdown the app uses, so source and DB stay in sync).
+### 5. Admin (light touch, optional in this pass)
+The existing Industry Segments admin page stays as-is. Mapping management can be added later; for now seed via migration is sufficient.
 
-### D. Verify the renderer pipeline (no code change expected)
+---
 
-`LegalDocumentViewer` already injects content via `dangerouslySetInnerHTML` inside `.legal-doc-page > .legal-doc`, and `src/styles/legal-document.css` styles `h1/h2/h3/p/ul/ol/li`. Once the rows hold real HTML, both the in-app preview and the acceptance modal will render correctly with no further changes. Same for the TipTap editor on Edit — it already syncs incoming HTML through `setContent`.
+## Open Questions (please confirm before I build)
+1. **College duplicates** — there are two `College` rows (codes `COL` and `COLLEGE`). Should I deactivate one? If yes, which?
+2. **Enterprise mapping** — confirm the same business-industry list applies to all six (Large/Medium/Small/Micro Enterprise + MSME + Start-up). I'll assume yes unless told otherwise.
+3. **School / College / University** — your prompt grouped everything under "Academic Institution". Should School/College/University get the more specific subsets I proposed (School → school-level industries, etc.), or should all four academic org types share the full academic list?
 
-### E. Streaming during Seeker Org enrollment
-
-`PRIVACY_POLICY` and `DPA` are already wired into the legal-gate stream (`useLegalGate` + `roleToDocumentMap`). Once their `version_status` is `ACTIVE` with real content (step C.4), the enrollment flow will pull and display them automatically — no additional wiring needed. We will smoke-test by walking through Seeker enrollment in the preview after deploy.
-
-## Files to change
-
-- `src/constants/cpaDefaults.constants.ts` — rewrite the three CPA Markdown templates with proper structure + blank-line separation.
-- `src/constants/legalDefaults.constants.ts` — rewrite RA_R2 Markdown the same way; add structured Markdown defaults for `PRIVACY_POLICY` and `DPA`; extend `getDefaultTemplateContent` to cover them.
-- `src/hooks/admin/useLegalDocEditor.ts` — pipe `getDefaultTemplateContent(...)` through `markdownToHtml(...)` before placing it into `editorState.content`.
-- `supabase/migrations/<new>.sql` — backup + overwrite `template_content` (HTML) for the 5 affected rows, set `version_status='ACTIVE'`, bump `version`, refresh `updated_at`.
-
-No changes to `LegalDocEditorPanel`, viewer, or CSS required.
-
-## Verification checklist
-
-1. Open Admin → Legal Documents → Edit each of CPA_QUICK / STRUCTURED / CONTROLLED / RA_R2 / PRIVACY_POLICY / DPA. Editor shows proper H1/H2, paragraphs, bullets — not raw `#` / `-`.
-2. Click Publish → row stays `ACTIVE`, Health card shows green.
-3. Open the public viewer (acceptance modal) for each → contract-grade typography.
-4. Walk through Seeker Org enrollment → Privacy Policy and DPA appear in the legal stream and can be accepted.
-5. Click "Create" from any of the 4 dedicated cards → editor opens pre-filled with structured HTML, not Markdown literals.
+I'll proceed with my proposed defaults if you just approve.
