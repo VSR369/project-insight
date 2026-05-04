@@ -148,15 +148,23 @@ export function OrganizationIdentityForm() {
     form.setValue('state_province_id', '');
   }, [watchedCountryId, form]);
 
-  // Reset industries when org type changes (different org types expose different industries)
+  // Auto-populate industries from admin-managed org-type → industry mapping when
+  // the org type changes. Preserves saved selections on initial mount.
   const initialOrgTypeRef = useRef(state.step1?.organization_type_id ?? '');
+  const lastAppliedOrgTypeRef = useRef<string>('');
   useEffect(() => {
     if (initialOrgTypeRef.current && watchedOrgTypeId === initialOrgTypeRef.current) {
       initialOrgTypeRef.current = '';
+      lastAppliedOrgTypeRef.current = watchedOrgTypeId;
       return;
     }
-    form.setValue('industry_ids', []);
-  }, [watchedOrgTypeId, form]);
+    if (!watchedOrgTypeId) return;
+    if (lastAppliedOrgTypeRef.current === watchedOrgTypeId) return;
+    if (mappedIndustryIds === undefined) return;
+    form.setValue('industry_ids', mappedIndustryIds);
+    lastAppliedOrgTypeRef.current = watchedOrgTypeId;
+  }, [watchedOrgTypeId, mappedIndustryIds, form]);
+
 
   // Update context with locale info when country changes
   useEffect(() => {
