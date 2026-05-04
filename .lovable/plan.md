@@ -1,54 +1,43 @@
-## Surface Org Type ↔ Industry Segment mapping in Admin Master Data
+## Goal
+When the user picks an Organization Type on the registration form, automatically pre-select all Industry Segments mapped to that org type (via the admin-managed `org_type_industry_segments` table), instead of leaving the field empty for the user to choose manually.
 
-### Root cause
+The user can still deselect any industry or add others — auto-populate is a starting default, not a lock.
 
-The mapping table `public.org_type_industry_segments` exists in the DB and is already used by the **registration form** (`useIndustries(orgTypeId)`), but the **Admin → Master Data** pages were never updated to:
+## Change
 
-1. Display which Organization Types each Industry Segment belongs to (and vice versa).
-2. Let an admin **assign / edit** the mapping when creating or editing an Industry Segment (or an Organization Type).
+**File:** `src/components/registration/OrganizationIdentityForm.tsx`
 
-So when an admin adds a new Industry Segment from the admin UI, no row is inserted in `org_type_industry_segments` → the new segment never appears in the registration dropdown for any Organization Type. That matches the symptom the user described ("mapping is not shown and not displayed in the list").
+Replace the existing "reset industries when org type changes" effect (lines ~149-157) with logic that:
 
-`MasterDataForm` only supports `text | number | textarea | switch | select` — there is no multi-select field type, which is why the mapping field can't currently be added.
+1. Fetches mapped industry IDs for the selected org type using the existing `useIndustriesForOrgType(orgTypeId)` hook from `src/hooks/queries/useOrgTypeIndustryMap.ts`.
+2. On initial mount, preserves whatever industries the user already had in wizard state (no overwrite).
+3. When the user actively changes the org type, sets `industry_ids` to the full mapped list returned by the hook (waits until the query resolves before writing).
+4. If no industries are mapped to that org type, sets the field to `[]` (current behavior) so the existing "No industries are configured…" empty state in `IndustryTagSelector` shows.
 
-### Changes
+### Technical detail
+```ts
+const { data: mappedIndustryIds } = useIndustriesForOrgType(watchedOrgTypeId);
+const initialOrgTypeRef = useRef(state.step1?.organization_type_id ?? '');
+const lastAppliedOrgTypeRef = useRef<string>('');
 
-**1. New shared hook `src/hooks/queries/useOrgTypeIndustryMap.ts`**
-- `useOrgTypesForIndustry(industryId)` — returns mapped organization types (id, code, name) for a given segment.
-- `useIndustriesForOrgType(orgTypeId)` — symmetrical lookup (already partially covered by `useIndustries`, kept for admin context).
-- `useSetIndustryOrgTypes(industryId, orgTypeIds[])` — mutation that diffs current rows and inserts/deletes in `org_type_industry_segments` atomically; invalidates both directions and the registration cache key `industry_segments_for_reg`.
-- `useSetOrgTypeIndustries(orgTypeId, industryIds[])` — symmetrical mutation.
+useEffect(() => {
+  // Skip on initial mount — keep saved selections
+  if (initialOrgTypeRef.current && watchedOrgTypeId === initialOrgTypeRef.current) {
+    initialOrgTypeRef.current = '';
+    lastAppliedOrgTypeRef.current = watchedOrgTypeId;
+    return;
+  }
+  if (!watchedOrgTypeId) return;
+  if (lastAppliedOrgTypeRef.current === watchedOrgTypeId) return;
+  if (mappedIndustryIds === undefined) return; // wait for query
+  form.setValue('industry_ids', mappedIndustryIds);
+  lastAppliedOrgTypeRef.current = watchedOrgTypeId;
+}, [watchedOrgTypeId, mappedIndustryIds, form]);
+```
 
-**2. Extend `MasterDataForm` with a `multiselect` field type**
-- Add `"multiselect"` to `FieldType`.
-- Render using the existing shadcn `Popover + Command + Checkbox` pattern already used in `src/components/org/ScopeMultiSelect.tsx` (reuse, don't reinvent).
-- Value shape: `string[]` of IDs. Schema side: `z.array(z.string().uuid())`.
+No DB, schema, or other component changes. The `IndustryTagSelector` already accepts the resulting array and renders selected badges with remove (X) buttons, so users retain full control.
 
-**3. `IndustrySegmentsPage.tsx`**
-- Add a new column **"Organization Types"** showing comma-joined org type names (truncated, full list in tooltip). Backed by a single query that fetches all mappings + org types and groups client-side.
-- Add `organization_type_ids: string[]` to the form schema and `formFields` (multiselect, options sourced from `useOrganizationTypes(true)`).
-- On submit: after create/update of the segment, call `useSetIndustryOrgTypes` with the selected IDs.
-- View dialog: list mapped Organization Types as a new field.
-
-**4. `OrganizationTypesPage.tsx`**
-- Add an **"Industry Segments"** column (count + tooltip with names).
-- Add `industry_segment_ids: string[]` to the form (multiselect from `useIndustrySegments(true)`).
-- On submit: call `useSetOrgTypeIndustries`.
-- View dialog: list mapped Industry Segments.
-
-**5. RLS check**
-- Confirm `org_type_industry_segments` has INSERT/DELETE policies for the admin role used by these pages. The earlier seed migration created policies for `platform_admin`; if the admin tooling uses a different role we'll add a matching policy in a small migration. (Verified separately before coding.)
-
-**6. Cache invalidation**
-- After any mapping mutation, invalidate: `['industry_segments_for_reg']` (registration), `['org_type_industries', *]`, `['industry_org_types', *]`. This ensures the registration dropdown immediately reflects admin edits — closing the loop on the reported bug.
-
-### Out of scope
-- No schema changes to `org_type_industry_segments` (already correct: `org_type_id`, `industry_id`, unique `(org_type_id, industry_id)`).
-- No changes to existing College deactivation or seeded data.
-
-### Files touched
-- `src/components/admin/MasterDataForm.tsx` — add multiselect field type.
-- `src/hooks/queries/useOrgTypeIndustryMap.ts` — **new**.
-- `src/pages/admin/industry-segments/IndustrySegmentsPage.tsx` — column + form field + submit wiring.
-- `src/pages/admin/organization-types/OrganizationTypesPage.tsx` — column + form field + submit wiring.
-- (Conditional) one migration to grant admin RLS on the mapping table if missing.
+## Out of scope
+- No change to admin Master Data pages.
+- No change to the mapping table or RLS.
+- No change to `useIndustries(orgTypeId)` (the dropdown options remain filtered by mapping as today).

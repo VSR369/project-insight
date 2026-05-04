@@ -123,6 +123,7 @@ export function OrganizationIdentityForm() {
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: states, isLoading: statesLoading } = useStatesForCountry(watchedCountryId);
   const { data: orgTypeFlags } = useOrgTypeRules(watchedOrgTypeId);
+  const { data: mappedIndustryIds } = useIndustriesForOrgType(watchedOrgTypeId);
   const { data: subsidizedPricing } = useSubsidizedPricing(watchedOrgTypeId);
   const { data: countryLocale } = useCountryLocale(watchedCountryId);
   const duplicateCheck = useCheckDuplicateOrg();
