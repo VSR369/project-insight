@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
+import { useIndustriesForOrgType } from '@/hooks/queries/useOrgTypeIndustryMap';
 import {
   useStatesForCountry,
   useOrgTypeRules,
@@ -123,6 +124,7 @@ export function OrganizationIdentityForm() {
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: states, isLoading: statesLoading } = useStatesForCountry(watchedCountryId);
   const { data: orgTypeFlags } = useOrgTypeRules(watchedOrgTypeId);
+  const { data: mappedIndustryIds } = useIndustriesForOrgType(watchedOrgTypeId);
   const { data: subsidizedPricing } = useSubsidizedPricing(watchedOrgTypeId);
   const { data: countryLocale } = useCountryLocale(watchedCountryId);
   const duplicateCheck = useCheckDuplicateOrg();
@@ -146,15 +148,23 @@ export function OrganizationIdentityForm() {
     form.setValue('state_province_id', '');
   }, [watchedCountryId, form]);
 
-  // Reset industries when org type changes (different org types expose different industries)
+  // Auto-populate industries from admin-managed org-type → industry mapping when
+  // the org type changes. Preserves saved selections on initial mount.
   const initialOrgTypeRef = useRef(state.step1?.organization_type_id ?? '');
+  const lastAppliedOrgTypeRef = useRef<string>('');
   useEffect(() => {
     if (initialOrgTypeRef.current && watchedOrgTypeId === initialOrgTypeRef.current) {
       initialOrgTypeRef.current = '';
+      lastAppliedOrgTypeRef.current = watchedOrgTypeId;
       return;
     }
-    form.setValue('industry_ids', []);
-  }, [watchedOrgTypeId, form]);
+    if (!watchedOrgTypeId) return;
+    if (lastAppliedOrgTypeRef.current === watchedOrgTypeId) return;
+    if (mappedIndustryIds === undefined) return;
+    form.setValue('industry_ids', mappedIndustryIds);
+    lastAppliedOrgTypeRef.current = watchedOrgTypeId;
+  }, [watchedOrgTypeId, mappedIndustryIds, form]);
+
 
   // Update context with locale info when country changes
   useEffect(() => {
