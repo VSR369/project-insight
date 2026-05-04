@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
+import { useIndustriesForOrgType } from '@/hooks/queries/useOrgTypeIndustryMap';
 import {
   useStatesForCountry,
   useOrgTypeRules,
