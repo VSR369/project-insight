@@ -27,6 +27,15 @@ Goal: confirm, with evidence from the live database and the running app, that ev
    - The Legal Documents editor auto-saves, publishes, and reopens with the saved content.
    - The Organization Types and Industry Segments pages show and edit the mapping.
 
+6a. **Solution Provider journey (end-to-end)**
+   - Registration and invitation: the account and profile are created, and the provider agreement (SPA) is accepted.
+   - Enrollment: industry and expertise selection, proof points (files and links), and the profile-strength score updating.
+   - Assessment: an attempt can be started, answered and scored, and results roll up.
+   - Interview: slot booking, reviewer assignment, quorum, and the evaluation form.
+   - Certification: the finalize step sets the star tier, and the lifecycle status moves through its 21 statuses correctly (VIP auto-certify included).
+   - Reviewer side: the proof-point review queue and interview kit questions work.
+   - Each step is checked against the database and in a browser run where a test account exists.
+
 6. **Automated tests**
    - Run all Phase 10 Vitest specs (FSM, OTP schema, scope, editability, postal regex, RLS contract) and report pass/fail counts.
 
