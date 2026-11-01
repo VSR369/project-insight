@@ -1,67 +1,64 @@
-# Review of "CogniSpark BRD Agreed Fixes" and plan of action
+# Plan v2: building the Agreed Fixes (revised workbook)
 
-## 1. What the workbook contains
+## 1. What changed in the revised workbook
 
-- 689 rows: 85 Critical, 225 Major, 215 Moderate, 105 Minor, plus 29 owner rulings and 30 open items.
-- How each row is handled: 429 Code change, 57 Code + configuration, 24 Configuration / seed data, 133 Document only, 46 No action.
-- That leaves **510 rows of build work**: 267 P1, 226 P2 and 196 P3 (the P3 count includes some document-only rows).
-- Where the P1 build rows sit: Challenge lifecycle 74, Certification/assessment 42, Fees/payments 35, Roles/access 31, Legal 18, Registration 18, Master data 8, Security 7, Owner rulings 6, Notifications 5, Scheduled jobs 4, Pulse 3, Open items 3.
+- Six new columns (S to X): Scope gate, Wave, BUILD NOW (minimum), Deferred to backlog, Merged into and Gate reason. There is also a new **Backlog** sheet with 108 entries.
+- The defect text is unchanged. Instructions and acceptance tests were rewritten for 179 rows, all document-only rows that now point to W7.
+- Scope gate: 371 S1 Stabilise, 122 S2 Complete, 17 S3 Enhance (moved to the backlog), and 179 with no gate (document-only or no action).
+- **Real build work drops from about 510 rows to 411.** That excludes merged rows, S3 rows and document-only rows. By priority: 209 P1, 157 P2 and 45 P3.
 
-## 2. My overall view as a reviewer
+| Wave | Topic | Rows to build | P1 |
+|---|---|---|---|
+| W1 | Foundations | 14 | 11 |
+| W2 | Challenge lifecycle | 46 | 37 |
+| W3 | Money | 63 | 36 |
+| W4 | Legal, roles, registration, security | 147 | 75 |
+| W5 | Certification | 81 | 41 |
+| W6 | Other | 60 | 9 |
+| W7 | Document only | 133 | 0 (not code) |
 
-**What's strong**
-- Each row has a single build text, a Given/When/Then acceptance test and a priority. That gives us rows we can trace and test.
-- CFG-001 (every number is a setting, controlled by the Supervisor, audited, with a second approval for sensitive settings and values fixed when an item starts) is the right foundation for a global product. It must come first.
-- The rows respect the phase rules: payments are simulated, there are no invoices, no OTP or MFA at sign-in, and passwords are never emailed. Most security rows close real gaps, such as hiding confidential challenge data from providers and anonymous seekers.
+## 2. Third-party verdict on the revision
 
-**What worries me (critical concerns)**
-1. **Size and wording.** Roughly 510 build rows is a programme of work, not a list of fixes. Many "fixes" are really new features: dispute handling, award accept/decline, the Marketplace pool workspace, 24 new notifications (NTF-077 to NTF-100), purging files after 30 days, and escrow release by a scheduled job (J22). We should plan them as features.
-2. **Hidden dependencies.** About 60% of the lifecycle rows depend on three foundations that don't exist in full today:
-   - the settings register with scopes and snapshots (CFG-001). The app has a basic System Config screen, but no scope by country, currency, industry or organisation, no second approval and no snapshot.
-   - one single challenge status/phase map (ST-24 / 10.2.3a) with the actor for each step.
-   - a server-side layer that controls what providers can see.
-   If we build rows before these exist, we will build them twice.
-3. **Rows that overlap.** For example, DEF-0010, DEF-0016 and DEF-0040 all define the platform-fee record, and DEF-0029 and DEF-0041 both cover release. These must be merged into one requirement before coding, or the code will contradict itself.
-4. **Gaps the acceptance tests don't cover.** Some tests only check the happy path. The "all four states" and multi-tenant isolation checks need an RLS assertion added to each data row.
-5. **The app today versus the rows.** The dispute records table exists but has no screens. Award acceptance doesn't exist. Fee and escrow tables exist. Each row therefore needs a quick check of "already built / partly built / missing" before we size it. That check is item W0 below.
-6. **The 30 open items and 29 owner rulings** can block work. Open items on P1 paths need an owner answer before their wave starts.
-7. **The 250-line file rule.** Several lifecycle screens are already over the limit. Splitting them should happen inside each wave, not as a separate clean-up.
+**Better than v1.** The scope gate and the "BUILD NOW (minimum)" column fix my main earlier concern, that many "fixes" were really new features. The waves now match the foundation-first order I proposed. Merging rows removes the duplicate fee and release definitions.
 
-**Verdict:** the content is sound and worth building. But it must be delivered as foundation-first waves of 5 to 10 related rows, each tested before the next starts. Trying to "fix everything at once" will reproduce the loops we hit earlier.
+**Mistakes and inconsistencies found (fix these in the workbook before building)**
 
-## 3. Plan of action (waves)
+1. **Merged rows sit in a different wave from the row they merge into.** There are 4: DEF-0277→DEF-0015 (W4 vs W2), QR-12→DEF-0369 (W2 vs W3), OI-06→DEF-0143 (W2 vs W1), OI-10→DEF-0493 (W6 vs W4). Use the target row's wave.
+2. **A row merged into a row that won't be built.** OI-28 merges into DEF-0523, which is document-only or S3. That would lose the item silently. Move it to a buildable row or to the Backlog.
+3. **22 S2 rows have no "BUILD NOW" text**, even though the How-to sheet says S2 builds only that text. Examples: DEF-0022, 0025, 0041, 0055, 0057, 0076, 0079, 0118, 0147, 0208, 0209, 0213, 0215, 0239, 0245, 0248, 0377, 0433, 0467, QR-21, OI-04, OI-10. Either fill it in, or confirm that "full AGREED FIX" applies to these rows.
+4. **Two rows are S3 (backlog) but still marked P1:** DEF-0314 (daily reconciliation report) and DEF-0559 (incident management screen). Lower the priority, or drop the deferral.
+5. **P1 rows placed in W6.** There are 9: DEF-0024, 0046, 0099, 0100, 0136, 0137, 0153, 0485, 0565. DEF-0024, the notifications NTF-077 to 100, is needed by the W2 and W3 acceptance tests, such as award and escrow alerts. Move it to W2/W3, or accept that those tests will not check notifications until W6.
+6. **P3 rows in W1/W2:** DEF-0113, 0518, 0613, 0616. These are fine if they are small, but list them as optional within the wave.
+7. **CFG-001's "BUILD NOW" leaves out** the scopes by country, organisation and so on, and the second-Supervisor approval. The acceptance test still mentions "a Senior Admin cannot open…" and the owner decision mentions "second approval for sensitive settings". Fix the acceptance test to match the reduced scope, or the test will fail by design.
+8. **W4 is too big (147 rows).** Split it into W4a Legal, W4b Roles and permissions (DEF-0069, the 66-permission matrix, is in W1, so W4b depends on it), W4c Registration, and W4d Security and Pulse.
+9. **The "Your decision" and "Your comment" columns are empty for all 689 rows.** They need your sign-off before each wave, otherwise there is no approval trail.
+10. **The Owner decision column changed on 663 rows.** Most now show blank, and only about 31 hold text. Please confirm the blanks were intentional, so we don't lose the 1 November approvals.
+
+**Points that fit how Lovable works (no change needed)**
+- Scheduled jobs (J22 escrow release, the 30-day purge) can run as scheduled database jobs, which is supported.
+- Simulated payments, no invoices, no live email or SMS, and no MFA all match what the app can do today.
+- 5 to 10 rows per request is the right size. Larger batches cause the loops we saw before.
+
+## 3. Plan of action
 
 ```text
-W0  Triage (no code)    -> W1 Foundations -> W2 Lifecycle core -> W3 Money
-                                          -> W4 Access/Legal   -> W5 Certification
-                                          -> W6 P2 rows        -> W7 P3 rows + BRD v1.2
+W0 Triage -> W1 Foundations -> W2 Lifecycle -> W3 Money -> W4a-d -> W5 Certification -> W6 -> W7 BRD v1.2
 ```
 
-- **W0 – Triage (1 turn).** Mark every build row as Built / Partial / Missing against the code and the database. Merge overlapping rows and list blocking open items. Output: an updated workbook with a "Current state" column, a "Merged into" column and a wave number.
-- **W1 – Foundations (P1).**
-  - CFG-001: a settings register with scope levels, min/max, Supervisor-only editing, a reason and audit entry for every change, second approval for sensitive settings, and a value snapshot on each challenge and enrollment at the start.
-  - Replace the hard-coded numbers in the code with settings.
-  - Single status/phase map and transition guard, so only the step owner can move a challenge (DEF-0008, 0018, 0030).
-  - Server-side provider visibility (DEF-0025, 0034).
-  - Seed the permission groups 12 and 13 (DEF-0020).
-- **W2 – Challenge lifecycle core (P1).**
-  - Governance-mode picker and fields per mode (DEF-0013, 0027), visibility and eligibility (0023, 0035), timeline order (0036).
-  - Submission limits (0037), Express auto-compliance (0026), the Marketplace pool workspace (0021).
-- **W3 – Money (P1).**
-  - Escrow by mode (0028) and release by the J22 job (0029, 0041).
-  - The single merged platform-fee record (0010/0016/0040), payer rules (0032), award accept/decline (0039) and disputes (0042).
-  - The tie rule and the full refund owner rulings.
-- **W4 – Legal, roles, registration and security (P1).** Accept the role document before first access (0019, 0022), the rest of the role and access rows, the registration rows, and the Pulse confidential-report flow (0002).
-- **W5 – Certification, assessment and reviewers (P1, 42 rows).**
-- **W6 – P2 rows by theme**, including the 24 notifications and the scheduled jobs.
-- **W7 – P3 rows**, then bring the BRD document up to v1.2 to match what was built, including the 133 document-only rows.
+- **W0 – Triage (no code).** For each of the 411 rows, record Built / Partial / Missing against the code and the live database. Apply corrections 1 to 7 above as suggestions. Output: an annotated copy of the workbook in Files with a "Current state" column and a list of issues.
+- **W1 (14 rows).**
+  - CFG-001: settings register, Supervisor-only editing, reason and audit entry, values copied onto each item at its start, working week. Build on the existing System Config screen.
+  - Phase/status map and transition guard (DEF-0008, 0018, 0030, 0145, 0151).
+  - Server-side confidentiality (DEF-0034, 0060).
+  - Visibility fields (0035), status sets (0044), permission matrix (0069), change reason (0533), Pulse settings access (0564).
+- **W2 to W6.** Batches of 5 to 10 rows per request, grouped by theme. For S2 rows, build only the BUILD NOW text. Merged rows are built inside their target row.
+- **W7.** BRD v1.2 covering the 133 document-only rows, plus a description of what was actually built.
 
-## 4. How each wave is delivered
-- Take 5 to 10 rows with the same theme. For each row: database change with RLS → service logic → query layer → screen, with all four states and files of 250 lines or fewer.
-- Turn each row's acceptance test into an automated test where it is pure logic, and a browser run where it is a flow.
-- After each wave: run the tests, check the logs, fill in the workbook's "Your decision / comment" columns with evidence, and give you a full-sentence acceptance report.
+## 4. How each batch is delivered and accepted
+- Database change with RLS → service → query layer → screen, with all four states, files of 250 lines or fewer, and numbers read from settings only.
+- Each row's acceptance test becomes a Vitest test (logic) or a browser run (flow).
+- Report per batch in full sentences, with files and evidence. Update the workbook's Current state.
 
-## 5. Decisions needed from you
-1. Approve W0 triage first? I recommend it. It turns the 510 rows into a sized, merged backlog before any code is written.
-2. Answer the open items on P1 paths. W0 will list them.
-3. Confirm that document-only rows wait until W7.
+## 5. Decisions needed
+1. Approve W0, then W1.
+2. Rule on mistakes 3, 4, 5, 7 and 10, or allow W0 to propose the answers.
