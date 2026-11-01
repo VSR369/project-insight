@@ -1,64 +1,66 @@
-# Plan v2: building the Agreed Fixes (revised workbook)
+# Plan v3: build the signed-off fix list, starting with Wave 1
 
-## 1. What changed in the revised workbook
+## 1. Review of the signed-off workbook (third-party check)
 
-- Six new columns (S to X): Scope gate, Wave, BUILD NOW (minimum), Deferred to backlog, Merged into and Gate reason. There is also a new **Backlog** sheet with 108 entries.
-- The defect text is unchanged. Instructions and acceptance tests were rewritten for 179 rows, all document-only rows that now point to W7.
-- Scope gate: 371 S1 Stabilise, 122 S2 Complete, 17 S3 Enhance (moved to the backlog), and 179 with no gate (document-only or no action).
-- **Real build work drops from about 510 rows to 411.** That excludes merged rows, S3 rows and document-only rows. By priority: 209 P1, 157 P2 and 45 P3.
+- Signed off on 1 November 2026 as Final 1.0. All 689 rows have a decision:
+  - 411 Approve – build
+  - 133 BRD only
+  - 82 merged
+  - 46 no action
+  - 17 backlog
+- All 10 issues from my plan v2 review are fixed:
+  - W4 is split into W4a, W4b, W4c and W4d.
+  - The 9 P1 rows that sat in W6 have moved; notifications are now in W2.
+  - Each S2 row now has BUILD NOW text, or says "build the full fix".
+  - Priorities are corrected on the two backlog rows.
+  - Merged rows sit in the same wave as the row they merge into.
+  - The Owner decision column has 32 entries, with blank meaning no owner decision was needed.
+- The build totals agree with the Wave plan sheet: W1 14, W2 51, W3 63, W4a 17, W4b 59, W4c 51, W4d 21, W5 81, W6 54. That is 411 rows: 209 P1, 157 P2 and 45 P3.
+- I found no remaining contradictions. **The workbook is ready to build.**
 
-| Wave | Topic | Rows to build | P1 |
-|---|---|---|---|
-| W1 | Foundations | 14 | 11 |
-| W2 | Challenge lifecycle | 46 | 37 |
-| W3 | Money | 63 | 36 |
-| W4 | Legal, roles, registration, security | 147 | 75 |
-| W5 | Certification | 81 | 41 |
-| W6 | Other | 60 | 9 |
-| W7 | Document only | 133 | 0 (not code) |
+## 2. How we avoid breaking the existing system
 
-## 2. Third-party verdict on the revision
+- Database changes only add things: new tables, columns and settings with defaults that match today's behaviour. Nothing is renamed or dropped.
+- All phase changes keep going through the existing phase-completion step, which already handles every transition. New guards are added inside that step, never beside it.
+- New rules are tried on the screens first. Database enforcement is switched on once the existing tests and a browser run pass.
+- Before each batch: run the existing tests. After each batch: run them again, plus the new tests and a browser run of the affected journey.
+- Each batch is 5 to 7 rows and gets its own report.
 
-**Better than v1.** The scope gate and the "BUILD NOW (minimum)" column fix my main earlier concern, that many "fixes" were really new features. The waves now match the foundation-first order I proposed. Merging rows removes the duplicate fee and release definitions.
+## 3. Wave 1 – Foundations (14 rows, in 3 batches)
 
-**Mistakes and inconsistencies found (fix these in the workbook before building)**
+**Batch 1A – Settings register (CFG-001, DEF-0533, DEF-0613)**
+- Extend the existing System Config screen, adding to the current settings rather than replacing them. Each setting gets:
+  - a default value and an allowed range
+  - a sensitive flag
+  - an amount per currency where it is a money threshold
+- Only the Supervisor can edit settings. A reason of 10 to 500 characters is required, and every change is audited with who, when, old value, new value and reason.
+- Seed the settings the workbook names, including the 14-day minimum open period, the 10-day dispute window, the 14-day award acceptance period, the file limits, a correction-cycle limit, invitation expiry and a working week of Monday to Friday (UTC).
+- When a challenge, assessment, booking, enrollment or award starts, copy its governing values onto it.
+- Replace hard-coded numbers in the code with these settings, theme by theme, starting with the challenge wizard. The correction-cycle label will read "<n> of <Max Correction Cycles>".
 
-1. **Merged rows sit in a different wave from the row they merge into.** There are 4: DEF-0277→DEF-0015 (W4 vs W2), QR-12→DEF-0369 (W2 vs W3), OI-06→DEF-0143 (W2 vs W1), OI-10→DEF-0493 (W6 vs W4). Use the target row's wave.
-2. **A row merged into a row that won't be built.** OI-28 merges into DEF-0523, which is document-only or S3. That would lose the item silently. Move it to a buildable row or to the Backlog.
-3. **22 S2 rows have no "BUILD NOW" text**, even though the How-to sheet says S2 builds only that text. Examples: DEF-0022, 0025, 0041, 0055, 0057, 0076, 0079, 0118, 0147, 0208, 0209, 0213, 0215, 0239, 0245, 0248, 0377, 0433, 0467, QR-21, OI-04, OI-10. Either fill it in, or confirm that "full AGREED FIX" applies to these rows.
-4. **Two rows are S3 (backlog) but still marked P1:** DEF-0314 (daily reconciliation report) and DEF-0559 (incident management screen). Lower the priority, or drop the deferral.
-5. **P1 rows placed in W6.** There are 9: DEF-0024, 0046, 0099, 0100, 0136, 0137, 0153, 0485, 0565. DEF-0024, the notifications NTF-077 to 100, is needed by the W2 and W3 acceptance tests, such as award and escrow alerts. Move it to W2/W3, or accept that those tests will not check notifications until W6.
-6. **P3 rows in W1/W2:** DEF-0113, 0518, 0613, 0616. These are fine if they are small, but list them as optional within the wave.
-7. **CFG-001's "BUILD NOW" leaves out** the scopes by country, organisation and so on, and the second-Supervisor approval. The acceptance test still mentions "a Senior Admin cannot open…" and the owner decision mentions "second approval for sensitive settings". Fix the acceptance test to match the reduced scope, or the test will fail by design.
-8. **W4 is too big (147 rows).** Split it into W4a Legal, W4b Roles and permissions (DEF-0069, the 66-permission matrix, is in W1, so W4b depends on it), W4c Registration, and W4d Security and Pulse.
-9. **The "Your decision" and "Your comment" columns are empty for all 689 rows.** They need your sign-off before each wave, otherwise there is no approval trail.
-10. **The Owner decision column changed on 663 rows.** Most now show blank, and only about 31 hold text. Please confirm the blanks were intentional, so we don't lose the 1 November approvals.
+**Batch 1B – Status map, step owners and transition guard (DEF-0008, 0018, 0030, 0044, 0145, 0151)**
+- Add the status sets ST-52 to ST-59 as lookup lists.
+- Encode the phase-to-status map and the step-owner map for Marketplace and Aggregator, including the Express column. Recommender and confirmer must be different people, or the award goes to "Awaiting Platform countersign".
+- The phase-completion step refuses the wrong actor with "You are not allowed to move this challenge to <status>."
+- Remove the Platform Admin controls that change a challenge's status directly.
 
-**Points that fit how Lovable works (no change needed)**
-- Scheduled jobs (J22 escrow release, the 30-day purge) can run as scheduled database jobs, which is supported.
-- Simulated payments, no invoices, no live email or SMS, and no MFA all match what the app can do today.
-- 5 to 10 rows per request is the right size. Larger batches cause the loops we saw before.
+**Batch 1C – Provider visibility, permissions and Pulse settings (DEF-0034, 0035, 0060, 0069, 0564)**
+- Visibility options: Eligible certified providers (the default), Invite only and Public. Add Industry segment and Minimum expertise level to the brief.
+- The eligibility rule applies to the challenge list, the challenge page and the server.
+- Confidential fields and files are returned only after the provider accepts the CPA. The seeker shows as "Seeking organisation: Confidential" unless revealed, and every view of confidential content is audited.
+- Abstract and solution records and files are restricted to the submitter, the assigned evaluators and the award roles.
+- Seed the permission matrix of 66 permissions.
+- Only holders of 'Configure System' can open Pulse settings.
 
-## 3. Plan of action
+## 4. Later waves (same method, 5 to 7 rows per request)
+- **W2** Challenge lifecycle core (51) → **W3** Money (63) → **W4a** Legal (17) → **W4b** Roles (59) → **W4c** Registration (51) → **W4d** Security and Pulse (21) → **W5** Certification (81) → **W6** Other (54) → **W7** BRD v1.2 text (133 rows, a document, not code).
 
-```text
-W0 Triage -> W1 Foundations -> W2 Lifecycle -> W3 Money -> W4a-d -> W5 Certification -> W6 -> W7 BRD v1.2
-```
+## 5. Evidence after every batch
+- A full-sentence acceptance report naming files, database changes, the tests run and their results, and browser checks.
+- An updated copy of the workbook in Files, with the "Current state" column filled in for each row.
 
-- **W0 – Triage (no code).** For each of the 411 rows, record Built / Partial / Missing against the code and the live database. Apply corrections 1 to 7 above as suggestions. Output: an annotated copy of the workbook in Files with a "Current state" column and a list of issues.
-- **W1 (14 rows).**
-  - CFG-001: settings register, Supervisor-only editing, reason and audit entry, values copied onto each item at its start, working week. Build on the existing System Config screen.
-  - Phase/status map and transition guard (DEF-0008, 0018, 0030, 0145, 0151).
-  - Server-side confidentiality (DEF-0034, 0060).
-  - Visibility fields (0035), status sets (0044), permission matrix (0069), change reason (0533), Pulse settings access (0564).
-- **W2 to W6.** Batches of 5 to 10 rows per request, grouped by theme. For S2 rows, build only the BUILD NOW text. Merged rows are built inside their target row.
-- **W7.** BRD v1.2 covering the 133 document-only rows, plus a description of what was actually built.
-
-## 4. How each batch is delivered and accepted
-- Database change with RLS → service → query layer → screen, with all four states, files of 250 lines or fewer, and numbers read from settings only.
-- Each row's acceptance test becomes a Vitest test (logic) or a browser run (flow).
-- Report per batch in full sentences, with files and evidence. Update the workbook's Current state.
-
-## 5. Decisions needed
-1. Approve W0, then W1.
-2. Rule on mistakes 3, 4, 5, 7 and 10, or allow W0 to propose the answers.
+## Technical notes
+- Settings: extend the existing system configuration table with range, sensitive, scope and currency columns, plus an append-only audit table protected by RLS. Read settings through a typed hook with a 15-minute cache.
+- Guard: extend the existing phase-completion function with an actor check driven by a step-owner lookup table, never hard-coded.
+- Visibility: enforce through RLS and a secured view or function for challenge detail, with an append-only audit table for confidential access.
+- Every new table gets grants, RLS and indexes. Every new file stays at 250 lines or fewer.
