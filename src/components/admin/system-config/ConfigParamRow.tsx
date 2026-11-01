@@ -94,6 +94,7 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
   const handleCancel = () => {
     setEditValue(entry.param_value ?? '');
     setReason('');
+    setReasonTouched(false);
     setIsEditing(false);
   };
 
@@ -191,11 +192,18 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
             )}
           </div>
           <Textarea
-            placeholder="Change reason (optional)"
+            aria-label="Change reason"
+            aria-invalid={reasonTouched && !!reasonError}
+            placeholder={`Reason for this change (required, ${reasonLimits.min}–${reasonLimits.max} characters)`}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="text-xs h-16 resize-none"
+            onBlur={() => setReasonTouched(true)}
+            maxLength={reasonLimits.max}
+            className="text-base lg:text-xs h-16 resize-none"
           />
+          {reasonTouched && reasonError && (
+            <p className="text-xs text-destructive" role="alert">{reasonError}</p>
+          )}
           <div className="flex items-center gap-2">
             <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={updateConfig.isPending}>
               <Check className="h-3 w-3 mr-1" />
