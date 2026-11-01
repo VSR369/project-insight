@@ -21,7 +21,8 @@ import { useUpdateConfig } from '@/hooks/queries/useUpdateConfig';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
-import type { MpaConfigEntry } from '@/hooks/queries/useMpaConfig';
+import { useMpaConfig, type MpaConfigEntry } from '@/hooks/queries/useMpaConfig';
+import { resolveReasonLimits, validateChangeReason } from '@/services/config/changeReason';
 
 /** Enum-style options for TEXT params with fixed valid values */
 const ENUM_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -65,19 +66,26 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(entry.param_value ?? '');
   const [reason, setReason] = useState('');
+  const [reasonTouched, setReasonTouched] = useState(false);
   const updateConfig = useUpdateConfig();
+  const { data: allConfig } = useMpaConfig();
   const isUuidType = entry.param_type === 'UUID';
   const enumOptions = ENUM_OPTIONS[entry.param_key];
   const isEnumType = !!enumOptions;
   const { data: adminOptions } = useAdminOptions();
+  const reasonLimits = resolveReasonLimits(allConfig);
+  const reasonError = validateChangeReason(reason, reasonLimits);
 
   const handleSave = () => {
+    setReasonTouched(true);
+    if (reasonError) return;
     updateConfig.mutate(
-      { paramKey: entry.param_key, newValue: editValue || null, changeReason: reason || undefined },
+      { paramKey: entry.param_key, newValue: editValue || null, changeReason: reason.trim() },
       {
         onSuccess: () => {
           setIsEditing(false);
           setReason('');
+          setReasonTouched(false);
         },
       }
     );
