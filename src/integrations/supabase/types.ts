@@ -2217,6 +2217,7 @@ export type Database = {
           complexity_locked_by: string | null
           complexity_parameters: Json | null
           complexity_score: number | null
+          config_snapshot: Json | null
           consulting_fee: number | null
           context_intake_status: string | null
           created_at: string
@@ -2319,6 +2320,7 @@ export type Database = {
           complexity_locked_by?: string | null
           complexity_parameters?: Json | null
           complexity_score?: number | null
+          config_snapshot?: Json | null
           consulting_fee?: number | null
           context_intake_status?: string | null
           created_at?: string
@@ -2421,6 +2423,7 @@ export type Database = {
           complexity_locked_by?: string | null
           complexity_parameters?: Json | null
           complexity_score?: number | null
+          config_snapshot?: Json | null
           consulting_fee?: number | null
           context_intake_status?: string | null
           created_at?: string
@@ -6457,6 +6460,7 @@ export type Database = {
           description: string | null
           id: string
           is_critical: boolean
+          is_sensitive: boolean
           label: string
           max_value: string | null
           min_value: string | null
@@ -6476,6 +6480,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_critical?: boolean
+          is_sensitive?: boolean
           label?: string
           max_value?: string | null
           min_value?: string | null
@@ -6495,6 +6500,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_critical?: boolean
+          is_sensitive?: boolean
           label?: string
           max_value?: string | null
           min_value?: string | null
