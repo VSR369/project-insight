@@ -133,6 +133,10 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
           </Badge>
         )}
 
+        {entry.is_sensitive && (
+          <Badge variant="outline" className="text-[10px] h-5 px-1.5">Sensitive</Badge>
+        )}
+
         {!isEditing && (
           <>
             <Badge variant="secondary" className="text-xs font-mono">
