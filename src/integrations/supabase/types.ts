@@ -1298,6 +1298,163 @@ export type Database = {
           },
         ]
       }
+      challenge_award_decisions: {
+        Row: {
+          challenge_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmer_role: string | null
+          countersigned_at: string | null
+          countersigned_by: string | null
+          created_at: string
+          created_by: string | null
+          decision_status: string
+          id: string
+          outcome: string
+          recommendation_note: string | null
+          recommended_by: string
+          recommended_role: string
+          return_reason: string | null
+          returned_at: string | null
+          returned_by: string | null
+          tenant_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmer_role?: string | null
+          countersigned_at?: string | null
+          countersigned_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          decision_status?: string
+          id?: string
+          outcome: string
+          recommendation_note?: string | null
+          recommended_by: string
+          recommended_role: string
+          return_reason?: string | null
+          returned_at?: string | null
+          returned_by?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmer_role?: string | null
+          countersigned_at?: string | null
+          countersigned_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          decision_status?: string
+          id?: string
+          outcome?: string
+          recommendation_note?: string | null
+          recommended_by?: string
+          recommended_role?: string
+          return_reason?: string | null
+          returned_at?: string | null
+          returned_by?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_award_decisions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_award_decisions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+        ]
+      }
+      challenge_award_lines: {
+        Row: {
+          accepted_at: string | null
+          amount: number
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          decision_id: string
+          id: string
+          line_status: string
+          paid_at: string | null
+          prize_tier_id: string | null
+          submission_id: string | null
+          tenant_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          amount?: number
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          decision_id: string
+          id?: string
+          line_status?: string
+          paid_at?: string | null
+          prize_tier_id?: string | null
+          submission_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          amount?: number
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          decision_id?: string
+          id?: string
+          line_status?: string
+          paid_at?: string | null
+          prize_tier_id?: string | null
+          submission_id?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_award_lines_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_award_lines_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
+            foreignKeyName: "challenge_award_lines_decision_id_fkey"
+            columns: ["decision_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_award_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_consistency_findings: {
         Row: {
           challenge_id: string
@@ -7169,6 +7326,106 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "countries"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      md_status_set_values: {
+        Row: {
+          blocks_model_switch: boolean
+          created_at: string
+          id: string
+          is_terminal: boolean
+          label: string
+          set_code: string
+          sort_order: number
+          status_code: string
+        }
+        Insert: {
+          blocks_model_switch?: boolean
+          created_at?: string
+          id?: string
+          is_terminal?: boolean
+          label: string
+          set_code: string
+          sort_order?: number
+          status_code: string
+        }
+        Update: {
+          blocks_model_switch?: boolean
+          created_at?: string
+          id?: string
+          is_terminal?: boolean
+          label?: string
+          set_code?: string
+          sort_order?: number
+          status_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_status_set_values_set_code_fkey"
+            columns: ["set_code"]
+            isOneToOne: false
+            referencedRelation: "md_status_sets"
+            referencedColumns: ["set_code"]
+          },
+        ]
+      }
+      md_status_sets: {
+        Row: {
+          created_at: string
+          description: string | null
+          set_code: string
+          set_name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          set_code: string
+          set_name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          set_code?: string
+          set_name?: string
+        }
+        Relationships: []
+      }
+      md_status_transitions: {
+        Row: {
+          actor_rule: string
+          condition_note: string | null
+          created_at: string
+          from_status: string
+          id: string
+          set_code: string
+          to_status: string
+        }
+        Insert: {
+          actor_rule: string
+          condition_note?: string | null
+          created_at?: string
+          from_status: string
+          id?: string
+          set_code: string
+          to_status: string
+        }
+        Update: {
+          actor_rule?: string
+          condition_note?: string | null
+          created_at?: string
+          from_status?: string
+          id?: string
+          set_code?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_status_transitions_set_code_fkey"
+            columns: ["set_code"]
+            isOneToOne: false
+            referencedRelation: "md_status_sets"
+            referencedColumns: ["set_code"]
           },
         ]
       }
@@ -17112,6 +17369,8 @@ export type Database = {
         Args: { p_action: string; p_notes?: string; p_verification_id: string }
         Returns: Json
       }
+      confirm_award: { Args: { p_decision_id: string }; Returns: Json }
+      countersign_award: { Args: { p_decision_id: string }; Returns: Json }
       creator_finalize_approval: {
         Args: {
           p_challenge_id: string
@@ -17182,6 +17441,19 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      fn_award_actor_roles: {
+        Args: { p_challenge: string }
+        Returns: Record<string, unknown>
+      }
+      fn_finalise_award_decision: {
+        Args: { p_decision: string }
+        Returns: Json
+      }
+      fn_status_for_phase: { Args: { p_phase: number }; Returns: string }
+      fn_user_has_challenge_role: {
+        Args: { p_challenge: string; p_roles: string[]; p_user: string }
+        Returns: boolean
       }
       freeze_for_legal_review: {
         Args: { p_challenge_id: string; p_user_id: string }
@@ -17428,6 +17700,10 @@ export type Database = {
         Args: { p_provider_id: string }
         Returns: boolean
       }
+      is_status_transition_allowed: {
+        Args: { p_from: string; p_set: string; p_to: string }
+        Returns: boolean
+      }
       is_supervisor_tier: { Args: { p_user_id: string }; Returns: boolean }
       legal_template_health: {
         Args: never
@@ -17596,6 +17872,15 @@ export type Database = {
             }
             Returns: Json
           }
+      recommend_award: {
+        Args: {
+          p_challenge_id: string
+          p_lines?: Json
+          p_note?: string
+          p_outcome: string
+        }
+        Returns: string
+      }
       refresh_all_composite_slots: { Args: never; Returns: number }
       refresh_composite_slots_for_time: {
         Args: { p_end_at: string; p_start_at: string }
@@ -17650,6 +17935,10 @@ export type Database = {
           template_id: string
           version: string
         }[]
+      }
+      return_award: {
+        Args: { p_decision_id: string; p_reason: string }
+        Returns: undefined
       }
       role_required_doc_codes: {
         Args: { p_role_code: string }
