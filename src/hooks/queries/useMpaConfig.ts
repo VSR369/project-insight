@@ -20,6 +20,7 @@ export interface MpaConfigEntry {
   max_value: string | null;
   is_critical: boolean;
   requires_restart: boolean;
+  is_sensitive: boolean;
   updated_at: string | null;
   updated_by_id: string | null;
 }
@@ -30,7 +31,7 @@ export function useMpaConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('md_mpa_config')
-        .select('id, param_key, param_value, description, param_type, param_group, label, unit, min_value, max_value, is_critical, requires_restart, updated_at, updated_by_id')
+        .select('id, param_key, param_value, description, param_type, param_group, label, unit, min_value, max_value, is_critical, requires_restart, is_sensitive, updated_at, updated_by_id')
         .order('param_group')
         .order('param_key');
       if (error) throw new Error(error.message);

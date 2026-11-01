@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.fn_snapshot_challenge_config() FROM PUBLIC, anon, authenticated;

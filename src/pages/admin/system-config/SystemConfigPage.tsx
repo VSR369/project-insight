@@ -46,10 +46,15 @@ const GROUP_META: Record<string, { title: string; description?: string }> = {
   SLA_THRESHOLDS: { title: 'SLA Escalation', description: 'Percentage thresholds that trigger SLA warning tiers.' },
   ESCALATION: { title: 'Escalation Routing', description: 'Executive fallback contact for Tier 3 escalations.' },
   REASSIGNMENT: { title: 'Reassignment & Leave', description: 'Limits on reassignments and leave notification timing.' },
+  CHALLENGE_TIMING: { title: 'Challenge Timing', description: 'Open period, preparation buffer and purge timing. Copied onto each challenge when it is created.' },
+  AWARDS_MONEY: { title: 'Awards & Money', description: 'Dispute window, award acceptance and money rounding. Copied onto each challenge when it is created.' },
+  FILE_LIMITS: { title: 'Text & File Limits', description: 'Lengths, file counts, sizes and types for briefs, abstracts and solutions.' },
+  CALENDAR: { title: 'Working Calendar', description: 'Working days and time zone used to count working-day periods.' },
+  GOVERNANCE_RULES: { title: 'Settings Governance', description: 'Rules for changing settings, such as the required change-reason length.' },
   EXPERTISE_CAPS: { title: 'Expertise Caps', description: 'Maximum number of industry, country, and org type selections allowed for Basic Admin tier profiles.' },
 };
 
-const GROUP_ORDER = ['GOVERNANCE', 'ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT', 'EXPERTISE_CAPS'];
+const GROUP_ORDER = ['GOVERNANCE', 'ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT', 'EXPERTISE_CAPS', 'CHALLENGE_TIMING', 'AWARDS_MONEY', 'FILE_LIMITS', 'CALENDAR', 'GOVERNANCE_RULES'];
 
 function SystemConfigContent() {
   const { data: config, isLoading } = useMpaConfig();
