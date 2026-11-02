@@ -187,7 +187,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
   });
 }
 
-function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining'> {
+function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining' | 'accessDeniedReason' | 'requiredIndustryName'> {
   const org = c.seeker_organizations as Record<string, unknown> | null;
   const industry = c.industry_segments as Record<string, unknown> | null;
 
