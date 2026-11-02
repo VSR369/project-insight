@@ -7,6 +7,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
+import type { ChallengeAccessReason } from '@/services/cogniblend/lifecycle/challengeVisibility';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -33,6 +34,10 @@ export interface PublicChallengeData {
   escrowFunded: boolean;
   isEligible: boolean;
   isVisible: boolean;
+  /** BR-CHL-P10 denial reason when a provider is not allowed (null when allowed) */
+  accessDeniedReason: ChallengeAccessReason | null;
+  /** Industry segment name for the "You must be certified in …" message */
+  requiredIndustryName: string | null;
   daysRemaining: number | null;
   challenge_enrollment: string | null;
   challenge_visibility: string | null;
@@ -126,7 +131,25 @@ export function usePublicChallenge(challengeId: string | undefined) {
       // Visibility check
       const isVisible = checkVisibility(challenge.visibility, isAuthenticated);
       if (!isVisible) {
-        return { ...buildResult(challenge), isVisible: false, isEligible: false, escrowFunded: false, daysRemaining: null };
+        return { ...buildResult(challenge), isVisible: false, isEligible: false, escrowFunded: false, accessDeniedReason: null, requiredIndustryName: null, daysRemaining: null };
+      }
+
+      // BR-CHL-P10: provider eligibility gate (certified industry/level, invite-only, public)
+      if (isAuthenticated) {
+        interface AccessResult { allowed?: boolean; reason?: string; industry_name?: string | null }
+        const { data: rawAccess } = await supabase.rpc('provider_challenge_access', { p_challenge_id: challengeId });
+        const access = (rawAccess ?? null) as AccessResult | null;
+        if (access && access.allowed === false) {
+          return {
+            ...buildResult(challenge),
+            isVisible: false,
+            isEligible: false,
+            escrowFunded: false,
+            accessDeniedReason: (access.reason ?? 'not_found') as ChallengeAccessReason,
+            requiredIndustryName: access.industry_name ?? null,
+            daysRemaining: null,
+          };
+        }
       }
 
       // Eligibility check
@@ -154,6 +177,8 @@ export function usePublicChallenge(challengeId: string | undefined) {
         escrowFunded,
         isEligible,
         isVisible: true,
+        accessDeniedReason: null,
+        requiredIndustryName: null,
         daysRemaining,
       };
     },
@@ -162,7 +187,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
   });
 }
 
-function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining'> {
+function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining' | 'accessDeniedReason' | 'requiredIndustryName'> {
   const org = c.seeker_organizations as Record<string, unknown> | null;
   const industry = c.industry_segments as Record<string, unknown> | null;
 

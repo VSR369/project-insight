@@ -9,7 +9,7 @@ import type { SectionReview } from '@/components/cogniblend/curation/CurationAIR
 
 const VALID_MATURITY_LEVELS = new Set(['BLUEPRINT', 'POC', 'PROTOTYPE', 'PILOT', 'PRODUCTION']);
 const VALID_IP_MODELS = new Set(['IP-EA', 'IP-NEL', 'IP-EL', 'IP-JO', 'IP-SR']);
-const VALID_VISIBILITY_OPTIONS = new Set(['public', 'private', 'invite_only']);
+const VALID_VISIBILITY_OPTIONS = new Set(['eligible_certified', 'invite_only', 'public']);
 
 interface ValidationIssue {
   sectionKey: string;

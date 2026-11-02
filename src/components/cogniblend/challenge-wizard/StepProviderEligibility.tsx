@@ -41,6 +41,7 @@ import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors'
 import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
 import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
 import { AccessGatingSection } from './AccessGatingSection';
+import { VisibilityEligibilitySection } from './VisibilityEligibilitySection';
 
 import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 import type { ChallengeFormValues } from './challengeFormSchema';
@@ -331,6 +332,9 @@ export function StepProviderEligibility({ form, mandatoryFields, isQuick }: Step
 
       {/* ═══ SECTION 0: Access Gating ═══ */}
       <AccessGatingSection form={form} />
+
+      {/* ═══ SECTION 0B: Visibility & Minimum Expertise (BR-CHL-P10) ═══ */}
+      <VisibilityEligibilitySection form={form} />
 
       {/* ═══ SECTION 1A: Provider Category (Layer 1) — Always show all checkboxes ═══ */}
       <div className="space-y-4">

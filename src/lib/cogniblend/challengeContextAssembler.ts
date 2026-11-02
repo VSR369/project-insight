@@ -255,7 +255,7 @@ export function buildChallengeContext(opts: BuildChallengeContextOptions): Chall
       validComplexityLevels: opts.masterData?.validComplexityLevels ?? ['L1', 'L2', 'L3', 'L4', 'L5'],
       validEligibilityTypes: opts.masterData?.validEligibilityTypes ?? [],
       validIPModels: opts.masterData?.validIPModels ?? ['IP-EA', 'IP-NEL', 'IP-EL', 'IP-JO', 'IP-SR'],
-      validVisibilityOptions: opts.masterData?.validVisibilityOptions ?? ['public', 'private', 'invite_only'],
+      validVisibilityOptions: opts.masterData?.validVisibilityOptions ?? ['eligible_certified', 'invite_only', 'public'],
     },
   };
 }
