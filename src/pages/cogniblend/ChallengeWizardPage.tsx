@@ -246,6 +246,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         review_duration: undefined,
         phase_notes: '',
         solver_eligibility_id: (challengeData as any)?.solver_eligibility_id ?? '',
+        visibility: ((challengeData as any)?.visibility as ChallengeFormValues['visibility']) ?? 'eligible_certified',
+        min_expertise_level: (challengeData as any)?.min_expertise_level ?? 1,
         permitted_artifact_types: deliverables?.permitted_artifact_types ?? [],
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
@@ -422,6 +424,8 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       hook: (values as any).hook || null,
       
       eligibility: values.eligibility || null,
+      visibility: values.visibility ?? 'eligible_certified',
+      min_expertise_level: values.min_expertise_level ?? 1,
       solver_eligibility_id: values.solver_eligibility_id || null,
       solver_eligibility_types: values.eligible_participation_modes?.length
         ? values.eligible_participation_modes

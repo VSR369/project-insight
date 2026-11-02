@@ -152,7 +152,7 @@ export function useCreateChallenge() {
           currency_code: params.currencyCode,
           max_solutions: params.maxSolutions,
           shadow_fee_amount: params.shadowFeeAmount ?? null,
-          visibility: params.visibility ?? 'private',
+          visibility: params.visibility ?? 'eligible_certified',
           solver_eligibility_id: params.solverEligibilityId ?? null,
           status: 'draft',
           payment_status: 'pending',
