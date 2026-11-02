@@ -4,9 +4,8 @@
  * Shared master-data options for Visibility and Eligibility Models.
  * Used by both the Manual Editor (wizard) and AI Spec Review.
  *
- * Simplified access model:
- *   - Eligible Solvers: Can view AND submit solutions (defined by solver_eligibility_ids)
- *   - Visible Solvers: Can only view/discover the challenge (defined by visibility section)
+ * BR-CHL-P10 (DEF-0035 / DEF-0363): the Visibility picklist has exactly
+ * three options, defaulting to "Eligible certified providers".
  */
 
 export interface TierOption {
@@ -21,14 +20,31 @@ export interface EligibilityModelOption {
   description: string;
 }
 
-/* ─── Visibility ─────────────────────────────────────── */
+/* ─── Visibility (BR-CHL-P10) ────────────────────────── */
+
+export const VISIBILITY_ELIGIBLE_CERTIFIED = 'eligible_certified';
+export const VISIBILITY_INVITE_ONLY = 'invite_only';
+export const VISIBILITY_PUBLIC = 'public';
+
+export const DEFAULT_CHALLENGE_VISIBILITY = VISIBILITY_ELIGIBLE_CERTIFIED;
 
 export const VISIBILITY_OPTIONS: readonly TierOption[] = [
-  { value: 'public', label: 'Public', description: 'Visible to everyone on the platform and search engines' },
-  { value: 'registered_users', label: 'Registered Users', description: 'Visible only to authenticated platform users' },
-  { value: 'platform_members', label: 'Platform Members', description: 'Visible only to users with active memberships' },
-  { value: 'curated_experts', label: 'Curated Experts', description: 'Visible only to experts curated by the platform' },
-  { value: 'invited_only', label: 'Invited Only', description: 'Visible only to specifically invited participants' },
+  {
+    value: VISIBILITY_ELIGIBLE_CERTIFIED,
+    label: 'Eligible certified providers',
+    description:
+      'Visible to and joinable by certified Solution Providers whose industry and level match (default)',
+  },
+  {
+    value: VISIBILITY_INVITE_ONLY,
+    label: 'Invite only',
+    description: 'Visible only to Solution Providers invited by the Curator',
+  },
+  {
+    value: VISIBILITY_PUBLIC,
+    label: 'Public',
+    description: 'Visible to any registered Solution Provider',
+  },
 ] as const;
 
 /* ─── Eligibility Models ─────────────────────────────── */
