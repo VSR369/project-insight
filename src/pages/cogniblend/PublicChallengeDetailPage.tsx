@@ -31,6 +31,7 @@ import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASe
 import { SolverEnrollmentCTA } from '@/components/cogniblend/solver/SolverEnrollmentCTA';
 import { CreatorChallengeDetailView } from '@/components/cogniblend/challenges/CreatorChallengeDetailView';
 import { formatCurrency, complexityColor, governanceLabel } from '@/lib/cogniblend/displayHelpers';
+import { accessDeniedMessage } from '@/services/cogniblend/lifecycle/challengeVisibility';
 
 /* complexityColor, formatCurrency, governanceLabel imported from displayHelpers */
 
@@ -106,14 +107,22 @@ export default function PublicChallengeDetailPage() {
 
   /* ── Not found / visibility blocked ── */
   if (error || !data || !data.isVisible) {
+    const deniedReason = data?.accessDeniedReason ?? null;
+    const blockedTitle =
+      deniedReason === 'not_certified' ? 'Certification Required'
+      : deniedReason === 'not_invited' ? 'Invite Only'
+      : 'Challenge Not Found';
+    const blockedMessage = deniedReason
+      ? accessDeniedMessage(deniedReason, data?.requiredIndustryName ?? null)
+      : "This challenge doesn't exist, hasn't been published yet, or you don't have permission to view it.";
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
         <div className="rounded-full bg-muted p-4">
-          <FileText className="h-10 w-10 text-muted-foreground" />
+          {deniedReason ? <Lock className="h-10 w-10 text-muted-foreground" /> : <FileText className="h-10 w-10 text-muted-foreground" />}
         </div>
-        <h2 className="text-lg font-bold text-foreground">Challenge Not Found</h2>
+        <h2 className="text-lg font-bold text-foreground">{blockedTitle}</h2>
         <p className="text-sm text-muted-foreground max-w-sm">
-          This challenge doesn't exist, hasn't been published yet, or you don't have permission to view it.
+          {blockedMessage}
         </p>
         <Button variant="outline" size="sm" onClick={() => navigate(isCreator ? '/cogni/my-challenges' : '/cogni/browse')}>
           <ArrowLeft className="h-4 w-4 mr-1" /> {isCreator ? 'My Challenges' : 'Browse Challenges'}
