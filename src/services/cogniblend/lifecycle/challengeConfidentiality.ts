@@ -25,7 +25,7 @@ export interface ConfidentialityContext {
 /** Identity is shown only to privileged users, on creator disclosure, or to confirmed winners. */
 export function resolveSeekerDisplay(
   orgName: string | null,
-  ctx: Pick<ConfidentialityContext, 'isPrivileged' | 'discloseOrgName' | 'isWinner'>,
+  ctx: ConfidentialityContext,
 ): string | null {
   if (ctx.isPrivileged || ctx.discloseOrgName || ctx.isWinner) return orgName;
   return CONFIDENTIAL_ORG_LABEL;
@@ -33,7 +33,7 @@ export function resolveSeekerDisplay(
 
 /** Confidential fields/attachments require CPA acceptance while eligible (or privilege). */
 export function canViewConfidentialContent(
-  ctx: Pick<ConfidentialityContext, 'isPrivileged' | 'cpaAccepted' | 'isEligible'>,
+  ctx: ConfidentialityContext,
 ): boolean {
   return ctx.isPrivileged || (ctx.isEligible && ctx.cpaAccepted);
 }
