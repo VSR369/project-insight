@@ -22,7 +22,7 @@ describe('BR-CHL-P09 seeker identity masking', () => {
   it('reveals identity to a confirmed winner only', () => {
     expect(resolveSeekerDisplay('Acme Corp', { ...base, isWinner: true })).toBe('Acme Corp');
     // non-selected participant still sees the label
-    expect(resolveSeekerDisplay('Acme Corp', { ...base, isWinner: false, cpaAccepted: true })).toBe(CONFIDENTIAL_ORG_LABEL);
+    expect(resolveSeekerDisplay('Acme Corp', { ...base, isWinner: false })).toBe(CONFIDENTIAL_ORG_LABEL);
   });
 
   it('always shows the name to privileged users (tenant, platform admin, challenge role)', () => {
@@ -30,7 +30,9 @@ describe('BR-CHL-P09 seeker identity masking', () => {
   });
 
   it('CPA acceptance alone never reveals identity before award', () => {
+    // CPA acceptance is deliberately not an input to identity display
     expect(resolveSeekerDisplay('Acme Corp', { ...base, cpaAccepted: true })).toBe(CONFIDENTIAL_ORG_LABEL);
+    expect(canViewConfidentialContent({ ...base, cpaAccepted: true })).toBe(true);
   });
 });
 

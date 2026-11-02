@@ -134,7 +134,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
       // Visibility check
       const isVisible = checkVisibility(challenge.visibility, isAuthenticated);
       if (!isVisible) {
-        return { ...buildResult(challenge), isVisible: false, isEligible: false, escrowFunded: false, accessDeniedReason: null, requiredIndustryName: null, daysRemaining: null };
+        return { ...buildResult(challenge), isVisible: false, isEligible: false, escrowFunded: false, accessDeniedReason: null, requiredIndustryName: null, daysRemaining: null, seeker_display_name: CONFIDENTIAL_ORG_LABEL, cpa_accepted: false };
       }
 
       // BR-CHL-P10: provider eligibility gate (certified industry/level, invite-only, public)
@@ -154,10 +154,12 @@ export function usePublicChallenge(challengeId: string | undefined) {
             accessDeniedReason: (access.reason ?? 'not_found') as ChallengeAccessReason,
             requiredIndustryName: access.industry_name ?? null,
             daysRemaining: null,
+            seeker_display_name: CONFIDENTIAL_ORG_LABEL,
+            cpa_accepted: false,
           };
         }
         const { data: rawView } = await supabase.rpc('get_provider_challenge_view', { p_challenge_id: challengeId });
-        const view = (rawView ?? null) as ProviderChallengeView | null;
+        const view = (rawView ?? null) as unknown as ProviderChallengeView | null;
         if (view?.allowed) {
           seekerDisplayName = view.org_display ?? CONFIDENTIAL_ORG_LABEL;
           cpaAccepted = view.cpa_accepted === true;
