@@ -1666,6 +1666,85 @@ export type Database = {
           },
         ]
       }
+      challenge_invitations: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          id: string
+          invited_at: string
+          invited_by: string
+          provider_id: string
+          status: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by: string
+          provider_id: string
+          status?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          id?: string
+          invited_at?: string
+          invited_by?: string
+          provider_id?: string
+          status?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_invitations_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_invitations_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
+          },
+          {
+            foreignKeyName: "challenge_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_cert_leaderboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "challenge_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "v_provider_dashboard"
+            referencedColumns: ["provider_id"]
+          },
+          {
+            foreignKeyName: "challenge_invitations_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "vw_provider_resolved_cert"
+            referencedColumns: ["provider_id"]
+          },
+        ]
+      }
       challenge_legal_docs: {
         Row: {
           ai_changes_summary: string | null
@@ -2426,6 +2505,7 @@ export type Database = {
           master_status: string | null
           maturity_level: string | null
           max_solutions: number | null
+          min_expertise_level: number
           min_star_tier: number
           operating_model: string | null
           organization_id: string
@@ -2529,6 +2609,7 @@ export type Database = {
           master_status?: string | null
           maturity_level?: string | null
           max_solutions?: number | null
+          min_expertise_level?: number
           min_star_tier?: number
           operating_model?: string | null
           organization_id: string
@@ -2632,6 +2713,7 @@ export type Database = {
           master_status?: string | null
           maturity_level?: string | null
           max_solutions?: number | null
+          min_expertise_level?: number
           min_star_tier?: number
           operating_model?: string | null
           organization_id?: string
@@ -17450,6 +17532,15 @@ export type Database = {
         Args: { p_decision: string }
         Returns: Json
       }
+      fn_provider_can_view_challenge: {
+        Args: {
+          p_challenge_id: string
+          p_industry_segment_id: string
+          p_min_level: number
+          p_visibility: string
+        }
+        Returns: boolean
+      }
       fn_status_for_phase: { Args: { p_phase: number }; Returns: string }
       fn_user_has_challenge_role: {
         Args: { p_challenge: string; p_roles: string[]; p_user: string }
@@ -17674,6 +17765,10 @@ export type Database = {
         Args: { p_content: string; p_vars: Json }
         Returns: string
       }
+      invite_provider_to_challenge: {
+        Args: { p_challenge_id: string; p_provider_id: string }
+        Returns: Json
+      }
       is_email_domain_blocked: { Args: { p_email: string }; Returns: boolean }
       is_legacy_org_owner: {
         Args: { p_tenant_id: string; p_user_id: string }
@@ -17769,6 +17864,10 @@ export type Database = {
           auto_held_count: number
           escalated_count: number
         }[]
+      }
+      provider_challenge_access: {
+        Args: { p_challenge_id: string }
+        Returns: Json
       }
       pulse_award_xp: {
         Args: {
