@@ -116,7 +116,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
       duration_days: z.number(),
     })).optional().default([]),
     community_creation_allowed: z.boolean().default(false),
-    is_anonymous: z.boolean().default(false),
+    is_anonymous: z.boolean().default(true),
   });
 
   if (engagementModel === 'MP') {

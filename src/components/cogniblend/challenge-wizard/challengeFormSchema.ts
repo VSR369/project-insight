@@ -115,7 +115,7 @@ export function createChallengeFormSchema(
     operating_model: z.enum(['MP', 'AGG']).default('MP'),
     creator_approval_required: z.boolean().default(mode !== 'QUICK'),
     community_creation_allowed: z.boolean().default(false),
-    is_anonymous: z.boolean().default(false),
+    is_anonymous: z.boolean().default(true),
 
     // Step 1 — Challenge Brief
     title: z.string().min(1, 'Title is required').max(titleMax, `Title cannot exceed ${titleMax} characters`).trim(),
@@ -251,7 +251,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   operating_model: 'MP' as const,
   creator_approval_required: true,
   community_creation_allowed: false,
-  is_anonymous: false,
+  is_anonymous: true,
   title: '',
   hook: '',
   description: '',

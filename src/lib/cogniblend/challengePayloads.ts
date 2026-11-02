@@ -169,7 +169,7 @@ export function buildChallengeUpdatePayload(
     // Challenge preferences
     creator_approval_required: fp.creatorApprovalRequired ?? true,
     community_creation_allowed: fp.communityCreationAllowed ?? false,
-    is_anonymous: fp.isAnonymous ?? false,
+    is_anonymous: fp.isAnonymous ?? true,
   };
 
   const rawResult = {
