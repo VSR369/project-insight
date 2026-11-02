@@ -72,6 +72,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
     permissions: [
       { key: 'org_approvals.view', label: 'View Org Approvals' },
       { key: 'org_approvals.approve_reject', label: 'Approve / Reject Orgs' },
+      { key: 'org_approvals.suspend_reinstate', label: 'Suspend / Reinstate Organisations' },
       { key: 'org_approvals.manage_agreements', label: 'Manage Enterprise Agreements' },
     ],
   },
@@ -91,7 +92,8 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'marketplace.view', label: 'View Marketplace' },
       { key: 'marketplace.assign_members', label: 'Assign Pool Members' },
       { key: 'marketplace.manage_pool', label: 'Manage Resource Pool' },
-      { key: 'marketplace.manage_config', label: 'Manage Config (Contact, Templates)' },
+      { key: 'marketplace.manage_admin_contact', label: 'Manage Admin Contact' },
+      { key: 'marketplace.manage_email_templates', label: 'Manage Email Templates' },
     ],
   },
   {
@@ -110,6 +112,12 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'interview.manage_quorum', label: 'Manage Quorum Requirements' },
       { key: 'interview.manage_availability', label: 'Manage Reviewer Availability' },
       { key: 'interview.approve_reviewers', label: 'Approve Reviewers' },
+      { key: 'interview.approve_certifications', label: 'Approve Certifications' },
+      { key: 'interview.decide_moderated_results', label: 'Decide Moderated Results' },
+      { key: 'interview.manage_provider_enrolments', label: 'Manage Provider Enrolments' },
+      { key: 'interview.decide_certification_appeals', label: 'Decide Certification Appeals' },
+      { key: 'interview.configure_certification_lifecycle', label: 'Configure Certification & Lifecycle' },
+      { key: 'interview.configure_reviewer_availability', label: 'Configure Reviewer Availability' },
     ],
   },
   {
@@ -137,6 +145,24 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'content.manage_questions', label: 'Manage Questions' },
       { key: 'content.view_tags', label: 'View Capability Tags' },
       { key: 'content.manage_tags', label: 'Manage Tags' },
+    ],
+  },
+  {
+    category: 'Legal Documents',
+    permissions: [
+      { key: 'legal_documents.view', label: 'View Legal Documents' },
+      { key: 'legal_documents.edit_drafts', label: 'Edit Legal Drafts' },
+      { key: 'legal_documents.publish', label: 'Publish Legal Documents' },
+      { key: 'legal_documents.view_acceptance_ledger', label: 'View Legal Acceptance Ledger' },
+    ],
+  },
+  {
+    category: 'Challenge Oversight',
+    permissions: [
+      { key: 'challenge_oversight.view', label: 'View Challenges' },
+      { key: 'challenge_oversight.resolve_disputes', label: 'Resolve Challenge Disputes' },
+      { key: 'challenge_oversight.cancel_after_submissions', label: 'Cancel Challenge after Submissions' },
+      { key: 'challenge_oversight.change_default_governance_profile', label: 'Change Default Governance Profile' },
     ],
   },
 ];
@@ -215,6 +241,8 @@ function PermissionsContent() {
               {cat.category === 'Seeker Config' && 'Pricing, subscription, and compliance configuration'}
               {cat.category === 'Invitations' && 'Solution provider and reviewer invitation management'}
               {cat.category === 'Content' && 'Question bank and capability tag management'}
+              {cat.category === 'Legal Documents' && 'Platform legal document drafting, publishing and acceptance records'}
+              {cat.category === 'Challenge Oversight' && 'Platform-level challenge monitoring, disputes and cancellation'}
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -115,8 +115,6 @@ const seekerConfigItems = [
   { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
   { title: 'Governance Rules', icon: Shield, path: '/admin/seeker-config/governance-rules' },
   { title: 'Governance Modes', icon: Settings, path: '/admin/seeker-config/governance-modes' },
-  { title: 'Legal Documents', icon: FileText, path: '/admin/legal-documents' },
-  { title: 'Legal Triggers', icon: Workflow, path: '/admin/legal-documents/triggers' },
   { title: 'Legal Thresholds', icon: Shield, path: '/admin/seeker-config/legal-thresholds' },
   { title: 'Role Co-assignment Rules', icon: Network, path: '/admin/seeker-config/role-coassignment' },
   { title: 'Tier Access', icon: KeyRound, path: '/admin/seeker-config/tier-access' },
@@ -444,7 +442,7 @@ export function AdminSidebar() {
                   <span>Assignment History</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {hasPermission('marketplace.manage_config') && (
+              {hasPermission('marketplace.manage_admin_contact') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/admin-contact')}
@@ -456,7 +454,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {hasPermission('marketplace.manage_config') && (
+              {hasPermission('marketplace.manage_email_templates') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/email-templates')}
@@ -500,6 +498,30 @@ export function AdminSidebar() {
                   </SidebarMenuItem>
                 )}
                 {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => renderMenuItem(item))}
+                {hasPermission('legal_documents.view') && (
+                  <SidebarMenuItem key="/admin/legal-documents">
+                    <SidebarMenuButton
+                      onClick={() => navigate('/admin/legal-documents')}
+                      onMouseEnter={() => handleMouseEnter('/admin/legal-documents')}
+                      isActive={isActive('/admin/legal-documents')}
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Legal Documents</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission('legal_documents.edit_drafts') && (
+                  <SidebarMenuItem key="/admin/legal-documents/triggers">
+                    <SidebarMenuButton
+                      onClick={() => navigate('/admin/legal-documents/triggers')}
+                      onMouseEnter={() => handleMouseEnter('/admin/legal-documents/triggers')}
+                      isActive={isActive('/admin/legal-documents/triggers')}
+                    >
+                      <Workflow className="h-4 w-4" />
+                      <span>Legal Triggers</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

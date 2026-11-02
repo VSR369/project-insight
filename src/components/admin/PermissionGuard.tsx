@@ -28,7 +28,7 @@ export function PermissionGuard({ permissionKey, children }: PermissionGuardProp
   useEffect(() => {
     if (!isLoading && !hasAccess && !toastShownRef.current) {
       toastShownRef.current = true;
-      toast.error('Permission denied: you do not have access to this section');
+      toast.error('You do not have permission to view this page');
     }
   }, [isLoading, hasAccess]);
 
