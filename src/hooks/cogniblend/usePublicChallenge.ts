@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import type { ChallengeAccessReason } from '@/services/cogniblend/lifecycle/challengeVisibility';
+import { CONFIDENTIAL_ORG_LABEL } from '@/services/cogniblend/lifecycle/challengeConfidentiality';
+import type { ProviderChallengeView } from '@/hooks/cogniblend/useProviderChallengeView';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -43,6 +45,10 @@ export interface PublicChallengeData {
   challenge_visibility: string | null;
   tenant_id: string;
   organization_id: string | null;
+  /** BR-CHL-P09: masked label or org name, decided server-side */
+  seeker_display_name: string | null;
+  /** BR-CHL-P09: provider accepted the challenge's frozen CPA */
+  cpa_accepted: boolean;
   organization_name: string | null;
   trade_brand_name: string | null;
   organization_website: string | null;
@@ -111,9 +117,6 @@ export function usePublicChallenge(challengeId: string | undefined) {
           submission_guidelines, functional_area, target_geography,
           challenge_visibility, creator_snapshot, governance_mode_override,
           organization_id,
-          seeker_organizations!challenges_organization_id_fkey (
-            organization_name, trade_brand_name, website_url
-          ),
           industry_segments (name)
         `)
         .eq('id', challengeId)
