@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { CONFIDENTIAL_ORG_LABEL } from '@/services/cogniblend/lifecycle/challengeConfidentiality';
 
 export interface BrowseChallengeItem {
   id: string;
@@ -47,6 +48,7 @@ interface RawChallengeRow {
   operating_model: string | null;
   solver_audience: string | null;
   organization_id: string;
+  disclose_org_name: boolean | null;
   seeker_organizations: { organization_name: string; trade_brand_name: string | null } | null;
   industry_segments: { name: string } | null;
 }
@@ -87,7 +89,7 @@ export function useBrowseChallenges() {
           id, title, problem_statement, hook, master_status, status,
           complexity_level, maturity_level, submission_deadline,
           currency_code, total_fee, created_at, published_at, visibility,
-          operating_model, solver_audience, organization_id,
+          operating_model, solver_audience, organization_id, disclose_org_name,
           seeker_organizations!challenges_organization_id_fkey (
             organization_name, trade_brand_name
           ),
@@ -119,8 +121,12 @@ export function useBrowseChallenges() {
             created_at: row.created_at,
             published_at: row.published_at,
             visibility: row.visibility,
-            organization_name: row.seeker_organizations?.organization_name ?? null,
-            trade_brand_name: row.seeker_organizations?.trade_brand_name ?? null,
+            organization_name: row.disclose_org_name
+              ? row.seeker_organizations?.organization_name ?? null
+              : CONFIDENTIAL_ORG_LABEL,
+            trade_brand_name: row.disclose_org_name
+              ? row.seeker_organizations?.trade_brand_name ?? null
+              : null,
             industry_name: row.industry_segments?.name ?? null,
           };
         });
