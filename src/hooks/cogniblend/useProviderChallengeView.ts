@@ -49,7 +49,7 @@ export function useProviderChallengeView(challengeId: string | undefined, enable
         handleQueryError(error, { operation: 'get_provider_challenge_view' });
         throw error;
       }
-      return (data ?? null) as ProviderChallengeView | null;
+      return (data ?? null) as unknown as ProviderChallengeView | null;
     },
     ...CACHE_STANDARD,
   });
