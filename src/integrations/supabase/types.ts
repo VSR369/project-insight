@@ -2392,6 +2392,8 @@ export type Database = {
           deleted_by: string | null
           email_verified: boolean
           email_verified_at: string | null
+          file_fingerprint: string | null
+          frozen_at: string | null
           id: string
           is_deleted: boolean
           payment_details: Json | null
@@ -2420,6 +2422,8 @@ export type Database = {
           deleted_by?: string | null
           email_verified?: boolean
           email_verified_at?: string | null
+          file_fingerprint?: string | null
+          frozen_at?: string | null
           id?: string
           is_deleted?: boolean
           payment_details?: Json | null
@@ -2448,6 +2452,8 @@ export type Database = {
           deleted_by?: string | null
           email_verified?: boolean
           email_verified_at?: string | null
+          file_fingerprint?: string | null
+          frozen_at?: string | null
           id?: string
           is_deleted?: boolean
           payment_details?: Json | null
@@ -15910,6 +15916,8 @@ export type Database = {
           encryption_key_ref: string | null
           evaluation_grade: string | null
           experience: string | null
+          file_fingerprint: string | null
+          frozen_at: string | null
           full_solution_url: string | null
           governance_profile: string | null
           id: string
@@ -15935,6 +15943,8 @@ export type Database = {
           encryption_key_ref?: string | null
           evaluation_grade?: string | null
           experience?: string | null
+          file_fingerprint?: string | null
+          frozen_at?: string | null
           full_solution_url?: string | null
           governance_profile?: string | null
           id?: string
@@ -15960,6 +15970,8 @@ export type Database = {
           encryption_key_ref?: string | null
           evaluation_grade?: string | null
           experience?: string | null
+          file_fingerprint?: string | null
+          frozen_at?: string | null
           full_solution_url?: string | null
           governance_profile?: string | null
           id?: string
@@ -17585,6 +17597,14 @@ export type Database = {
         Args: { p_challenge: string }
         Returns: Record<string, unknown>
       }
+      fn_can_view_solution: {
+        Args: {
+          p_challenge_id: string
+          p_is_winner: boolean
+          p_owner_id: string
+        }
+        Returns: boolean
+      }
       fn_finalise_award_decision: {
         Args: { p_decision: string }
         Returns: Json
@@ -17593,6 +17613,7 @@ export type Database = {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: boolean
       }
+      fn_has_accepted_pwa: { Args: { p_user_id: string }; Returns: boolean }
       fn_is_challenge_privileged: {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: boolean
@@ -17619,6 +17640,7 @@ export type Database = {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
       }
+      freeze_overdue_submissions: { Args: never; Returns: number }
       generate_terms_acceptance_hash: {
         Args: {
           p_accepted_at: string
@@ -17763,6 +17785,11 @@ export type Database = {
       get_reviewer_interview_count: {
         Args: { p_days_lookback?: number; p_reviewer_id: string }
         Returns: number
+      }
+      get_solution_secure: { Args: { p_solution_id: string }; Returns: Json }
+      get_submission_secure: {
+        Args: { p_submission_id: string }
+        Returns: Json
       }
       get_tier_usage: { Args: { p_org_id: string }; Returns: Json }
       get_unread_count: { Args: { p_user_id: string }; Returns: number }
