@@ -1202,6 +1202,7 @@ export type Database = {
           file_name: string | null
           file_size: number | null
           id: string
+          is_confidential: boolean
           mime_type: string | null
           relevance_explanation: string | null
           resource_type: string | null
@@ -1235,6 +1236,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          is_confidential?: boolean
           mime_type?: string | null
           relevance_explanation?: string | null
           resource_type?: string | null
@@ -1268,6 +1270,7 @@ export type Database = {
           file_name?: string | null
           file_size?: number | null
           id?: string
+          is_confidential?: boolean
           mime_type?: string | null
           relevance_explanation?: string | null
           resource_type?: string | null
@@ -1452,6 +1455,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "challenge_award_decisions"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_confidential_sections: {
+        Row: {
+          challenge_id: string
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          section_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          section_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          section_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_confidential_sections_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_confidential_sections_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "v_challenge_match"
+            referencedColumns: ["challenge_id"]
           },
         ]
       }
@@ -2453,6 +2504,7 @@ export type Database = {
           complexity_locked_by: string | null
           complexity_parameters: Json | null
           complexity_score: number | null
+          confidential_brief_keys: string[]
           config_snapshot: Json | null
           consulting_fee: number | null
           context_intake_status: string | null
@@ -2476,6 +2528,7 @@ export type Database = {
           deleted_by: string | null
           deliverables: Json | null
           description: string | null
+          disclose_org_name: boolean
           domain_tags: Json | null
           effort_level: string | null
           eligibility: string | null
@@ -2557,6 +2610,7 @@ export type Database = {
           complexity_locked_by?: string | null
           complexity_parameters?: Json | null
           complexity_score?: number | null
+          confidential_brief_keys?: string[]
           config_snapshot?: Json | null
           consulting_fee?: number | null
           context_intake_status?: string | null
@@ -2580,6 +2634,7 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          disclose_org_name?: boolean
           domain_tags?: Json | null
           effort_level?: string | null
           eligibility?: string | null
@@ -2661,6 +2716,7 @@ export type Database = {
           complexity_locked_by?: string | null
           complexity_parameters?: Json | null
           complexity_score?: number | null
+          confidential_brief_keys?: string[]
           config_snapshot?: Json | null
           consulting_fee?: number | null
           context_intake_status?: string | null
@@ -2684,6 +2740,7 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          disclose_org_name?: boolean
           domain_tags?: Json | null
           effort_level?: string | null
           eligibility?: string | null
@@ -17532,6 +17589,18 @@ export type Database = {
         Args: { p_decision: string }
         Returns: Json
       }
+      fn_has_accepted_cpa: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      fn_is_challenge_privileged: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      fn_is_challenge_winner: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: boolean
+      }
       fn_provider_can_view_challenge: {
         Args: {
           p_challenge_id: string
@@ -17640,6 +17709,10 @@ export type Database = {
             Args: { p_governance_mode?: string; p_phase: number }
             Returns: string
           }
+      get_provider_challenge_view: {
+        Args: { p_challenge_id: string }
+        Returns: Json
+      }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
@@ -17824,6 +17897,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      log_confidential_content_access: {
+        Args: {
+          p_action?: string
+          p_attachment_id?: string
+          p_challenge_id: string
+        }
+        Returns: Json
       }
       mark_all_read: { Args: { p_user_id: string }; Returns: undefined }
       mark_notification_read: {
