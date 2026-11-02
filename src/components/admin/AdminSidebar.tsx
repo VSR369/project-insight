@@ -498,6 +498,30 @@ export function AdminSidebar() {
                   </SidebarMenuItem>
                 )}
                 {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => renderMenuItem(item))}
+                {hasPermission('legal_documents.view') && (
+                  <SidebarMenuItem key="/admin/legal-documents">
+                    <SidebarMenuButton
+                      onClick={() => navigate('/admin/legal-documents')}
+                      onMouseEnter={() => handleMouseEnter('/admin/legal-documents')}
+                      isActive={isActive('/admin/legal-documents')}
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Legal Documents</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
+                {hasPermission('legal_documents.edit_drafts') && (
+                  <SidebarMenuItem key="/admin/legal-documents/triggers">
+                    <SidebarMenuButton
+                      onClick={() => navigate('/admin/legal-documents/triggers')}
+                      onMouseEnter={() => handleMouseEnter('/admin/legal-documents/triggers')}
+                      isActive={isActive('/admin/legal-documents/triggers')}
+                    >
+                      <Workflow className="h-4 w-4" />
+                      <span>Legal Triggers</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

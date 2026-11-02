@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useLegalDocEditor } from '@/hooks/admin/useLegalDocEditor';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { LegalDocEditorPanel } from '@/components/admin/legal/LegalDocEditorPanel';
 import { LegalDocConfigSidebar } from '@/components/admin/legal/LegalDocConfigSidebar';
 import { LegalDocPublishDialog } from '@/components/admin/legal/LegalDocPublishDialog';
@@ -25,6 +26,8 @@ export default function LegalDocumentEditorPage() {
   const defaultCode = (searchParams.get('code') as DocumentCode) ?? 'SPA';
 
   const editor = useLegalDocEditor({ templateId, isNew, defaultCode });
+  const { hasPermission } = useAdminTier();
+  const canPublishLegalDoc = hasPermission('legal_documents.publish');
   const [activeSection, setActiveSection] = React.useState<IpaaSectionKey>('abstract');
   const isIPAA = editor.currentCode === 'IPAA';
 
@@ -90,7 +93,12 @@ export default function LegalDocumentEditorPage() {
             {editor.isSaving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
             Save Draft
           </Button>
-          <Button size="sm" onClick={() => editor.setShowPublish(true)} disabled={!editor.canPublish || editor.isPublishing}>
+          <Button
+            size="sm"
+            onClick={() => editor.setShowPublish(true)}
+            disabled={!canPublishLegalDoc || !editor.canPublish || editor.isPublishing}
+            title={canPublishLegalDoc ? undefined : 'You do not have permission to perform this action'}
+          >
             Publish
           </Button>
         </div>
