@@ -136,7 +136,9 @@ export function usePublicChallenge(challengeId: string | undefined) {
 
       // BR-CHL-P10: provider eligibility gate (certified industry/level, invite-only, public)
       if (isAuthenticated) {
-        const { data: access } = await supabase.rpc('provider_challenge_access', { p_challenge_id: challengeId });
+        interface AccessResult { allowed?: boolean; reason?: string; industry_name?: string | null }
+        const { data: rawAccess } = await supabase.rpc('provider_challenge_access', { p_challenge_id: challengeId });
+        const access = (rawAccess ?? null) as AccessResult | null;
         if (access && access.allowed === false) {
           return {
             ...buildResult(challenge),
@@ -144,7 +146,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
             isEligible: false,
             escrowFunded: false,
             accessDeniedReason: (access.reason ?? 'not_found') as ChallengeAccessReason,
-            requiredIndustryName: (access.industry_name as string | null) ?? null,
+            requiredIndustryName: access.industry_name ?? null,
             daysRemaining: null,
           };
         }
