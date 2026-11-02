@@ -193,7 +193,8 @@ You can change an admin's tier (Admin → Senior Admin → Supervisor). Promotio
 • **seeker_config.view / seeker_config.manage** — Pricing and compliance config.
 • **supervisor.configure_system** — System-wide settings.
 • **admin_management.view_all_admins** — Manage other admin accounts.
-• **marketplace.manage_config** — Marketplace configuration.
+• **marketplace.manage_admin_contact** — Admin Contact configuration (30a).
+• **marketplace.manage_email_templates** — Email Templates configuration (30b, Supervisor only).
 
 🏢 **Real-life example:** A Senior Admin asks "Can I change the SLA duration?" You check the Permissions page and see that "supervisor.configure_system" is required for System Config. Senior Admins do not have this permission — only Supervisors do. You explain this to the Senior Admin and offer to make the change yourself.`,
       },

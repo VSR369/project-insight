@@ -115,8 +115,6 @@ const seekerConfigItems = [
   { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
   { title: 'Governance Rules', icon: Shield, path: '/admin/seeker-config/governance-rules' },
   { title: 'Governance Modes', icon: Settings, path: '/admin/seeker-config/governance-modes' },
-  { title: 'Legal Documents', icon: FileText, path: '/admin/legal-documents' },
-  { title: 'Legal Triggers', icon: Workflow, path: '/admin/legal-documents/triggers' },
   { title: 'Legal Thresholds', icon: Shield, path: '/admin/seeker-config/legal-thresholds' },
   { title: 'Role Co-assignment Rules', icon: Network, path: '/admin/seeker-config/role-coassignment' },
   { title: 'Tier Access', icon: KeyRound, path: '/admin/seeker-config/tier-access' },
@@ -444,7 +442,7 @@ export function AdminSidebar() {
                   <span>Assignment History</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {hasPermission('marketplace.manage_config') && (
+              {hasPermission('marketplace.manage_admin_contact') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/admin-contact')}
@@ -456,7 +454,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {hasPermission('marketplace.manage_config') && (
+              {hasPermission('marketplace.manage_email_templates') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/email-templates')}

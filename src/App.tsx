@@ -782,11 +782,11 @@ const App = () => (
               <Route path="seeker-config/blocked-domains" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><BlockedDomainsPage /></PermissionGuard>} />
               <Route path="seeker-config/platform-terms" element={<PermissionGuard permissionKey="seeker_config.view"><PlatformTermsPage /></PermissionGuard>} />
               <Route path="seeker-config/legal-templates" element={<PermissionGuard permissionKey="seeker_config.view"><LegalDocumentTemplatesPage /></PermissionGuard>} />
-              <Route path="legal-documents" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentListPage /></PermissionGuard>} />
-              <Route path="legal-documents/new" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentEditorPage /></PermissionGuard>} />
-              <Route path="legal-documents/:templateId/edit" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocumentEditorPage /></PermissionGuard>} />
-              <Route path="legal-documents/triggers" element={<PermissionGuard permissionKey="seeker_config.edit"><LegalDocTriggerConfigPage /></PermissionGuard>} />
-              <Route path="legal-documents/ledger" element={<PermissionGuard permissionKey="seeker_config.view"><LegalAcceptanceLedgerPage /></PermissionGuard>} />
+              <Route path="legal-documents" element={<PermissionGuard permissionKey="legal_documents.view"><LegalDocumentListPage /></PermissionGuard>} />
+              <Route path="legal-documents/new" element={<PermissionGuard permissionKey="legal_documents.edit_drafts"><LegalDocumentEditorPage /></PermissionGuard>} />
+              <Route path="legal-documents/:templateId/edit" element={<PermissionGuard permissionKey="legal_documents.edit_drafts"><LegalDocumentEditorPage /></PermissionGuard>} />
+              <Route path="legal-documents/triggers" element={<PermissionGuard permissionKey="legal_documents.edit_drafts"><LegalDocTriggerConfigPage /></PermissionGuard>} />
+              <Route path="legal-documents/ledger" element={<PermissionGuard permissionKey="legal_documents.view_acceptance_ledger"><LegalAcceptanceLedgerPage /></PermissionGuard>} />
               <Route path="seeker-config/membership-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><MembershipTiersPage /></PermissionGuard>} />
               <Route path="seeker-config/base-fees" element={<PermissionGuard permissionKey="seeker_config.view"><BaseFeesPage /></PermissionGuard>} />
               <Route path="seeker-config/shadow-pricing" element={<PermissionGuard permissionKey="seeker_config.view_shadow_pricing"><ShadowPricingPage /></PermissionGuard>} />
@@ -853,9 +853,9 @@ const App = () => (
               {/* Solution Requests & Assignment History — permission: marketplace.view */}
               <Route path="marketplace/solution-requests" element={<PermissionGuard permissionKey="marketplace.view"><SolutionRequestsPage /></PermissionGuard>} />
               <Route path="marketplace/assignment-history" element={<PermissionGuard permissionKey="marketplace.view"><AssignmentHistoryPage /></PermissionGuard>} />
-              {/* Admin Contact, Email Templates — permission: marketplace.manage_config */}
-              <Route path="marketplace/admin-contact" element={<PermissionGuard permissionKey="marketplace.manage_config"><AdminContactProfilePage /></PermissionGuard>} />
-              <Route path="marketplace/email-templates" element={<PermissionGuard permissionKey="marketplace.manage_config"><EmailTemplatesPage /></PermissionGuard>} />
+              {/* Admin Contact — permission: marketplace.manage_admin_contact (30a); Email Templates — marketplace.manage_email_templates (30b) */}
+              <Route path="marketplace/admin-contact" element={<PermissionGuard permissionKey="marketplace.manage_admin_contact"><AdminContactProfilePage /></PermissionGuard>} />
+              <Route path="marketplace/email-templates" element={<PermissionGuard permissionKey="marketplace.manage_email_templates"><EmailTemplatesPage /></PermissionGuard>} />
               {/* AI Quality Dashboard (Phase 10) — supervisor only */}
               <Route path="ai-quality" element={<PermissionGuard permissionKey="supervisor.configure_system"><AIQualityDashboardPage /></PermissionGuard>} />
               <Route path="ai-quality/examples" element={<PermissionGuard permissionKey="supervisor.configure_system"><ExampleLibraryManagerPage /></PermissionGuard>} />
