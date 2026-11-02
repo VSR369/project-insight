@@ -10,7 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, Download, Loader2, Paperclip } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { handleQueryError } from '@/lib/errorHandler';
+import { useToggleAttachmentConfidential } from '@/hooks/cogniblend/useToggleAttachmentConfidential';
 import { CACHE_STANDARD } from '@/config/queryCache';
 
 interface AttachmentRow {
@@ -21,6 +23,7 @@ interface AttachmentRow {
   storage_path: string | null;
   section_key: string;
   created_at: string | null;
+  is_confidential: boolean | null;
 }
 
 interface CreatorAttachmentsSectionProps {
@@ -57,7 +60,7 @@ export function CreatorAttachmentsSection({ challengeId }: CreatorAttachmentsSec
     queryFn: async () => {
       const { data, error: qErr } = await supabase
         .from('challenge_attachments')
-        .select('id, file_name, file_size, mime_type, storage_path, section_key, created_at')
+        .select('id, file_name, file_size, mime_type, storage_path, section_key, created_at, is_confidential')
         .eq('challenge_id', challengeId)
         .in('section_key', ['creator_reference', 'org_profile'])
         .eq('source_type', 'file')
@@ -70,6 +73,8 @@ export function CreatorAttachmentsSection({ challengeId }: CreatorAttachmentsSec
     },
     ...CACHE_STANDARD,
   });
+
+  const { mutate: toggleConfidential, isPending: isToggling } = useToggleAttachmentConfidential();
 
   if (isLoading) {
     return (
@@ -115,6 +120,17 @@ export function CreatorAttachmentsSection({ challengeId }: CreatorAttachmentsSec
                   {att.file_size != null && att.file_size > 0 && (
                     <span className="text-xs text-muted-foreground">{formatFileSize(att.file_size)}</span>
                   )}
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <Switch
+                      aria-label="Mark attachment as Confidential"
+                      checked={!!att.is_confidential}
+                      disabled={isToggling}
+                      onCheckedChange={(checked) =>
+                        toggleConfidential({ attachmentId: att.id, challengeId, isConfidential: checked })
+                      }
+                    />
+                    Confidential
+                  </label>
                 </div>
               </div>
               <Button
