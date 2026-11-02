@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Globe, Download, ExternalLink, BookOpen } from 'lucide-react';
 import { useSignedUrl } from '@/hooks/cogniblend/useSignedUrl';
+import { useLogConfidentialAccess } from '@/hooks/cogniblend/useLogConfidentialAccess';
 
 interface SolverReferencePanelProps {
   challengeId: string;
@@ -28,6 +29,7 @@ interface SharedAttachment {
   mime_type: string | null;
   file_size: number | null;
   storage_path: string | null;
+  is_confidential: boolean | null;
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -71,13 +73,14 @@ function getMimeLabel(mime: string | null): string {
 
 export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps) {
   const { openSignedUrl } = useSignedUrl();
+  const { mutate: logConfidentialAccess } = useLogConfidentialAccess();
 
   const { data: attachments = [], isLoading } = useQuery({
     queryKey: ['solver-references', challengeId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('challenge_attachments')
-        .select('id, section_key, source_type, source_url, display_name, file_name, url_title, description, mime_type, file_size, storage_path')
+        .select('id, section_key, source_type, source_url, display_name, file_name, url_title, description, mime_type, file_size, storage_path, is_confidential')
         .eq('challenge_id', challengeId)
         .eq('shared_with_solver', true)
         .order('display_order');
@@ -133,7 +136,7 @@ export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps)
                         </a>
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" className="shrink-0 text-xs h-7" onClick={() => openSignedUrl(att.storage_path)}>
+                      <Button variant="outline" size="sm" className="shrink-0 text-xs h-7" onClick={() => { if (att.is_confidential) logConfidentialAccess({ challengeId, attachmentId: att.id, action: 'download' }); openSignedUrl(att.storage_path); }}>
                         <Download className="h-3 w-3 mr-1" /> Download
                       </Button>
                     )}
