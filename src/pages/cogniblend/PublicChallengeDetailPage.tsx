@@ -194,12 +194,12 @@ export default function PublicChallengeDetailPage() {
 
       {/* HERO SECTION */}
       <div className="space-y-5">
-        {(data.organization_name || data.industry_name) && (
+        {(data.seeker_display_name || data.industry_name) && (
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            {(data.organization_name || data.trade_brand_name) && (
+            {data.seeker_display_name && (
               <span className="flex items-center gap-1.5">
                 <Building2 className="h-4 w-4" />
-                {data.trade_brand_name || data.organization_name}
+                {data.seeker_display_name}
               </span>
             )}
             {data.industry_name && (
