@@ -138,6 +138,9 @@ export function usePublicChallenge(challengeId: string | undefined) {
       }
 
       // BR-CHL-P10: provider eligibility gate (certified industry/level, invite-only, public)
+      // BR-CHL-P09: server decides seeker identity masking + CPA-acceptance state
+      let seekerDisplayName: string | null = CONFIDENTIAL_ORG_LABEL;
+      let cpaAccepted = false;
       if (isAuthenticated) {
         interface AccessResult { allowed?: boolean; reason?: string; industry_name?: string | null }
         const { data: rawAccess } = await supabase.rpc('provider_challenge_access', { p_challenge_id: challengeId });
@@ -152,6 +155,12 @@ export function usePublicChallenge(challengeId: string | undefined) {
             requiredIndustryName: access.industry_name ?? null,
             daysRemaining: null,
           };
+        }
+        const { data: rawView } = await supabase.rpc('get_provider_challenge_view', { p_challenge_id: challengeId });
+        const view = (rawView ?? null) as ProviderChallengeView | null;
+        if (view?.allowed) {
+          seekerDisplayName = view.org_display ?? CONFIDENTIAL_ORG_LABEL;
+          cpaAccepted = view.cpa_accepted === true;
         }
       }
 
@@ -183,6 +192,8 @@ export function usePublicChallenge(challengeId: string | undefined) {
         accessDeniedReason: null,
         requiredIndustryName: null,
         daysRemaining,
+        seeker_display_name: seekerDisplayName,
+        cpa_accepted: cpaAccepted,
       };
     },
     enabled: !!challengeId,
@@ -190,8 +201,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
   });
 }
 
-function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining' | 'accessDeniedReason' | 'requiredIndustryName'> {
-  const org = c.seeker_organizations as Record<string, unknown> | null;
+function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'escrowFunded' | 'isEligible' | 'isVisible' | 'daysRemaining' | 'accessDeniedReason' | 'requiredIndustryName' | 'seeker_display_name' | 'cpa_accepted'> {
   const industry = c.industry_segments as Record<string, unknown> | null;
 
   return {
@@ -236,9 +246,9 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     target_geography: c.target_geography as string | null,
     creator_snapshot: c.creator_snapshot as Record<string, unknown> | null,
     governance_mode_override: c.governance_mode_override as string | null,
-    organization_name: (org?.organization_name as string) ?? null,
-    trade_brand_name: (org?.trade_brand_name as string) ?? null,
-    organization_website: (org?.website_url as string) ?? null,
+    organization_name: null,
+    trade_brand_name: null,
+    organization_website: null,
     organization_description: null,
     industry_name: (industry?.name as string) ?? null,
   };
