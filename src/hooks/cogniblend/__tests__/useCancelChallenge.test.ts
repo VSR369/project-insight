@@ -58,25 +58,18 @@ describe('TW3-04: Cancel — phase_status TERMINAL, master_status CANCELLED', ()
     expect(notification.message).toContain('Reason:');
   });
 
-  it('should enforce role-based cancel permissions — Phase 1: AM/RQ', () => {
-    expect(canCancelChallenge(1, ['AM'])).toBe(true);
-    expect(canCancelChallenge(1, ['RQ'])).toBe(true);
-    expect(canCancelChallenge(1, ['CR'])).toBe(false);
-    expect(canCancelChallenge(1, ['ID'])).toBe(false);
+  it('should enforce role-based cancel permissions — Phase 1: Creator (CR) only', () => {
+    expect(canCancelChallenge(1, ['CR'])).toBe(true);
+    expect(canCancelChallenge(1, ['CU'])).toBe(false);
+    expect(canCancelChallenge(1, ['ER'])).toBe(false);
   });
-
-  it('should enforce role-based cancel permissions — Phase 2: CR only', () => {
+  it('should enforce role-based cancel permissions — Phase 2: Creator (CR) only', () => {
     expect(canCancelChallenge(2, ['CR'])).toBe(true);
-    expect(canCancelChallenge(2, ['AM'])).toBe(false);
-    expect(canCancelChallenge(2, ['RQ'])).toBe(false);
-    expect(canCancelChallenge(2, ['ID'])).toBe(false);
+    expect(canCancelChallenge(2, ['CU'])).toBe(false);
   });
-
-  it('should enforce role-based cancel permissions — Phase 3+: ID only', () => {
-    expect(canCancelChallenge(3, ['ID'])).toBe(true);
-    expect(canCancelChallenge(4, ['ID'])).toBe(true);
-    expect(canCancelChallenge(5, ['ID'])).toBe(true);
-    expect(canCancelChallenge(3, ['AM'])).toBe(false);
+  it('should enforce role-based cancel permissions — Phase 3+: Curator (CU) only', () => {
+    expect(canCancelChallenge(3, ['CU'])).toBe(true);
+    expect(canCancelChallenge(5, ['CU'])).toBe(true);
     expect(canCancelChallenge(3, ['CR'])).toBe(false);
   });
 });
