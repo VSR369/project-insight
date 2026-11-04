@@ -310,9 +310,9 @@ describe('Configuration Field Categories for Lock', () => {
     expect(result.allowed).toBe(false);
   });
 
-  it('TC-CF-06: proof_points is a content field (not locked at 100)', () => {
+  it('TC-CF-06: proof_points is a content field (locked at 100)', () => {
     const result = canModifyField(100, 'content');
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
   });
 });
 

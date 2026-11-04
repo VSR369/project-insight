@@ -121,7 +121,7 @@ describe('Multi-Enrollment Lifecycle Isolation', () => {
     });
 
     it('TC-ME03-03: All steps locked at terminal state for that enrollment', () => {
-      const terminalRank = LIFECYCLE_RANKS.verified; // 140
+      const terminalRank = LIFECYCLE_RANKS.certified; // 140
 
       [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(step => {
         expect(isWizardStepLocked(step, terminalRank)).toBe(true);
@@ -199,7 +199,7 @@ describe('Proof Point Management Per-Enrollment', () => {
       LIFECYCLE_RANKS.assessment_passed,      // 110
       LIFECYCLE_RANKS.panel_scheduled,        // 120
       LIFECYCLE_RANKS.panel_completed,        // 130
-      LIFECYCLE_RANKS.verified,               // 140
+      LIFECYCLE_RANKS.active,                 // 135
       LIFECYCLE_RANKS.certified,              // 150
     ];
 
@@ -445,7 +445,7 @@ describe('Real-World Multi-Industry Scenarios', () => {
     const enrollments = [
       { industry: 'A', rank: LIFECYCLE_RANKS.expertise_selected },     // Editable
       { industry: 'B', rank: LIFECYCLE_RANKS.assessment_in_progress }, // Locked
-      { industry: 'C', rank: LIFECYCLE_RANKS.verified },               // Terminal
+      { industry: 'C', rank: LIFECYCLE_RANKS.certified },               // Terminal
     ];
 
     // A: All editable
