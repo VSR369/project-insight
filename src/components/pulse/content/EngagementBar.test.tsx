@@ -86,7 +86,7 @@ describe("EngagementBar", () => {
     expect(container.textContent).toContain("1.5K");
   });
 
-  it("shows error toast when trying to engage with own content", () => {
+  it("disables fire reaction on own content", () => {
     const { container } = render(
       <EngagementBar
         contentId="content-1"
@@ -102,12 +102,11 @@ describe("EngagementBar", () => {
 
     // Find and click fire button
     const fireButton = container.querySelector('button[aria-label*="fire"]');
-    fireButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-    expect(toast.error).toHaveBeenCalledWith("You can't engage with your own content");
+    // Own content: reaction button is disabled so the action cannot be taken
+    expect(fireButton?.hasAttribute("disabled")).toBe(true);
   });
 
-  it("allows bookmarking own content", () => {
+  it("allows saving own content", () => {
     const mockMutate = vi.fn();
     (useToggleEngagement as any).mockReturnValue({
       mutate: mockMutate,
@@ -128,11 +127,11 @@ describe("EngagementBar", () => {
     );
 
     // Find and click bookmark button
-    const bookmarkButton = container.querySelector('button[aria-label*="ookmark"]');
+    const bookmarkButton = container.querySelector('button[aria-label="Save for later"]');
     bookmarkButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ engagementType: "bookmark" })
+      expect.objectContaining({ engagementType: "save" })
     );
   });
 
