@@ -2,6 +2,7 @@
  * Pulse Engagement Hooks Tests
  * Tests for fire, gold, save, bookmark toggles and user engagement status
  */
+import { PULSE_QUERY_KEYS } from "@/constants/pulse.constants";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
@@ -478,7 +479,7 @@ describe("Optimistic updates", () => {
 
     // Seed the cache with initial engagement status
     queryClient.setQueryData(
-      ["pulse:user-engagements", "content-1", "provider-1"],
+      [PULSE_QUERY_KEYS.userEngagements, "content-1", "provider-1"],
       { fire: false, gold: false, save: false, bookmark: false }
     );
 
@@ -509,7 +510,7 @@ describe("Optimistic updates", () => {
     // Check optimistic update was applied
     await waitFor(() => {
       const cachedData = queryClient.getQueryData([
-        "pulse:user-engagements",
+        PULSE_QUERY_KEYS.userEngagements,
         "content-1",
         "provider-1",
       ]);

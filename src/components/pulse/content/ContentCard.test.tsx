@@ -186,13 +186,15 @@ describe("ContentCard", () => {
       <ContentCard
         content={createMockContent({
           cover_image_url: "https://example.com/image.jpg",
+          media_urls: ["https://example.com/image.jpg"],
         }) as any}
         currentUserProviderId="provider-2"
       />,
       { wrapper: createWrapper() }
     );
 
-    const img = container.querySelector('img[loading="lazy"]');
-    expect(img?.getAttribute("src")).toBe("https://example.com/image.jpg");
+    // Media preview renders only when the post has media attached
+    const img = container.querySelector('img[src="https://example.com/image.jpg"]');
+    expect(img).toBeTruthy();
   });
 });
