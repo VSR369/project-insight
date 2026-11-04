@@ -17,6 +17,7 @@ vi.mock("@/hooks/queries/usePulseStats", () => ({
     isError: false,
   })),
   useTodayLootBox: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
+  useTodayStandup: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
 }));
 
 // Mock useProvider hook
