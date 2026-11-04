@@ -83,14 +83,14 @@ describe('Configuration Lock at Assessment Start', () => {
     expect(result.allowed).toBe(false);
   });
 
-  it('TC-CL-05: Registration fields still editable at assessment_in_progress', () => {
+  it('TC-CL-05: Registration fields locked at assessment_in_progress', () => {
     const result = canModifyField(LIFECYCLE_RANKS.assessment_in_progress, 'registration');
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
   });
 
-  it('TC-CL-06: Content (proof points) still editable at assessment_in_progress', () => {
+  it('TC-CL-06: Content (proof points) locked at assessment_in_progress', () => {
     const result = canModifyField(LIFECYCLE_RANKS.assessment_in_progress, 'content');
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
   });
 });
 
@@ -307,7 +307,7 @@ describe('Configuration Field Categories for Lock', () => {
 
   it('TC-CF-05: first_name is a registration field (not locked at 100)', () => {
     const result = canModifyField(100, 'registration');
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
   });
 
   it('TC-CF-06: proof_points is a content field (not locked at 100)', () => {

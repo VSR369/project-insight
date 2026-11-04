@@ -302,7 +302,7 @@ describe('Terminal State Handling Per-Enrollment', () => {
   });
 
   it('TC-TS-02: Not_certified enrollment is frozen independently', () => {
-    const notCertifiedRank = LIFECYCLE_RANKS.not_certified; // 150
+    const notCertifiedRank = LIFECYCLE_RANKS.interview_unsuccessful; // 150
     
     const result = canModifyField(notCertifiedRank, 'configuration');
     expect(result.allowed).toBe(false);
@@ -312,7 +312,7 @@ describe('Terminal State Handling Per-Enrollment', () => {
   it('TC-TS-03: Both terminal states freeze all field categories', () => {
     const terminalRanks = [
       LIFECYCLE_RANKS.certified,      // 140
-      LIFECYCLE_RANKS.not_certified,  // 150
+      LIFECYCLE_RANKS.interview_unsuccessful,  // 150
     ];
     
     const categories = ['registration', 'configuration', 'content'] as const;

@@ -32,7 +32,7 @@ describe('BR-01: Terminal State Immutability', () => {
   });
 
   it('TC-BR01-02: NOT_CERTIFIED profile (rank 150) should be completely frozen', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.not_certified, 'configuration');
+    const result = canModifyField(LIFECYCLE_RANKS.interview_unsuccessful, 'configuration');
     expect(result.allowed).toBe(false);
     expect(result.lockLevel).toBe('everything');
   });
@@ -46,8 +46,8 @@ describe('BR-01: Terminal State Immutability', () => {
     });
   });
 
-  it('TC-BR01-04: Terminal state includes certified and not_certified', () => {
-    const terminalStatuses = ['certified', 'not_certified'] as const;
+  it('TC-BR01-04: Terminal state includes certified and interview_unsuccessful', () => {
+    const terminalStatuses = ['certified', 'interview_unsuccessful'] as const;
     terminalStatuses.forEach(status => {
       const rank = LIFECYCLE_RANKS[status];
       expect(rank).toBeGreaterThanOrEqual(LOCK_THRESHOLDS.EVERYTHING);
@@ -251,7 +251,7 @@ describe('BR-5.1: Tab Visibility & Locking', () => {
 
   it('TC-BR51-06: All steps locked at NOT_CERTIFIED (terminal)', () => {
     for (let step = 1; step <= 9; step++) {
-      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.not_certified)).toBe(true);
+      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.interview_unsuccessful)).toBe(true);
     }
   });
 
@@ -307,7 +307,7 @@ describe('Lifecycle Ranks Configuration', () => {
     expect(getLifecycleRank('enrolled')).toBe(20);
     expect(getLifecycleRank('expertise_selected')).toBe(50);
     expect(getLifecycleRank('certified')).toBe(140);
-    expect(getLifecycleRank('not_certified')).toBe(150);
+    expect(getLifecycleRank('interview_unsuccessful')).toBe(150);
   });
 
   it('TC-LR-04: getLifecycleRank returns 0 for unknown status', () => {
@@ -321,7 +321,7 @@ describe('Lifecycle Ranks Configuration', () => {
       'proof_points_started', 'proof_points_min_met',
       'assessment_in_progress', 'assessment_passed',
       'panel_scheduled', 'panel_completed',
-      'certified', 'not_certified'
+      'certified', 'interview_unsuccessful'
     ];
     
     expectedStages.forEach(stage => {
