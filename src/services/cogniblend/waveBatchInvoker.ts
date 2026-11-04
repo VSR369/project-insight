@@ -72,7 +72,13 @@ export async function invokeWaveBatch(opts: BatchInvokeOptions): Promise<BatchSe
 
   if (reviewable.length === 0) {
     // Empty batch — short-circuit: skip the network call entirely.
-    return sectionActions.map((sa) => ({ sectionId: sa.sectionId, status: 'skipped' as const }));
+    return sectionActions.map((sa) => ({
+      sectionId: sa.sectionId,
+      status: 'skipped' as const,
+      skippedReason: BATCH_EXCLUDE_SET.has(sa.sectionId)
+        ? 'Excluded — no DB column (handled by dedicated panel)'
+        : 'Empty no-draft section (AI never drafts these)',
+    }));
   }
 
   const store = getCurationFormStore(challengeId);
