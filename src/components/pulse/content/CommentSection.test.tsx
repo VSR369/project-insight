@@ -3,7 +3,7 @@
  * Tests for thread nesting, reply depth limits, delete permissions
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { render } , fireEvent, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CommentSection } from "./CommentSection";
 import React from "react";
@@ -136,6 +136,8 @@ describe("CommentSection", () => {
     );
 
     expect(container.textContent).toContain("This is a top-level comment");
+    // Replies are collapsed by default; expand them
+    fireEvent.click(screen.getByText(/1 reply/i));
     expect(container.textContent).toContain("This is a reply");
   });
 
