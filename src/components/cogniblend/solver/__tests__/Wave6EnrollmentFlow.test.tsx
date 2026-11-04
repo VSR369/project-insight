@@ -293,7 +293,7 @@ describe('TW6-04: AGG model shows Anti-Disintermediation during enrollment', () 
       fireEvent.click(enrollButton);
     });
 
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+    expect(await screen.findByText('Step 1 of 2')).toBeInTheDocument();
     expect(screen.getByText('Legal Terms & NDA')).toBeInTheDocument();
   });
 });
