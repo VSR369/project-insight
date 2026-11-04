@@ -2,6 +2,7 @@
  * Pulse Stats & Gamification Hooks Tests
  * Tests for XP calculation, level progress, streak multipliers, leaderboards
  */
+import { fromByTable } from "./chainMock";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
@@ -346,13 +347,10 @@ describe("useGlobalLeaderboard", () => {
       { provider_id: "p2", total_xp: 3000, current_level: 7, provider: { first_name: "Bob", last_name: "Smith" } },
     ];
 
-    (supabase.from as any).mockReturnValue({
-      select: () => ({
-        order: () => ({
-          limit: () => Promise.resolve({ data: mockStats, error: null }),
-        }),
-      }),
-    });
+    (supabase.from as any).mockImplementation(fromByTable({
+      pulse_provider_stats: { data: mockStats, error: null },
+      pulse_xp_snapshots: { data: [], error: null },
+    }));
 
     const { result } = renderHook(
       () => useGlobalLeaderboard(10),
@@ -383,29 +381,10 @@ describe("useWeeklyLeaderboard", () => {
       { provider_id: "p1", total_xp: 5000, current_level: 10, provider: { first_name: "Alice", last_name: "Brown" } },
     ];
 
-    let callCount = 0;
-    (supabase.from as any).mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        // Snapshots query
-        return {
-          select: () => ({
-            eq: () => ({
-              eq: () => Promise.resolve({ data: mockSnapshots, error: null }),
-            }),
-          }),
-        };
-      } else {
-        // Current stats query
-        return {
-          select: () => ({
-            order: () => ({
-              limit: () => Promise.resolve({ data: mockCurrentStats, error: null }),
-            }),
-          }),
-        };
-      }
-    });
+    (supabase.from as any).mockImplementation(fromByTable({
+      pulse_xp_snapshots: { data: mockSnapshots, error: null },
+      pulse_provider_stats: { data: mockCurrentStats, error: null },
+    }));
 
     const { result } = renderHook(
       () => useWeeklyLeaderboard(10),
