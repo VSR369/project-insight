@@ -29,6 +29,8 @@ import { calculateChallengeFees } from '@/services/challengePricingService';
 const validOrgIdentity = {
   legal_entity_name: 'Acme Corporation',
   trade_brand_name: '',
+  organization_description: 'Acme Corporation builds industrial automation software for manufacturers. '.repeat(4),
+  website_url: 'https://acmecorp.com',
   organization_type_id: 'some-uuid-1',
   industry_ids: ['ind-1'],
   company_size_range: '11-50',
