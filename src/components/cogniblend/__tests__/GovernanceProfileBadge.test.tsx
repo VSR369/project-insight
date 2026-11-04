@@ -2,7 +2,7 @@
  * TW1-05: Governance badge prominent on dashboard
  *
  * Tests that GovernanceProfileBadge renders correct label, styles, and tooltip text.
- * Legacy LIGHTWEIGHT/ENTERPRISE inputs map to QUICK/STRUCTURED via resolveGovernanceMode.
+ * Legacy LIGHTWEIGHT/ENTERPRISE inputs map to QUICK/CONTROLLED via resolveGovernanceMode.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,9 +15,9 @@ describe('TW1-05 — GovernanceProfileBadge', () => {
     expect(screen.getByText('QUICK')).toBeInTheDocument();
   });
 
-  it('renders STRUCTURED label for legacy ENTERPRISE profile', () => {
+  it('renders CONTROLLED label for legacy ENTERPRISE profile', () => {
     render(<GovernanceProfileBadge profile="ENTERPRISE" />);
-    expect(screen.getByText('STRUCTURED')).toBeInTheDocument();
+    expect(screen.getByText('CONTROLLED')).toBeInTheDocument();
   });
 
   it('renders QUICK label for QUICK profile', () => {

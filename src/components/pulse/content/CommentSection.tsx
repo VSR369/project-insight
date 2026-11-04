@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
+import { CommentSectionLoading, CommentSectionError } from './CommentSectionStates';
 import { cn } from '@/lib/utils';
 import { useContentComments, useAddComment, useDeleteComment, PulseCommentWithProvider } from '@/hooks/queries/usePulseSocial';
 
@@ -24,7 +24,7 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
   const replyInputRef = useRef<HTMLTextAreaElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
-  const { data: comments, isLoading } = useContentComments(contentId);
+  const { data: comments, isLoading, isError, refetch } = useContentComments(contentId);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
 
@@ -210,21 +210,8 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4 p-4" aria-label="Loading comments">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="flex gap-3">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (isLoading) return <CommentSectionLoading />;
+  if (isError) return <CommentSectionError onRetry={() => refetch?.()} />;
 
   return (
     <section className="border-t border-border" aria-label="Comments">

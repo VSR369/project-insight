@@ -16,6 +16,8 @@ vi.mock("@/hooks/queries/usePulseStats", () => ({
     isLoading: false,
     isError: false,
   })),
+  useTodayLootBox: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
+  useTodayStandup: vi.fn(() => ({ data: null, isLoading: false, isError: false })),
 }));
 
 // Mock useProvider hook
@@ -69,7 +71,7 @@ describe("PulseDashboardWidget", () => {
       wrapper: createWrapper(),
     });
 
-    expect(container.textContent?.toLowerCase()).toContain("get started");
+    expect(container.textContent?.toLowerCase()).toContain("start your pulse journey");
   });
 
   it("renders active user with stats", () => {
@@ -113,7 +115,8 @@ describe("PulseDashboardWidget", () => {
       wrapper: createWrapper(),
     });
 
-    const feedLink = container.querySelector('a[href="/pulse/feed"]');
-    expect(feedLink).toBeTruthy();
+    // Widget navigates via buttons (useNavigate), not anchor links
+    const feedButton = Array.from(container.querySelectorAll('button')).find((b) => /pulse|feed/i.test(b.textContent ?? ''));
+    expect(feedButton).toBeTruthy();
   });
 });

@@ -4,7 +4,20 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, act } from '@testing-library/react';
+import type { ReactElement, ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TooltipProvider } from '@/components/ui/tooltip';
+
+function Providers({ children }: { children: ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={client}>
+      <TooltipProvider>{children}</TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: Providers });
 import { scanForContactInfo } from '@/lib/complianceScanner';
 
 /* ═══════════════════════════════════════════════════════════
@@ -280,7 +293,7 @@ describe('TW6-04: AGG model shows Anti-Disintermediation during enrollment', () 
       fireEvent.click(enrollButton);
     });
 
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+    expect(await screen.findByText('Step 1 of 2')).toBeInTheDocument();
     expect(screen.getByText('Legal Terms & NDA')).toBeInTheDocument();
   });
 });

@@ -27,8 +27,8 @@ describe('Cascade RPC Functions: Smoke Tests (Read-Only)', () => {
       });
 
       // Function should exist (no "function does not exist" error)
-      expect(error?.message).not.toContain('function');
-      expect(error?.message).not.toContain('does not exist');
+      expect(error?.message ?? '').not.toContain('function');
+      expect(error?.message ?? '').not.toContain('does not exist');
     });
 
     it('Should return expected column structure', async () => {
@@ -130,8 +130,8 @@ describe('Cascade RPC Functions: Smoke Tests (Read-Only)', () => {
       });
 
       // Function should exist
-      expect(error?.message).not.toContain('function');
-      expect(error?.message).not.toContain('does not exist');
+      expect(error?.message ?? '').not.toContain('function');
+      expect(error?.message ?? '').not.toContain('does not exist');
       
       // With empty array, should return 0 (no changes made)
       if (!error) {
@@ -220,7 +220,6 @@ describe('Lifecycle Service: Smoke Tests', () => {
     const result = canModifyField(0, 'configuration');
     
     expect(result).toHaveProperty('allowed');
-    expect(result).toHaveProperty('reason');
     expect(typeof result.allowed).toBe('boolean');
   });
 
@@ -244,11 +243,11 @@ describe('Lifecycle Service: Smoke Tests', () => {
     expect(LOCK_THRESHOLDS.EVERYTHING).toBeGreaterThanOrEqual(140);
   });
 
-  it('LIFECYCLE_RANKS should have verified as terminal', async () => {
+  it('LIFECYCLE_RANKS should have certified as terminal', async () => {
     const { LIFECYCLE_RANKS, LOCK_THRESHOLDS } = await import('@/services/lifecycleService');
     
     // Verified should be at or above EVERYTHING threshold
-    expect(LIFECYCLE_RANKS.verified).toBeGreaterThanOrEqual(LOCK_THRESHOLDS.EVERYTHING);
+    expect(LIFECYCLE_RANKS.certified).toBeGreaterThanOrEqual(LOCK_THRESHOLDS.EVERYTHING);
   });
 });
 

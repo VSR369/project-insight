@@ -2,6 +2,7 @@
  * Pulse Content Hooks Tests
  * Tests for usePulseContent, usePulseFeed, useMyPulseContent, and mutation hooks
  */
+import { fromByTable, type ChainCall } from "./chainMock";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
@@ -109,21 +110,8 @@ describe("usePulseFeed", () => {
   });
 
   it("filters feed by content type", async () => {
-    const mockSelect = vi.fn().mockReturnThis();
-    const mockEq = vi.fn().mockReturnThis();
-    const mockOrder = vi.fn().mockReturnThis();
-    const mockRange = vi.fn().mockResolvedValue({ data: [], error: null });
-
-    (supabase.from as any).mockReturnValue({
-      select: mockSelect,
-      eq: mockEq,
-      order: mockOrder,
-      range: mockRange,
-    });
-
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ eq: mockEq, order: mockOrder });
-    mockOrder.mockReturnValue({ range: mockRange });
+    const calls: ChainCall[] = [];
+    (supabase.from as any).mockImplementation(fromByTable({}, calls));
 
     const { result } = renderHook(
       () => usePulseFeed({ contentType: "spark" }),
@@ -134,8 +122,7 @@ describe("usePulseFeed", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    // Content type filter should be applied
-    expect(mockEq).toHaveBeenCalled();
+    expect(calls.some((c) => c.method === "eq" && c.args[0] === "content_type" && c.args[1] === "spark")).toBe(true);
   });
 
   it("handles empty feed state gracefully", async () => {
@@ -294,18 +281,8 @@ describe("useMyPulseContent", () => {
   });
 
   it("filters by status when provided", async () => {
-    const mockSelect = vi.fn().mockReturnThis();
-    const mockEq = vi.fn().mockReturnThis();
-    const mockOrder = vi.fn().mockResolvedValue({ data: [], error: null });
-
-    (supabase.from as any).mockReturnValue({
-      select: mockSelect,
-      eq: mockEq,
-      order: mockOrder,
-    });
-
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ eq: mockEq, order: mockOrder });
+    const calls: ChainCall[] = [];
+    (supabase.from as any).mockImplementation(fromByTable({}, calls));
 
     const { result } = renderHook(
       () => useMyPulseContent("provider-1", "draft"),
@@ -316,8 +293,7 @@ describe("useMyPulseContent", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    // Should have called eq with status filter
-    expect(mockEq).toHaveBeenCalled();
+    expect(calls.some((c) => c.method === "eq" && c.args[1] === "draft")).toBe(true);
   });
 });
 
