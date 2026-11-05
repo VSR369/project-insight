@@ -93,6 +93,10 @@ export default function QuickReviewPage() {
     );
   }
 
+  if (shouldShowPwaPrompt(hasCRRole, pwaStatus.data)) {
+    return <ReviewerPwaGate userId={user?.id ?? ''} onAccepted={() => refetch()} />;
+  }
+
   // ═══ SECTION 7: Render ═══
   return (
     <div className="p-4 lg:p-6 space-y-4">
