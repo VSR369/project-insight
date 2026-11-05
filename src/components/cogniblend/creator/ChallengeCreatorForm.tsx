@@ -8,15 +8,13 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Send, Save, Loader2, FlaskConical, Sparkles, Users } from 'lucide-react';
+import { Send, Save, Loader2, FlaskConical, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
@@ -47,6 +45,9 @@ import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegal
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
+import { buildCreatorSubmitPayload } from '@/services/cogniblend/creator/creatorPayload';
+import { SolverAudienceSelector } from './SolverAudienceSelector';
+import { useQuickLegalOverrideControls } from '@/hooks/cogniblend/useQuickLegalOverrideControls';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 // Legal v3: SKPA-on-submit removed (signed at org registration instead).
 
@@ -160,81 +161,14 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const isSubmitting = submitMutation.isPending;
   const isBusy = isSubmitting || draftSave.isSaving || uploadQuickOverride.isPending || deleteQuickOverride.isPending;
 
-  // One-time hydration: initialize the toggle from the saved override state
-  // when the draft first loads. After that, the creator's live selection wins
-  // and is NOT snapped back by query refetches.
-  const [hasHydratedQuickMode, setHasHydratedQuickMode] = useState(false);
-  useEffect(() => {
-    if (!isQuick || hasHydratedQuickMode) return;
-    if (quickLegalOverride === undefined) return; // wait until query resolves
-    form.setValue(
-      'quick_legal_override_mode',
-      quickLegalOverride ? 'REPLACE_DEFAULT' : 'KEEP_DEFAULT',
-      { shouldDirty: false },
-    );
-    setHasHydratedQuickMode(true);
-  }, [form, isQuick, quickLegalOverride, hasHydratedQuickMode]);
-
-  // Non-destructive toggle: only updates form state. The saved replacement is
-  // preserved when switching back to KEEP_DEFAULT — deletion is explicit only.
-  const handleQuickLegalOverrideChange = useCallback(async (nextMode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT') => {
-    form.setValue('quick_legal_override_mode', nextMode, { shouldDirty: true });
-  }, [form]);
-
-  // Explicit destructive remove: deletes the saved override row + storage object,
-  // then resets the toggle to KEEP_DEFAULT.
-  const handleQuickLegalOverrideRemove = useCallback(async () => {
-    if (!quickLegalOverride) {
-      form.setValue('quick_legal_override_mode', 'KEEP_DEFAULT', { shouldDirty: true });
-      return;
-    }
-    await deleteQuickOverride.mutateAsync({
-      challengeId: quickLegalOverride.challenge_id,
-      docId: quickLegalOverride.id,
-      storagePath: quickLegalOverride.lc_review_notes,
-    });
-    form.setValue('quick_legal_override_mode', 'KEEP_DEFAULT', { shouldDirty: true });
-  }, [deleteQuickOverride, form, quickLegalOverride]);
-
-  const handleQuickLegalOverrideUpload = useCallback(async (file: File) => {
-    const challengeId = await draftSave.handleSaveDraft();
-    if (!challengeId || !user?.id) return;
-
-    form.setValue('quick_legal_override_mode', 'REPLACE_DEFAULT', { shouldDirty: true });
-    await uploadQuickOverride.mutateAsync({
-      challengeId,
-      userId: user.id,
-      file,
-    });
-  }, [draftSave, form, uploadQuickOverride, user]);
-
-  const cleanArray = (items: string[] | undefined): string[] => (items || []).filter((i) => i.trim().length > 0);
+  const { handleQuickLegalOverrideChange, handleQuickLegalOverrideRemove, handleQuickLegalOverrideUpload } =
+    useQuickLegalOverrideControls({ form, isQuick, quickLegalOverride, userId: user?.id, saveDraft: draftSave.handleSaveDraft, uploadQuickOverride, deleteQuickOverride });
 
   const buildPayload = useCallback((data: CreatorFormValues) => {
     if (!currentOrg?.organizationId || !user?.id) throw new Error('Missing org or user context');
-    return {
-      orgId: currentOrg.organizationId, creatorId: user.id, operatingModel: engagementModel,
-      title: data.title, businessProblem: data.problem_statement,
-      expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
-      currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
-      expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags ?? [], urgency: 'standard',
-      industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
-      governanceModeOverride: governanceMode,
-      contextBackground: data.context_background || undefined, rootCauses: cleanArray(data.root_causes),
-      affectedStakeholders: data.affected_stakeholders.length > 0 ? data.affected_stakeholders : undefined,
-      preferredApproach: cleanArray(data.preferred_approach),
-      approachesNotOfInterest: cleanArray(data.approaches_not_of_interest),
-      currentDeficiencies: cleanArray(data.current_deficiencies),
-      maturityLevel: data.maturity_level || undefined, solutionMaturityId: data.solution_maturity_id || undefined,
-      ipModel: data.ip_model || undefined, hook: data.hook || undefined,
-      weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
-      deliverablesList: cleanArray(data.deliverables_list),
-      solverAudience: audienceSelectable(engagementModel) ? data.solver_audience : 'ALL',
-      evaluationMethod: data.evaluation_method,
-      evaluatorCount: data.evaluator_count,
-      creatorLegalInstructions: data.creator_legal_instructions || undefined,
-      phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined,
-    };
+    return buildCreatorSubmitPayload(data, {
+      orgId: currentOrg.organizationId, creatorId: user.id, engagementModel, governanceMode, industrySegmentId,
+    });
   }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
 
   const executeSubmit = useCallback(async (data: CreatorFormValues) => {
@@ -367,32 +301,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             governanceMode={governanceMode}
           />
         )}
-        {audienceSelectable(engagementModel) && (
-          <div className="rounded-lg border border-border p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              Solution Provider Audience
-            </div>
-            <RadioGroup
-              value={form.watch('solver_audience')}
-              onValueChange={(v) => form.setValue('solver_audience', v as 'ALL' | 'INTERNAL' | 'EXTERNAL', { shouldDirty: true })}
-              className="flex flex-col gap-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="ALL" id="sa-all" />
-                <Label htmlFor="sa-all" className="text-sm font-normal cursor-pointer">All Solution Providers</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="INTERNAL" id="sa-internal" />
-                <Label htmlFor="sa-internal" className="text-sm font-normal cursor-pointer">Internal Pool Only</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="EXTERNAL" id="sa-external" />
-                <Label htmlFor="sa-external" className="text-sm font-normal cursor-pointer">External Marketplace Only</Label>
-              </div>
-            </RadioGroup>
-          </div>
-        )}
+        {audienceSelectable(engagementModel) && <SolverAudienceSelector />}
         <CreatorLegalPreview
           governanceMode={governanceMode}
           engagementModel={engagementModel}
