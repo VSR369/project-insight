@@ -40,9 +40,9 @@ import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegal
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
 import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
-import { buildCreatorSubmitPayload } from '@/services/cogniblend/creator/creatorPayload';
 import { SolverAudienceSelector } from './SolverAudienceSelector';
 import { useQuickLegalOverrideControls } from '@/hooks/cogniblend/useQuickLegalOverrideControls';
+import { useCreatorSubmitFlow } from '@/hooks/cogniblend/useCreatorSubmitFlow';
 import { useCreatorFillTestData } from '@/hooks/cogniblend/useCreatorFillTestData';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 // Legal v3: SKPA-on-submit removed (signed at org registration instead).
@@ -160,67 +160,12 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const { handleQuickLegalOverrideChange, handleQuickLegalOverrideRemove, handleQuickLegalOverrideUpload } =
     useQuickLegalOverrideControls({ form, isQuick, quickLegalOverride, userId: user?.id, saveDraft: draftSave.handleSaveDraft, uploadQuickOverride, deleteQuickOverride });
 
-  const buildPayload = useCallback((data: CreatorFormValues) => {
-    if (!currentOrg?.organizationId || !user?.id) throw new Error('Missing org or user context');
-    return buildCreatorSubmitPayload(data, {
-      orgId: currentOrg.organizationId, creatorId: user.id, engagementModel, governanceMode, industrySegmentId,
-    });
-  }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
-
-  const executeSubmit = useCallback(async (data: CreatorFormValues) => {
-    const loadingToastId = toast.loading(isQuick ? 'Publishing challenge…' : 'Submitting challenge to Curator…');
-    try {
-      const payload = buildPayload(data);
-      const result = await submitMutation.mutateAsync({
-        ...payload, referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,
-        draftChallengeId: draftSave.draftChallengeId || undefined,
-      });
-      if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId && user?.id) {
-        await uploadFiles(attachedFiles, { challengeId: result.challengeId, orgId: currentOrg.organizationId, userId: user.id });
-      }
-      toast.dismiss(loadingToastId);
-      if (isQuick) {
-        toast.success('Challenge published successfully!');
-        setPublishedResult({ challengeId: result.challengeId, title: data.title });
-      } else {
-        toast.success(`Challenge "${data.title}" submitted to Curator for review.`);
-        navigate('/cogni/my-challenges');
-      }
-    } catch (err) {
-      toast.dismiss(loadingToastId);
-      if (err instanceof Error && !submitMutation.isError) {
-        toast.error(err.message || 'Submission failed. Please try again.');
-      }
-    }
-  }, [buildPayload, submitMutation, referenceUrls, draftSave.draftChallengeId, attachedFiles, currentOrg, user, navigate, isQuick, uploadFiles]);
-
-  const handleSubmit = form.handleSubmit(
-    async (data) => {
-      if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
-      // Legal v3: SKPA is signed at org registration (by Seeker Org Admin),
-      // and Creator role acceptance (RA) is collected at role grant via
-      // RoleLegalGate. No legal gate is required here at challenge submit.
-      // QUICK: open pre-publish confirmation modal first
-      if (isQuick) {
-        setPendingQuickData(data);
-        setShowQuickConfirm(true);
-        return;
-      }
-      await executeSubmit(data);
-    },
-    (errors) => {
-      const firstKey = Object.keys(errors)[0];
-      const firstError = errors[firstKey as keyof typeof errors];
-      toast.error(`Please fix: ${firstError?.message || firstKey}`);
-    },
-  );
-
-  const handleQuickConfirm = useCallback(async () => {
-    if (!pendingQuickData) return;
-    setShowQuickConfirm(false);
-    await executeSubmit(pendingQuickData);
-    setPendingQuickData(null);
-  }, [pendingQuickData, executeSubmit]);
+  const { handleSubmit, handleQuickConfirm } = useCreatorSubmitFlow({
+    form, isQuick, engagementModel, governanceMode, industrySegmentId,
+    orgId: currentOrg?.organizationId, userId: user?.id, tierLimit, submitMutation, uploadFiles,
+    referenceUrls, attachedFiles, draftChallengeId: draftSave.draftChallengeId,
+    pendingQuickData, setPendingQuickData, setShowQuickConfirm, setShowTierModal, setPublishedResult,
+  });
 
   const handleFillTestData = useCreatorFillTestData({
     form, governanceMode, engagementModel, industrySegmentId, solutionMaturityOptions, fieldRules,
