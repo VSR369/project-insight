@@ -13,6 +13,9 @@ import { ArrowLeft, Inbox, Shield, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { useQuickReviewData } from '@/hooks/cogniblend/useQuickReview';
+import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
+import { ReviewerPwaGate } from '@/components/cogniblend/shared/ReviewerPwaGate';
+import { shouldShowPwaPrompt } from '@/services/cogniblend/lifecycle/reviewerAgreement';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +36,7 @@ export default function QuickReviewPage() {
   // ═══ SECTION 3: Queries ═══
   const { data: roles } = useUserChallengeRoles(user?.id, challengeId);
   const { data, isLoading, error, refetch } = useQuickReviewData(challengeId);
+  const pwaStatus = usePwaStatus(user?.id);
 
   // ═══ SECTION 4: Derived ═══
   const hasCRRole = roles?.includes('CR') ?? false;
@@ -87,6 +91,10 @@ export default function QuickReviewPage() {
         </Card>
       </div>
     );
+  }
+
+  if (shouldShowPwaPrompt(hasCRRole, pwaStatus.data)) {
+    return <ReviewerPwaGate userId={user?.id ?? ''} onAccepted={() => refetch()} />;
   }
 
   // ═══ SECTION 7: Render ═══

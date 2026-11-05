@@ -19,6 +19,9 @@ import {
   type EvaluationCriterion,
 } from '@/hooks/cogniblend/useScreeningReview';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
+import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
+import { ReviewerPwaGate } from '@/components/cogniblend/shared/ReviewerPwaGate';
+import { shouldShowPwaPrompt } from '@/services/cogniblend/lifecycle/reviewerAgreement';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -401,8 +404,9 @@ export default function ScreeningReviewPage() {
 
   // ═══ SECTION 3: Queries ═══
   const { data: roles } = useUserChallengeRoles(userId, challengeId);
-  const { data, isLoading, error } = useScreeningData(challengeId, userId);
+  const { data, isLoading, error, refetch } = useScreeningData(challengeId, userId);
   const approveMutation = useApproveShortlist();
+  const pwaStatus = usePwaStatus(userId);
 
   // ═══ SECTION 3a: QUICK governance early redirect ═══
   // QUICK challenges use the simplified Creator-only review surface.
@@ -476,6 +480,10 @@ export default function ScreeningReviewPage() {
         </Card>
       </div>
     );
+  }
+
+  if (shouldShowPwaPrompt(hasAccess, pwaStatus.data)) {
+    return <ReviewerPwaGate userId={userId ?? ''} onAccepted={() => refetch()} />;
   }
 
   // ═══ SECTION 6: Handlers ═══
