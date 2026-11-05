@@ -55,7 +55,7 @@ import {
 } from 'lucide-react';
 
 import { AbstractDetail } from '@/components/cogniblend/screening/AbstractDetail';
-import { StatusBadge } from '@/components/cogniblend/screening/ScreeningScoringParts';
+import { AbstractListPanel } from '@/components/cogniblend/screening/AbstractListPanel';
 
 /* ─── Page Component ─────────────────────────────────────── */
 
@@ -224,42 +224,12 @@ export default function ScreeningReviewPage() {
       {/* Two-Panel Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Left Panel: Abstract List */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Submitted Abstracts</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {data.abstracts.length === 0 ? (
-              <div className="p-6 text-center">
-                <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No abstracts submitted yet.</p>
-              </div>
-            ) : (
-              <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
-                {data.abstracts.map((a) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setSelectedAbstractId(a.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-border last:border-b-0 transition-colors hover:bg-accent/50 ${
-                      selectedAbstractId === a.id ? 'bg-accent' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {isStructuredMode ? a.anonymousLabel : a.providerName ?? a.anonymousLabel}
-                      </span>
-                      <StatusBadge status={a.selectionStatus} />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : 'N/A'}
-                      {a.weightedTotal != null && ` · Score: ${a.weightedTotal.toFixed(1)}`}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <AbstractListPanel
+          abstracts={data.abstracts}
+          selectedAbstractId={selectedAbstractId}
+          onSelect={setSelectedAbstractId}
+          isStructuredMode={isStructuredMode}
+        />
 
         {/* Right Panel: Detail View */}
         <div className="lg:col-span-2">
