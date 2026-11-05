@@ -41,6 +41,16 @@ export function deriveInvitationState(row: CertifiedProviderRow, now: Date = new
   };
 }
 
+export async function fetchChallengeVisibility(challengeId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('visibility')
+    .eq('id', challengeId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { visibility: string } | null)?.visibility ?? null;
+}
+
 export async function fetchCertifiedProviders(challengeId: string): Promise<CertifiedProviderView[]> {
   const { data, error } = await supabase.rpc('list_certified_providers_for_challenge', {
     p_challenge_id: challengeId,

@@ -3,9 +3,19 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import {
   fetchCertifiedProviders,
+  fetchChallengeVisibility,
   inviteProvider,
   revokeInvitation,
 } from '@/services/cogniblend/lifecycle/challengeInvitations';
+
+export function useChallengeVisibility(challengeId: string | null) {
+  return useQuery({
+    queryKey: ['challenges', challengeId, 'visibility'],
+    queryFn: () => fetchChallengeVisibility(challengeId as string),
+    enabled: !!challengeId,
+    staleTime: 60_000,
+  });
+}
 
 export function useCertifiedProviders(challengeId: string | null) {
   return useQuery({
