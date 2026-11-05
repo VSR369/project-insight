@@ -17912,6 +17912,20 @@ export type Database = {
           version_status: string
         }[]
       }
+      list_certified_providers_for_challenge: {
+        Args: { p_challenge_id: string }
+        Returns: {
+          expertise_level: number
+          industry_segment_name: string
+          invitation_id: string
+          invitation_status: string
+          invited_at: string
+          provider_id: string
+          provider_name: string
+          star_rating: number
+          valid_until: string
+        }[]
+      }
       log_audit: {
         Args: {
           p_action: string
@@ -18146,6 +18160,10 @@ export type Database = {
       return_award: {
         Args: { p_decision_id: string; p_reason: string }
         Returns: undefined
+      }
+      revoke_challenge_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: Json
       }
       role_required_doc_codes: {
         Args: { p_role_code: string }

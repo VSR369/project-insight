@@ -21,6 +21,7 @@ import { CompletenessChecklistCard } from "@/components/cogniblend/curation/Comp
 import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
 import { LegalDocsSummaryCard } from "@/components/cogniblend/curation/LegalDocsSummaryCard";
 import { EscrowStatusCard } from "@/components/cogniblend/curation/EscrowStatusCard";
+import { ChallengeInvitationsCard } from "@/components/cogniblend/curation/ChallengeInvitationsCard";
 import { AIQualityCard, AIReviewSummaryCard, CompletionBanner } from "./RightRailCards";
 import type { BudgetShortfallResult } from "@/lib/cogniblend/budgetShortfallDetection";
 import type { GroupDef, AIQualitySummary } from "@/lib/cogniblend/curationTypes";
@@ -293,6 +294,7 @@ function CurationRightRailImpl(props: CurationRightRailProps) {
       {/* S7D-2: read-only LC/FC summaries — render only after compliance flags flip */}
       <LegalDocsSummaryCard challengeId={challengeId} />
       <EscrowStatusCard challengeId={challengeId} />
+      <ChallengeInvitationsCard challengeId={challengeId} />
 
       {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
