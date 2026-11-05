@@ -62,6 +62,7 @@ export interface SubmitPayload {
   creatorApprovalRequired?: boolean;
   communityCreationAllowed?: boolean;
   isAnonymous?: boolean;
+  confidentialBriefKeys?: string[];
 }
 
 export interface DraftPayload {
@@ -113,6 +114,7 @@ export interface DraftPayload {
   creatorApprovalRequired?: boolean;
   communityCreationAllowed?: boolean;
   isAnonymous?: boolean;
+  confidentialBriefKeys?: string[];
 }
 
 export interface SubmitResult {
@@ -221,6 +223,10 @@ export function buildChallengeUpdatePayload(
       specialty_tags: fp.specialtyTags?.length ? fp.specialtyTags : undefined,
     }),
     extended_brief: stripHiddenExtendedBriefFields(rawExtBrief, governanceRules),
+    // BR-CHL-P09: creator-marked confidential sections; the
+    // fn_extract_confidential_brief trigger moves these keys out of
+    // extended_brief into challenge_confidential_sections.
+    confidential_brief_keys: fp.confidentialBriefKeys ?? [],
     solver_audience: fp.solverAudience ?? 'ALL',
     evaluation_method: fp.evaluationMethod ?? 'SINGLE',
     evaluator_count: fp.evaluatorCount ?? 1,

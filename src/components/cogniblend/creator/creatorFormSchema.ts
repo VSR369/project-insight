@@ -117,6 +117,7 @@ export function buildCreatorSchema(governanceMode: GovernanceMode, engagementMod
     })).optional().default([]),
     community_creation_allowed: z.boolean().default(false),
     is_anonymous: z.boolean().default(true),
+    confidential_brief_keys: z.array(z.string()).default([]),
   });
 
   if (engagementModel === 'MP') {
@@ -169,6 +170,7 @@ export type CreatorFormValues = {
   }>;
   community_creation_allowed: boolean;
   is_anonymous: boolean;
+  confidential_brief_keys: string[];
 };
 
 export function toFormMaturityCode(value: string | null | undefined): string {
