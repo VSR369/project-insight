@@ -9,7 +9,7 @@
 - [x] W1 Batch 1C part 4 – Solution confidentiality + deadline freeze (DEF-0060); reviewer screens still call table selects (RLS now governs); signed-in multi-user e2e pending (external_unmanaged)
 - [x] Close-out Step 1 – provider agreement crash (v_org) fixed
 - [x] Close-out Step 2 – tests: full suite green (1,105 passed, 0 failed); 2 real fixes (AI review skip reason, comments error state), rest stale tests updated
-- [ ] Close-out Steps 3–9 – award buttons + fee/scheduled DONE (3); invite panel DONE (4); reviewer PWA prompt DONE (5); confidential picker DONE (6, live trigger verified); numbers sweep, file splits, acceptance report
-- [ ] Replace remaining hard-coded numbers with settings, theme by theme
+- [x] Close-out Steps 3–9 – award (3), invite panel (4), reviewer PWA (5), confidential picker (6), numbers sweep 10 rules (7), 3 Wave 1 files split (8), acceptance report (9)
+- [ ] Replace remaining hard-coded numbers with settings, theme by theme (Wave 2+; abstract 200 vs register 300 conflict needs a decision)
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)
