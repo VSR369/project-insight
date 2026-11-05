@@ -17627,6 +17627,7 @@ export type Database = {
         Args: { p_challenge: string }
         Returns: Record<string, unknown>
       }
+      fn_booked_backing_slot_ids: { Args: never; Returns: string[] }
       fn_can_view_solution: {
         Args: {
           p_challenge_id: string
