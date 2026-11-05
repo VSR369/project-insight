@@ -6,9 +6,7 @@
  */
 
 /** Role codes whose members must accept the PWA before viewing solutions. */
-export const PWA_REQUIRED_ROLE_CODES: readonly string[] = ['ER', 'CU', CR_CODE] as const;
-
-const CR_CODE = 'CR';
+export const PWA_REQUIRED_ROLE_CODES: readonly string[] = ['ER', 'CU', 'CR'] as const;
 
 export function roleRequiresPwa(roleCode: string): boolean {
   return PWA_REQUIRED_ROLE_CODES.includes(roleCode);
