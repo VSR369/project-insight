@@ -30,15 +30,18 @@ export const TIMELINE_OPTIONS = [
   { value: '6+_months', label: '6+ Months' },
 ];
 
-export const abstractFormSchema = z.object({
-  abstractText: z.string().min(200, 'Approach Summary must be at least 200 characters'),
+/** Approach Summary minimum comes from the settings register (solution_approach_summary_min_chars). */
+export function buildAbstractFormSchema(approachSummaryMinChars: number) {
+  return z.object({
+  abstractText: z.string().min(approachSummaryMinChars, `Approach Summary must be at least ${approachSummaryMinChars} characters`),
   methodology: z.string().min(100, 'Proposed Methodology must be at least 100 characters'),
   timeline: z.string().min(1, 'Please select an estimated timeline'),
   experience: z.string().min(1, 'Relevant Experience is required'),
   aiUsageDeclaration: z.string().min(4, 'AI Usage Declaration is required (min 4 characters)'),
-});
+  });
+}
 
-export type AbstractFormValues = z.infer<typeof abstractFormSchema>;
+export type AbstractFormValues = z.infer<ReturnType<typeof buildAbstractFormSchema>>;
 
 export const TIER_2_DOCUMENTS = [
   {
