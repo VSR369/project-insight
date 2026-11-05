@@ -17659,13 +17659,6 @@ export type Database = {
         Returns: Json
       }
       get_auth_user_id: { Args: never; Returns: string }
-      get_business_rule_numbers: {
-        Args: never
-        Returns: {
-          param_key: string
-          param_value: string
-        }[]
-      }
       get_cascade_impact_counts: {
         Args: { p_provider_id: string }
         Returns: {
