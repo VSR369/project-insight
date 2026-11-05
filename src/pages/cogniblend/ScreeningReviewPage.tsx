@@ -482,6 +482,10 @@ export default function ScreeningReviewPage() {
     );
   }
 
+  if (shouldShowPwaPrompt(hasAccess, pwaStatus.data)) {
+    return <ReviewerPwaGate userId={userId ?? ''} onAccepted={() => refetch()} />;
+  }
+
   // ═══ SECTION 6: Handlers ═══
   const handleApproveShortlist = () => {
     if (!challengeId) return;
