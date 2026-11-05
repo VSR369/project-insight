@@ -1,6 +1,6 @@
 /**
  * ReviewerPwaGate — Prompt shown to reviewers (ER/CU/CR) who reach a solution
- * review screen without an accepted Prize & Work Agreement. RLS already hides
+ * review screen without an accepted Platform Workforce Agreement. RLS already hides
  * the submissions server-side (BR-SEC-019); this replaces the confusing empty
  * list with an explanation and an accept action. Opens LegalGateModal on the
  * SOLUTION_REVIEW trigger; an existing global PWA acceptance auto-passes.

@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useSolverEnrollmentStatus } from '@/hooks/cogniblend/useSolverEnrollment';
 import {
   useTier2LegalStatus, useSolverSolution, useSaveSolutionDraft, useSubmitSolution,

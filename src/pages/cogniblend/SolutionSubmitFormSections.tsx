@@ -101,6 +101,7 @@ interface FormFieldsProps {
 
 export function SolutionFormFields({ form, attachedFiles, onFilesChange, isQuick, isEnterprise }: FormFieldsProps) {
   const maxFiles = useConfigNumber('solution_max_files');
+  const approachMin = useConfigNumber('solution_approach_summary_min_chars');
   const abstractTextValue = form.watch('abstractText');
   const methodologyValue = form.watch('methodology');
   const totalFileSize = attachedFiles.reduce((sum, f) => sum + f.size, 0);
@@ -112,7 +113,7 @@ export function SolutionFormFields({ form, attachedFiles, onFilesChange, isQuick
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Approach Summary</CardTitle>
-          <CardDescription>Describe your proposed approach (min 200 characters)</CardDescription>
+          <CardDescription>Describe your proposed approach (min {approachMin} characters)</CardDescription>
         </CardHeader>
         <CardContent>
           <FormField control={form.control} name="abstractText" render={({ field }) => (
@@ -122,8 +123,8 @@ export function SolutionFormFields({ form, attachedFiles, onFilesChange, isQuick
               </FormControl>
               <div className="flex justify-between items-center mt-1">
                 <FormMessage />
-                <span className={`text-xs ${(abstractTextValue?.length ?? 0) >= 200 ? 'text-primary' : 'text-muted-foreground'}`}>
-                  {abstractTextValue?.length ?? 0} / 200 min
+                <span className={`text-xs ${(abstractTextValue?.length ?? 0) >= approachMin ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {abstractTextValue?.length ?? 0} / {approachMin} min
                 </span>
               </div>
             </FormItem>
