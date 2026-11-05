@@ -1,3 +1,4 @@
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 /**
  * CurationActionModals — Return-to-Creator and Incomplete Items dialogs
  * extracted from CurationActions.
@@ -75,6 +76,7 @@ export function ReturnToCreatorModal({
   isPending,
   isFinalCycle,
 }: ReturnToCreatorModalProps) {
+  const minReasonLength = useConfigNumber('return_reason_min_length');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
@@ -104,9 +106,9 @@ export function ReturnToCreatorModal({
               className="mt-2"
               rows={5}
             />
-            {returnReason.trim().length > 0 && returnReason.trim().length < 10 && (
+            {returnReason.trim().length > 0 && returnReason.trim().length < minReasonLength && (
               <p className="text-xs text-destructive mt-1">
-                Reason must be at least 10 characters.
+                Reason must be at least {minReasonLength} characters.
               </p>
             )}
           </div>
@@ -117,7 +119,7 @@ export function ReturnToCreatorModal({
           </Button>
           <Button
             onClick={onSubmit}
-            disabled={returnReason.trim().length < 10 || isPending}
+            disabled={returnReason.trim().length < minReasonLength || isPending}
             className="border-amber-500 bg-amber-500 text-white hover:bg-amber-600"
           >
             {isPending && (

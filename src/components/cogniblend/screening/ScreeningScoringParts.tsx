@@ -34,6 +34,7 @@ export interface ScoringPanelProps {
   isStructuredOrAbove: boolean;
   weightedTotal: number | null;
   readOnly: boolean;
+  minCommentary: number;
 }
 
 export function ScoringPanel({
@@ -45,6 +46,7 @@ export function ScoringPanel({
   isStructuredOrAbove,
   weightedTotal,
   readOnly,
+  minCommentary,
 }: ScoringPanelProps) {
   return (
     <div className="space-y-4">
@@ -98,12 +100,12 @@ export function ScoringPanel({
         <Textarea
           value={commentary}
           onChange={(e) => onCommentaryChange(e.target.value)}
-          placeholder={isStructuredOrAbove ? 'Required for Structured/Controlled modes (min 100 chars)...' : 'Optional commentary...'}
+          placeholder={isStructuredOrAbove ? `Required for Structured/Controlled modes (min ${minCommentary} chars)...` : 'Optional commentary...'}
           rows={4}
           disabled={readOnly}
         />
         {isStructuredOrAbove && (
-          <p className="text-xs text-muted-foreground">{commentary.length}/100 characters minimum</p>
+          <p className="text-xs text-muted-foreground">{commentary.length}/{minCommentary} characters minimum</p>
         )}
       </div>
     </div>

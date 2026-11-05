@@ -160,6 +160,7 @@ export function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerI
         isStructuredOrAbove={isStructuredMode}
         weightedTotal={weightedTotal}
         readOnly={readOnly}
+        minCommentary={minCommentary}
       />
 
       {/* Actions */}
