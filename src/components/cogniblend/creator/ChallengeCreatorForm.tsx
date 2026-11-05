@@ -7,16 +7,10 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Send, Save, Loader2, FlaskConical, Sparkles, Users } from 'lucide-react';
-import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CreatorFormActionBar } from './CreatorFormActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
@@ -28,7 +22,6 @@ import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { CreatorLegalPreview } from './CreatorLegalPreview';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { filterSeedByGovernance } from '@/lib/cogniblend/governanceFieldFilter';
 import { buildCreatorSchema, type CreatorFormValues, toFormMaturityCode } from './creatorFormSchema';
 import { useCreatorDraftLoader } from '@/hooks/cogniblend/useCreatorDraftLoader';
 import { useCreatorDraftSave } from '@/hooks/cogniblend/useCreatorDraftSave';
@@ -37,7 +30,6 @@ import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
 import { ReferenceAttachmentsSection } from './ReferenceAttachmentsSection';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
-import { MP_SEED, AGG_SEED, getSeedForCombination } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
@@ -45,10 +37,13 @@ import { QuickPublishConfirmModal } from './QuickPublishConfirmModal';
 import { EvaluationMethodSection } from './EvaluationMethodSection';
 import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegalOverride } from '@/hooks/queries/useQuickLegalOverride';
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
-import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
+import { useCreatorTemplateContext } from '@/hooks/cogniblend/useCreatorTemplateContext';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
+import { SolverAudienceSelector } from './SolverAudienceSelector';
+import { useQuickLegalOverrideControls } from '@/hooks/cogniblend/useQuickLegalOverrideControls';
+import { useCreatorSubmitFlow } from '@/hooks/cogniblend/useCreatorSubmitFlow';
+import { useCreatorFillTestData } from '@/hooks/cogniblend/useCreatorFillTestData';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
-// Legal v3: SKPA-on-submit removed (signed at org registration instead).
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -63,7 +58,6 @@ interface ChallengeCreatorFormProps {
 export type { CreatorFormValues } from './creatorFormSchema';
 
 export function ChallengeCreatorForm({ engagementModel, governanceMode, industrySegmentId, onDraftModeSync, onFillTestData, onDraftIdChange, onIndustrySegmentResolved }: ChallengeCreatorFormProps) {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
@@ -87,7 +81,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [publishedResult, setPublishedResult] = useState<{ challengeId: string; title: string } | null>(null);
   const [showQuickConfirm, setShowQuickConfirm] = useState(false);
   const [pendingQuickData, setPendingQuickData] = useState<CreatorFormValues | null>(null);
-  // Legal v3: SKPA-on-submit state removed.
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
   const isControlled = governanceMode === 'CONTROLLED';
@@ -127,24 +120,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const { data: quickLegalOverride } = useQuickLegalOverride(draftSave.draftChallengeId ?? undefined);
   const { data: geoContext } = useGeoContextForOrg(currentOrg?.organizationId);
 
-  // Watch entire form to build live template-preview variables (single subscribe — R5 safe)
-  const watched = form.watch();
-  const templateContext = useMemo(() => buildPreviewVariables({
-    challenge_title: watched.title,
-    problem_statement: watched.problem_statement,
-    scope: watched.scope,
-    ip_model: watched.ip_model,
-    governance_mode: governanceMode,
-    operating_model: engagementModel,
-    prize_amount: watched.platinum_award,
-    currency: watched.currency_code,
-    evaluation_method: watched.evaluation_method,
-    evaluator_count: watched.evaluator_count,
-    solver_audience: watched.solver_audience,
-    seeker_org_name: currentOrg?.orgName,
-    jurisdiction: geoContext?.jurisdiction,
-    governing_law: geoContext?.governing_law,
-  }), [watched, governanceMode, engagementModel, currentOrg?.orgName, geoContext]);
+  const templateContext = useCreatorTemplateContext(form, governanceMode, engagementModel, currentOrg?.orgName, geoContext);
 
   const currentMaturityLevel = form.watch('maturity_level');
   const currentSolutionMaturityId = form.watch('solution_maturity_id');
@@ -160,163 +136,21 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const isSubmitting = submitMutation.isPending;
   const isBusy = isSubmitting || draftSave.isSaving || uploadQuickOverride.isPending || deleteQuickOverride.isPending;
 
-  // One-time hydration: initialize the toggle from the saved override state
-  // when the draft first loads. After that, the creator's live selection wins
-  // and is NOT snapped back by query refetches.
-  const [hasHydratedQuickMode, setHasHydratedQuickMode] = useState(false);
-  useEffect(() => {
-    if (!isQuick || hasHydratedQuickMode) return;
-    if (quickLegalOverride === undefined) return; // wait until query resolves
-    form.setValue(
-      'quick_legal_override_mode',
-      quickLegalOverride ? 'REPLACE_DEFAULT' : 'KEEP_DEFAULT',
-      { shouldDirty: false },
-    );
-    setHasHydratedQuickMode(true);
-  }, [form, isQuick, quickLegalOverride, hasHydratedQuickMode]);
+  const { handleQuickLegalOverrideChange, handleQuickLegalOverrideRemove, handleQuickLegalOverrideUpload } =
+    useQuickLegalOverrideControls({ form, isQuick, quickLegalOverride, userId: user?.id, saveDraft: draftSave.handleSaveDraft, uploadQuickOverride, deleteQuickOverride });
 
-  // Non-destructive toggle: only updates form state. The saved replacement is
-  // preserved when switching back to KEEP_DEFAULT — deletion is explicit only.
-  const handleQuickLegalOverrideChange = useCallback(async (nextMode: 'KEEP_DEFAULT' | 'REPLACE_DEFAULT') => {
-    form.setValue('quick_legal_override_mode', nextMode, { shouldDirty: true });
-  }, [form]);
+  const { handleSubmit, handleQuickConfirm } = useCreatorSubmitFlow({
+    form, isQuick, engagementModel, governanceMode, industrySegmentId,
+    orgId: currentOrg?.organizationId, userId: user?.id, tierLimit, submitMutation, uploadFiles,
+    referenceUrls, attachedFiles, draftChallengeId: draftSave.draftChallengeId,
+    pendingQuickData, setPendingQuickData, setShowQuickConfirm, setShowTierModal, setPublishedResult,
+  });
 
-  // Explicit destructive remove: deletes the saved override row + storage object,
-  // then resets the toggle to KEEP_DEFAULT.
-  const handleQuickLegalOverrideRemove = useCallback(async () => {
-    if (!quickLegalOverride) {
-      form.setValue('quick_legal_override_mode', 'KEEP_DEFAULT', { shouldDirty: true });
-      return;
-    }
-    await deleteQuickOverride.mutateAsync({
-      challengeId: quickLegalOverride.challenge_id,
-      docId: quickLegalOverride.id,
-      storagePath: quickLegalOverride.lc_review_notes,
-    });
-    form.setValue('quick_legal_override_mode', 'KEEP_DEFAULT', { shouldDirty: true });
-  }, [deleteQuickOverride, form, quickLegalOverride]);
-
-  const handleQuickLegalOverrideUpload = useCallback(async (file: File) => {
-    const challengeId = await draftSave.handleSaveDraft();
-    if (!challengeId || !user?.id) return;
-
-    form.setValue('quick_legal_override_mode', 'REPLACE_DEFAULT', { shouldDirty: true });
-    await uploadQuickOverride.mutateAsync({
-      challengeId,
-      userId: user.id,
-      file,
-    });
-  }, [draftSave, form, uploadQuickOverride, user]);
-
-  const cleanArray = (items: string[] | undefined): string[] => (items || []).filter((i) => i.trim().length > 0);
-
-  const buildPayload = useCallback((data: CreatorFormValues) => {
-    if (!currentOrg?.organizationId || !user?.id) throw new Error('Missing org or user context');
-    return {
-      orgId: currentOrg.organizationId, creatorId: user.id, operatingModel: engagementModel,
-      title: data.title, businessProblem: data.problem_statement,
-      expectedOutcomes: cleanArray(data.expected_outcomes), constraints: data.scope || '',
-      currency: data.currency_code, budgetMin: 0, budgetMax: data.platinum_award,
-      expectedTimeline: data.expected_timeline || '8w', domainTags: data.domain_tags ?? [], urgency: 'standard',
-      industrySegmentId: industrySegmentId || data.industry_segment_id || undefined,
-      governanceModeOverride: governanceMode,
-      contextBackground: data.context_background || undefined, rootCauses: cleanArray(data.root_causes),
-      affectedStakeholders: data.affected_stakeholders.length > 0 ? data.affected_stakeholders : undefined,
-      preferredApproach: cleanArray(data.preferred_approach),
-      approachesNotOfInterest: cleanArray(data.approaches_not_of_interest),
-      currentDeficiencies: cleanArray(data.current_deficiencies),
-      maturityLevel: data.maturity_level || undefined, solutionMaturityId: data.solution_maturity_id || undefined,
-      ipModel: data.ip_model || undefined, hook: data.hook || undefined,
-      weightedCriteria: data.weighted_criteria?.length ? data.weighted_criteria : undefined,
-      deliverablesList: cleanArray(data.deliverables_list),
-      solverAudience: audienceSelectable(engagementModel) ? data.solver_audience : 'ALL',
-      evaluationMethod: data.evaluation_method,
-      evaluatorCount: data.evaluator_count,
-      creatorLegalInstructions: data.creator_legal_instructions || undefined,
-      phaseDurations: data.phase_durations?.length ? data.phase_durations : undefined,
-    };
-  }, [currentOrg, user, engagementModel, governanceMode, industrySegmentId]);
-
-  const executeSubmit = useCallback(async (data: CreatorFormValues) => {
-    const loadingToastId = toast.loading(isQuick ? 'Publishing challenge…' : 'Submitting challenge to Curator…');
-    try {
-      const payload = buildPayload(data);
-      const result = await submitMutation.mutateAsync({
-        ...payload, referenceUrls: referenceUrls.length > 0 ? referenceUrls : undefined,
-        draftChallengeId: draftSave.draftChallengeId || undefined,
-      });
-      if (result.challengeId && attachedFiles.length > 0 && currentOrg?.organizationId && user?.id) {
-        await uploadFiles(attachedFiles, { challengeId: result.challengeId, orgId: currentOrg.organizationId, userId: user.id });
-      }
-      toast.dismiss(loadingToastId);
-      if (isQuick) {
-        toast.success('Challenge published successfully!');
-        setPublishedResult({ challengeId: result.challengeId, title: data.title });
-      } else {
-        toast.success(`Challenge "${data.title}" submitted to Curator for review.`);
-        navigate('/cogni/my-challenges');
-      }
-    } catch (err) {
-      toast.dismiss(loadingToastId);
-      if (err instanceof Error && !submitMutation.isError) {
-        toast.error(err.message || 'Submission failed. Please try again.');
-      }
-    }
-  }, [buildPayload, submitMutation, referenceUrls, draftSave.draftChallengeId, attachedFiles, currentOrg, user, navigate, isQuick, uploadFiles]);
-
-  const handleSubmit = form.handleSubmit(
-    async (data) => {
-      if (tierLimit && !tierLimit.allowed) { setShowTierModal(true); return; }
-      // Legal v3: SKPA is signed at org registration (by Seeker Org Admin),
-      // and Creator role acceptance (RA) is collected at role grant via
-      // RoleLegalGate. No legal gate is required here at challenge submit.
-      // QUICK: open pre-publish confirmation modal first
-      if (isQuick) {
-        setPendingQuickData(data);
-        setShowQuickConfirm(true);
-        return;
-      }
-      await executeSubmit(data);
-    },
-    (errors) => {
-      const firstKey = Object.keys(errors)[0];
-      const firstError = errors[firstKey as keyof typeof errors];
-      toast.error(`Please fix: ${firstError?.message || firstKey}`);
-    },
-  );
-
-  const handleQuickConfirm = useCallback(async () => {
-    if (!pendingQuickData) return;
-    setShowQuickConfirm(false);
-    await executeSubmit(pendingQuickData);
-    setPendingQuickData(null);
-  }, [pendingQuickData, executeSubmit]);
-
-  const handleFillTestData = useCallback(() => {
-    if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
-    const seed = getSeedForCombination(governanceMode as 'QUICK' | 'STRUCTURED' | 'CONTROLLED', engagementModel as 'MP' | 'AGG');
-    const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
-
-    // 3-tier industry resolution: prop → org primary → first available option
-    const resolvedIndustryId =
-      industrySegmentId
-      || orgContext?.primaryIndustryId
-      || industrySegmentOptions[0]?.id
-      || '';
-    if (resolvedIndustryId && resolvedIndustryId !== industrySegmentId) {
-      onIndustrySegmentResolved?.(resolvedIndustryId);
-    }
-
-    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: resolvedIndustryId }, fieldRules) : { ...seed, industry_segment_id: resolvedIndustryId };
-    form.reset(filtered as CreatorFormValues, { keepDefaultValues: true });
-    onFillTestData?.();
-    // Use rAF + microtask to ensure React has flushed form state before saving draft
-    requestAnimationFrame(() => {
-      void form.trigger().then(() => {
-        void draftSave.handleSaveDraft();
-      });
-    });
-  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId, industrySegmentOptions, orgContext?.primaryIndustryId, onIndustrySegmentResolved]);
+  const handleFillTestData = useCreatorFillTestData({
+    form, governanceMode, engagementModel, industrySegmentId, solutionMaturityOptions, fieldRules,
+    primaryIndustryId: orgContext?.primaryIndustryId, firstIndustryOptionId: industrySegmentOptions[0]?.id,
+    onIndustrySegmentResolved, onFillTestData, saveDraft: draftSave.handleSaveDraft,
+  });
 
   if (publishedResult && isQuick) {
     return (
@@ -367,32 +201,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
             governanceMode={governanceMode}
           />
         )}
-        {audienceSelectable(engagementModel) && (
-          <div className="rounded-lg border border-border p-4 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              Solution Provider Audience
-            </div>
-            <RadioGroup
-              value={form.watch('solver_audience')}
-              onValueChange={(v) => form.setValue('solver_audience', v as 'ALL' | 'INTERNAL' | 'EXTERNAL', { shouldDirty: true })}
-              className="flex flex-col gap-1.5"
-            >
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="ALL" id="sa-all" />
-                <Label htmlFor="sa-all" className="text-sm font-normal cursor-pointer">All Solution Providers</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="INTERNAL" id="sa-internal" />
-                <Label htmlFor="sa-internal" className="text-sm font-normal cursor-pointer">Internal Pool Only</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="EXTERNAL" id="sa-external" />
-                <Label htmlFor="sa-external" className="text-sm font-normal cursor-pointer">External Marketplace Only</Label>
-              </div>
-            </RadioGroup>
-          </div>
-        )}
+        {audienceSelectable(engagementModel) && <SolverAudienceSelector />}
         <CreatorLegalPreview
           governanceMode={governanceMode}
           engagementModel={engagementModel}
@@ -406,14 +215,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           isQuickOverrideBusy={uploadQuickOverride.isPending || deleteQuickOverride.isPending}
           templateContext={templateContext}
         />
-        <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
-          <div className="flex items-center gap-3 ml-auto">
-            <Button type="button" variant="outline" onClick={draftSave.handleSaveDraft} disabled={isBusy}>{draftSave.isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}Save Draft</Button>
-            <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span><Button type="button" variant={isControlled ? 'default' : 'outline'} onClick={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }} disabled={isBusy} className="gap-1.5"><Sparkles className="h-4 w-4" />AI Review{isControlled && <Badge variant="secondary" className="ml-1 text-[10px]">Advisory</Badge>}{isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Optional</Badge>}{!isControlled && !isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Recommended</Badge>}</Button></span></TooltipTrigger><TooltipContent>{draftSave.draftChallengeId ? 'Run AI review on your draft' : 'Will auto-save draft before review'}</TooltipContent></Tooltip></TooltipProvider>
-            <Button type="submit" disabled={isBusy}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}{isQuick ? 'Submit & Publish' : 'Submit to Curator'}</Button>
-          </div>
-        </div>
+        <CreatorFormActionBar
+          governanceMode={governanceMode}
+          isBusy={isBusy}
+          isSubmitting={isSubmitting}
+          isSaving={draftSave.isSaving}
+          hasDraft={!!draftSave.draftChallengeId}
+          onFillTestData={handleFillTestData}
+          onSaveDraft={draftSave.handleSaveDraft}
+          onAIReview={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }}
+        />
       </form>
       {showTierModal && tierLimit && <TierLimitModal isOpen={showTierModal} onClose={() => setShowTierModal(false)} tierName={tierLimit.tier_name} maxAllowed={tierLimit.max_allowed} currentActive={tierLimit.current_active} />}
       {showAIReview && draftSave.draftChallengeId && <CreatorAIReviewDrawer open={showAIReview} onClose={() => setShowAIReview(false)} challengeId={draftSave.draftChallengeId} governanceMode={governanceMode} engagementModel={engagementModel} industrySegmentId={industrySegmentId} onReviewComplete={() => setAiReviewCompleted(true)} />}
@@ -429,9 +240,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           isSubmitting={isSubmitting}
         />
       )}
-      {/* Legal v3: SKPA dialog removed from challenge submit. SKPA is signed
-          at org registration; Creator role acceptance is collected at role
-          grant via RoleLegalGate. */}
     </FormProvider>
   );
 }
