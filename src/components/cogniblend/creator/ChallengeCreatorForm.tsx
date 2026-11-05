@@ -8,12 +8,9 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Send, Save, Loader2, FlaskConical, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CreatorFormActionBar } from './CreatorFormActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
@@ -26,7 +23,6 @@ import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { CreatorLegalPreview } from './CreatorLegalPreview';
 import type { GovernanceMode } from '@/lib/governanceMode';
 import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
-import { filterSeedByGovernance } from '@/lib/cogniblend/governanceFieldFilter';
 import { buildCreatorSchema, type CreatorFormValues, toFormMaturityCode } from './creatorFormSchema';
 import { useCreatorDraftLoader } from '@/hooks/cogniblend/useCreatorDraftLoader';
 import { useCreatorDraftSave } from '@/hooks/cogniblend/useCreatorDraftSave';
@@ -35,7 +31,6 @@ import { EssentialDetailsTab } from './EssentialDetailsTab';
 import { AdditionalContextTab } from './AdditionalContextTab';
 import { ReferenceAttachmentsSection } from './ReferenceAttachmentsSection';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
-import { MP_SEED, AGG_SEED, getSeedForCombination } from './creatorSeedContent';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
 import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
@@ -48,6 +43,7 @@ import { audienceSelectable } from '@/services/engagementModelRulesService';
 import { buildCreatorSubmitPayload } from '@/services/cogniblend/creator/creatorPayload';
 import { SolverAudienceSelector } from './SolverAudienceSelector';
 import { useQuickLegalOverrideControls } from '@/hooks/cogniblend/useQuickLegalOverrideControls';
+import { useCreatorFillTestData } from '@/hooks/cogniblend/useCreatorFillTestData';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 // Legal v3: SKPA-on-submit removed (signed at org registration instead).
 
@@ -226,31 +222,11 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
     setPendingQuickData(null);
   }, [pendingQuickData, executeSubmit]);
 
-  const handleFillTestData = useCallback(() => {
-    if (form.formState.isDirty && !window.confirm('This will replace all current values. Continue?')) return;
-    const seed = getSeedForCombination(governanceMode as 'QUICK' | 'STRUCTURED' | 'CONTROLLED', engagementModel as 'MP' | 'AGG');
-    const maturityMatch = solutionMaturityOptions.find((m) => m.code.replace('SOLUTION_', '').toUpperCase() === seed.maturity_level.toUpperCase());
-
-    // 3-tier industry resolution: prop → org primary → first available option
-    const resolvedIndustryId =
-      industrySegmentId
-      || orgContext?.primaryIndustryId
-      || industrySegmentOptions[0]?.id
-      || '';
-    if (resolvedIndustryId && resolvedIndustryId !== industrySegmentId) {
-      onIndustrySegmentResolved?.(resolvedIndustryId);
-    }
-
-    const filtered = fieldRules ? filterSeedByGovernance({ ...seed, maturity_level: maturityMatch?.code ?? seed.maturity_level, solution_maturity_id: maturityMatch?.id ?? '', industry_segment_id: resolvedIndustryId }, fieldRules) : { ...seed, industry_segment_id: resolvedIndustryId };
-    form.reset(filtered as CreatorFormValues, { keepDefaultValues: true });
-    onFillTestData?.();
-    // Use rAF + microtask to ensure React has flushed form state before saving draft
-    requestAnimationFrame(() => {
-      void form.trigger().then(() => {
-        void draftSave.handleSaveDraft();
-      });
-    });
-  }, [governanceMode, engagementModel, solutionMaturityOptions, form, fieldRules, onFillTestData, draftSave, industrySegmentId, industrySegmentOptions, orgContext?.primaryIndustryId, onIndustrySegmentResolved]);
+  const handleFillTestData = useCreatorFillTestData({
+    form, governanceMode, engagementModel, industrySegmentId, solutionMaturityOptions, fieldRules,
+    primaryIndustryId: orgContext?.primaryIndustryId, firstIndustryOptionId: industrySegmentOptions[0]?.id,
+    onIndustrySegmentResolved, onFillTestData, saveDraft: draftSave.handleSaveDraft,
+  });
 
   if (publishedResult && isQuick) {
     return (
@@ -315,14 +291,16 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           isQuickOverrideBusy={uploadQuickOverride.isPending || deleteQuickOverride.isPending}
           templateContext={templateContext}
         />
-        <div className="flex items-center justify-between gap-3 pt-4 border-t border-border">
-          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={handleFillTestData}><FlaskConical className="h-4 w-4 mr-1.5" />Fill Test Data</Button>
-          <div className="flex items-center gap-3 ml-auto">
-            <Button type="button" variant="outline" onClick={draftSave.handleSaveDraft} disabled={isBusy}>{draftSave.isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Save className="h-4 w-4 mr-1.5" />}Save Draft</Button>
-            <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span><Button type="button" variant={isControlled ? 'default' : 'outline'} onClick={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }} disabled={isBusy} className="gap-1.5"><Sparkles className="h-4 w-4" />AI Review{isControlled && <Badge variant="secondary" className="ml-1 text-[10px]">Advisory</Badge>}{isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Optional</Badge>}{!isControlled && !isQuick && <Badge variant="outline" className="ml-1 text-[10px]">Recommended</Badge>}</Button></span></TooltipTrigger><TooltipContent>{draftSave.draftChallengeId ? 'Run AI review on your draft' : 'Will auto-save draft before review'}</TooltipContent></Tooltip></TooltipProvider>
-            <Button type="submit" disabled={isBusy}>{isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Send className="h-4 w-4 mr-1.5" />}{isQuick ? 'Submit & Publish' : 'Submit to Curator'}</Button>
-          </div>
-        </div>
+        <CreatorFormActionBar
+          governanceMode={governanceMode}
+          isBusy={isBusy}
+          isSubmitting={isSubmitting}
+          isSaving={draftSave.isSaving}
+          hasDraft={!!draftSave.draftChallengeId}
+          onFillTestData={handleFillTestData}
+          onSaveDraft={draftSave.handleSaveDraft}
+          onAIReview={async () => { await draftSave.handleSaveDraft(); setShowAIReview(true); }}
+        />
       </form>
       {showTierModal && tierLimit && <TierLimitModal isOpen={showTierModal} onClose={() => setShowTierModal(false)} tierName={tierLimit.tier_name} maxAllowed={tierLimit.max_allowed} currentActive={tierLimit.current_active} />}
       {showAIReview && draftSave.draftChallengeId && <CreatorAIReviewDrawer open={showAIReview} onClose={() => setShowAIReview(false)} challengeId={draftSave.draftChallengeId} governanceMode={governanceMode} engagementModel={engagementModel} industrySegmentId={industrySegmentId} onReviewComplete={() => setAiReviewCompleted(true)} />}
