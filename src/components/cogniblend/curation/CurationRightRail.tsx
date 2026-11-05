@@ -21,6 +21,7 @@ import { CompletenessChecklistCard } from "@/components/cogniblend/curation/Comp
 import { ContextLibraryCard } from "@/components/cogniblend/curation/ContextLibraryCard";
 import { LegalDocsSummaryCard } from "@/components/cogniblend/curation/LegalDocsSummaryCard";
 import { EscrowStatusCard } from "@/components/cogniblend/curation/EscrowStatusCard";
+import { ChallengeInvitationsCard } from "@/components/cogniblend/curation/ChallengeInvitationsCard";
 import { AIQualityCard, AIReviewSummaryCard, CompletionBanner } from "./RightRailCards";
 import type { BudgetShortfallResult } from "@/lib/cogniblend/budgetShortfallDetection";
 import type { GroupDef, AIQualitySummary } from "@/lib/cogniblend/curationTypes";
