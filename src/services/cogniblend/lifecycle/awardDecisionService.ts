@@ -25,6 +25,42 @@ export async function recommendAward(params: {
   return data as unknown as string;
 }
 
+export interface AwardDecisionRow {
+  id: string;
+  outcome: string;
+  decision_status: string;
+  recommended_by: string;
+  confirmed_by: string | null;
+  recommendation_note: string | null;
+  return_reason: string | null;
+  created_at: string;
+}
+
+export interface AwardChallengeRow { id: string; title: string; status: string }
+
+export async function fetchAwardChallenges(): Promise<AwardChallengeRow[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('id, title, status')
+    .in('status', ['EVALUATION', 'AWARDED'])
+    .order('updated_at', { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AwardChallengeRow[];
+}
+
+export async function fetchLatestAwardDecision(challengeId: string): Promise<AwardDecisionRow | null> {
+  const { data, error } = await supabase
+    .from('challenge_award_decisions')
+    .select('id, outcome, decision_status, recommended_by, confirmed_by, recommendation_note, return_reason, created_at')
+    .eq('challenge_id', challengeId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as AwardDecisionRow | null) ?? null;
+}
+
 export async function confirmAward(decisionId: string): Promise<unknown> {
   const { data, error } = await supabase.rpc('confirm_award', { p_decision_id: decisionId });
   if (error) throw new Error(error.message);
