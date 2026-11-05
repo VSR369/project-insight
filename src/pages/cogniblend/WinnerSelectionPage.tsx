@@ -1,73 +1,53 @@
 /**
  * WinnerSelectionPage — /cogni/selection
- * Placeholder for winner selection flow with WINNER_SELECTED legal gate wired in.
- * When "Confirm Winner" is clicked, the legal gate fires first (IPAA).
+ * Award recommend → confirm/return → countersign. Confirm is gated by IPAA.
  */
-
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { useSearchParams } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Award, ShieldCheck, Trophy } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Trophy } from 'lucide-react';
 import { useLegalGateAction } from '@/hooks/legal/useLegalGateAction';
 import { LegalGateModal } from '@/components/legal/LegalGateModal';
-import { toast } from 'sonner';
+import { useAwardChallenges } from '@/hooks/cogniblend/useAwardDecision';
+import { AwardDecisionPanel } from '@/components/cogniblend/award/AwardDecisionPanel';
 
 export default function WinnerSelectionPage() {
-  const [confirmed, setConfirmed] = useState(false);
-
-  const legalGate = useLegalGateAction({
-    triggerEvent: 'WINNER_SELECTED',
-    userRole: 'ALL',
-    governanceMode: 'ALL',
-  });
-
-  const handleConfirmWinner = () => {
-    legalGate.gateAction(() => {
-      setConfirmed(true);
-      toast.success('Winner confirmed successfully');
-    });
-  };
+  const [params, setParams] = useSearchParams();
+  const legalGate = useLegalGateAction({ triggerEvent: 'WINNER_SELECTED', userRole: 'ALL', governanceMode: 'ALL' });
+  const challenges = useAwardChallenges();
+  const selected = params.get('challenge');
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
         <Trophy className="h-6 w-6 text-primary" />
-        <h1 className="text-2xl font-semibold text-foreground">Selection & IP</h1>
-        <Badge variant="outline">Coming Soon</Badge>
+        <h1 className="text-2xl font-semibold text-foreground">Selection &amp; Award</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Award className="h-5 w-5 text-primary" />
-            Winner Selection Flow
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Select winning solutions and manage IP transfer processes.
-            The confirmation action is gated by the IPAA legal agreement.
-          </p>
+      {challenges.isLoading && <Skeleton className="h-11 w-full" />}
+      {challenges.isError && (
+        <Card><CardContent className="p-4 space-y-2">
+          <p className="text-sm text-destructive">Could not load challenges.</p>
+          <Button variant="outline" onClick={() => challenges.refetch()}>Retry</Button>
+        </CardContent></Card>
+      )}
+      {challenges.data && challenges.data.length === 0 && (
+        <Card><CardContent className="p-6 text-sm text-muted-foreground">
+          No challenges are in evaluation or award yet.
+        </CardContent></Card>
+      )}
+      {challenges.data && challenges.data.length > 0 && (
+        <Select value={selected ?? undefined} onValueChange={(v) => setParams({ challenge: v })}>
+          <SelectTrigger aria-label="Choose challenge" className="h-11"><SelectValue placeholder="Choose a challenge" /></SelectTrigger>
+          <SelectContent>
+            {challenges.data.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
 
-          <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30">
-            <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              Confirming a winner requires acceptance of the IP &amp; Award Agreement (IPAA)
-              by both the Challenge Representative and the winning solver.
-            </p>
-          </div>
-
-          {confirmed ? (
-            <Badge className="bg-green-100 text-green-800">Winner Confirmed</Badge>
-          ) : (
-            <Button onClick={handleConfirmWinner}>
-              <Trophy className="h-4 w-4 mr-1.5" />
-              Confirm Winner
-            </Button>
-          )}
-        </CardContent>
-      </Card>
+      {selected && <AwardDecisionPanel challengeId={selected} onWinnerConfirm={legalGate.gateAction} />}
 
       {legalGate.showGate && (
         <LegalGateModal

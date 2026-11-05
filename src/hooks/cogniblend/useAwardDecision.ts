@@ -1,4 +1,18 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchAwardChallenges, fetchLatestAwardDecision } from '@/services/cogniblend/lifecycle/awardDecisionService';
+
+export function useAwardChallenges() {
+  return useQuery({ queryKey: ['challenges', { award: true }], queryFn: fetchAwardChallenges, staleTime: 30_000 });
+}
+
+export function useLatestAwardDecision(challengeId: string | null) {
+  return useQuery({
+    queryKey: ['challenges', challengeId, 'award-decisions'],
+    queryFn: () => fetchLatestAwardDecision(challengeId as string),
+    enabled: !!challengeId,
+    staleTime: 0,
+  });
+}
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import {
