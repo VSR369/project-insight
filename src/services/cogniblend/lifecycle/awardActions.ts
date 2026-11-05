@@ -16,6 +16,8 @@ export interface AwardActionSet {
   canConfirm: boolean;
   canReturn: boolean;
   canCountersign: boolean;
+  /** True when confirming now would make recommender = confirmer (DEF-0145) → Platform countersign. */
+  confirmNeedsCountersign: boolean;
 }
 
 export const RETURN_REASON_MIN = 10;
@@ -26,9 +28,10 @@ export function getAwardActions(i: AwardActionInput): AwardActionSet {
   const isConfirmer = i.confirmedBy === i.userId;
   return {
     canRecommend: i.status === null || i.status === 'RETURNED',
-    canConfirm: i.status === 'PROPOSED' && !isRecommender,
+    canConfirm: i.status === 'PROPOSED',
     canReturn: i.status === 'PROPOSED' && !isRecommender,
     canCountersign: i.status === 'AWAITING_COUNTERSIGN' && !isRecommender && !isConfirmer,
+    confirmNeedsCountersign: i.status === 'PROPOSED' && isRecommender,
   };
 }
 
@@ -41,7 +44,7 @@ export function validateReturnReason(reason: string): string | null {
 
 export const AWARD_STATUS_LABEL: Record<AwardDecisionStatus, string> = {
   PROPOSED: 'Waiting for confirmation',
-  AWAITING_COUNTERSIGN: 'Waiting for countersignature',
+  AWAITING_COUNTERSIGN: 'Awaiting Platform countersign',
   CONFIRMED: 'Confirmed',
   RETURNED: 'Returned to recommender',
 };

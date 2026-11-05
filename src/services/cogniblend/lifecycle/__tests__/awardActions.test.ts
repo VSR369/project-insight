@@ -4,14 +4,16 @@ import { getAwardActions, validateReturnReason } from '../awardActions';
 const base = { recommendedBy: 'u1', confirmedBy: null, userId: 'u2' };
 
 describe('award actions', () => {
-  it('recommender cannot confirm their own recommendation', () => {
+  it('DEF-0145: recommender confirming their own recommendation routes to Platform countersign', () => {
     const a = getAwardActions({ ...base, status: 'PROPOSED', userId: 'u1' });
-    expect(a.canConfirm).toBe(false);
+    expect(a.canConfirm).toBe(true);
+    expect(a.confirmNeedsCountersign).toBe(true);
     expect(a.canReturn).toBe(false);
   });
-  it('a different person can confirm or return', () => {
+  it('DEF-0145: a different confirmer makes the award final without countersign', () => {
     const a = getAwardActions({ ...base, status: 'PROPOSED' });
     expect(a.canConfirm).toBe(true);
+    expect(a.confirmNeedsCountersign).toBe(false);
     expect(a.canReturn).toBe(true);
   });
   it('countersign must be a third person', () => {
