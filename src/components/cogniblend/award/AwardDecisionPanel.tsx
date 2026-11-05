@@ -61,8 +61,8 @@ export function AwardDecisionPanel({ challengeId, onWinnerConfirm }: AwardDecisi
         {d?.return_reason && status === 'RETURNED' && (
           <p className="text-sm text-muted-foreground">Returned because: {d.return_reason}</p>
         )}
-        {status === 'PROPOSED' && !actions.canConfirm && (
-          <p className="text-sm text-muted-foreground">You recommended this award. A different person must confirm it.</p>
+        {actions.confirmNeedsCountersign && (
+          <p className="text-sm text-muted-foreground">You recommended this award. If you also confirm it, it will be marked "Awaiting Platform countersign" until a Senior Admin or Supervisor countersigns. If a different person confirms, the award becomes final.</p>
         )}
         <div className="flex flex-wrap gap-2">
           {actions.canRecommend && (
