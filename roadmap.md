@@ -12,6 +12,12 @@
   - [x] R8 Fix DB warnings: missing RLS, exposed functions
   - [x] R9 New setting solution_approach_summary_min_chars=200; keep abstract_min_chars=300
   - [x] R10 Manual script additions (5 signed-in checks) + acceptance report v2
+- [x] Pre-W2: one-off snapshot backfill of open enrolments/assessments/bookings/awards; threshold ranges USD/EUR/GBP 1,000–10,000,000, INR 50,000–1,000,000,000
+- [ ] Pre-W2 (VSR owns): signed-in manual script run; test account in test environment for 69 integration tests every wave; leaked-password switch
+- [ ] W2 start: review the 7 security definer views
+- [ ] W2: cancel rights — Creator or Curator before publication; R6_AGG or R2 once published; Senior Admin on written request after any submission; update useCancelChallenge test
+- [ ] W2: DEF-0144 Express/High-Rigor limits (USD 5,000 / 25,000 + currency values) as separate settings
+- [ ] W2: legal_review_threshold is no longer read by any live server step — re-wire STRUCTURED legal-review routing to it
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)
 - [ ] Replace remaining hard-coded numbers with settings, theme by theme (W2+)
