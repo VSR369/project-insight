@@ -31,7 +31,7 @@ interface RoleLegalGateProps {
 const DOC_TITLE: Record<string, string> = {
   SPA: 'Solution Provider Platform Agreement',
   SKPA: 'Seeking Organization Platform Agreement',
-  PWA: 'Prize & Work Agreement',
+  PWA: 'Platform Workforce Agreement',
 };
 
 export function RoleLegalGate({ userId, onAllAccepted, onDeclined }: RoleLegalGateProps) {

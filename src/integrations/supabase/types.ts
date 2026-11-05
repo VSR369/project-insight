@@ -2573,6 +2573,7 @@ export type Database = {
           min_expertise_level: number
           min_star_tier: number
           operating_model: string | null
+          org_display_name: string | null
           organization_id: string
           pass3_stale: boolean | null
           payment_status: string | null
@@ -2679,6 +2680,7 @@ export type Database = {
           min_expertise_level?: number
           min_star_tier?: number
           operating_model?: string | null
+          org_display_name?: string | null
           organization_id: string
           pass3_stale?: boolean | null
           payment_status?: string | null
@@ -2785,6 +2787,7 @@ export type Database = {
           min_expertise_level?: number
           min_star_tier?: number
           operating_model?: string | null
+          org_display_name?: string | null
           organization_id?: string
           pass3_stale?: boolean | null
           payment_status?: string | null
@@ -17706,14 +17709,6 @@ export type Database = {
           specialty_proof_points_count: number
         }[]
       }
-      get_challenge_org_displays: {
-        Args: { p_challenge_ids: string[] }
-        Returns: {
-          challenge_id: string
-          org_display: string
-          trade_brand_name: string
-        }[]
-      }
       get_config: { Args: never; Returns: Json }
       get_eligible_admins_ranked: {
         Args: {
@@ -18292,14 +18287,6 @@ export type Database = {
       update_master_status: {
         Args: { p_challenge_id: string }
         Returns: undefined
-      }
-      update_money_threshold: {
-        Args: {
-          p_amount: number
-          p_change_reason: string
-          p_threshold_id: string
-        }
-        Returns: Json
       }
       validate_curation_checklist: {
         Args: { p_challenge_id: string }

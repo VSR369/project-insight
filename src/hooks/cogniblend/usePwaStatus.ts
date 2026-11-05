@@ -1,5 +1,5 @@
 /**
- * usePwaStatus — Checks if user has accepted the Prize & Work Agreement.
+ * usePwaStatus — Checks if user has accepted the Platform Workforce Agreement.
  * Uses CACHE_STATIC (30min) — acceptance is immutable within a session.
  */
 import { useQuery } from '@tanstack/react-query';

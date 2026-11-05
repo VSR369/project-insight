@@ -89,7 +89,7 @@ export const DOCUMENT_CODE_LABELS: Record<DocumentCode, string> = {
   EPIA: 'Escrow, Payment & Integrity Agreement (archived)',
   SPA: 'Solution Provider Platform Agreement',
   SKPA: 'Seeker Org Platform Agreement',
-  PWA: 'Role Agreement (Prize & Work)',
+  PWA: 'Platform Workforce Agreement',
   RA_R2: 'Seeker Admin Role Agreement',
   CPA_QUICK: 'CPA Template (Quick)',
   CPA_STRUCTURED: 'CPA Template (Structured)',

@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { useAuth } from '@/hooks/useAuth';
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useSolverEnrollmentStatus } from '@/hooks/cogniblend/useSolverEnrollment';
 import {
   useTier2LegalStatus, useSolverSolution, useSaveSolutionDraft, useSubmitSolution,
@@ -25,7 +26,7 @@ import { CACHE_STANDARD } from '@/config/queryCache';
 import { Form } from '@/components/ui/form';
 import { toast } from 'sonner';
 
-import { abstractFormSchema, TIER_2_DOCUMENTS, MAX_TOTAL_FILE_SIZE } from './SolutionSubmitConstants';
+import { buildAbstractFormSchema, TIER_2_DOCUMENTS, MAX_TOTAL_FILE_SIZE } from './SolutionSubmitConstants';
 import type { AbstractFormValues } from './SolutionSubmitConstants';
 import {
   SolutionSubmitLoading, EnrollmentRequiredScreen, WithdrawnScreen,
@@ -51,8 +52,9 @@ export default function SolutionSubmitPage() {
   const userId = user?.id;
 
   // ═══ SECTION 3: Form ═══
+  const approachSummaryMin = useConfigNumber('solution_approach_summary_min_chars');
   const form = useForm<AbstractFormValues>({
-    resolver: zodResolver(abstractFormSchema),
+    resolver: zodResolver(buildAbstractFormSchema(approachSummaryMin)),
     defaultValues: { abstractText: '', methodology: '', timeline: '', experience: '', aiUsageDeclaration: '' },
   });
   const { clearPersistedData: clearSolutionPersistence } = useFormPersistence(

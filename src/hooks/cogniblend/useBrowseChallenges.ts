@@ -49,7 +49,7 @@ interface RawChallengeRow {
   solver_audience: string | null;
   organization_id: string;
   disclose_org_name: boolean | null;
-  seeker_organizations: { organization_name: string; trade_brand_name: string | null } | null;
+  org_display_name: string | null;
   industry_segments: { name: string } | null;
 }
 
@@ -89,10 +89,7 @@ export function useBrowseChallenges() {
           id, title, problem_statement, hook, master_status, status,
           complexity_level, maturity_level, submission_deadline,
           currency_code, total_fee, created_at, published_at, visibility,
-          operating_model, solver_audience, organization_id, disclose_org_name,
-          seeker_organizations!challenges_organization_id_fkey (
-            organization_name, trade_brand_name
-          ),
+          operating_model, solver_audience, organization_id, disclose_org_name, org_display_name,
           industry_segments (name)
         `)
         .eq('is_deleted', false)
@@ -121,12 +118,8 @@ export function useBrowseChallenges() {
             created_at: row.created_at,
             published_at: row.published_at,
             visibility: row.visibility,
-            organization_name: row.disclose_org_name
-              ? row.seeker_organizations?.organization_name ?? null
-              : CONFIDENTIAL_ORG_LABEL,
-            trade_brand_name: row.disclose_org_name
-              ? row.seeker_organizations?.trade_brand_name ?? null
-              : null,
+            organization_name: row.org_display_name ?? CONFIDENTIAL_ORG_LABEL,
+            trade_brand_name: null,
             industry_name: row.industry_segments?.name ?? null,
           };
         });

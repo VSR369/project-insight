@@ -1,6 +1,6 @@
 /**
  * reviewerAgreement — mirror of the BR-SEC-019 rule that solution review
- * screens require an accepted Prize & Work Agreement (document_code ILIKE
+ * screens require an accepted Platform Workforce Agreement (document_code ILIKE
  * 'PWA%'). fn_can_view_solution / fn_has_accepted_pwa are the enforcement
  * authority; this module only decides when the UI shows the prompt.
  */

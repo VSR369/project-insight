@@ -17,13 +17,16 @@ interface LogConfidentialAccessInput {
 
 export function useLogConfidentialAccess() {
   return useMutation({
-    mutationFn: async ({ challengeId, attachmentId, action }: LogConfidentialAccessInput): Promise<void> => {
-      const { error } = await supabase.rpc('log_confidential_content_access', {
+    /** Logs the access on the server; for downloads returns the storage path the server released. */
+    mutationFn: async ({ challengeId, attachmentId, action }: LogConfidentialAccessInput): Promise<string | null> => {
+      const { data, error } = await supabase.rpc('log_confidential_content_access', {
         p_challenge_id: challengeId,
         p_attachment_id: attachmentId ?? null,
         p_action: action.toUpperCase(),
       });
       if (error) throw error;
+      const result = data as { storage_path?: string | null } | null;
+      return result?.storage_path ?? null;
     },
     onError: (e) => handleMutationError(e, { operation: 'log_confidential_content_access' }),
   });

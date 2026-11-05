@@ -65,7 +65,7 @@ const ALL_OVERRIDES: OverrideSpec[] = [
   {
     docCode: 'PWA',
     bucket: 'PWA_CU_ER',
-    title: 'Prize & Work Agreement — Curators / Expert Reviewers',
+    title: 'Platform Workforce Agreement — Curators / Expert Reviewers',
     appliesToRoles: 'Curators (CU), Expert Reviewers (ER)',
     description:
       'Signed by curators and expert reviewers on first login. AGG-only override.',
@@ -73,7 +73,7 @@ const ALL_OVERRIDES: OverrideSpec[] = [
   {
     docCode: 'PWA',
     bucket: 'PWA_LC_FC',
-    title: 'Prize & Work Agreement — Legal / Finance Coordinators',
+    title: 'Platform Workforce Agreement — Legal / Finance Coordinators',
     appliesToRoles: 'Legal Coordinator (LC), Finance Coordinator (FC)',
     description:
       'Signed by Legal and Finance coordinators on first login. Always overridable by the seeker organization (both MP and AGG).',
