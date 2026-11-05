@@ -6,8 +6,8 @@
 import React, { useMemo, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import type { SectionKey, SectionStoreEntry } from '@/types/sections';
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Bot, Loader2, Sparkles, BookOpen, FileText, Activity } from "lucide-react";
+import { FileText, Activity } from "lucide-react";
+import { CurationAIWorkflowButtons } from "./CurationAIWorkflowButtons";
 import { useNavigate } from "react-router-dom";
 import { DiagnosticsSheet } from "@/components/cogniblend/diagnostics/DiagnosticsSheet";
 import CurationActions from "@/components/cogniblend/curation/CurationActions";
@@ -183,61 +183,15 @@ function CurationRightRailImpl(props: CurationRightRailProps) {
         onReReviewSection={props.onReReviewSection}
       />
       {/* PRIMARY ACTION: Two-step AI workflow — Analyse → Context Library → Generate */}
-      {props.onAnalyse && props.onGenerateSuggestions ? (
-        <div className="space-y-2">
-          <Button
-            variant={props.pass1Done ? "outline" : "default"}
-            size="sm"
-            onClick={props.onAnalyse}
-            disabled={aiReviewLoading}
-            className="w-full"
-          >
-            {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-            {props.pass1Done ? 'Re-analyse Challenge' : 'Analyse Challenge'}
-          </Button>
-          {props.pass1Done && (
-            <>
-              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1.5">
-                <p className="font-medium">Next step: Review discovered sources</p>
-                <p>Open the Context Library to review and accept/reject sources before generating suggestions.</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-1 text-xs"
-                  onClick={onOpenContextLibrary}
-                >
-                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
-                  Open Context Library
-                </Button>
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="w-full block">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={props.onGenerateSuggestions}
-                      disabled={aiReviewLoading || !props.contextLibraryReviewed}
-                      className="w-full"
-                    >
-                      <Sparkles className="h-4 w-4 mr-1.5" />
-                      Generate Suggestions
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {!props.contextLibraryReviewed && (
-                  <TooltipContent>Review Context Library sources first</TooltipContent>
-                )}
-              </Tooltip>
-            </>
-          )}
-        </div>
-      ) : (
-        <Button variant="outline" size="sm" onClick={onAIReview} disabled={aiReviewLoading} className="w-full">
-          {aiReviewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Bot className="h-4 w-4 mr-1.5" />}
-          Review Sections by AI
-        </Button>
-      )}
+      <CurationAIWorkflowButtons
+        isLoading={aiReviewLoading}
+        onAnalyse={props.onAnalyse}
+        onGenerateSuggestions={props.onGenerateSuggestions}
+        pass1Done={props.pass1Done}
+        contextLibraryReviewed={props.contextLibraryReviewed}
+        onOpenContextLibrary={onOpenContextLibrary}
+        onAIReview={onAIReview}
+      />
 
       <WaveProgressPanel progress={waveProgress} onCancel={onCancelReview} passType={props.passType} commentCounts={commentCounts} suggestionCounts={suggestionCounts} />
 
