@@ -5,55 +5,24 @@
  * Two-panel layout: abstract list (left) + detail/scoring (right).
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { resolveGovernanceMode } from '@/lib/governanceMode';
-import {
-  useScreeningData,
-  useScoreAbstract,
-  useShortlistAbstract,
-  useRejectAbstract,
-  useApproveShortlist,
-  type ScreeningAbstract,
-  type EvaluationCriterion,
-} from '@/hooks/cogniblend/useScreeningReview';
+import { useScreeningData, useApproveShortlist } from '@/hooks/cogniblend/useScreeningReview';
 import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
 import { ReviewerPwaGate } from '@/components/cogniblend/shared/ReviewerPwaGate';
 import { shouldShowPwaPrompt } from '@/services/cogniblend/lifecycle/reviewerAgreement';
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { toast } from 'sonner';
-import {
-  ArrowLeft,
-  CheckCircle,
-  XCircle,
-  Shield,
-  FileText,
-  Bot,
-  Lock,
-  AlertTriangle,
-} from 'lucide-react';
-
+import { ArrowLeft, Shield, FileText, Lock, AlertTriangle } from 'lucide-react';
 import { AbstractDetail } from '@/components/cogniblend/screening/AbstractDetail';
 import { AbstractListPanel } from '@/components/cogniblend/screening/AbstractListPanel';
 
