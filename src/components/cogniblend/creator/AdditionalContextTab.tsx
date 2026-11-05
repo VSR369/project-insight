@@ -11,6 +11,7 @@ import { CreatorPhaseTimeline, type PhaseEntry } from './CreatorPhaseTimeline';
 import { AlertTriangle } from 'lucide-react';
 import { LineItemsInput } from '@/components/cogniblend/challenge-wizard/LineItemsInput';
 import { StakeholderEditor } from './StakeholderEditor';
+import { ConfidentialSectionsPicker } from './ConfidentialSectionsPicker';
 import { Info } from 'lucide-react';
 import type { CreatorFormValues } from './creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
@@ -68,6 +69,8 @@ export function AdditionalContextTab({ governanceMode, fieldRules, engagementMod
       ))}
 
       {isFieldVisible(rules, 'affected_stakeholders') && <StakeholderEditor isControlled={isControlled} />}
+
+      <ConfidentialSectionsPicker fieldRules={fieldRules} />
 
       {isFieldVisible(rules, 'expected_timeline') && (
         <Controller name="expected_timeline" control={control} render={({ field: tlField }) => (

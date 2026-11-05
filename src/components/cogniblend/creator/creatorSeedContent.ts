@@ -132,6 +132,7 @@ export const MP_SEED: SeedContent = {
   phase_durations: [],
   community_creation_allowed: false,
   is_anonymous: false,
+  confidential_brief_keys: [],
 };
 
 /**
@@ -244,6 +245,7 @@ export const AGG_SEED: SeedContent = {
   phase_durations: [],
   community_creation_allowed: false,
   is_anonymous: false,
+  confidential_brief_keys: [],
 };
 
 /**
