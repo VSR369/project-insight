@@ -17,7 +17,7 @@ import { shouldShowPwaPrompt } from '@/services/cogniblend/lifecycle/reviewerAgr
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ScreeningPageSkeleton } from '@/components/cogniblend/screening/ScreeningScoringParts';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -72,19 +72,7 @@ export default function ScreeningReviewPage() {
   const canApproveShortlist = (isStructuredMode ? hasCURole : true) && pendingCount === 0 && shortlistedCount > 0 && !data?.shortlistApproved;
 
   // ═══ SECTION 5: Conditional returns ═══
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-[500px]" />
-          <div className="lg:col-span-2">
-            <Skeleton className="h-[500px]" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <ScreeningPageSkeleton />;
 
   if (error || !data) {
     return (

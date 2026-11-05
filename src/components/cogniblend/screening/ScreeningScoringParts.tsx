@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Bot } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { EvaluationCriterion } from '@/hooks/cogniblend/useScreeningReview';
 
 /* ─── Status Badge ───────────────────────────────────────── */
@@ -120,5 +121,19 @@ export function AIEvaluationPlaceholder() {
         <p className="text-xs text-muted-foreground">Available in future update (M-23)</p>
       </CardContent>
     </Card>
+  );
+}
+
+export function ScreeningPageSkeleton() {
+  return (
+    <div className="p-6 space-y-4">
+      <Skeleton className="h-8 w-64" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Skeleton className="h-[500px]" />
+        <div className="lg:col-span-2">
+          <Skeleton className="h-[500px]" />
+        </div>
+      </div>
+    </div>
   );
 }
