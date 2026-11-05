@@ -35,7 +35,7 @@ export function PlatformAgreementsSection({ templates, onEdit, onCreate }: Platf
         <p className="text-sm text-muted-foreground">
           These three agreements form the legal foundation for the platform. <strong>SPA</strong> governs
           solver participation, <strong>SKPA</strong> governs seeker organizations, and <strong>PWA</strong> covers
-          challenge-specific prize and work terms.
+          challenge-specific terms under the Platform Workforce Agreement.
         </p>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

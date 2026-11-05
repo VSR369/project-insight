@@ -49,7 +49,7 @@ interface RawChallengeRow {
   solver_audience: string | null;
   organization_id: string;
   disclose_org_name: boolean | null;
-  seeker_organizations: { organization_name: string; trade_brand_name: string | null } | null;
+  org_display_name: string | null;
   industry_segments: { name: string } | null;
 }
 

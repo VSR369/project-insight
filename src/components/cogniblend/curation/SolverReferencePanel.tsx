@@ -73,7 +73,7 @@ function getMimeLabel(mime: string | null): string {
 
 export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps) {
   const { openSignedUrl } = useSignedUrl();
-  const { mutate: logConfidentialAccess } = useLogConfidentialAccess();
+  const { mutateAsync: logConfidentialAccess } = useLogConfidentialAccess();
 
   const { data: attachments = [], isLoading } = useQuery({
     queryKey: ['solver-references', challengeId],
@@ -136,7 +136,7 @@ export function SolverReferencePanel({ challengeId }: SolverReferencePanelProps)
                         </a>
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" className="shrink-0 text-xs h-7" onClick={() => { if (att.is_confidential) logConfidentialAccess({ challengeId, attachmentId: att.id, action: 'download' }); openSignedUrl(att.storage_path); }}>
+                      <Button variant="outline" size="sm" className="shrink-0 text-xs h-7" onClick={async () => { if (att.is_confidential) { const path = await logConfidentialAccess({ challengeId, attachmentId: att.id, action: 'download' }); if (path) openSignedUrl(path); return; } openSignedUrl(att.storage_path); }}>
                         <Download className="h-3 w-3 mr-1" /> Download
                       </Button>
                     )}
