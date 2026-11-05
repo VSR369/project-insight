@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STABLE } from '@/config/queryCache';
+import { resolveConfigNumber, type ConfigNumberKey } from '@/services/config/configNumber';
 
 export interface MpaConfigEntry {
   id: string;
@@ -46,6 +47,12 @@ export function useMpaConfigValue(key: string) {
   const { data: config, ...rest } = useMpaConfig();
   const value = config?.find((c) => c.param_key === key)?.param_value ?? null;
   return { data: value, ...rest };
+}
+
+/** Numeric business-rule setting with a seeded-default fallback. */
+export function useConfigNumber(key: ConfigNumberKey): number {
+  const { data: config } = useMpaConfig();
+  return resolveConfigNumber(key, config?.find((c) => c.param_key === key)?.param_value);
 }
 
 /** Helper to get config entries by group */

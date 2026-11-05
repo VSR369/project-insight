@@ -1,6 +1,7 @@
 /**
  * LcReturnToCurator — Dialog for LC to return challenge to curation with reason.
  */
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -18,10 +19,11 @@ interface LcReturnToCuratorProps {
 export function LcReturnToCurator({ challengeId, userId, disabled }: LcReturnToCuratorProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const minReasonLength = useConfigNumber('return_reason_min_length');
   const unfreezeMut = useUnfreezeForRecuration(challengeId);
 
   const handleReturn = () => {
-    if (reason.trim().length < 10) return;
+    if (reason.trim().length < minReasonLength) return;
     unfreezeMut.mutate(
       { userId, reason: reason.trim() },
       { onSuccess: () => { setOpen(false); setReason(''); } },
@@ -59,7 +61,7 @@ export function LcReturnToCurator({ challengeId, userId, disabled }: LcReturnToC
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button
               onClick={handleReturn}
-              disabled={reason.trim().length < 10 || unfreezeMut.isPending}
+              disabled={reason.trim().length < minReasonLength || unfreezeMut.isPending}
             >
               {unfreezeMut.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />

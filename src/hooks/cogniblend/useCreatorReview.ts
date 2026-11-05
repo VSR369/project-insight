@@ -1,3 +1,5 @@
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
+import { MS_PER_DAY } from '@/services/config/configNumber';
 /**
  * useCreatorReview — Data + mutations for the Creator Review workflow.
  *
@@ -74,10 +76,9 @@ interface UnifiedSpaRow {
   ai_modified_content_html: string | null;
 }
 
-const TIMEOUT_DAYS = 7;
-
 export function useCreatorReview(challengeId: string | undefined) {
   const queryClient = useQueryClient();
+  const timeoutDays = useConfigNumber('creator_response_timeout_days');
   const { user } = useAuth();
   const preview = usePreviewData(challengeId);
   const rolesQuery = useUserChallengeRoles(user?.id, challengeId);
@@ -326,8 +327,8 @@ export function useCreatorReview(challengeId: string | undefined) {
   const timeoutDate = useMemo(() => {
     if (!approval?.creator_approval_requested_at) return null;
     const start = new Date(approval.creator_approval_requested_at);
-    return new Date(start.getTime() + TIMEOUT_DAYS * 24 * 60 * 60 * 1000);
-  }, [approval?.creator_approval_requested_at]);
+    return new Date(start.getTime() + timeoutDays * MS_PER_DAY);
+  }, [approval?.creator_approval_requested_at, timeoutDays]);
 
   const isTimedOut = timeoutDate ? new Date() > timeoutDate : false;
 

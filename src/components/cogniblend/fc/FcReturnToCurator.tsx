@@ -3,6 +3,7 @@
  * with a structured reason. Logs an audit_trail row and notifies active
  * Curator(s).
  */
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -32,6 +33,7 @@ interface FcReturnToCuratorProps {
 export function FcReturnToCurator({ challengeId, userId, disabled }: FcReturnToCuratorProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const minReasonLength = useConfigNumber('return_reason_min_length');
   const queryClient = useQueryClient();
 
   const returnMut = useMutation({
@@ -73,7 +75,7 @@ export function FcReturnToCurator({ challengeId, userId, disabled }: FcReturnToC
   });
 
   const handleReturn = () => {
-    if (reason.trim().length < 10) return;
+    if (reason.trim().length < minReasonLength) return;
     returnMut.mutate({ reason: reason.trim() });
   };
 
@@ -110,7 +112,7 @@ export function FcReturnToCurator({ challengeId, userId, disabled }: FcReturnToC
             </Button>
             <Button
               onClick={handleReturn}
-              disabled={reason.trim().length < 10 || returnMut.isPending}
+              disabled={reason.trim().length < minReasonLength || returnMut.isPending}
             >
               {returnMut.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
               Confirm Return

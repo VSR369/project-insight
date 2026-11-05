@@ -1,3 +1,4 @@
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 /**
  * SolutionSubmitFormSections — Form card sections and legal modal for SolutionSubmitPage.
  */
@@ -99,6 +100,7 @@ interface FormFieldsProps {
 }
 
 export function SolutionFormFields({ form, attachedFiles, onFilesChange, isQuick, isEnterprise }: FormFieldsProps) {
+  const maxFiles = useConfigNumber('solution_max_files');
   const abstractTextValue = form.watch('abstractText');
   const methodologyValue = form.watch('methodology');
   const totalFileSize = attachedFiles.reduce((sum, f) => sum + f.size, 0);
@@ -220,8 +222,8 @@ export function SolutionFormFields({ form, attachedFiles, onFilesChange, isQuick
             {isQuick ? 'Solution Files' : 'File Attachments'}
             <span className="text-xs text-muted-foreground font-normal">
               {isQuick
-                ? '(Optional — attach solution files for direct owner review, max 10 files, 50MB total)'
-                : '(Optional, max 10 files, 50MB total)'}
+                ? `(Optional — attach solution files for direct owner review, max ${maxFiles} files, 50MB total)`
+                : `(Optional, max ${maxFiles} files, 50MB total)`}
             </span>
           </CardTitle>
           {isQuick && (
@@ -236,11 +238,11 @@ export function SolutionFormFields({ form, attachedFiles, onFilesChange, isQuick
             multiple
             files={attachedFiles}
             onFilesChange={(files) => {
-              if (files.length > 10) { toast.error('Maximum 10 files allowed'); return; }
+              if (files.length > maxFiles) { toast.error(`Maximum ${maxFiles} files allowed`); return; }
               onFilesChange(files);
             }}
             onChange={() => {}}
-            disabled={attachedFiles.length >= 10}
+            disabled={attachedFiles.length >= maxFiles}
           />
           {fileSizeExceeded && (
             <p className="text-xs text-destructive flex items-center gap-1">

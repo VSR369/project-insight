@@ -3,6 +3,7 @@
  * Data fetching delegated to useCurationActionData hook.
  */
 
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useState, useCallback } from 'react';
 import { IncompleteItemsModal, ReturnToCreatorModal } from './CurationActionModals';
 import { useCurationActionData } from '@/hooks/cogniblend/useCurationActionData';
@@ -47,6 +48,7 @@ export default function CurationActions({
   const [showIncompleteModal, setShowIncompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnReason, setReturnReason] = useState('');
+  const minReasonLength = useConfigNumber('return_reason_min_length');
 
   const {
     user, navigate, completePhase, hasOutstandingRequired, amendmentCount,
@@ -121,7 +123,7 @@ export default function CurationActions({
   }, [staleSections, legalEscrowBlocked, blockingReason, hasOutstandingRequired, allComplete, user, isAmDeclined, crApprovalRequired, crApprovalMutation, challengeId, checklistSummary, completedCount, totalCount, amendmentCount, completePhase, navigate]);
 
   const handleReturnSubmit = useCallback(() => {
-    if (returnReason.trim().length < 10) return;
+    if (returnReason.trim().length < minReasonLength) return;
     returnMutation.mutate(returnReason.trim());
     setShowReturnModal(false);
     setReturnReason('');

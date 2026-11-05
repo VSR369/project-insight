@@ -1,3 +1,4 @@
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 /**
  * useCuratorEditTracking — Tracks per-section curator editing behavior.
  *
@@ -19,9 +20,9 @@ export interface SectionEditRecord {
   confidenceScore: number | null;
 }
 
-const EDIT_THRESHOLD = 15; // % — below = minor edits, above = rewrite
-
 export function useCuratorEditTracking() {
+  // % — below = minor edits, at/above = rewrite (settings register)
+  const editThreshold = useConfigNumber('curator_edit_rewrite_threshold_pct');
   const records = useRef<Map<string, SectionEditRecord>>(new Map());
   const aiHashes = useRef<Map<string, string>>(new Map());
   const focusTimers = useRef<Map<string, number>>(new Map());
@@ -73,7 +74,7 @@ export function useCuratorEditTracking() {
     let action: CuratorAction;
     if (distance === 0) {
       action = 'accepted_unchanged';
-    } else if (distance < EDIT_THRESHOLD) {
+    } else if (distance < editThreshold) {
       action = 'accepted_with_edits';
     } else {
       action = 'rejected_rewritten';
@@ -87,7 +88,7 @@ export function useCuratorEditTracking() {
       timeSpentSeconds: timeSpent,
       confidenceScore,
     });
-  }, []);
+  }, [editThreshold]);
 
   /**
    * Flush all accumulated records (called on submit).
