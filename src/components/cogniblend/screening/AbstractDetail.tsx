@@ -1,4 +1,5 @@
 /** AbstractDetail — single abstract view with scoring and shortlist/reject actions. */
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, FileText, Lock } from 'lucide-react';
@@ -29,6 +30,7 @@ export function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerI
   const [scores, setScores] = useState<Record<string, number>>(abstract.existingScores ?? {});
   const [commentary, setCommentary] = useState(abstract.existingCommentary ?? '');
   const [confirmAction, setConfirmAction] = useState<'shortlist' | 'reject' | null>(null);
+  const minCommentary = useConfigNumber('screening_commentary_min_length');
 
   const scoreMutation = useScoreAbstract();
   const shortlistMutation = useShortlistAbstract();
@@ -52,9 +54,9 @@ export function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerI
   }, [scores, criteria]);
 
   const handleSaveScores = () => {
-    const commentaryValid = !isStructuredMode || commentary.trim().length >= 100;
+    const commentaryValid = !isStructuredMode || commentary.trim().length >= minCommentary;
     if (!commentaryValid) {
-      toast.error('Commentary must be at least 100 characters for Enterprise challenges.');
+      toast.error(`Commentary must be at least ${minCommentary} characters for Enterprise challenges.`);
       return;
     }
     scoreMutation.mutate({

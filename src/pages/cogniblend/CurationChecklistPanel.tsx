@@ -3,6 +3,7 @@
  * Checklist items, modals, and action buttons extracted to sub-components.
  */
 
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import ModificationPointsTracker from '@/components/cogniblend/ModificationPointsTracker';
 import { useState, useMemo, useCallback } from "react";
 import { resolveGovernanceMode, isControlledMode } from '@/lib/governanceMode';
@@ -60,6 +61,7 @@ export default function CurationChecklistPanel({
   const [returnReason, setReturnReason] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const minReasonLength = useConfigNumber('return_reason_min_length');
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -278,7 +280,7 @@ export default function CurationChecklistPanel({
       <ReturnToCreatorModal
         open={showReturnModal} onOpenChange={setShowReturnModal} isFinalCycle={isFinalCycle}
         returnReason={returnReason} onReasonChange={setReturnReason}
-        onSubmit={() => { if (returnReason.trim().length >= 10) returnMutation.mutate(returnReason.trim()); }}
+        onSubmit={() => { if (returnReason.trim().length >= minReasonLength) returnMutation.mutate(returnReason.trim()); }}
         isPending={returnMutation.isPending}
       />
     </>

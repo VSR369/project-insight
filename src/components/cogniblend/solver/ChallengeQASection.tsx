@@ -5,6 +5,7 @@
  * BR-COM-003: Flags messages containing contact information for compliance review.
  */
 
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useState } from 'react';
 import { MessageSquare, Lock, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -109,6 +110,7 @@ export function ChallengeQASection({ challengeId }: ChallengeQASectionProps) {
   });
   const isQaClosed = qaClosedFlag ?? false;
   const [questionText, setQuestionText] = useState('');
+  const minQuestionLength = useConfigNumber('qa_question_min_length');
   const [complianceWarning, setComplianceWarning] = useState<string | null>(null);
 
   // Merge: show published + user's own unpublished (deduped)
@@ -132,7 +134,7 @@ export function ChallengeQASection({ challengeId }: ChallengeQASectionProps) {
   };
 
   const handleSubmit = async () => {
-    if (questionText.trim().length < 20) return;
+    if (questionText.trim().length < minQuestionLength) return;
 
     // BR-COM-003: Check for contact info and auto-flag
     const scan = scanForContactInfo(questionText.trim());
@@ -212,7 +214,7 @@ export function ChallengeQASection({ challengeId }: ChallengeQASectionProps) {
             </p>
             <Button
               size="sm"
-              disabled={questionText.trim().length < 20 || submitQuestion.isPending}
+              disabled={questionText.trim().length < minQuestionLength || submitQuestion.isPending}
               onClick={handleSubmit}
             >
               {submitQuestion.isPending ? 'Submitting…' : 'Submit Question'}

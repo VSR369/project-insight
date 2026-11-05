@@ -14,6 +14,7 @@
  *   - Cancel modal with red warning and required reason (min 100 chars)
  */
 
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -56,6 +57,8 @@ export function HoldResumeActions({
   const [holdReason, setHoldReason] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const minHoldReason = useConfigNumber('hold_reason_min_length');
+  const minCancelReason = useConfigNumber('cancel_reason_min_length');
 
   const putOnHold = usePutOnHold();
   const resumeChallenge = useResumeChallenge();
@@ -110,8 +113,8 @@ export function HoldResumeActions({
     );
   };
 
-  const holdReasonValid = holdReason.trim().length >= 50;
-  const cancelReasonValid = cancelReason.trim().length >= 100;
+  const holdReasonValid = holdReason.trim().length >= minHoldReason;
+  const cancelReasonValid = cancelReason.trim().length >= minCancelReason;
 
   return (
     <>
@@ -176,14 +179,14 @@ export function HoldResumeActions({
               </Label>
               <Textarea
                 id="hold-reason"
-                placeholder="Explain why this challenge is being put on hold (min 50 characters)..."
+                placeholder="Explain why this challenge is being put on hold (min ${minHoldReason} characters)..."
                 value={holdReason}
                 onChange={(e) => setHoldReason(e.target.value)}
                 rows={4}
                 className="resize-none"
               />
               <p className="text-xs text-muted-foreground text-right">
-                {holdReason.trim().length} / 50 min
+                {holdReason.trim().length} / {minHoldReason} min
               </p>
             </div>
           </div>
@@ -242,14 +245,14 @@ export function HoldResumeActions({
               </Label>
               <Textarea
                 id="cancel-reason"
-                placeholder="Provide a detailed reason for cancellation (min 100 characters)..."
+                placeholder="Provide a detailed reason for cancellation (min ${minCancelReason} characters)..."
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={5}
                 className="resize-none"
               />
               <p className="text-xs text-muted-foreground text-right">
-                {cancelReason.trim().length} / 100 min
+                {cancelReason.trim().length} / {minCancelReason} min
               </p>
             </div>
           </div>
