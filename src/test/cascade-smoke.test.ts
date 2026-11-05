@@ -26,9 +26,9 @@ describe('Cascade RPC Functions: Smoke Tests (Read-Only)', () => {
         p_provider_id: fakeProviderId,
       });
 
-      // Function should exist (no "function does not exist" error)
-      expect(error?.message ?? '').not.toContain('function');
+      // Function exists, and signed-out callers are refused (exposed-function lockdown, Wave 1 re-open R8)
       expect(error?.message ?? '').not.toContain('does not exist');
+      if (error) expect(error.message).toContain('permission denied');
     });
 
     it('Should return expected column structure', async () => {
@@ -129,9 +129,9 @@ describe('Cascade RPC Functions: Smoke Tests (Read-Only)', () => {
         p_removed_area_ids: [],
       });
 
-      // Function should exist
-      expect(error?.message ?? '').not.toContain('function');
+      // Function exists, and signed-out callers are refused (Wave 1 re-open R8)
       expect(error?.message ?? '').not.toContain('does not exist');
+      if (error) expect(error.message).toContain('permission denied');
       
       // With empty array, should return 0 (no changes made)
       if (!error) {
