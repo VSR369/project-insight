@@ -3,10 +3,14 @@
  * Upgraded to return full schema with metadata columns.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STABLE } from '@/config/queryCache';
-import { resolveConfigNumber, type ConfigNumberKey } from '@/services/config/configNumber';
+import { handleQueryError } from '@/lib/errorHandler';
+import {
+  CONFIG_NUMBER_KEYS, ConfigUnavailableError, parseConfigNumbers,
+  type ConfigNumberKey, type ConfigNumbers,
+} from '@/services/config/configNumber';
 
 export interface MpaConfigEntry {
   id: string;
@@ -49,10 +53,33 @@ export function useMpaConfigValue(key: string) {
   return { data: value, ...rest };
 }
 
-/** Numeric business-rule setting with a seeded-default fallback. */
+/**
+ * All numeric business-rule settings, read from the server only. Suspends while
+ * loading; if the register cannot be read (or a setting is missing) the error
+ * reaches the nearest error boundary, which shows an error with Retry.
+ */
+export function useConfigNumbers(): ConfigNumbers {
+  const { data } = useSuspenseQuery({
+    queryKey: ['mpa-config', 'business-numbers'],
+    queryFn: async (): Promise<ConfigNumbers> => {
+      const { data: rows, error } = await supabase
+        .from('md_mpa_config')
+        .select('param_key, param_value')
+        .in('param_key', [...CONFIG_NUMBER_KEYS]);
+      if (error) {
+        handleQueryError(error, { operation: 'fetch_business_rule_numbers' });
+        throw new ConfigUnavailableError([...CONFIG_NUMBER_KEYS]);
+      }
+      return parseConfigNumbers(rows ?? []);
+    },
+    ...CACHE_STABLE,
+  });
+  return data;
+}
+
+/** One numeric business-rule setting (server value; no client fallback). */
 export function useConfigNumber(key: ConfigNumberKey): number {
-  const { data: config } = useMpaConfig();
-  return resolveConfigNumber(key, config?.find((c) => c.param_key === key)?.param_value);
+  return useConfigNumbers()[key];
 }
 
 /** Helper to get config entries by group */

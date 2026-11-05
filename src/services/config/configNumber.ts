@@ -1,31 +1,60 @@
 /**
  * configNumber — typed access to numeric business-rule settings held in the
- * settings register (md_mpa_config). Defaults equal the seeded values and are
- * only used while the register is loading or if a row is missing/invalid, so
- * behaviour never changes when the register is unreachable.
+ * settings register (md_mpa_config). The server is the only source of values:
+ * there are no client fallbacks. If any required setting is missing or not a
+ * valid number, parsing throws ConfigUnavailableError and the screen shows an error.
  */
 
-export const CONFIG_NUMBER_DEFAULTS = {
-  return_reason_min_length: 10,
-  hold_reason_min_length: 50,
-  cancel_reason_min_length: 100,
-  screening_commentary_min_length: 100,
-  qa_question_min_length: 20,
-  creator_response_timeout_days: 7,
-  amendment_withdrawal_window_days: 7,
-  amendment_reacceptance_window_days: 7,
-  curator_edit_rewrite_threshold_pct: 15,
-  solution_max_files: 10,
-} as const;
+export const CONFIG_NUMBER_KEYS = [
+  'return_reason_min_length',
+  'hold_reason_min_length',
+  'cancel_reason_min_length',
+  'screening_commentary_min_length',
+  'qa_question_min_length',
+  'creator_response_timeout_days',
+  'amendment_withdrawal_window_days',
+  'amendment_reacceptance_window_days',
+  'curator_edit_rewrite_threshold_pct',
+  'solution_max_files',
+  'solution_approach_summary_min_chars',
+  'abstract_min_chars',
+] as const;
 
-export type ConfigNumberKey = keyof typeof CONFIG_NUMBER_DEFAULTS;
+export type ConfigNumberKey = (typeof CONFIG_NUMBER_KEYS)[number];
+export type ConfigNumbers = Record<ConfigNumberKey, number>;
 
-/** Parse a register value; fall back to the seeded default when absent or not a finite non-negative number. */
-export function resolveConfigNumber(key: ConfigNumberKey, rawValue: string | null | undefined): number {
-  if (rawValue == null || rawValue.trim() === '') return CONFIG_NUMBER_DEFAULTS[key];
-  const parsed = Number(rawValue);
-  if (!Number.isFinite(parsed) || parsed < 0) return CONFIG_NUMBER_DEFAULTS[key];
-  return parsed;
+export interface ConfigRow {
+  param_key: string;
+  param_value: string | null;
+}
+
+export class ConfigUnavailableError extends Error {
+  readonly missingKeys: string[];
+  constructor(missingKeys: string[]) {
+    super('Business settings could not be loaded. Please retry, or contact a Supervisor if this continues.');
+    this.name = 'ConfigUnavailableError';
+    this.missingKeys = missingKeys;
+  }
+}
+
+function parseValue(raw: string | null | undefined): number | null {
+  if (raw == null || raw.trim() === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Build the full set of numbers from register rows, or throw if any is missing/invalid. */
+export function parseConfigNumbers(rows: ConfigRow[]): ConfigNumbers {
+  const byKey = new Map(rows.map((r) => [r.param_key, r.param_value]));
+  const result: Partial<ConfigNumbers> = {};
+  const missing: string[] = [];
+  for (const key of CONFIG_NUMBER_KEYS) {
+    const v = parseValue(byKey.get(key));
+    if (v === null) missing.push(key);
+    else result[key] = v;
+  }
+  if (missing.length > 0) throw new ConfigUnavailableError(missing);
+  return result as ConfigNumbers;
 }
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
