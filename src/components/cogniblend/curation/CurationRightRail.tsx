@@ -3,9 +3,9 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
-import React, { useMemo, useSyncExternalStore } from "react";
+import React from "react";
+import { useLiveSectionCounts } from "@/hooks/cogniblend/useLiveSectionCounts";
 import { Button } from "@/components/ui/button";
-import type { SectionKey, SectionStoreEntry } from '@/types/sections';
 import { FileText, Activity } from "lucide-react";
 import { CurationAIWorkflowButtons } from "./CurationAIWorkflowButtons";
 import { useNavigate } from "react-router-dom";
@@ -110,44 +110,7 @@ function CurationRightRailImpl(props: CurationRightRailProps) {
 
   const navigate = useNavigate();
 
-  // Reactive snapshot of section store. useSyncExternalStore re-renders this
-  // component whenever the store changes (e.g. Re-analyse clears reviews,
-  // a wave repopulates a section). Required so DiagnosticsSheet receives
-  // live `sections` instead of a frozen one-time snapshot.
-  const liveSections = useSyncExternalStore<Partial<Record<SectionKey, SectionStoreEntry>>>(
-    (cb) => {
-      if (!props.curationStore?.subscribe) return () => {};
-      return props.curationStore.subscribe(cb);
-    },
-    () => {
-      const store = props.curationStore;
-      if (!store) return {};
-      return (store.getState?.()?.sections ?? store.sections ?? {}) as Partial<Record<SectionKey, SectionStoreEntry>>;
-    },
-    () => ({}),
-  );
-
-  const commentCounts = useMemo(() => {
-    const counts: Partial<Record<SectionKey, number>> = {};
-    for (const [key, entry] of Object.entries(liveSections)) {
-      const e = entry as SectionStoreEntry | undefined;
-      if (e?.aiComments && Array.isArray(e.aiComments)) {
-        counts[key as SectionKey] = e.aiComments.length;
-      }
-    }
-    return counts;
-  }, [liveSections]);
-
-  const suggestionCounts = useMemo(() => {
-    const counts: Partial<Record<SectionKey, number>> = {};
-    for (const [key, entry] of Object.entries(liveSections)) {
-      const e = entry as { aiSuggestion?: string | null } | undefined;
-      if (e?.aiSuggestion) {
-        counts[key as SectionKey] = 1;
-      }
-    }
-    return counts;
-  }, [liveSections]);
+  const { liveSections, commentCounts, suggestionCounts } = useLiveSectionCounts(props.curationStore);
 
   const diagSections = liveSections;
 
