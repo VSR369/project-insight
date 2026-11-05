@@ -179,7 +179,7 @@ export function HoldResumeActions({
               </Label>
               <Textarea
                 id="hold-reason"
-                placeholder="Explain why this challenge is being put on hold (min ${minHoldReason} characters)..."
+                placeholder={`Explain why this challenge is being put on hold (min ${minHoldReason} characters)...`}
                 value={holdReason}
                 onChange={(e) => setHoldReason(e.target.value)}
                 rows={4}
@@ -245,7 +245,7 @@ export function HoldResumeActions({
               </Label>
               <Textarea
                 id="cancel-reason"
-                placeholder="Provide a detailed reason for cancellation (min ${minCancelReason} characters)..."
+                placeholder={`Provide a detailed reason for cancellation (min ${minCancelReason} characters)...`}
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={5}
