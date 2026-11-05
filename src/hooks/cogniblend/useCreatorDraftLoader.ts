@@ -9,6 +9,10 @@ import { supabase } from '@/integrations/supabase/client';
 import type { CreatorFormValues } from '@/components/cogniblend/creator/creatorFormSchema';
 import { toFormMaturityCode } from '@/components/cogniblend/creator/creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import {
+  extractConfidentialFieldValues,
+  sanitizeConfidentialKeys,
+} from '@/services/cogniblend/lifecycle/confidentialSections';
 
 const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model, evaluation_criteria, deliverables, solver_audience, evaluation_method, evaluator_count, creator_legal_instructions, confidential_brief_keys';
 
@@ -88,6 +92,23 @@ export function useCreatorDraftLoader(
       const ps = challenge.phase_schedule as Record<string, unknown> | null;
 
       const ch = challenge as Record<string, unknown>;
+
+      // BR-CHL-P09: the fn_extract_confidential_brief trigger has already
+      // moved confidential keys out of extended_brief, so rehydrate those
+      // form fields from challenge_confidential_sections (creator is
+      // privileged and may read them).
+      const savedConfidentialKeys = Array.isArray(ch.confidential_brief_keys)
+        ? (ch.confidential_brief_keys as string[])
+        : [];
+      let confidentialValues: Record<string, unknown> = {};
+      if (savedConfidentialKeys.length > 0) {
+        const { data: sections } = await supabase
+          .from('challenge_confidential_sections')
+          .select('section_key, content')
+          .eq('challenge_id', draftChallengeId);
+        confidentialValues = extractConfidentialFieldValues(sections ?? []);
+      }
+
       const phaseDurationsRaw = (ps as Record<string, unknown> | null)?.phase_durations;
       const phaseDurations = Array.isArray(phaseDurationsRaw)
         ? (phaseDurationsRaw as CreatorFormValues['phase_durations'])
@@ -113,12 +134,12 @@ export function useCreatorDraftLoader(
         deliverables_list: parseLineItems((challenge as Record<string, unknown>).deliverables),
         ip_model: (challenge.ip_model as string) || '',
         expected_outcomes: parseLineItems(eo),
-        context_background: (eb?.context_background as string) || '',
-        preferred_approach: parseLineItems(eb?.preferred_approach),
-        approaches_not_of_interest: parseLineItems(eb?.approaches_not_of_interest),
-        affected_stakeholders: parseStakeholders(eb?.affected_stakeholders),
-        current_deficiencies: parseLineItems(eb?.current_deficiencies),
-        root_causes: parseLineItems(eb?.root_causes),
+        context_background: (confidentialValues.context_background as string) || (eb?.context_background as string) || '',
+        preferred_approach: parseLineItems(confidentialValues.preferred_approach ?? eb?.preferred_approach),
+        approaches_not_of_interest: parseLineItems(confidentialValues.approaches_not_of_interest ?? eb?.approaches_not_of_interest),
+        affected_stakeholders: parseStakeholders(confidentialValues.affected_stakeholders ?? eb?.affected_stakeholders),
+        current_deficiencies: parseLineItems(confidentialValues.current_deficiencies ?? eb?.current_deficiencies),
+        root_causes: parseLineItems(confidentialValues.root_causes ?? eb?.root_causes),
         expected_timeline: (ps?.expected_timeline as string) || '',
         // Newly restored fields ↓
         solver_audience: ((ch.solver_audience as string) ?? 'ALL') as CreatorFormValues['solver_audience'],
@@ -128,6 +149,7 @@ export function useCreatorDraftLoader(
         phase_durations: phaseDurations,
         is_anonymous: eb?.is_anonymous === true,
         community_creation_allowed: eb?.community_creation_allowed === true,
+        confidential_brief_keys: sanitizeConfidentialKeys(savedConfidentialKeys),
       });
 
       // Restore reference URLs from extended_brief (stored outside RHF)
