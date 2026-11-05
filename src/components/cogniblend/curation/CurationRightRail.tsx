@@ -294,6 +294,7 @@ function CurationRightRailImpl(props: CurationRightRailProps) {
       {/* S7D-2: read-only LC/FC summaries — render only after compliance flags flip */}
       <LegalDocsSummaryCard challengeId={challengeId} />
       <EscrowStatusCard challengeId={challengeId} />
+      <ChallengeInvitationsCard challengeId={challengeId} />
 
       {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
