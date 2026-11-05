@@ -7,8 +7,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
 
 import { CreatorFormActionBar } from './CreatorFormActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,14 +37,13 @@ import { QuickPublishConfirmModal } from './QuickPublishConfirmModal';
 import { EvaluationMethodSection } from './EvaluationMethodSection';
 import { useDeleteQuickLegalOverride, useQuickLegalOverride, useUploadQuickLegalOverride } from '@/hooks/queries/useQuickLegalOverride';
 import { useGeoContextForOrg } from '@/hooks/queries/useGeoContextForOrg';
-import { buildPreviewVariables } from '@/services/legal/cpaPreviewInterpolator';
+import { useCreatorTemplateContext } from '@/hooks/cogniblend/useCreatorTemplateContext';
 import { audienceSelectable } from '@/services/engagementModelRulesService';
 import { SolverAudienceSelector } from './SolverAudienceSelector';
 import { useQuickLegalOverrideControls } from '@/hooks/cogniblend/useQuickLegalOverrideControls';
 import { useCreatorSubmitFlow } from '@/hooks/cogniblend/useCreatorSubmitFlow';
 import { useCreatorFillTestData } from '@/hooks/cogniblend/useCreatorFillTestData';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
-// Legal v3: SKPA-on-submit removed (signed at org registration instead).
 
 interface ChallengeCreatorFormProps {
   engagementModel: string;
@@ -60,7 +58,6 @@ interface ChallengeCreatorFormProps {
 export type { CreatorFormValues } from './creatorFormSchema';
 
 export function ChallengeCreatorForm({ engagementModel, governanceMode, industrySegmentId, onDraftModeSync, onFillTestData, onDraftIdChange, onIndustrySegmentResolved }: ChallengeCreatorFormProps) {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
@@ -84,7 +81,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const [publishedResult, setPublishedResult] = useState<{ challengeId: string; title: string } | null>(null);
   const [showQuickConfirm, setShowQuickConfirm] = useState(false);
   const [pendingQuickData, setPendingQuickData] = useState<CreatorFormValues | null>(null);
-  // Legal v3: SKPA-on-submit state removed.
 
   const schema = useMemo(() => buildCreatorSchema(governanceMode, engagementModel), [governanceMode, engagementModel]);
   const isControlled = governanceMode === 'CONTROLLED';
@@ -124,24 +120,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
   const { data: quickLegalOverride } = useQuickLegalOverride(draftSave.draftChallengeId ?? undefined);
   const { data: geoContext } = useGeoContextForOrg(currentOrg?.organizationId);
 
-  // Watch entire form to build live template-preview variables (single subscribe — R5 safe)
-  const watched = form.watch();
-  const templateContext = useMemo(() => buildPreviewVariables({
-    challenge_title: watched.title,
-    problem_statement: watched.problem_statement,
-    scope: watched.scope,
-    ip_model: watched.ip_model,
-    governance_mode: governanceMode,
-    operating_model: engagementModel,
-    prize_amount: watched.platinum_award,
-    currency: watched.currency_code,
-    evaluation_method: watched.evaluation_method,
-    evaluator_count: watched.evaluator_count,
-    solver_audience: watched.solver_audience,
-    seeker_org_name: currentOrg?.orgName,
-    jurisdiction: geoContext?.jurisdiction,
-    governing_law: geoContext?.governing_law,
-  }), [watched, governanceMode, engagementModel, currentOrg?.orgName, geoContext]);
+  const templateContext = useCreatorTemplateContext(form, governanceMode, engagementModel, currentOrg?.orgName, geoContext);
 
   const currentMaturityLevel = form.watch('maturity_level');
   const currentSolutionMaturityId = form.watch('solution_maturity_id');
@@ -261,9 +240,6 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           isSubmitting={isSubmitting}
         />
       )}
-      {/* Legal v3: SKPA dialog removed from challenge submit. SKPA is signed
-          at org registration; Creator role acceptance is collected at role
-          grant via RoleLegalGate. */}
     </FormProvider>
   );
 }
