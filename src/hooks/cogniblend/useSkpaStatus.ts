@@ -11,11 +11,11 @@ export function useSkpaStatus(userId: string | undefined) {
     queryKey: ['skpa-acceptance-status', userId],
     queryFn: async (): Promise<boolean> => {
       if (!userId) return false;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('legal_acceptance_log') as any)
+      const { data, error } = await supabase
+        .from('legal_acceptance_log')
         .select('id')
         .eq('user_id', userId)
-        .eq('document_type', 'SKPA')
+        .ilike('document_code', 'SKPA%')
         .limit(1);
       if (error) return true; // fail-open (mirror usePwaStatus)
       return (data?.length ?? 0) > 0;

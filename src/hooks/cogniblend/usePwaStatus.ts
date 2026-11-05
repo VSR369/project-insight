@@ -11,10 +11,12 @@ export function usePwaStatus(userId: string | undefined) {
     queryKey: ['pwa-acceptance-status', userId],
     queryFn: async (): Promise<boolean> => {
       if (!userId) return false;
-      const { data, error } = await (supabase.from('legal_acceptance_log') as any)
+      // Mirrors fn_has_accepted_pwa: document_code ILIKE 'PWA%'.
+      const { data, error } = await supabase
+        .from('legal_acceptance_log')
         .select('id')
         .eq('user_id', userId)
-        .eq('document_type', 'PWA')
+        .ilike('document_code', 'PWA%')
         .limit(1);
       if (error) return true; // fail-open
       return (data?.length ?? 0) > 0;
