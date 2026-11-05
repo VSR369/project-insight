@@ -1,3 +1,5 @@
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
+import { MS_PER_DAY } from '@/services/config/configNumber';
 /**
  * useApproveAmendment — Approves a material amendment, sets withdrawal deadline,
  * creates new package version, and notifies solvers.
@@ -27,14 +29,14 @@ interface ApproveAmendmentPayload {
 
 /* ─── Constants ──────────────────────────────────────────── */
 
-const WITHDRAWAL_WINDOW_DAYS = 7;
-const REACCEPTANCE_WINDOW_DAYS = 7;
 const BATCH_SIZE = 50;
 
 /* ─── Hook ───────────────────────────────────────────────── */
 
 export function useApproveAmendment() {
   const queryClient = useQueryClient();
+  const withdrawalWindowDays = useConfigNumber('amendment_withdrawal_window_days');
+  const reacceptanceWindowDays = useConfigNumber('amendment_reacceptance_window_days');
 
   return useMutation({
     mutationFn: async (payload: ApproveAmendmentPayload): Promise<void> => {
@@ -64,7 +66,7 @@ export function useApproveAmendment() {
 
       // 2. Set withdrawal deadline if material
       const withdrawalDeadline = isMaterial
-        ? new Date(Date.now() + WITHDRAWAL_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString()
+        ? new Date(Date.now() + withdrawalWindowDays * MS_PER_DAY).toISOString()
         : null;
 
       // 3. Update amendment_records → APPROVED + withdrawal_deadline
@@ -178,7 +180,7 @@ export function useApproveAmendment() {
       // 7. Create solver re-acceptance records when LEGAL or SCOPE_CHANGE in scope
       if (requiresSolverReaccept && solverIds.length > 0) {
         const reacceptDeadline = new Date(
-          Date.now() + REACCEPTANCE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+          Date.now() + reacceptanceWindowDays * MS_PER_DAY
         ).toISOString();
 
         const reacceptRows = solverIds.map((uid) => ({
@@ -197,7 +199,7 @@ export function useApproveAmendment() {
         }
 
         logInfo(
-          `Created ${solverIds.length} solver re-acceptance records with ${REACCEPTANCE_WINDOW_DAYS}-day deadline`,
+          `Created ${solverIds.length} solver re-acceptance records with ${reacceptanceWindowDays}-day deadline`,
           { operation: 'approve_amendment', component: 'useApproveAmendment' },
         );
       }

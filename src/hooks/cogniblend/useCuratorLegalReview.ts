@@ -1,3 +1,4 @@
+import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
 /**
  * useCuratorLegalReview — Pass 3 (Legal AI Review) state + mutations.
  *
@@ -52,8 +53,6 @@ export interface CreatorApprovalSnapshot {
 const PASS3_KEY = (challengeId: string | undefined) =>
   ['pass3-legal-review', challengeId] as const;
 
-const CREATOR_TIMEOUT_DAYS = 7;
-
 function appendVersion(
   existing: unknown,
   entry: Record<string, unknown>,
@@ -64,6 +63,7 @@ function appendVersion(
 }
 
 export function useCuratorLegalReview(challengeId: string | undefined) {
+  const creatorTimeoutDays = useConfigNumber('creator_response_timeout_days');
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -126,7 +126,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
   });
 
   const approvalQuery = useQuery({
-    queryKey: APPROVAL_KEY(challengeId),
+    queryKey: [...APPROVAL_KEY(challengeId), creatorTimeoutDays],
     enabled: !!challengeId,
     staleTime: 30_000,
     queryFn: async (): Promise<CreatorApprovalSnapshot | null> => {
@@ -151,7 +151,7 @@ export function useCuratorLegalReview(challengeId: string | undefined) {
       if (status === 'pending' && requestedAt) {
         const elapsedMs = Date.now() - new Date(requestedAt).getTime();
         const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-        const overshoot = elapsedDays - CREATOR_TIMEOUT_DAYS;
+        const overshoot = elapsedDays - creatorTimeoutDays;
         if (overshoot > 0) {
           isOverdue = true;
           daysOverdue = Math.floor(overshoot);
