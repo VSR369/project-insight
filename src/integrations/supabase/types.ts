@@ -790,6 +790,7 @@ export type Database = {
       assessment_attempts: {
         Row: {
           answered_questions: number | null
+          config_snapshot: Json | null
           created_at: string
           enrollment_id: string | null
           id: string
@@ -803,6 +804,7 @@ export type Database = {
         }
         Insert: {
           answered_questions?: number | null
+          config_snapshot?: Json | null
           created_at?: string
           enrollment_id?: string | null
           id?: string
@@ -816,6 +818,7 @@ export type Database = {
         }
         Update: {
           answered_questions?: number | null
+          config_snapshot?: Json | null
           created_at?: string
           enrollment_id?: string | null
           id?: string
@@ -1304,6 +1307,7 @@ export type Database = {
       challenge_award_decisions: {
         Row: {
           challenge_id: string
+          config_snapshot: Json | null
           confirmed_at: string | null
           confirmed_by: string | null
           confirmer_role: string | null
@@ -1326,6 +1330,7 @@ export type Database = {
         }
         Insert: {
           challenge_id: string
+          config_snapshot?: Json | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           confirmer_role?: string | null
@@ -1348,6 +1353,7 @@ export type Database = {
         }
         Update: {
           challenge_id?: string
+          config_snapshot?: Json | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           confirmer_role?: string | null
@@ -4610,6 +4616,7 @@ export type Database = {
           cancelled_at: string | null
           cancelled_reason: string | null
           composite_slot_id: string | null
+          config_snapshot: Json | null
           created_at: string | null
           created_by: string | null
           enrollment_id: string
@@ -4636,6 +4643,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_reason?: string | null
           composite_slot_id?: string | null
+          config_snapshot?: Json | null
           created_at?: string | null
           created_by?: string | null
           enrollment_id: string
@@ -4662,6 +4670,7 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_reason?: string | null
           composite_slot_id?: string | null
+          config_snapshot?: Json | null
           created_at?: string | null
           created_by?: string | null
           enrollment_id?: string
@@ -6603,6 +6612,9 @@ export type Database = {
           governance_mode: string
           id: string
           is_active: boolean
+          max_amount: number
+          min_amount: number
+          param_key: string
           threshold_amount: number
           updated_at: string | null
           updated_by: string | null
@@ -6615,6 +6627,9 @@ export type Database = {
           governance_mode?: string
           id?: string
           is_active?: boolean
+          max_amount?: number
+          min_amount?: number
+          param_key?: string
           threshold_amount?: number
           updated_at?: string | null
           updated_by?: string | null
@@ -6627,6 +6642,9 @@ export type Database = {
           governance_mode?: string
           id?: string
           is_active?: boolean
+          max_amount?: number
+          min_amount?: number
+          param_key?: string
           threshold_amount?: number
           updated_at?: string | null
           updated_by?: string | null
@@ -6757,6 +6775,7 @@ export type Database = {
       }
       md_mpa_config: {
         Row: {
+          allowed_values: string[] | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -6775,8 +6794,10 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
           updated_by_id: string | null
+          value_pattern: string | null
         }
         Insert: {
+          allowed_values?: string[] | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -6795,8 +6816,10 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           updated_by_id?: string | null
+          value_pattern?: string | null
         }
         Update: {
+          allowed_values?: string[] | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -6815,6 +6838,7 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           updated_by_id?: string | null
+          value_pattern?: string | null
         }
         Relationships: [
           {
@@ -10391,6 +10415,7 @@ export type Database = {
           certified_at: string | null
           certified_by: string | null
           composite_score: number | null
+          config_snapshot: Json | null
           created_at: string
           created_by: string | null
           expertise_flag_for_clarification: string | null
@@ -10430,6 +10455,7 @@ export type Database = {
           certified_at?: string | null
           certified_by?: string | null
           composite_score?: number | null
+          config_snapshot?: Json | null
           created_at?: string
           created_by?: string | null
           expertise_flag_for_clarification?: string | null
@@ -10469,6 +10495,7 @@ export type Database = {
           certified_at?: string | null
           certified_by?: string | null
           composite_score?: number | null
+          config_snapshot?: Json | null
           created_at?: string
           created_by?: string | null
           expertise_flag_for_clarification?: string | null
@@ -17605,6 +17632,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      fn_config_snapshot_payload: { Args: never; Returns: Json }
       fn_finalise_award_decision: {
         Args: { p_decision: string }
         Returns: Json
@@ -17631,6 +17659,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      fn_require_supervisor: { Args: never; Returns: string }
       fn_status_for_phase: { Args: { p_phase: number }; Returns: string }
       fn_user_has_challenge_role: {
         Args: { p_challenge: string; p_roles: string[]; p_user: string }
@@ -17675,6 +17704,14 @@ export type Database = {
           proficiency_areas_count: number
           specialities_count: number
           specialty_proof_points_count: number
+        }[]
+      }
+      get_challenge_org_displays: {
+        Args: { p_challenge_ids: string[] }
+        Returns: {
+          challenge_id: string
+          org_display: string
+          trade_brand_name: string
         }[]
       }
       get_config: { Args: never; Returns: Json }
@@ -18255,6 +18292,14 @@ export type Database = {
       update_master_status: {
         Args: { p_challenge_id: string }
         Returns: undefined
+      }
+      update_money_threshold: {
+        Args: {
+          p_amount: number
+          p_change_reason: string
+          p_threshold_id: string
+        }
+        Returns: Json
       }
       validate_curation_checklist: {
         Args: { p_challenge_id: string }
