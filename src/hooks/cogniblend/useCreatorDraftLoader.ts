@@ -10,7 +10,7 @@ import type { CreatorFormValues } from '@/components/cogniblend/creator/creatorF
 import { toFormMaturityCode } from '@/components/cogniblend/creator/creatorFormSchema';
 import type { GovernanceMode } from '@/lib/governanceMode';
 
-const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model, evaluation_criteria, deliverables, solver_audience, evaluation_method, evaluator_count, creator_legal_instructions';
+const DRAFT_COLUMNS = 'title, hook, problem_statement, scope, maturity_level, solution_maturity_id, ip_model, domain_tags, currency_code, reward_structure, extended_brief, expected_outcomes, industry_segment_id, phase_schedule, governance_mode_override, operating_model, evaluation_criteria, deliverables, solver_audience, evaluation_method, evaluator_count, creator_legal_instructions, confidential_brief_keys';
 
 interface DraftSyncCallback {
   (gov: GovernanceMode, eng: string, industrySegmentId?: string): void;
