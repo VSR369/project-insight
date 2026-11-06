@@ -2569,6 +2569,9 @@ export type Database = {
           lc_compliance_complete: boolean
           lc_review_required: boolean | null
           legal_review_content_hash: string | null
+          legal_review_required: boolean
+          legal_review_signed_off_at: string | null
+          legal_review_signed_off_by: string | null
           management_fee: number | null
           master_status: string | null
           maturity_level: string | null
@@ -2679,6 +2682,9 @@ export type Database = {
           lc_compliance_complete?: boolean
           lc_review_required?: boolean | null
           legal_review_content_hash?: string | null
+          legal_review_required?: boolean
+          legal_review_signed_off_at?: string | null
+          legal_review_signed_off_by?: string | null
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
@@ -2789,6 +2795,9 @@ export type Database = {
           lc_compliance_complete?: boolean
           lc_review_required?: boolean | null
           legal_review_content_hash?: string | null
+          legal_review_required?: boolean
+          legal_review_signed_off_at?: string | null
+          legal_review_signed_off_by?: string | null
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
