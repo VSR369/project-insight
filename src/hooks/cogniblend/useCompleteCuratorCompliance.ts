@@ -17,6 +17,7 @@ interface CompleteCuratorComplianceResult {
   awaiting?: 'creator_approval' | 'publication';
   already_completed?: boolean;
   error?: string;
+  message?: string;
 }
 
 export function useCompleteCuratorCompliance(challengeId: string) {
@@ -36,7 +37,7 @@ export function useCompleteCuratorCompliance(challengeId: string) {
       }
       const result = data as unknown as CompleteCuratorComplianceResult;
       if (!result?.success) {
-        throw new Error(result?.error ?? 'Curator compliance completion failed');
+        throw new Error(result?.message ?? result?.error ?? 'Curator compliance completion failed');
       }
       return result;
     },
