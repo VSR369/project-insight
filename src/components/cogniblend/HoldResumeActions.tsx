@@ -124,18 +124,13 @@ export function HoldResumeActions({
         </Button>
       )}
 
-      {/* Cancel Challenge button — visible when ACTIVE or ON_HOLD + role permitted */}
-      {canCancel && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-destructive text-destructive hover:bg-destructive/10"
-          onClick={() => setShowCancelModal(true)}
-        >
-          <X className="h-4 w-4 mr-1.5" />
-          <span className="hidden lg:inline">Cancel Challenge</span>
-        </Button>
-      )}
+      {/* Cancel Challenge — gated by the agreed cancel-rights rule */}
+      <CancelChallengeAction
+        challengeId={challengeId}
+        challengeTitle={challengeTitle}
+        userId={userId}
+        visible={isActive || isOnHold}
+      />
 
       {/* ── Hold Modal ────────────────────────────────────── */}
       <Dialog open={showHoldModal} onOpenChange={setShowHoldModal}>
