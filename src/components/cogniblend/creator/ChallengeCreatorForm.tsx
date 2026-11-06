@@ -4,6 +4,7 @@
  * file upload in useCreatorFileUpload.ts, draft loading in useCreatorDraftLoader.ts.
  */
 
+import { MinimumModeFlagsCard } from '@/components/cogniblend/shared/MinimumModeFlagsCard';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

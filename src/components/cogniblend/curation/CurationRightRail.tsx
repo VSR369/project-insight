@@ -3,6 +3,7 @@
  * Sub-components extracted to RightRailCards.tsx.
  */
 
+import { MinimumModeFlagsCard } from '@/components/cogniblend/shared/MinimumModeFlagsCard';
 import React from "react";
 import { useLiveSectionCounts } from "@/hooks/cogniblend/useLiveSectionCounts";
 import { Button } from "@/components/ui/button";
