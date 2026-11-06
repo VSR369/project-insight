@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.get_minimum_governance_mode(text, numeric, boolean, boolean);

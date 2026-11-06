@@ -17764,15 +17764,6 @@ export type Database = {
         Args: { p_governance_profile: string }
         Returns: Json
       }
-      get_minimum_governance_mode: {
-        Args: {
-          p_currency: string
-          p_ip_sensitive: boolean
-          p_pool: number
-          p_regulated: boolean
-        }
-        Returns: string
-      }
       get_my_admin_profile_id: { Args: never; Returns: string }
       get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
       get_phase_config: {
