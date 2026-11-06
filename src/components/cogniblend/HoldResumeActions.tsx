@@ -1,17 +1,16 @@
 /**
- * HoldResumeActions — Reusable On Hold / Resume / Cancel button group with modals.
+ * HoldResumeActions — Reusable On Hold / Resume / Cancel button group.
  *
  * Props:
  *   - challengeId, challengeTitle, currentPhase, phaseStatus
  *   - userId (authenticated user)
- *   - userRoleCodes — role codes the user holds for this challenge (for cancel gating)
  *
  * Renders:
  *   - "Put On Hold" (amber outline, Pause icon) when phase_status = 'ACTIVE'
  *   - "Resume" (green, Play icon) when phase_status = 'ON_HOLD'
- *   - "Cancel Challenge" (red outline, X icon) when ACTIVE or ON_HOLD + role permitted
+ *   - CancelChallengeAction — cancel rights per the agreed rule
+ *     (see services/cogniblend/lifecycle/cancelRights.ts)
  *   - On Hold modal with required reason text area (min 50 chars)
- *   - Cancel modal with red warning and required reason (min 100 chars)
  */
 
 import { useConfigNumber } from '@/hooks/queries/useMpaConfig';
@@ -39,8 +38,6 @@ interface HoldResumeActionsProps {
   currentPhase: number;
   phaseStatus: string | null;
   userId: string;
-  /** Role codes the user holds for this challenge. Required for cancel permission. */
-  userRoleCodes?: string[];
 }
 
 /* ── Component ───────────────────────────────────────────── */
