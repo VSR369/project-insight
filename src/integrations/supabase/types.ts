@@ -17458,6 +17458,10 @@ export type Database = {
         Args: { p_reason?: string; p_reviewer_id: string; p_slot_id: string }
         Returns: Json
       }
+      cancel_challenge: {
+        Args: { p_challenge_id: string; p_reason: string }
+        Returns: undefined
+      }
       cancel_interview_booking: {
         Args: { p_booking_id: string; p_reason: string; p_user_id: string }
         Returns: Json
