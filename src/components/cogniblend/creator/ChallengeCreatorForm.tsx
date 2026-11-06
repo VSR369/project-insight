@@ -202,6 +202,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
           />
         )}
         {audienceSelectable(engagementModel) && <SolverAudienceSelector />}
+        <MinimumModeFlagsCard challengeId={draftSave.draftChallengeId ?? undefined} />
         <CreatorLegalPreview
           governanceMode={governanceMode}
           engagementModel={engagementModel}

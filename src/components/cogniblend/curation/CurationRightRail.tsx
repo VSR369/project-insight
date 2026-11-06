@@ -212,6 +212,7 @@ function CurationRightRailImpl(props: CurationRightRailProps) {
       <LegalDocsSummaryCard challengeId={challengeId} />
       <EscrowStatusCard challengeId={challengeId} />
       <ChallengeInvitationsCard challengeId={challengeId} />
+      <MinimumModeFlagsCard challengeId={challengeId} isReadOnly={isReadOnly} />
 
       {challengeCtx && <AIConfidenceSummary sectionKeys={allSectionKeys} context={challengeCtx} />}
 
