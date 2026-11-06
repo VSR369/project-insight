@@ -2556,13 +2556,16 @@ export type Database = {
           functional_area: string | null
           governance_mode_override: string | null
           governance_profile: string | null
+          governance_threshold_snapshot: Json | null
           hook: string | null
           id: string
           industry_segment_id: string | null
           ip_model: string | null
           is_active: boolean
           is_deleted: boolean
+          is_ip_sensitive: boolean
           is_qa_closed: boolean
+          is_regulated: boolean
           lc_compliance_complete: boolean
           lc_review_required: boolean | null
           legal_review_content_hash: string | null
@@ -2663,13 +2666,16 @@ export type Database = {
           functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
+          governance_threshold_snapshot?: Json | null
           hook?: string | null
           id?: string
           industry_segment_id?: string | null
           ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
+          is_ip_sensitive?: boolean
           is_qa_closed?: boolean
+          is_regulated?: boolean
           lc_compliance_complete?: boolean
           lc_review_required?: boolean | null
           legal_review_content_hash?: string | null
@@ -2770,13 +2776,16 @@ export type Database = {
           functional_area?: string | null
           governance_mode_override?: string | null
           governance_profile?: string | null
+          governance_threshold_snapshot?: Json | null
           hook?: string | null
           id?: string
           industry_segment_id?: string | null
           ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
+          is_ip_sensitive?: boolean
           is_qa_closed?: boolean
+          is_regulated?: boolean
           lc_compliance_complete?: boolean
           lc_review_required?: boolean | null
           legal_review_content_hash?: string | null
@@ -17754,6 +17763,15 @@ export type Database = {
       get_mandatory_fields: {
         Args: { p_governance_profile: string }
         Returns: Json
+      }
+      get_minimum_governance_mode: {
+        Args: {
+          p_currency: string
+          p_ip_sensitive: boolean
+          p_pool: number
+          p_regulated: boolean
+        }
+        Returns: string
       }
       get_my_admin_profile_id: { Args: never; Returns: string }
       get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
