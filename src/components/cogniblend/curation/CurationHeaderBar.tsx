@@ -188,7 +188,6 @@ function CurationHeaderBarImpl({
             currentPhase={currentPhase ?? 3}
             phaseStatus={null}
             userId={userId}
-            userRoleCodes={userRoleCodes}
           />
         )}
       </div>

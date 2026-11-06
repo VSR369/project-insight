@@ -48,7 +48,6 @@ export function HoldResumeActions({
   currentPhase,
   phaseStatus,
   userId,
-  userRoleCodes = [],
 }: HoldResumeActionsProps) {
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [holdReason, setHoldReason] = useState('');
