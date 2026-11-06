@@ -27,9 +27,9 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Pause, Play, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Pause, Play, Loader2 } from 'lucide-react';
 import { usePutOnHold, useResumeChallenge } from '@/hooks/cogniblend/useChallengeHold';
-import { useCancelChallenge, canCancelChallenge } from '@/hooks/cogniblend/useCancelChallenge';
+import { CancelChallengeAction } from '@/components/cogniblend/CancelChallengeAction';
 
 /* ── Props ────────────────────────────────────────────────── */
 
@@ -55,18 +55,13 @@ export function HoldResumeActions({
 }: HoldResumeActionsProps) {
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [holdReason, setHoldReason] = useState('');
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
   const minHoldReason = useConfigNumber('hold_reason_min_length');
-  const minCancelReason = useConfigNumber('cancel_reason_min_length');
 
   const putOnHold = usePutOnHold();
   const resumeChallenge = useResumeChallenge();
-  const cancelChallenge = useCancelChallenge();
 
   const isActive = phaseStatus === 'ACTIVE';
   const isOnHold = phaseStatus === 'ON_HOLD';
-  const canCancel = (isActive || isOnHold) && canCancelChallenge(currentPhase, userRoleCodes);
 
   const handleConfirmHold = () => {
     putOnHold.mutate(
@@ -95,26 +90,7 @@ export function HoldResumeActions({
     });
   };
 
-  const handleConfirmCancel = () => {
-    cancelChallenge.mutate(
-      {
-        challengeId,
-        challengeTitle,
-        currentPhase,
-        userId,
-        reason: cancelReason.trim(),
-      },
-      {
-        onSuccess: () => {
-          setShowCancelModal(false);
-          setCancelReason('');
-        },
-      },
-    );
-  };
-
   const holdReasonValid = holdReason.trim().length >= minHoldReason;
-  const cancelReasonValid = cancelReason.trim().length >= minCancelReason;
 
   return (
     <>
