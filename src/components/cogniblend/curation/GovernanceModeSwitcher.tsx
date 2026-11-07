@@ -22,6 +22,7 @@ import {
   type GovernanceMode,
 } from "@/lib/governanceMode";
 import { useGovernanceModeMutation } from "@/hooks/cogniblend/useGovernanceModeMutation";
+import { GOVERNANCE_LABELS, higherGovernanceModes } from '@/services/cogniblend/creator/governanceSelection';
 
 interface GovernanceModeSwitcherProps {
   challengeId: string;
@@ -43,9 +44,9 @@ export function GovernanceModeSwitcher({
 }: GovernanceModeSwitcherProps) {
   const [editing, setEditing] = useState(false);
   const currentMode = resolveGovernanceMode(currentProfile);
-  const availableModes = getAvailableGovernanceModes(orgTierCode ?? "premium");
+  const availableModes = higherGovernanceModes(currentMode, getAvailableGovernanceModes(orgTierCode));
   const isPhase2 = currentPhase === 2;
-  const canEdit = isPhase2 && availableModes.length > 1;
+  const canEdit = isPhase2 && phaseStatus !== 'COMPLETED' && phaseStatus !== 'COMPLETED_BYPASSED' && availableModes.length > 0;
 
   const mutation = useGovernanceModeMutation({ challengeId, currentMode, userId });
 
@@ -66,12 +67,13 @@ export function GovernanceModeSwitcher({
           variant="ghost"
           size="sm"
           className="h-6 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+          aria-label="Raise governance mode"
           onClick={() => setEditing(true)}
         >
           <Pencil className="h-3 w-3" />
         </Button>
       )}
-      {editing && (
+      {editing && canEdit && (
         <div className="flex items-center gap-1.5">
           <Select
             value={currentMode}
@@ -82,9 +84,9 @@ export function GovernanceModeSwitcher({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {availableModes.map((mode) => (
+              {[currentMode, ...availableModes].map((mode) => (
                 <SelectItem key={mode} value={mode} className="text-xs">
-                  {GOVERNANCE_MODE_CONFIG[mode].label}
+                  {GOVERNANCE_LABELS[mode]}
                 </SelectItem>
               ))}
             </SelectContent>

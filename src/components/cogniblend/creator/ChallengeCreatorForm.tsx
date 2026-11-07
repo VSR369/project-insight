@@ -113,6 +113,10 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
 
   useEffect(() => { draftSave.initFromUrl(searchParams.get('draft')); }, []);
 
+  useEffect(() => {
+    if (governanceMode !== 'CONTROLLED') setActiveTab('essential');
+  }, [governanceMode]);
+
   const handleReferenceUrlsLoaded = useCallback((urls: string[]) => {
     if (urls.length > 0) setReferenceUrls(urls);
   }, []);

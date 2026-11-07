@@ -8,3 +8,4 @@
 - Challenge `status` and `current_phase` change only inside server steps (complete_phase, award RPCs); a guard trigger refuses client writes and derives status from phase via `fn_status_for_phase` — one place enforces the ST-24 map and step owners.
 - Award decisions go recommend → confirm (different person) or countersign (Senior Admin/Supervisor) through `recommend_award`/`confirm_award`/`return_award`/`countersign_award`; status sets and allowed moves live in `md_status_sets`/`md_status_transitions` — rules stay data-driven and auditable.
 - Views in public use security_invoker=true; helpers that must bypass RLS for a view live in the non-exposed `private` schema — base-table RLS stays the single access gate.
+- Creator governance selection is centralized in the creator service, and the form stays mounted during Draft mode changes so hidden fields and saved draft identity are preserved.
