@@ -18,6 +18,7 @@
 - [x] W2: cancel rights — cancel_challenge RPC enforces CR/CU pre-publication, R6_AGG/R2 once published, Senior Admin after any submission; CancelChallengeAction + useCancelRights; 16 tests updated
 - [x] W2: DEF-0144 minimum mode — per-currency Express limit / High-Rigor threshold settings, Regulated + IP-sensitive flags, server refusal at Submit and Complete Curation (copy taken at submission)
 - [x] W2: legal_review_threshold re-wired — Structured challenges at/above it need Legal Coordinator sign-off before Curator completes compliance
+- [ ] W2 next batch: DEF-0013 mode choices/defaults, draft preservation, Curator raise-only server guard; DEF-0027 brief catalogue; DEF-0157 stages; DEF-0036 deadlines; DEF-0037/0113/0159/0369 submissions and awards
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)
 - [ ] Replace remaining hard-coded numbers with settings, theme by theme (W2+)

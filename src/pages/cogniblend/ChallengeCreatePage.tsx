@@ -21,10 +21,9 @@ import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors'
 import { useAuth } from '@/hooks/useAuth';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import {
-  getAvailableGovernanceModes,
-  getDefaultGovernanceMode,
   type GovernanceMode,
 } from '@/lib/governanceMode';
+import { creationGovernanceDefault } from '@/services/cogniblend/creator/governanceSelection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import type { IndustrySegmentSource } from '@/constants/industrySegment.constants';
@@ -87,14 +86,16 @@ export default function ChallengeCreatePage() {
     sessionStorage.removeItem('cogni_demo_governance');
     if (currentOrg) {
       governanceInitialized.current = true;
-      const available = getAvailableGovernanceModes(currentOrg.tierCode);
-      if (demoGov && available.includes(demoGov)) {
-        setGovernanceMode(demoGov);
-      } else {
-        setGovernanceMode(getDefaultGovernanceMode(currentOrg.tierCode, currentOrg.governanceProfile));
-      }
+      const mode = creationGovernanceDefault(currentOrg.tierCode, engagementModel, currentOrg.governanceProfile, demoGov ?? undefined);
+      if (mode) setGovernanceMode(mode);
     }
-  }, [currentOrg]);
+  }, [currentOrg, engagementModel]);
+
+  useEffect(() => {
+    if (!currentOrg) return;
+    const mode = creationGovernanceDefault(currentOrg.tierCode, engagementModel, currentOrg.governanceProfile, governanceMode);
+    if (mode && mode !== governanceMode) setGovernanceMode(mode);
+  }, [currentOrg, engagementModel, governanceMode]);
 
   useEffect(() => {
     if (engagementInitialized.current) return;
@@ -211,7 +212,6 @@ export default function ChallengeCreatePage() {
           <Badge variant="secondary" className="text-[10px]">{FIELD_COUNTS[governanceMode]} required fields</Badge>
         </div>
         <ChallengeCreatorForm
-          key={`${governanceMode}-${engagementModel}`}
           engagementModel={engagementModel}
           governanceMode={governanceMode}
           industrySegmentId={industrySegmentId}
