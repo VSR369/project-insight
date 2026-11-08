@@ -18,7 +18,6 @@ import { GovernanceProfileBadge } from "@/components/cogniblend/GovernanceProfil
 import {
   resolveGovernanceMode,
   getAvailableGovernanceModes,
-  GOVERNANCE_MODE_CONFIG,
   type GovernanceMode,
 } from "@/lib/governanceMode";
 import { useGovernanceModeMutation } from "@/hooks/cogniblend/useGovernanceModeMutation";

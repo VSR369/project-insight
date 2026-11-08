@@ -7,10 +7,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError } from '@/lib/errorHandler';
 import {
-  fetchGovernanceFieldRules,
-  stripHiddenFields,
-} from '@/lib/cogniblend/governanceFieldFilter';
-import {
   type DraftPayload,
   normalizeConstrainedChallengeFields,
   buildChallengeUpdatePayload,
@@ -24,9 +20,9 @@ export function useSaveDraft() {
   return useMutation({
     mutationFn: async (payload: DraftPayload): Promise<{ challengeId: string }> => {
       const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
-      const effectiveMode = payload.governanceModeOverride ?? 'STRUCTURED';
-      const governanceRules = await fetchGovernanceFieldRules(effectiveMode);
-      const fp = stripHiddenFields(payload as unknown as Record<string, unknown>, governanceRules) as unknown as DraftPayload;
+      // Draft values must survive mode changes. Publication applies visibility/default rules.
+      const governanceRules: Parameters<typeof buildChallengeUpdatePayload>[3] = {};
+      const fp = payload;
       const normalizedConstrainedFields = normalizeConstrainedChallengeFields(fp);
 
       const { data: challengeId, error: initError } = await supabase.rpc('initialize_challenge', {
@@ -59,9 +55,8 @@ export function useUpdateDraft() {
 
   return useMutation({
     mutationFn: async (payload: DraftPayload & { challengeId: string }): Promise<{ challengeId: string }> => {
-      const effectiveMode = payload.governanceModeOverride ?? 'STRUCTURED';
-      const governanceRules = await fetchGovernanceFieldRules(effectiveMode);
-      const fp = stripHiddenFields(payload as unknown as Record<string, unknown>, governanceRules) as unknown as (DraftPayload & { challengeId: string });
+      const governanceRules: Parameters<typeof buildChallengeUpdatePayload>[3] = {};
+      const fp = payload;
       const normalizedConstrainedFields = normalizeConstrainedChallengeFields(fp);
 
       const updatePayload = buildChallengeUpdatePayload(fp, payload, normalizedConstrainedFields, governanceRules);

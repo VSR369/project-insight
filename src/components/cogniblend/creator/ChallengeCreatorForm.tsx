@@ -32,7 +32,6 @@ import { AdditionalContextTab } from './AdditionalContextTab';
 import { ReferenceAttachmentsSection } from './ReferenceAttachmentsSection';
 import { CreatorAIReviewDrawer } from './CreatorAIReviewDrawer';
 import { EscrowCalculationDisplay } from '@/components/cogniblend/EscrowCalculationDisplay';
-import { SolverAudiencePreview } from './SolverAudiencePreview';
 import { QuickPublishSuccessScreen } from './QuickPublishSuccessScreen';
 import { QuickPublishConfirmModal } from './QuickPublishConfirmModal';
 import { EvaluationMethodSection } from './EvaluationMethodSection';

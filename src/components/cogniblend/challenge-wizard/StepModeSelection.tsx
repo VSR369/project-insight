@@ -6,6 +6,7 @@
  * Plus operating model selector (MP / AGG).
  */
 
+import { useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 import type { UseFormReturn } from 'react-hook-form';
 import { Info, Zap, Settings2, ShieldCheck } from 'lucide-react';
@@ -13,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { GOVERNANCE_LABELS } from '@/services/cogniblend/creator/governanceSelection';
 import {
   Tooltip,
   TooltipContent,
@@ -90,6 +93,12 @@ export function StepModeSelection({
   const selectedMode = (form.watch('governance_mode') ?? 'STRUCTURED') as GovernanceMode;
   const selectedModel = form.watch('operating_model') ?? orgOperatingModel ?? 'MP';
 
+  useEffect(() => {
+    if (selectedModel === 'MP' && selectedMode === 'QUICK') {
+      form.setValue('governance_mode', 'STRUCTURED', { shouldDirty: true, shouldValidate: true });
+    }
+  }, [form, selectedModel, selectedMode]);
+
   return (
     <div className="space-y-8">
       {/* ═══ Section 1: Governance Mode ═══ */}
@@ -107,7 +116,7 @@ export function StepModeSelection({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {MODE_CARDS.map(({ mode, icon: Icon, features }) => {
+          {MODE_CARDS.filter(({ mode }) => selectedModel === 'AGG' || mode !== 'QUICK').map(({ mode, icon: Icon, features }) => {
             const cfg = GOVERNANCE_MODE_CONFIG[mode];
             const isSelected = selectedMode === mode;
             const isDisabled = disabledModes.includes(mode);
@@ -116,7 +125,7 @@ export function StepModeSelection({
               <TooltipProvider key={mode} delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button variant="outline" aria-pressed={isSelected}
                       type="button"
                       disabled={isDisabled}
                       onClick={() => {
@@ -125,7 +134,7 @@ export function StepModeSelection({
                         }
                       }}
                       className={cn(
-                        'relative w-full text-left rounded-xl border-2 p-5 transition-all',
+                        'relative h-auto whitespace-normal block w-full text-left rounded-lg border-2 p-5 transition-all',
                         isSelected
                           ? 'shadow-md ring-1'
                           : 'hover:shadow-sm',
@@ -147,7 +156,7 @@ export function StepModeSelection({
                         </div>
                         <div>
                           <p className="text-sm font-bold" style={{ color: cfg.color }}>
-                            {cfg.label}
+                            {GOVERNANCE_LABELS[mode]}
                           </p>
                         </div>
                       </div>
@@ -180,7 +189,7 @@ export function StepModeSelection({
                           Upgrade required
                         </Badge>
                       )}
-                    </button>
+                    </Button>
                   </TooltipTrigger>
                   {isDisabled && (
                     <TooltipContent className="max-w-[220px] text-xs">
@@ -199,7 +208,7 @@ export function StepModeSelection({
         <div>
           <h3 className="text-base font-bold text-foreground mb-1">Engagement Model</h3>
           <p className="text-sm text-muted-foreground">
-            Select the engagement model for this challenge. This determines how solvers are engaged and managed.
+            Select the engagement model for this challenge.
           </p>
         </div>
 
@@ -223,8 +232,8 @@ export function StepModeSelection({
           <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground">
             {selectedModel === 'AGG'
-              ? 'Aggregator model: solvers are curated and invited. The Curator manages the full lifecycle.'
-              : 'Marketplace model: solvers discover and apply. A Curator refines and publishes the challenge.'}
+              ? 'Aggregator model: Solution Providers are curated and invited. The Curator manages the full lifecycle.'
+              : 'Marketplace model: Solution Providers discover and apply. A Curator refines and publishes the challenge.'}
           </p>
         </div>
       </div>
