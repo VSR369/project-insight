@@ -21,7 +21,7 @@ export function useSaveDraft() {
     mutationFn: async (payload: DraftPayload): Promise<{ challengeId: string }> => {
       const title = payload.title?.trim() || payload.businessProblem.substring(0, 100).trim() || 'Untitled Draft';
       // Draft values must survive mode changes. Publication applies visibility/default rules.
-      const governanceRules: Parameters<typeof buildChallengeUpdatePayload>[3] = [];
+      const governanceRules: Parameters<typeof buildChallengeUpdatePayload>[3] = {};
       const fp = payload;
       const normalizedConstrainedFields = normalizeConstrainedChallengeFields(fp);
 
@@ -55,7 +55,7 @@ export function useUpdateDraft() {
 
   return useMutation({
     mutationFn: async (payload: DraftPayload & { challengeId: string }): Promise<{ challengeId: string }> => {
-      const governanceRules: Parameters<typeof buildChallengeUpdatePayload>[3] = [];
+      const governanceRules: Parameters<typeof buildChallengeUpdatePayload>[3] = {};
       const fp = payload;
       const normalizedConstrainedFields = normalizeConstrainedChallengeFields(fp);
 
