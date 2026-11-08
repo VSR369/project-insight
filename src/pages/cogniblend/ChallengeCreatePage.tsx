@@ -82,14 +82,16 @@ export default function ChallengeCreatePage() {
 
   useEffect(() => {
     if (governanceInitialized.current) return;
+    if (!currentOrg || modelLoading) return;
     const demoGov = sessionStorage.getItem('cogni_demo_governance') as GovernanceMode | null;
     sessionStorage.removeItem('cogni_demo_governance');
     if (currentOrg) {
       governanceInitialized.current = true;
-      const mode = creationGovernanceDefault(currentOrg.tierCode, engagementModel, currentOrg.governanceProfile, demoGov ?? undefined);
+      const initialModel = sessionStorage.getItem('cogni_demo_engagement') ?? orgContext?.operatingModel ?? engagementModel;
+      const mode = creationGovernanceDefault(currentOrg.tierCode, initialModel, currentOrg.governanceProfile, demoGov ?? undefined);
       if (mode) setGovernanceMode(mode);
     }
-  }, [currentOrg, engagementModel]);
+  }, [currentOrg, orgContext?.operatingModel, modelLoading, engagementModel]);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -211,7 +213,7 @@ export default function ChallengeCreatePage() {
           <span className="text-sm font-semibold text-foreground">Create</span>
           <Badge variant="secondary" className="text-[10px]">{FIELD_COUNTS[governanceMode]} required fields</Badge>
         </div>
-        <ChallengeCreatorForm
+        {creationGovernanceDefault(currentOrg.tierCode, engagementModel, currentOrg.governanceProfile, governanceMode) && <ChallengeCreatorForm
           engagementModel={engagementModel}
           governanceMode={governanceMode}
           industrySegmentId={industrySegmentId}
@@ -219,7 +221,7 @@ export default function ChallengeCreatePage() {
           onFillTestData={() => setOrgFillTrigger((n) => n + 1)}
           onDraftIdChange={setDraftChallengeId}
           onIndustrySegmentResolved={handleIndustryResolvedFromForm}
-        />
+        />}
       </div>
     </div>
   );
