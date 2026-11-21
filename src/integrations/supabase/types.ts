@@ -17731,6 +17731,10 @@ export type Database = {
           specialty_proof_points_count: number
         }[]
       }
+      get_challenge_minimum_mode: {
+        Args: { p_challenge_id: string }
+        Returns: string
+      }
       get_config: { Args: never; Returns: Json }
       get_eligible_admins_ranked: {
         Args: {

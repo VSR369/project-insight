@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import {
   fetchMinimumModeFlags,
+  fetchChallengeMinimumMode,
   updateMinimumModeFlags,
   type MinimumModeFlags,
 } from '@/services/cogniblend/lifecycle/minimumModeService';
@@ -27,5 +28,15 @@ export function useUpdateMinimumModeFlags(challengeId: string | undefined) {
       toast.success('Challenge flags updated successfully');
     },
     onError: (e) => handleMutationError(e, { operation: 'update_minimum_mode_flags', component: 'MinimumModeFlagsCard' }),
+  });
+}
+
+/** Server-computed minimum governance mode; refreshes whenever the challenge's queries are invalidated. */
+export function useChallengeMinimumMode(challengeId: string | undefined) {
+  return useQuery({
+    queryKey: ['challenges', challengeId, 'minimum-mode'],
+    queryFn: () => fetchChallengeMinimumMode(challengeId as string),
+    enabled: !!challengeId,
+    staleTime: STALE_TIME_MS,
   });
 }

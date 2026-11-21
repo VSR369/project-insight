@@ -19,6 +19,8 @@ import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useOrgContext';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useAuth } from '@/hooks/useAuth';
+import { useChallengeMinimumMode } from '@/hooks/queries/useMinimumModeFlags';
+import { isBelowMinimumMode } from '@/services/cogniblend/lifecycle/minimumModeService';
 import { logStatusTransition } from '@/lib/cogniblend/statusHistoryLogger';
 import {
   type GovernanceMode,
@@ -42,6 +44,12 @@ export default function ChallengeCreatePage() {
   const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
   const { user } = useAuth();
+  const { data: minimumMode = null } = useChallengeMinimumMode(draftChallengeId ?? undefined);
+
+  // DEF-0144: raise the selection automatically when the saved draft needs a higher mode.
+  useEffect(() => {
+    if (minimumMode && isBelowMinimumMode(governanceMode, minimumMode)) setGovernanceMode(minimumMode);
+  }, [minimumMode, governanceMode]);
 
   // Auto-fill industry from org primary, then fall back to first option.
   // Skipped once a draft, manual override, or any value is already set.
@@ -196,6 +204,7 @@ export default function ChallengeCreatePage() {
           engagementModel={engagementModel}
           onEngagementModelChange={setEngagementModel}
           tierCode={currentOrg.tierCode}
+          minimumMode={minimumMode}
         />
       </div>
 

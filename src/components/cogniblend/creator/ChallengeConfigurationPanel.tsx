@@ -6,6 +6,7 @@
 import { Info, Zap, Layers, Shield, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { isBelowMinimumMode } from '@/services/cogniblend/lifecycle/minimumModeService';
 import { creationGovernanceModes, GOVERNANCE_LABELS } from '@/services/cogniblend/creator/governanceSelection';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -47,6 +48,8 @@ interface ChallengeConfigurationPanelProps {
   tierCode: string | null;
   /** When true, governance cards are disabled (edit mode) */
   isEditMode?: boolean;
+  /** Lowest mode allowed by award amount and Regulated / IP-sensitive flags (server-computed). */
+  minimumMode?: GovernanceMode | null;
 }
 
 /* ─── Component ──────────────────────────────────────── */
@@ -62,6 +65,7 @@ export function ChallengeConfigurationPanel({
   onEngagementModelChange,
   tierCode,
   isEditMode = false,
+  minimumMode = null,
 }: ChallengeConfigurationPanelProps) {
   const availableModes = creationGovernanceModes(tierCode, engagementModel);
 
@@ -112,8 +116,9 @@ export function ChallengeConfigurationPanel({
           {GOVERNANCE_CARDS.filter(({ mode }) => engagementModel === 'AGG' || mode !== 'QUICK').map(({ mode, icon: Icon, subtitle }) => {
             const isSelected = governanceMode === mode;
             const isUnavailable = !availableModes.includes(mode);
+            const isBelowMinimum = isBelowMinimumMode(mode, minimumMode);
             return (
-              <Button key={mode} type="button" variant="outline" disabled={isEditMode || isUnavailable}
+              <Button key={mode} type="button" variant="outline" disabled={isEditMode || isUnavailable || isBelowMinimum}
                 aria-pressed={isSelected} aria-label={GOVERNANCE_LABELS[mode]}
                 onClick={() => onGovernanceModeChange(mode)}
                 className={cn('relative h-auto min-h-24 whitespace-normal flex-col items-start text-left border-2 p-4',
@@ -121,6 +126,7 @@ export function ChallengeConfigurationPanel({
                 <span className="flex items-center gap-2"><Icon className="h-4 w-4" />{GOVERNANCE_LABELS[mode]}</span>
                 <span className="text-xs text-muted-foreground">{subtitle}</span>
                 {isUnavailable && <Badge variant="secondary">Unavailable on this tier</Badge>}
+                {!isUnavailable && isBelowMinimum && <Badge variant="secondary">Below this challenge's required minimum</Badge>}
               </Button>
             );
           })}

@@ -39,3 +39,19 @@ export async function updateMinimumModeFlags(challengeId: string, flags: Minimum
     .eq('id', challengeId);
   if (error) throw new Error(error.message);
 }
+
+export type MinimumGovernanceMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
+const MODE_RANK: Record<MinimumGovernanceMode, number> = { QUICK: 1, STRUCTURED: 2, CONTROLLED: 3 };
+
+/** True when `mode` is lower than the server-computed minimum. */
+export function isBelowMinimumMode(mode: MinimumGovernanceMode, minimum: MinimumGovernanceMode | null): boolean {
+  return minimum !== null && MODE_RANK[mode] < MODE_RANK[minimum];
+}
+
+/** Lowest governance mode the server allows for this challenge (award pool, currency limits, flags). */
+export async function fetchChallengeMinimumMode(challengeId: string): Promise<MinimumGovernanceMode | null> {
+  const { data, error } = await supabase.rpc('get_challenge_minimum_mode' as never, { p_challenge_id: challengeId } as never);
+  if (error) throw new Error(error.message);
+  const value = data as unknown;
+  return value === 'QUICK' || value === 'STRUCTURED' || value === 'CONTROLLED' ? value : null;
+}
