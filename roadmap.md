@@ -20,6 +20,7 @@
 - [x] W2: legal_review_threshold re-wired — Structured challenges at/above it need Legal Coordinator sign-off before Curator completes compliance
 - [ ] W2 next batch: DEF-0013 mode choices/defaults, draft preservation, Curator raise-only server guard; DEF-0027 brief catalogue; DEF-0157 stages; DEF-0036 deadlines; DEF-0037/0113/0159/0369 submissions and awards
   - DEF-0013 implementation: Marketplace excludes Express in both selectors; org-profile defaults; form remains mounted; draft save retains hidden values; server rejects submitted downgrades. Nine new rule tests pass; full suite 1,154 passed / 69 integration tests skipped; build OK. Signed-in preservation and role checks await the test account; threshold-driven picker availability remains to finish.
+- [x] Activity-feed exposure closed: audit_trail readable only by own actions, challenge role holders, platform admins; anon revoked
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)
 - [ ] Replace remaining hard-coded numbers with settings, theme by theme (W2+)
