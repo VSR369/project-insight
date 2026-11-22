@@ -1,20 +1,8 @@
-/**
- * useManageChallenge — Data hook for the Challenge Management page.
- *
- * Fetches:
- * 1. Challenge metadata (title, status, deadline, governance_profile)
- * 2. Submissions with anonymised solver IDs for Enterprise
- * 3. Package versions (snapshot history)
- * 4. Amendment records
- * 5. CU-role permission check for deadline extension
- */
-
+/** Data for post-publication challenge management. */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_FREQUENT } from '@/config/queryCache';
 import { resolveGovernanceMode, isStructuredOrAbove } from '@/lib/governanceMode';
-
-/* ─── Types ──────────────────────────────────────────────── */
 
 export interface ManagedSubmission {
   id: string;
@@ -40,6 +28,9 @@ export interface ManageChallengeData {
   operatingModel: string | null;
   currentPhase: number | null;
   extendedBrief: Record<string, unknown> | null;
+  stageCount: 1 | 2;
+  abstractDeadline: string | null;
+  solutionDeadline: string | null;
   submissionDeadline: string | null;
   submissionCount: number;
   submissions: ManagedSubmission[];
@@ -47,18 +38,14 @@ export interface ManageChallengeData {
   canExtendDeadline: boolean;
 }
 
-/* ─── Helpers ────────────────────────────────────────────── */
-
 const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-function anonymiseIndex(idx: number): string {
-  if (idx < 26) return `Solver-${ALPHA[idx]}`;
-  const first = ALPHA[Math.floor(idx / 26) - 1] ?? 'Z';
-  const second = ALPHA[idx % 26];
-  return `Solver-${first}${second}`;
+function anonymiseIndex(index: number): string {
+  if (index < 26) return `Provider-${ALPHA[index]}`;
+  const first = ALPHA[Math.floor(index / 26) - 1] ?? 'Z';
+  const second = ALPHA[index % 26];
+  return `Provider-${first}${second}`;
 }
-
-/* ─── Hook ───────────────────────────────────────────────── */
 
 export function useManageChallenge(challengeId: string | undefined, userId: string | undefined) {
   return useQuery({
@@ -66,90 +53,75 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
     enabled: !!challengeId,
     queryFn: async (): Promise<ManageChallengeData> => {
       if (!challengeId) throw new Error('Challenge ID required');
-
-      // 1. Challenge metadata
-      const { data: challenge, error: cErr } = await supabase
+      const { data: challenge, error: challengeError } = await supabase
         .from('challenges')
-        .select('id, title, master_status, governance_profile, submission_deadline, operating_model, extended_brief, current_phase')
+        .select('id, title, master_status, governance_profile, submission_deadline, solution_deadline, abstract_deadline, stage_count, operating_model, extended_brief, current_phase')
         .eq('id', challengeId)
         .eq('is_deleted', false)
         .single();
-
-      if (cErr) throw new Error(cErr.message);
+      if (challengeError) throw new Error(challengeError.message);
       if (!challenge) throw new Error('Challenge not found');
 
-      // 2. Submissions
-      const { data: subs, error: sErr } = await supabase
+      const { data: submissionsData, error: submissionsError } = await supabase
         .from('challenge_submissions')
         .select('id, submitter_name, created_at, status')
         .eq('challenge_id', challengeId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: true });
-
-      if (sErr) throw new Error(sErr.message);
+      if (submissionsError) throw new Error(submissionsError.message);
 
       const isBlindMode = isStructuredOrAbove(resolveGovernanceMode(challenge.governance_profile));
-
-      const submissions: ManagedSubmission[] = (subs ?? []).map((s, idx) => ({
-        id: s.id,
-        solverLabel: isBlindMode ? anonymiseIndex(idx) : s.submitter_name,
-        submitterName: s.submitter_name,
-        submittedAt: s.created_at,
-        status: s.status ?? 'draft',
+      const submissions: ManagedSubmission[] = (submissionsData ?? []).map((submission, index) => ({
+        id: submission.id,
+        solverLabel: isBlindMode ? anonymiseIndex(index) : submission.submitter_name,
+        submitterName: submission.submitter_name,
+        submittedAt: submission.created_at,
+        status: submission.status ?? 'draft',
       }));
 
-      // 3. Package versions
-      const { data: versions, error: vErr } = await supabase
+      const { data: versions, error: versionsError } = await supabase
         .from('challenge_package_versions')
         .select('id, version_number, created_at, snapshot')
         .eq('challenge_id', challengeId)
         .order('version_number', { ascending: true });
+      if (versionsError) throw new Error(versionsError.message);
 
-      if (vErr) throw new Error(vErr.message);
-
-      // 4. Amendment records for change summaries
       const { data: amendments } = await supabase
         .from('amendment_records')
         .select('version_after, reason')
         .eq('challenge_id', challengeId)
         .order('amendment_number', { ascending: true });
-
       const amendmentMap = new Map<number, string>();
-      (amendments ?? []).forEach((a) => {
-        if (a.version_after != null) {
-          amendmentMap.set(a.version_after, a.reason ?? 'Amendment applied');
-        }
+      (amendments ?? []).forEach((amendment) => {
+        if (amendment.version_after != null) amendmentMap.set(amendment.version_after, amendment.reason ?? 'Amendment applied');
       });
-
-      const packageVersions: PackageVersion[] = (versions ?? []).map((v) => ({
-        id: v.id,
-        versionNumber: v.version_number,
-        createdAt: v.created_at,
-        snapshot: v.snapshot as Record<string, unknown> | null,
-        changeSummary: v.version_number === 1
-          ? 'Initial publication'
-          : amendmentMap.get(v.version_number) ?? null,
+      const packageVersions: PackageVersion[] = (versions ?? []).map((version) => ({
+        id: version.id,
+        versionNumber: version.version_number,
+        createdAt: version.created_at,
+        snapshot: version.snapshot as Record<string, unknown> | null,
+        changeSummary: version.version_number === 1 ? 'Initial publication' : amendmentMap.get(version.version_number) ?? null,
       }));
 
-      // 5. Permission check — can current user extend deadline? (CU role)
       let canExtendDeadline = false;
       if (userId) {
-        const { data: perm } = await supabase.rpc('can_perform', {
+        const { data: permission } = await supabase.rpc('can_perform', {
           p_user_id: userId,
           p_challenge_id: challengeId,
           p_required_role: 'CU',
         });
-        canExtendDeadline = perm === true;
+        canExtendDeadline = permission === true;
       }
 
-      // Parse extended_brief
       let parsedBrief: Record<string, unknown> | null = null;
       if (challenge.extended_brief) {
         try {
           parsedBrief = typeof challenge.extended_brief === 'string'
-            ? JSON.parse(challenge.extended_brief)
-            : (challenge.extended_brief as Record<string, unknown>);
-        } catch { parsedBrief = null; }
+            ? JSON.parse(challenge.extended_brief) as Record<string, unknown>
+            : challenge.extended_brief as Record<string, unknown>;
+        } catch {
+          parsedBrief = null;
+        }
       }
 
       return {
@@ -157,9 +129,12 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
         title: challenge.title,
         masterStatus: challenge.master_status ?? 'ACTIVE',
         governanceProfile: challenge.governance_profile ?? 'STRUCTURED',
-        operatingModel: (challenge as Record<string, unknown>).operating_model as string | null ?? null,
-        currentPhase: (challenge as Record<string, unknown>).current_phase as number | null ?? null,
+        operatingModel: challenge.operating_model,
+        currentPhase: challenge.current_phase,
         extendedBrief: parsedBrief,
+        stageCount: challenge.stage_count === 2 ? 2 : 1,
+        abstractDeadline: challenge.abstract_deadline,
+        solutionDeadline: challenge.solution_deadline,
         submissionDeadline: challenge.submission_deadline,
         submissionCount: submissions.length,
         submissions,

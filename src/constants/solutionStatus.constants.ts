@@ -106,7 +106,7 @@ export function deriveSolutionDisplayStatus(
   // Selection outcomes
   if (ss === 'SELECTED' || ss === 'AWARDED') return SOLUTION_DISPLAY_STATUS.SELECTED;
   if (ss === 'REJECTED') return SOLUTION_DISPLAY_STATUS.REJECTED;
-  if (ss === 'SHORTLISTED') return SOLUTION_DISPLAY_STATUS.SHORTLISTED;
+  if (ss === 'SHORTLISTED' || ss === 'APPROVED_SHORTLIST') return SOLUTION_DISPLAY_STATUS.SHORTLISTED;
 
   // Phase-based mapping
   switch (currentPhase) {

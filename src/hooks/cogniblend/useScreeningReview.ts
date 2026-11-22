@@ -56,10 +56,10 @@ export interface ScreeningData {
 const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 function anonymiseIndex(idx: number): string {
-  if (idx < 26) return `Solver-${ALPHA[idx]}`;
+  if (idx < 26) return `Provider-${ALPHA[idx]}`;
   const first = ALPHA[Math.floor(idx / 26) - 1] ?? 'Z';
   const second = ALPHA[idx % 26];
-  return `Solver-${first}${second}`;
+  return `Provider-${first}${second}`;
 }
 
 function computeWeightedTotal(

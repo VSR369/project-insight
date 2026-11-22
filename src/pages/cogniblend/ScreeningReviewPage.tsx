@@ -14,6 +14,7 @@ import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles'
 import { usePwaStatus } from '@/hooks/cogniblend/usePwaStatus';
 import { ReviewerPwaGate } from '@/components/cogniblend/shared/ReviewerPwaGate';
 import { shouldShowPwaPrompt } from '@/services/cogniblend/lifecycle/reviewerAgreement';
+import { canAccessAbstractScreening, canApproveAbstractShortlist as checkCanApproveShortlist } from '@/services/cogniblend/lifecycle/shortlisting';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,7 @@ export default function ScreeningReviewPage() {
   const isStructuredMode = data?.isBlindMode ?? false;
 
   // Access: ER role for Structured+, or challenge owner (any role) for Quick
-  const hasAccess = isStructuredMode ? hasERRole : true;
+  const hasAccess = canAccessAbstractScreening(isStructuredMode, hasERRole, hasCURole);
 
   const selectedAbstract = data?.abstracts.find(a => a.id === selectedAbstractId) ?? null;
 
@@ -69,7 +70,7 @@ export default function ScreeningReviewPage() {
   const rejectedCount = data?.abstracts.filter(a => a.selectionStatus === 'REJECTED').length ?? 0;
   const pendingCount = data?.abstracts.filter(a => a.selectionStatus === 'PENDING').length ?? 0;
 
-  const canApproveShortlist = (isStructuredMode ? hasCURole : true) && pendingCount === 0 && shortlistedCount > 0 && !data?.shortlistApproved;
+  const canApproveShortlist = checkCanApproveShortlist(hasCURole, pendingCount, shortlistedCount, data?.shortlistApproved ?? false);
 
   // ═══ SECTION 5: Conditional returns ═══
   if (isLoading) return <ScreeningPageSkeleton />;
@@ -97,7 +98,7 @@ export default function ScreeningReviewPage() {
             <p className="text-sm font-medium text-foreground">Access Denied</p>
             <p className="text-xs text-muted-foreground">
               {isStructuredMode
-                ? 'You need the ER (Evaluation Reviewer) role to access screening.'
+                ? 'You need the Evaluation Reviewer role to screen or the Curator role to approve the shortlist.'
                 : 'You do not have permission to screen this challenge.'}
             </p>
             <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
@@ -200,6 +201,7 @@ export default function ScreeningReviewPage() {
                   isStructuredMode={isStructuredMode}
                   reviewerId={userId!}
                   shortlistApproved={data.shortlistApproved}
+                  canReview={!isStructuredMode || hasERRole}
                 />
               </CardContent>
             </Card>

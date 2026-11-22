@@ -24,9 +24,10 @@ export interface AbstractDetailProps {
   isStructuredMode: boolean;
   reviewerId: string;
   shortlistApproved: boolean;
+  canReview: boolean;
 }
 
-export function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerId, shortlistApproved }: AbstractDetailProps) {
+export function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerId, shortlistApproved, canReview }: AbstractDetailProps) {
   const [scores, setScores] = useState<Record<string, number>>(abstract.existingScores ?? {});
   const [commentary, setCommentary] = useState(abstract.existingCommentary ?? '');
   const [confirmAction, setConfirmAction] = useState<'shortlist' | 'reject' | null>(null);
@@ -37,7 +38,7 @@ export function AbstractDetail({ abstract, criteria, isStructuredMode, reviewerI
   const rejectMutation = useRejectAbstract();
 
   const isDecided = abstract.selectionStatus !== 'PENDING';
-  const readOnly = isDecided || shortlistApproved;
+  const readOnly = isDecided || shortlistApproved || !canReview;
 
   const weightedTotal = useMemo(() => {
     if (criteria.length === 0) return null;

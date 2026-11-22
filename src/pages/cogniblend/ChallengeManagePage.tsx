@@ -1,344 +1,81 @@
-/**
- * ChallengeManagePage — /cogni/challenges/:id/manage
- *
- * Post-publication management view with:
- *   Card 1 — Submission Tracker (count, countdown, anonymous listing)
- *   Card 2 — Challenge Package (version history + read-only snapshot modal)
- */
-
-import { useState, useEffect } from 'react';
+/** Post-publication challenge management for assigned role holders. */
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Loader2, AlertTriangle, FileText,
-  Clock, Users, Package, Eye, ShieldCheck,
-} from 'lucide-react';
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SolutionStatusBadge } from '@/components/cogniblend/SolutionStatusBadge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
+import { useManageChallenge } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
+import { ManageSubmissionsCard } from '@/components/cogniblend/manage/ManageSubmissionsCard';
+import { ChallengePackageCard } from '@/components/cogniblend/manage/ChallengePackageCard';
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { QAManagementCard } from '@/components/cogniblend/manage/QAManagementCard';
 import { DuplicateReviewPanel } from '@/components/cogniblend/DuplicateReviewPanel';
 import { CreatorApprovalCard } from '@/components/cogniblend/manage/CreatorApprovalCard';
-import { format } from 'date-fns';
-
-/* ─── Countdown helper ───────────────────────────────────── */
-
-function useCountdown(deadline: string | null) {
-  const [remaining, setRemaining] = useState('');
-
-  useEffect(() => {
-    if (!deadline) {
-      setRemaining('No deadline set');
-      return;
-    }
-
-    const tick = () => {
-      const now = Date.now();
-      const end = new Date(deadline).getTime();
-      const diff = end - now;
-
-      if (diff <= 0) {
-        setRemaining('Deadline passed');
-        return;
-      }
-
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-      setRemaining(`${days}d ${hours}h ${minutes}m remaining`);
-    };
-
-    tick();
-    const interval = setInterval(tick, 60_000); // update every minute
-    return () => clearInterval(interval);
-  }, [deadline]);
-
-  return remaining;
-}
-
-/* ─── Submission status → SolutionDisplayStatus mapping ──── */
-
-import { type SolutionDisplayStatus } from '@/constants/solutionStatus.constants';
-
-const SUBMISSION_STATUS_MAP: Record<string, SolutionDisplayStatus> = {
-  draft: 'DRAFT',
-  submitted: 'SUBMITTED',
-  under_review: 'UNDER_SCREENING',
-  under_screening: 'UNDER_SCREENING',
-  shortlisted: 'SHORTLISTED',
-  accepted: 'SELECTED',
-  rejected: 'REJECTED',
-  withdrawn: 'WITHDRAWN',
-};
-
-/* ─── Page ───────────────────────────────────────────────── */
+import { generateCorrelationId } from '@/lib/errorHandler';
 
 export default function ChallengeManagePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const { data, isLoading, error } = useManageChallenge(id, user?.id);
-
-  const [snapshotModalOpen, setSnapshotModalOpen] = useState(false);
-  const [activeSnapshot, setActiveSnapshot] = useState<PackageVersion | null>(null);
+  const { data, isLoading, error, refetch } = useManageChallenge(id, user?.id);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
+  const errorCorrelationId = useMemo(() => error ? generateCorrelationId() : null, [error]);
 
-  const countdown = useCountdown(data?.submissionDeadline ?? null);
-
-  /* ── Loading ── */
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-6" aria-label="Loading challenge management">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }
 
-  /* ── Error ── */
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
         <AlertTriangle className="h-10 w-10 text-destructive" />
         <p className="text-sm text-muted-foreground">
           {error instanceof Error ? error.message : 'Failed to load challenge data.'}
         </p>
-        <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Go Back
-        </Button>
+        {errorCorrelationId && <p className="text-xs text-muted-foreground">Reference: {errorCorrelationId}</p>}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> Go Back
+          </Button>
+        </div>
       </div>
     );
   }
 
-  /* ── Handlers ── */
-  const openSnapshot = (v: PackageVersion) => {
-    setActiveSnapshot(v);
-    setSnapshotModalOpen(true);
-  };
-
-  /* ── Render ── */
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 lg:py-8 space-y-6">
-      {/* Workflow Progress */}
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 lg:py-8">
       <WorkflowProgressBanner step={6} />
-
-      {/* Back */}
       <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/portfolio')} className="gap-1.5">
         <ArrowLeft className="h-4 w-4" /> Portfolio
       </Button>
-
-      {/* Title + Status */}
-      <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-        <h1 className="text-lg lg:text-xl font-bold text-foreground leading-tight">
-          {data.title}
-        </h1>
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
+        <h1 className="text-lg font-bold leading-tight text-foreground lg:text-xl">{data.title}</h1>
         <GovernanceProfileBadge profile={data.governanceProfile} compact />
-        <Badge className="w-fit bg-[hsl(155,50%,42%)] hover:bg-[hsl(155,50%,38%)] text-white text-[11px]">
-          {data.masterStatus}
-        </Badge>
+        <Badge variant="secondary" className="w-fit text-[11px]">{data.masterStatus}</Badge>
       </div>
 
-      {/* ──────────────── Duplicate Review Panel ──────────────── */}
       {id && <DuplicateReviewPanel challengeId={id} />}
-
-      {/* ──────────────── CARD 1 — Submission Tracker ──────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-            <Users className="h-4.5 w-4.5 text-primary" />
-            Submissions
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Counter + Countdown */}
-          <div className="flex flex-col lg:flex-row lg:items-end gap-3 lg:gap-6">
-            <div>
-              <span className="text-3xl lg:text-4xl font-extrabold text-foreground">
-                {data.submissionCount}
-              </span>
-              <span className="ml-2 text-sm text-muted-foreground">abstracts received</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4 shrink-0" />
-              <span>{countdown}</span>
-            </div>
-          </div>
-
-          {/* Extend Deadline (ID only) */}
-          {data.canExtendDeadline && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-primary text-primary hover:bg-primary/10"
-              onClick={() => setExtendModalOpen(true)}
-            >
-              Extend Deadline
-            </Button>
-          )}
-
-          <Separator />
-
-          {/* Submission list */}
-          {data.submissions.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic py-2">
-              No submissions yet. Solution Providers can submit until the deadline.
-            </p>
-          ) : (
-            <div className="relative w-full overflow-auto">
-              <table className="w-full text-left text-xs lg:text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="pb-2 pr-4 font-semibold text-muted-foreground">Solution Provider</th>
-                    <th className="pb-2 pr-4 font-semibold text-muted-foreground">Date</th>
-                    <th className="pb-2 font-semibold text-muted-foreground">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.submissions.map((s) => {
-                    const statusKey = s.status.toLowerCase().replace(/\s+/g, '_');
-                    const mappedStatus = SUBMISSION_STATUS_MAP[statusKey] ?? 'DRAFT';
-                    return (
-                      <tr key={s.id} className="border-b border-border/50 last:border-0">
-                        <td className="py-2 pr-4 font-medium text-foreground">
-                          {data.governanceProfile !== 'QUICK' ? (
-                            <span className="flex items-center gap-1.5">
-                              <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                              {s.solverLabel}
-                            </span>
-                          ) : (
-                            s.solverLabel
-                          )}
-                        </td>
-                        <td className="py-2 pr-4 text-muted-foreground">
-                          {format(new Date(s.submittedAt), 'dd MMM yyyy')}
-                        </td>
-                        <td className="py-2">
-                          <SolutionStatusBadge
-                            currentPhase={null}
-                            phaseStatus={null}
-                            overrideStatus={mappedStatus}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.governanceProfile !== 'QUICK' && data.submissions.length > 0 && (
-            <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3" />
-              Solution Provider identities anonymised until evaluation phase.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ──────────────── CARD 2 — Challenge Package ──────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base font-bold text-foreground">
-            <Package className="h-4.5 w-4.5 text-primary" />
-            Published Version
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {data.packageVersions.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No package versions found.</p>
-          ) : (
-            <>
-              {/* Current version headline */}
-              {(() => {
-                const latest = data.packageVersions[data.packageVersions.length - 1];
-                return (
-                  <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                    <span className="text-sm font-semibold text-foreground">
-                      Version {latest.versionNumber}.0
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Published {format(new Date(latest.createdAt), 'dd MMM yyyy, HH:mm')}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-fit gap-1.5 border-primary text-primary hover:bg-primary/10"
-                      onClick={() => openSnapshot(latest)}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View Package
-                    </Button>
-                  </div>
-                );
-              })()}
-
-              {/* Version history table (show if >1 version) */}
-              {data.packageVersions.length > 1 && (
-                <>
-                  <Separator />
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Version History
-                  </h3>
-                  <div className="relative w-full overflow-auto">
-                    <table className="w-full text-left text-xs lg:text-sm">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="pb-2 pr-4 font-semibold text-muted-foreground">Version</th>
-                          <th className="pb-2 pr-4 font-semibold text-muted-foreground">Date</th>
-                          <th className="pb-2 pr-4 font-semibold text-muted-foreground">Changes</th>
-                          <th className="pb-2 font-semibold text-muted-foreground" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.packageVersions.map((v) => (
-                          <tr key={v.id} className="border-b border-border/50 last:border-0">
-                            <td className="py-2 pr-4 font-medium text-foreground">
-                              v{v.versionNumber}.0
-                            </td>
-                            <td className="py-2 pr-4 text-muted-foreground">
-                              {format(new Date(v.createdAt), 'dd MMM yyyy')}
-                            </td>
-                            <td className="py-2 pr-4 text-muted-foreground max-w-[200px] truncate">
-                              {v.changeSummary ?? '—'}
-                            </td>
-                            <td className="py-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 text-primary"
-                                onClick={() => openSnapshot(v)}
-                              >
-                                <FileText className="h-3 w-3" />
-                                View
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ──────────────── Creator Approval Toggle (AGG only) ──────────────── */}
+      <ManageSubmissionsCard
+        submissions={data.submissions}
+        submissionCount={data.submissionCount}
+        submissionDeadline={data.submissionDeadline}
+        governanceProfile={data.governanceProfile}
+        canExtendDeadline={data.canExtendDeadline}
+        onExtend={() => setExtendModalOpen(true)}
+      />
+      <ChallengePackageCard versions={data.packageVersions} />
       <CreatorApprovalCard
         challengeId={data.challengeId}
         operatingModel={data.operatingModel}
@@ -346,58 +83,25 @@ export default function ChallengeManagePage() {
         extendedBrief={data.extendedBrief as import('@/integrations/supabase/types').Json | null}
         userId={user?.id ?? ''}
       />
-
-      {/* ──────────────── CARD 3 — Amendments ──────────────── */}
       <AmendmentCard
         challengeId={data.challengeId}
         challengeTitle={data.title}
         userId={user?.id ?? ''}
         canInitiate={data.canExtendDeadline}
       />
-
-      {/* ──────────────── CARD 4 — Q&A Management ──────────────── */}
       <QAManagementCard
         challengeId={data.challengeId}
         challengeTitle={data.title}
         userId={user?.id ?? ''}
         governanceProfile={data.governanceProfile}
       />
-
-      {/* ──────────────── Snapshot Modal ──────────────── */}
-      <Dialog open={snapshotModalOpen} onOpenChange={setSnapshotModalOpen}>
-        <DialogContent className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="text-base font-bold">
-              Challenge Package — v{activeSnapshot?.versionNumber ?? 1}.0
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="p-4">
-              {activeSnapshot?.snapshot ? (
-                <pre className="text-xs leading-relaxed font-mono whitespace-pre-wrap break-words text-muted-foreground bg-muted/50 rounded-lg p-4">
-                  {JSON.stringify(activeSnapshot.snapshot, null, 2)}
-                </pre>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">No snapshot data available.</p>
-              )}
-            </div>
-          </ScrollArea>
-          <DialogFooter className="shrink-0">
-            <Button variant="outline" size="sm" onClick={() => setSnapshotModalOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ──────────────── Extend Deadline Modal ──────────────── */}
       <ExtendDeadlineModal
         open={extendModalOpen}
         onOpenChange={setExtendModalOpen}
         challengeId={data.challengeId}
-        challengeTitle={data.title}
-        currentDeadline={data.submissionDeadline}
-        userId={user?.id ?? ''}
+        stageCount={data.stageCount}
+        abstractDeadline={data.abstractDeadline}
+        solutionDeadline={data.solutionDeadline}
       />
     </div>
   );
