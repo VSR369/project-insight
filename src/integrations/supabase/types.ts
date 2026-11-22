@@ -2405,6 +2405,7 @@ export type Database = {
           payment_details: Json | null
           prize_status: string | null
           provider_id: string | null
+          purge_at: string | null
           solver_eligibility_code: string
           status: string
           submission_files: Json | null
@@ -2435,6 +2436,7 @@ export type Database = {
           payment_details?: Json | null
           prize_status?: string | null
           provider_id?: string | null
+          purge_at?: string | null
           solver_eligibility_code: string
           status?: string
           submission_files?: Json | null
@@ -2465,6 +2467,7 @@ export type Database = {
           payment_details?: Json | null
           prize_status?: string | null
           provider_id?: string | null
+          purge_at?: string | null
           solver_eligibility_code?: string
           status?: string
           submission_files?: Json | null
@@ -15987,6 +15990,7 @@ export type Database = {
           payment_status: string | null
           phase_status: string | null
           provider_id: string
+          purge_at: string | null
           selection_status: string | null
           submitted_at: string | null
           timeline: string | null
@@ -16014,6 +16018,7 @@ export type Database = {
           payment_status?: string | null
           phase_status?: string | null
           provider_id: string
+          purge_at?: string | null
           selection_status?: string | null
           submitted_at?: string | null
           timeline?: string | null
@@ -16041,6 +16046,7 @@ export type Database = {
           payment_status?: string | null
           phase_status?: string | null
           provider_id?: string
+          purge_at?: string | null
           selection_status?: string | null
           submitted_at?: string | null
           timeline?: string | null

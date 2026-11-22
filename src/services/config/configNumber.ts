@@ -20,7 +20,9 @@ export const CONFIG_NUMBER_KEYS = [
   'abstract_min_chars',
   'challenge_min_open_period_days',
   'abstract_min_open_period_days',
+  'solution_min_open_period_days',
   'deadline_max_extension_days',
+  'deadline_max_extensions_per_deadline',
   'deadline_extension_reason_min_length',
 ] as const;
 
