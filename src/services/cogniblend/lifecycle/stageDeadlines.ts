@@ -20,6 +20,7 @@ export interface ChallengeDeadlines {
 export interface DeadlineRules {
   minOpenDays: number;
   abstractMinOpenDays: number;
+  solutionMinOpenDays: number;
 }
 
 /** Express single-stage, High-Rigor two-stage, Structured is the Creator's choice. */
@@ -47,10 +48,10 @@ export function validateDeadlines(d: ChallengeDeadlines, rules: DeadlineRules): 
       problems.push('Two-stage challenges need an abstract deadline.');
     } else if (
       daysBetween(d.startAt, d.abstractDeadline) < rules.abstractMinOpenDays ||
-      daysBetween(d.abstractDeadline, d.solutionDeadline) < rules.abstractMinOpenDays
+      daysBetween(d.abstractDeadline, d.solutionDeadline) < rules.solutionMinOpenDays
     ) {
       problems.push(
-        `The abstract deadline must be at least ${rules.abstractMinOpenDays} days after the start date and ${rules.abstractMinOpenDays} days before the solution deadline.`,
+        `Allow at least ${rules.abstractMinOpenDays} days for abstracts and ${rules.solutionMinOpenDays} days for full solutions.`,
       );
     }
   }
@@ -77,7 +78,8 @@ const EXTENSION_ERRORS: Record<string, string> = {
   reason_too_short: 'Please give a longer written reason.',
   deadline_already_passed: 'This deadline has already passed and cannot be extended.',
   deadline_cannot_be_shortened: 'A deadline can only be extended, never shortened.',
-  extension_exceeds_maximum: 'The extension is longer than the maximum allowed.',
+  extension_exceeds_maximum: 'An extension can be at most 14 days.',
+  extension_limit_reached: 'This deadline has already been extended the maximum of 2 times.',
   abstract_after_solution: 'The abstract deadline must stay before the solution deadline.',
 };
 

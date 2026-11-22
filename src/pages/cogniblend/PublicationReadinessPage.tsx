@@ -6,13 +6,12 @@
 import { useState } from 'react';
 import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, ArrowLeft, ShieldCheck, AlertTriangle, Loader2, Rocket } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ArrowLeft, AlertTriangle, Loader2, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
-import { Separator } from '@/components/ui/separator';
+import { PublicationChecklist } from '@/components/cogniblend/publication/PublicationChecklist';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePublicationReadiness } from '@/hooks/cogniblend/usePublicationReadiness';
 import { useEscrowDeposit } from '@/hooks/cogniblend/useEscrowDeposit';
@@ -32,7 +31,12 @@ export default function PublicationReadinessPage() {
   const { user } = useAuth();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [publishedResult, setPublishedResult] = useState<{ id: string; title: string } | null>(null);
+  const [publishedResult, setPublishedResult] = useState<{
+    id: string;
+    title: string;
+    scheduled: boolean;
+    scheduledStart: string | null;
+  } | null>(null);
 
   const { data, isLoading, error } = usePublicationReadiness(id);
   const escrowQuery = useEscrowDeposit(
@@ -79,16 +83,21 @@ export default function PublicationReadinessPage() {
       { challengeId: id, userId: user.id },
       {
         onSuccess: (result) => {
-          setPublishedResult({ id: result.challengeId, title: result.challengeTitle });
-
-          // Dispatch solver notifications (non-blocking, fire-and-forget)
-          notifySolversMutation.mutate({
-            challengeId: result.challengeId,
-            challengeTitle: result.challengeTitle,
-            totalAward: 0,        // Hook will fetch from reward_structure
-            currencyCode: 'USD',
-            deadlineDays: null,    // Hook will compute from submission_deadline
+          setPublishedResult({
+            id: result.challengeId,
+            title: result.challengeTitle,
+            scheduled: result.scheduled,
+            scheduledStart: result.scheduledStart,
           });
+          if (!result.scheduled) {
+            notifySolversMutation.mutate({
+              challengeId: result.challengeId,
+              challengeTitle: result.challengeTitle,
+              totalAward: 0,
+              currencyCode: 'USD',
+              deadlineDays: null,
+            });
+          }
         },
       },
     );
@@ -101,6 +110,8 @@ export default function PublicationReadinessPage() {
       <PublishSuccessScreen
         challengeId={publishedResult.id}
         challengeTitle={publishedResult.title}
+        scheduled={publishedResult.scheduled}
+        scheduledStart={publishedResult.scheduledStart}
       />
     );
   }
@@ -131,81 +142,14 @@ export default function PublicationReadinessPage() {
         </div>
       </div>
 
-      {/* ═══ Status Banner ═══ */}
-      <div
-        className={cn(
-          'rounded-lg border px-5 py-4 flex items-center gap-3',
-          data.allPassed
-            ? 'bg-emerald-50 border-emerald-200'
-            : 'bg-red-50 border-red-200'
-        )}
-      >
-        {data.allPassed ? (
-          <>
-            <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600" />
-            <div>
-              <p className="text-sm font-bold text-emerald-800">
-                READY TO PUBLISH — All checks passed
-              </p>
-              <p className="text-xs text-emerald-600 mt-0.5">
-                This challenge meets all {isQuick ? 'GATE-11-L' : 'GATE-11'} requirements.
-              </p>
-            </div>
-          </>
-        ) : (
-          <>
-            <AlertTriangle className="h-5 w-5 shrink-0 text-red-600" />
-            <div>
-              <p className="text-sm font-bold text-red-800">
-                {data.failCount} item{data.failCount !== 1 ? 's' : ''} need{data.failCount === 1 ? 's' : ''} attention before publishing
-              </p>
-              <p className="text-xs text-red-600 mt-0.5">
-                Resolve the items below to pass {isQuick ? 'GATE-11-L' : 'GATE-11'} validation.
-              </p>
-            </div>
-          </>
-        )}
-      </div>
+      <PublicationChecklist
+        checks={data.checks}
+        allPassed={data.allPassed}
+        failCount={data.failCount}
+        isQuick={isQuick}
+      />
 
-      {/* ═══ Checklist Card ═══ */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            Pre-Publication Validation
-            <Badge variant="outline" className="ml-auto text-xs font-normal">
-              {isQuick ? 'GATE-11-L' : 'GATE-11'}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-0">
-          {data.checks.map((check, idx) => (
-            <div key={check.id}>
-              {idx > 0 && <Separator className="my-0" />}
-              <div className="flex items-start gap-3 py-3.5">
-                {check.passed ? (
-                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500 mt-0.5" />
-                ) : (
-                  <XCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className={cn(
-                    'text-[13px] font-semibold',
-                    check.passed ? 'text-foreground' : 'text-red-700'
-                  )}>
-                    {check.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {check.detail}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* ═══ Solver Matchmaking (GAP-12) ═══ */}
+      {/* ═══ Provider Matchmaking (GAP-12) ═══ */}
       {solverMatch && solverMatch.totalMatched > 0 && (
         <Card className="border-border">
           <CardContent className="py-4">

@@ -35,6 +35,7 @@ interface StageDeadlinesCardProps {
 export function StageDeadlinesCard({ challengeId, governanceMode }: StageDeadlinesCardProps) {
   const minOpenDays = useConfigNumber('challenge_min_open_period_days');
   const abstractMinOpenDays = useConfigNumber('abstract_min_open_period_days');
+  const solutionMinOpenDays = useConfigNumber('solution_min_open_period_days');
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { stageCount: '1', startAt: '', abstractDeadline: '', solutionDeadline: '' },
@@ -72,7 +73,7 @@ export function StageDeadlinesCard({ challengeId, governanceMode }: StageDeadlin
     abstractDeadline: fromUtcInput(values.abstractDeadline),
     solutionDeadline: fromUtcInput(values.solutionDeadline),
   };
-  const problems = validateDeadlines(schedule, { minOpenDays, abstractMinOpenDays });
+  const problems = validateDeadlines(schedule, { minOpenDays, abstractMinOpenDays, solutionMinOpenDays });
   const handleSubmit = form.handleSubmit(() => save.mutate(schedule));
   const dateField = (name: 'startAt' | 'abstractDeadline' | 'solutionDeadline', label: string) => {
     const value = fromUtcInput(values[name]);

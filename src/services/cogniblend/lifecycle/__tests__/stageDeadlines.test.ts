@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@/integrations/supabase/client', () => ({ supabase: {} }));
 import { resolveStageCount, canChooseStageCount, validateDeadlines, validateExtension, extensionErrorMessage } from '../stageDeadlines';
 
-const RULES = { minOpenDays: 14, abstractMinOpenDays: 7 };
+const RULES = { minOpenDays: 14, abstractMinOpenDays: 14, solutionMinOpenDays: 21 };
 const day = (n: number) => new Date(Date.UTC(2027, 0, 1 + n));
 
 describe('DEF-0157 stages', () => {
@@ -19,22 +19,28 @@ describe('DEF-0157 stages', () => {
   });
 });
 
-describe('DEF-0036 deadlines', () => {
-  it('refuses a solution deadline inside the minimum open period', () => {
+describe('P33 production open periods', () => {
+  it('requires 14 days for a single-stage submission window', () => {
     expect(validateDeadlines({ stageCount: 1, startAt: day(0), abstractDeadline: null, solutionDeadline: day(13) }, RULES)).toHaveLength(1);
-  });
-  it('accepts a single-stage schedule meeting the minimum', () => {
     expect(validateDeadlines({ stageCount: 1, startAt: day(0), abstractDeadline: null, solutionDeadline: day(14) }, RULES)).toEqual([]);
   });
-  it('two-stage needs an abstract deadline with gaps either side', () => {
-    expect(validateDeadlines({ stageCount: 2, startAt: day(0), abstractDeadline: null, solutionDeadline: day(30) }, RULES)).toHaveLength(1);
-    expect(validateDeadlines({ stageCount: 2, startAt: day(0), abstractDeadline: day(25), solutionDeadline: day(30) }, RULES)).toHaveLength(1);
-    expect(validateDeadlines({ stageCount: 2, startAt: day(0), abstractDeadline: day(10), solutionDeadline: day(30) }, RULES)).toEqual([]);
+  it('requires 14 days for abstracts and 21 days for full solutions', () => {
+    expect(validateDeadlines({ stageCount: 2, startAt: day(0), abstractDeadline: day(14), solutionDeadline: day(34) }, RULES)).toHaveLength(1);
+    expect(validateDeadlines({ stageCount: 2, startAt: day(0), abstractDeadline: day(14), solutionDeadline: day(35) }, RULES)).toEqual([]);
   });
-  it('extensions cannot shorten and are capped', () => {
-    expect(validateExtension(day(10), day(9), 30)).not.toBeNull();
-    expect(validateExtension(day(10), day(41), 30)).not.toBeNull();
-    expect(validateExtension(day(10), day(40), 30)).toBeNull();
+  it('requires an abstract deadline for two stages', () => {
+    expect(validateDeadlines({ stageCount: 2, startAt: day(0), abstractDeadline: null, solutionDeadline: day(35) }, RULES)).toHaveLength(1);
+  });
+});
+
+describe('P34/P35 extensions', () => {
+  it('caps one extension at 14 days and never shortens', () => {
+    expect(validateExtension(day(10), day(9), 14)).not.toBeNull();
+    expect(validateExtension(day(10), day(25), 14)).not.toBeNull();
+    expect(validateExtension(day(10), day(24), 14)).toBeNull();
+  });
+  it('maps the two-extension server refusal', () => {
+    expect(extensionErrorMessage(new Error('extension_limit_reached'))).toContain('maximum of 2 times');
   });
   it('maps server refusal for non-Curators', () => {
     expect(extensionErrorMessage(new Error('extension_requires_curator'))).toBe('Only the Curator of this challenge can extend a deadline.');
