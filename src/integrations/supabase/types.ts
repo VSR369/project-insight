@@ -2504,6 +2504,7 @@ export type Database = {
       }
       challenges: {
         Row: {
+          abstract_deadline: string | null
           access_type: string
           ai_section_reviews: Json | null
           challenge_model_is_agg: boolean
@@ -2592,6 +2593,7 @@ export type Database = {
           reward_structure: Json | null
           scope: string | null
           shadow_fee_amount: number | null
+          solution_deadline: string | null
           solution_maturity_id: string | null
           solution_type: string | null
           solution_types: Json | null
@@ -2601,6 +2603,8 @@ export type Database = {
           solver_eligibility_types: Json | null
           solver_expertise_requirements: Json | null
           solver_visibility_types: Json | null
+          stage_count: number | null
+          start_at: string | null
           status: string
           submission_deadline: string | null
           submission_guidelines: Json | null
@@ -2617,6 +2621,7 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
+          abstract_deadline?: string | null
           access_type?: string
           ai_section_reviews?: Json | null
           challenge_model_is_agg?: boolean
@@ -2705,6 +2710,7 @@ export type Database = {
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
+          solution_deadline?: string | null
           solution_maturity_id?: string | null
           solution_type?: string | null
           solution_types?: Json | null
@@ -2714,6 +2720,8 @@ export type Database = {
           solver_eligibility_types?: Json | null
           solver_expertise_requirements?: Json | null
           solver_visibility_types?: Json | null
+          stage_count?: number | null
+          start_at?: string | null
           status?: string
           submission_deadline?: string | null
           submission_guidelines?: Json | null
@@ -2730,6 +2738,7 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
+          abstract_deadline?: string | null
           access_type?: string
           ai_section_reviews?: Json | null
           challenge_model_is_agg?: boolean
@@ -2818,6 +2827,7 @@ export type Database = {
           reward_structure?: Json | null
           scope?: string | null
           shadow_fee_amount?: number | null
+          solution_deadline?: string | null
           solution_maturity_id?: string | null
           solution_type?: string | null
           solution_types?: Json | null
@@ -2827,6 +2837,8 @@ export type Database = {
           solver_eligibility_types?: Json | null
           solver_expertise_requirements?: Json | null
           solver_visibility_types?: Json | null
+          stage_count?: number | null
+          start_at?: string | null
           status?: string
           submission_deadline?: string | null
           submission_guidelines?: Json | null
@@ -17629,6 +17641,15 @@ export type Database = {
         Returns: undefined
       }
       expire_legal_reacceptances: { Args: never; Returns: number }
+      extend_challenge_deadline: {
+        Args: {
+          p_challenge_id: string
+          p_new_deadline: string
+          p_reason: string
+          p_which: string
+        }
+        Returns: undefined
+      }
       finalize_certification: {
         Args: {
           p_certifying_user_id: string

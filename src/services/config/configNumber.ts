@@ -18,6 +18,10 @@ export const CONFIG_NUMBER_KEYS = [
   'solution_max_files',
   'solution_approach_summary_min_chars',
   'abstract_min_chars',
+  'challenge_min_open_period_days',
+  'abstract_min_open_period_days',
+  'deadline_max_extension_days',
+  'deadline_extension_reason_min_length',
 ] as const;
 
 export type ConfigNumberKey = (typeof CONFIG_NUMBER_KEYS)[number];

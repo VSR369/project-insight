@@ -3,13 +3,12 @@
  * Decomposed: schema in creatorFormSchema.ts, draft in useCreatorDraftSave.ts,
  * file upload in useCreatorFileUpload.ts, draft loading in useCreatorDraftLoader.ts.
  */
-
 import { MinimumModeFlagsCard } from '@/components/cogniblend/shared/MinimumModeFlagsCard';
+import { StageDeadlinesCard } from '@/components/cogniblend/shared/StageDeadlinesCard';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSearchParams } from 'react-router-dom';
-
 import { CreatorFormActionBar } from './CreatorFormActionBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
@@ -207,6 +206,7 @@ export function ChallengeCreatorForm({ engagementModel, governanceMode, industry
         )}
         {audienceSelectable(engagementModel) && <SolverAudienceSelector />}
         <MinimumModeFlagsCard challengeId={draftSave.draftChallengeId ?? undefined} />
+        <StageDeadlinesCard challengeId={draftSave.draftChallengeId ?? undefined} governanceMode={governanceMode} />
         <CreatorLegalPreview
           governanceMode={governanceMode}
           engagementModel={engagementModel}

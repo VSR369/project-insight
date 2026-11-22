@@ -14,6 +14,10 @@ const SERVER_ROWS: ConfigRow[] = [
   { param_key: 'solution_max_files', param_value: '10' },
   { param_key: 'solution_approach_summary_min_chars', param_value: '200' },
   { param_key: 'abstract_min_chars', param_value: '300' },
+  { param_key: 'challenge_min_open_period_days', param_value: '14' },
+  { param_key: 'abstract_min_open_period_days', param_value: '7' },
+  { param_key: 'deadline_max_extension_days', param_value: '30' },
+  { param_key: 'deadline_extension_reason_min_length', param_value: '20' },
 ];
 
 describe('parseConfigNumbers (server is the only source)', () => {
