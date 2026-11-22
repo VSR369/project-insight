@@ -16525,6 +16525,39 @@ export type Database = {
           },
         ]
       }
+      submission_purge_log: {
+        Row: {
+          challenge_id: string | null
+          created_at: string
+          file_paths: string[]
+          files_removed_at: string | null
+          id: string
+          purged_at: string
+          record_id: string
+          source_table: string
+        }
+        Insert: {
+          challenge_id?: string | null
+          created_at?: string
+          file_paths?: string[]
+          files_removed_at?: string | null
+          id?: string
+          purged_at?: string
+          record_id: string
+          source_table: string
+        }
+        Update: {
+          challenge_id?: string | null
+          created_at?: string
+          file_paths?: string[]
+          files_removed_at?: string | null
+          id?: string
+          purged_at?: string
+          record_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string | null
@@ -18138,6 +18171,7 @@ export type Database = {
         Returns: number
       }
       pulse_update_streak: { Args: { p_provider_id: string }; Returns: number }
+      purge_nonselected_submissions: { Args: never; Returns: Json }
       reassign_role: {
         Args: {
           p_challenge_id: string
