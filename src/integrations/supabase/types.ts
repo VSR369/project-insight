@@ -17365,6 +17365,10 @@ export type Database = {
     }
     Functions: {
       amendment_scope_normalize: { Args: { p_scope: string }; Returns: string }
+      approve_abstract_shortlist: {
+        Args: { p_challenge_id: string }
+        Returns: Json
+      }
       assemble_cpa: {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
@@ -18281,6 +18285,10 @@ export type Database = {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: Json
       }
+      set_abstract_selection: {
+        Args: { p_selection: string; p_solution_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       start_sla_timer: {
@@ -18290,6 +18298,10 @@ export type Database = {
           p_phase: number
           p_role_code: string
         }
+        Returns: undefined
+      }
+      submit_full_solution: {
+        Args: { p_files: Json; p_solution_id: string }
         Returns: undefined
       }
       submit_question: {
