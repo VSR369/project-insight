@@ -15,9 +15,11 @@ const SERVER_ROWS: ConfigRow[] = [
   { param_key: 'solution_approach_summary_min_chars', param_value: '200' },
   { param_key: 'abstract_min_chars', param_value: '300' },
   { param_key: 'challenge_min_open_period_days', param_value: '14' },
-  { param_key: 'abstract_min_open_period_days', param_value: '7' },
-  { param_key: 'deadline_max_extension_days', param_value: '30' },
-  { param_key: 'deadline_extension_reason_min_length', param_value: '20' },
+  { param_key: 'abstract_min_open_period_days', param_value: '14' },
+  { param_key: 'solution_min_open_period_days', param_value: '21' },
+  { param_key: 'deadline_max_extension_days', param_value: '14' },
+  { param_key: 'deadline_max_extensions_per_deadline', param_value: '2' },
+  { param_key: 'deadline_extension_reason_min_length', param_value: '30' },
 ];
 
 describe('parseConfigNumbers (server is the only source)', () => {
@@ -25,6 +27,16 @@ describe('parseConfigNumbers (server is the only source)', () => {
     const n = parseConfigNumbers(SERVER_ROWS);
     expect(n.solution_approach_summary_min_chars).toBe(200);
     expect(n.abstract_min_chars).toBe(300);
+  });
+
+  it('P33–P35 use the delegated production timing values', () => {
+    const n = parseConfigNumbers(SERVER_ROWS);
+    expect(n.challenge_min_open_period_days).toBe(14);
+    expect(n.abstract_min_open_period_days).toBe(14);
+    expect(n.solution_min_open_period_days).toBe(21);
+    expect(n.deadline_max_extension_days).toBe(14);
+    expect(n.deadline_max_extensions_per_deadline).toBe(2);
+    expect(n.deadline_extension_reason_min_length).toBe(30);
   });
 
   it('uses the register value exactly as the server sends it', () => {
