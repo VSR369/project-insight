@@ -18,12 +18,13 @@
 - [x] W2: cancel rights — cancel_challenge RPC enforces CR/CU pre-publication, R6_AGG/R2 once published, Senior Admin after any submission; CancelChallengeAction + useCancelRights; 16 tests updated
 - [x] W2: DEF-0144 minimum mode — per-currency Express limit / High-Rigor threshold settings, Regulated + IP-sensitive flags, server refusal at Submit and Complete Curation (copy taken at submission)
 - [x] W2: legal_review_threshold re-wired — Structured challenges at/above it need Legal Coordinator sign-off before Curator completes compliance
-- [ ] W2 next batch: DEF-0013 mode choices/defaults, draft preservation, Curator raise-only server guard; DEF-0027 brief catalogue; DEF-0157 stages; DEF-0036 deadlines; DEF-0037/0113/0159/0369 submissions and awards
+- [ ] W2 next batch: DEF-0027 brief catalogue; DEF-0037/0113/0159/0369 submissions and awards; J19 confidential-content purge after the recorded purge date
   - DEF-0013 implementation: Marketplace excludes Express in both selectors; org-profile defaults; form remains mounted; draft save retains hidden values; server rejects submitted downgrades. Nine new rule tests pass; full suite 1,154 passed / 69 integration tests skipped; build OK. Signed-in preservation and role checks await the test account; threshold-driven picker done: cards below the server minimum are disabled and selection auto-raises (get_challenge_minimum_mode; 4 tests).
 - [x] W2 item 2a: DEF-0157 stages (Express 1 / High-Rigor 2 / Structured choice, frozen at publication) + DEF-0036 UTC deadlines with minimum open periods and Curator-only bounded extensions (trigger + extend_challenge_deadline RPC; StageDeadlinesCard on Create; 9 tests). Curator extension screen, abstract shortlisting gate and provider notices are implemented.
-  - [ ] P33–P35 expert production values delegated to Lovable: 14-day abstract/single-stage minimum, 21-day full-solution minimum, maximum two 14-day extensions per deadline, 30-character written reason; enforce and test
-  - [x] J17 Scheduled→Published at start date-time with publication-gate rechecks and Creator/Curator notices; five-minute schedule (288 runs/day)
-  - [ ] J18 deadline close to review phase, exact late-upload refusal, phase-owner notices and non-selected purge dates; shares J17's five-minute schedule
+  - [x] P33–P35 expert production values delegated to Lovable: 14-day abstract/single-stage minimum, 21-day full-solution minimum, maximum two 14-day extensions per deadline, 30-character written reason; server-enforced and tested
+  - [x] J17 Scheduled→Published at start date-time with publication-gate rechecks and Creator/Curator notices; five-minute schedule (288 runs/day); rolled-back success/failure acceptance checks passed
+  - [x] J18 abstract/solution deadline close to review phase, exact late-upload refusal, phase-owner notices and non-selected purge dates; shares J17's five-minute schedule; rolled-back acceptance checks passed
+  - Evidence: 1,182 tests passed, 69 integration tests skipped; build OK; real cron runs succeeded at 17:25, 17:30, 17:35, 17:40 and 17:45 UTC; no test notices retained. Signed-in browser checks remain unavailable on the external unmanaged auth connection.
 - [x] Activity-feed exposure closed: audit_trail readable only by own actions, challenge role holders, platform admins; anon revoked
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)

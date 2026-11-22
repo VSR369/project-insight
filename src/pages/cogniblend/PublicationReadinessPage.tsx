@@ -22,6 +22,8 @@ import { PublishConfirmModal } from '@/components/cogniblend/publication/Publish
 import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifySolvers } from '@/hooks/cogniblend/useNotifySolvers';
+import { useStageDeadlines } from '@/hooks/queries/useStageDeadlines';
+import { shouldHoldForFutureStart } from '@/services/cogniblend/lifecycle/lifecycleJobs';
 
 /* ─── Component ──────────────────────────────────────────── */
 
@@ -46,6 +48,8 @@ export default function PublicationReadinessPage() {
   const publishMutation = usePublishChallenge();
   const notifySolversMutation = useNotifySolvers();
   const { data: solverMatch } = useMatchingSolvers(id);
+  const { data: stageDeadlines } = useStageDeadlines(id);
+  const isFutureStart = shouldHoldForFutureStart(stageDeadlines?.startAt?.toISOString() ?? null, new Date());
 
   /* ── Loading ── */
   if (isLoading) {
@@ -202,7 +206,7 @@ export default function PublicationReadinessPage() {
                   ) : (
                     <Rocket className="h-5 w-5 mr-2" />
                   )}
-                  Publish Challenge
+                  {isFutureStart ? 'Schedule Challenge' : 'Publish Challenge'}
                 </Button>
               </div>
             </TooltipTrigger>
@@ -221,6 +225,8 @@ export default function PublicationReadinessPage() {
         onOpenChange={setConfirmOpen}
         onConfirm={handlePublish}
         isPending={publishMutation.isPending}
+        scheduled={isFutureStart}
+        startAt={stageDeadlines?.startAt?.toISOString() ?? null}
       />
     </div>
   );
