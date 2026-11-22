@@ -1,6 +1,10 @@
 /** DEF-0157: abstract shortlisting controls full-solution submission. */
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import {
+  isSubmissionDeadlinePassed,
+  SUBMISSION_DEADLINE_PASSED_MESSAGE,
+} from './lifecycleJobs';
 
 export type AbstractSelection = 'SHORTLISTED' | 'REJECTED';
 
@@ -27,7 +31,7 @@ const SHORTLIST_ERRORS: Record<string, string> = {
   full_solution_requires_shortlist: 'Your abstract must be shortlisted before full-solution submission.',
   full_solution_requires_two_stage: 'Full-solution submission is available only for two-stage challenges.',
   full_solution_files_required: 'Upload at least one deliverable before submitting.',
-  solution_deadline_passed: 'The solution deadline has passed; submissions are closed.',
+  solution_deadline_passed: SUBMISSION_DEADLINE_PASSED_MESSAGE,
   abstract_not_submitted: 'The abstract has not been submitted.',
 };
 
@@ -73,6 +77,24 @@ export async function approveAbstractShortlist(challengeId: string): Promise<Sho
     shortlistedCount: Number(result.shortlistedCount ?? 0),
     rejectedCount: Number(result.rejectedCount ?? 0),
   };
+}
+
+export async function assertFullSolutionUploadOpen(solutionId: string): Promise<void> {
+  const { data: solution, error: solutionError } = await supabase
+    .from('solutions')
+    .select('challenge_id')
+    .eq('id', solutionId)
+    .single();
+  if (solutionError) throw new Error(solutionError.message);
+  const { data: challenge, error: challengeError } = await supabase
+    .from('challenges')
+    .select('solution_deadline')
+    .eq('id', solution.challenge_id)
+    .single();
+  if (challengeError) throw new Error(challengeError.message);
+  if (isSubmissionDeadlinePassed(challenge.solution_deadline, new Date())) {
+    throw new Error(SUBMISSION_DEADLINE_PASSED_MESSAGE);
+  }
 }
 
 export async function submitFullSolution(solutionId: string, files: FullSolutionFile[]): Promise<void> {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   extensionCountError,
+  isSubmissionDeadlinePassed,
   reviewPhaseForDeadline,
   shouldHoldForFutureStart,
   SUBMISSION_DEADLINE_PASSED_MESSAGE,
@@ -25,6 +26,16 @@ describe('J18 deadline closure', () => {
   });
   it('does not close a phase without a due submission deadline', () => {
     expect(reviewPhaseForDeadline(2, 6)).toBeNull();
+  });
+  it('refuses an upload at 12:01 when the deadline was 12:00', () => {
+    expect(isSubmissionDeadlinePassed(
+      '2027-01-01T12:00:00Z',
+      new Date('2027-01-01T12:01:00Z'),
+    )).toBe(true);
+    expect(isSubmissionDeadlinePassed(
+      '2027-01-01T12:00:00Z',
+      new Date('2027-01-01T12:00:00Z'),
+    )).toBe(false);
   });
   it('uses the exact signed-off late-upload refusal', () => {
     expect(SUBMISSION_DEADLINE_PASSED_MESSAGE).toBe(

@@ -6,6 +6,7 @@ import { handleMutationError } from '@/lib/errorHandler';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
 import {
+  assertFullSolutionUploadOpen,
   isShortlistSelectionStatus,
   submitFullSolution,
   type FullSolutionFile,
@@ -71,6 +72,7 @@ export function useUploadSolutionFile() {
       deliverableName: string;
       file: File;
     }) => {
+      await assertFullSolutionUploadOpen(solutionId);
       const safeName = sanitizeFileName(file.name);
       const safeDeliverable = sanitizeFileName(deliverableName);
       const path = `${userId}/solutions/${solutionId}/${safeDeliverable}_${Date.now()}_${safeName}`;
