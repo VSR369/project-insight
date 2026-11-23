@@ -30,4 +30,4 @@
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)
 - [ ] Replace remaining hard-coded numbers with settings, theme by theme (W2+)
-- [ ] User-approved clean test-data reset (23 Nov 2026): public/auth reset complete; 161 public tables cleared; 95 kept tables fingerprint-identical; admin@test.local browser-verified as Supervisor; 24 test files removed; 18 restricted files await the user's decision on a temporary service-role cleanup function; exact before/after report generated
+- [x] User-approved clean test-data reset (23 Nov 2026): 161 approved public tables cleared (1,447 rows to 0); 95 kept public tables retained their row counts and were not targeted by writes; 42 test files removed and 3 legal-template files retained; temporary cleanup function deleted; admin@test.local browser-verified as Supervisor; 1,182 tests passed and 69 integration tests skipped; build OK; Supabase-managed storage.migrations increased 59 to 81 and is disclosed in the report; exact 298-table Markdown/CSV reports generated
