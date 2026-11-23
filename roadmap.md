@@ -31,3 +31,4 @@
 - [ ] W7 BRD v1.2 text (133 rows)
 - [ ] Replace remaining hard-coded numbers with settings, theme by theme (W2+)
 - [x] User-approved clean test-data reset (23 Nov 2026): 161 approved public tables cleared (1,447 rows to 0); 95 kept public tables retained their row counts and were not targeted by writes; 42 test files removed and 3 legal-template files retained; temporary cleanup function deleted; admin@test.local browser-verified as Supervisor; 1,182 tests passed and 69 integration tests skipped; build OK; Supabase-managed storage.migrations increased 59 to 81 and is disclosed in the report; exact 298-table Markdown/CSV reports generated
+- [ ] Signed-in test environment: repair the six existing seed/setup functions; create Aggregator and Marketplace Standard+ organisations and 14 role accounts with generated project-secret passwords; enable the 69 integration tests; verify every role's normal sign-in and landing page; report pass/fail evidence
