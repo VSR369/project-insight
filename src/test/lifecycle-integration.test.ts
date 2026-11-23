@@ -59,6 +59,19 @@ const testData: TestData = {
   specialityIds: [],
 };
 
+beforeAll(async () => {
+  const auth = await authenticateTestUser();
+  if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+  const provider = await getTestProvider(auth.userId);
+  if (!provider) throw new Error('No provider found for test user');
+  testData.userId = auth.userId;
+  testData.providerId = provider.providerId;
+});
+
+afterAll(async () => {
+  await signOutTestUser();
+});
+
 // Helper: Get first industry segment
 async function getFirstIndustrySegment(): Promise<string | null> {
   const { data } = await supabase

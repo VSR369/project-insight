@@ -73,22 +73,14 @@ async function restoreProviderState(): Promise<void> {
 
 // Cleanup function to delete test assessment attempts
 async function cleanupTestAttempts(): Promise<void> {
-  if (!testData.attemptId) return;
-  
-  // Delete responses first (foreign key constraint)
-  await supabase
-    .from('assessment_attempt_responses')
-    .delete()
-    .eq('attempt_id', testData.attemptId);
-    
-  // Delete attempt
-  await supabase
-    .from('assessment_attempts')
-    .delete()
-    .eq('id', testData.attemptId);
-    
+  if (!testData.providerId) return;
+  await cleanupProviderAttempts(testData.providerId);
   testData.attemptId = null;
 }
+
+beforeEach(async () => {
+  await cleanupTestAttempts();
+});
 
 // ============================================================================
 // SECTION 1: canStartAssessment Database Validation

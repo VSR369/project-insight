@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:integration": "vitest run src/test/assessment-integration.test.ts src/test/lifecycle-integration.test.ts src/test/reviewer-enrollment-integration.test.ts --no-file-parallelism",
     "test:watch": "vitest"
   },
   "dependencies": {

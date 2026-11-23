@@ -7,7 +7,27 @@ Deno.serve(async (request: Request): Promise<Response> => {
   try {
     const serviceClient = createServiceClient();
     const supervisorId = await requireSupervisor(request, serviceClient);
+    const body = await request.json().catch(() => ({})) as { action?: string; providerId?: string };
     const account = await ensureTestAccount(serviceClient, "provider@test.local");
+    if (body.action === "cleanup_provider_attempts") {
+      const { data: provider, error: providerError } = await serviceClient.from("solution_providers")
+        .select("id").eq("user_id", account.userId).single();
+      if (providerError) throw new Error(`Provider cleanup lookup: ${providerError.message}`);
+      if (body.providerId && body.providerId !== provider.id) throw new Error("Provider cleanup mismatch");
+      const { data: attempts, error: attemptLookupError } = await serviceClient.from("assessment_attempts")
+        .select("id").eq("provider_id", provider.id);
+      if (attemptLookupError) throw new Error(`Provider cleanup lookup: ${attemptLookupError.message}`);
+      const attemptIds = (attempts ?? []).map((attempt) => attempt.id);
+      if (attemptIds.length > 0) {
+        const { error: responseError } = await serviceClient.from("assessment_attempt_responses").delete().in("attempt_id", attemptIds);
+        if (responseError) throw new Error(`Provider response cleanup: ${responseError.message}`);
+        const { error: attemptError } = await serviceClient.from("assessment_attempts").delete().in("id", attemptIds);
+        if (attemptError) throw new Error(`Provider attempt cleanup: ${attemptError.message}`);
+      }
+      return new Response(JSON.stringify({ success: true, data: { deletedAttempts: attemptIds.length } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const [{ data: industry, error: industryError }, { data: level, error: levelError }, { data: modes, error: modeError }] = await Promise.all([
       serviceClient.from("industry_segments").select("id, name").eq("is_active", true).order("display_order").limit(1).single(),
       serviceClient.from("expertise_levels").select("id, name").eq("is_active", true).order("level_number").limit(1).single(),

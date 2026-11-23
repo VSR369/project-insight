@@ -27,7 +27,7 @@ export function getSkipReason(): string {
   return '';
 }
 
-async function authenticateThroughHarness(): Promise<{ userId: string; email: string } | null> {
+async function authenticateThroughHarness(email: string): Promise<{ userId: string; email: string } | null> {
   const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seed-admin-test-accounts`, {
     method: 'POST',
     headers: {
@@ -35,50 +35,40 @@ async function authenticateThroughHarness(): Promise<{ userId: string; email: st
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ action: 'create_test_session', email: TEST_USER_EMAIL }),
+    body: JSON.stringify({ action: 'create_test_session', email }),
   });
   const payload = await response.json() as TestSessionResponse;
-  if (!response.ok || !payload.success || !payload.data) {
-    console.error('Test session issuance failed:', payload.error?.message ?? `HTTP ${response.status}`);
-    return null;
-  }
+  if (!response.ok || !payload.success || !payload.data) return null;
   const { data, error } = await supabase.auth.setSession({
     access_token: payload.data.accessToken,
     refresh_token: payload.data.refreshToken,
   });
-  if (error || !data.user) {
-    console.error('Test session activation failed:', error?.message);
-    return null;
-  }
-  return { userId: data.user.id, email: data.user.email ?? TEST_USER_EMAIL };
-}
-
-export async function authenticateTestUser(): Promise<{ userId: string; email: string } | null> {
-  try {
-    if (TEST_HARNESS_ACCESS_TOKEN) return await authenticateThroughHarness();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: TEST_USER_EMAIL,
-      password: TEST_USER_PASSWORD,
-    });
-    if (error || !data.user) {
-      console.error('Test authentication failed:', error?.message);
-      return null;
-    }
-    return { userId: data.user.id, email: data.user.email || '' };
-  } catch (error) {
-    console.error('Test authentication error:', error);
-    return null;
-  }
-}
-
-export async function signOutTestUser(): Promise<void> {
-  await supabase.auth.signOut();
+  if (error || !data.user) return null;
+  return { userId: data.user.id, email: data.user.email ?? email };
 }
 
 export async function getCurrentUser(): Promise<{ userId: string; email: string } | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   return { userId: user.id, email: user.email || '' };
+}
+
+export async function authenticateTestUser(email = TEST_USER_EMAIL): Promise<{ userId: string; email: string } | null> {
+  try {
+    const current = await getCurrentUser();
+    if (current?.email === email) return current;
+    if (TEST_HARNESS_ACCESS_TOKEN) return await authenticateThroughHarness(email);
+    if (!TEST_USER_PASSWORD) return null;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: TEST_USER_PASSWORD });
+    if (error || !data.user) return null;
+    return { userId: data.user.id, email: data.user.email || '' };
+  } catch {
+    return null;
+  }
+}
+
+export async function signOutTestUser(): Promise<void> {
+  if (!TEST_HARNESS_ACCESS_TOKEN) await supabase.auth.signOut();
 }
 
 export async function getTestProvider(userId: string): Promise<{
@@ -91,10 +81,7 @@ export async function getTestProvider(userId: string): Promise<{
     .select('id, lifecycle_status, lifecycle_rank')
     .eq('user_id', userId)
     .maybeSingle();
-  if (error || !provider) {
-    console.error('Failed to fetch test provider:', error?.message ?? 'No provider found');
-    return null;
-  }
+  if (error || !provider) return null;
   return { providerId: provider.id, lifecycleStatus: provider.lifecycle_status, lifecycleRank: provider.lifecycle_rank };
 }
 
@@ -108,18 +95,26 @@ export async function resetProviderState(
     lifecycle_rank: targetRank,
     updated_at: new Date().toISOString(),
   }).eq('id', providerId);
-  if (error) {
-    console.error('Failed to reset provider state:', error);
-    return false;
-  }
-  return true;
+  return !error;
 }
 
 export async function cleanupTestAttempts(providerId: string): Promise<void> {
+  if (TEST_HARNESS_ACCESS_TOKEN) {
+    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/seed-provider-test-data`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${TEST_HARNESS_ACCESS_TOKEN}`,
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'cleanup_provider_attempts', providerId }),
+    });
+    return;
+  }
   const { data: attempts } = await supabase.from('assessment_attempts')
-    .select('id').eq('provider_id', providerId).is('submitted_at', null);
-  if (attempts && attempts.length > 0) {
-    const attemptIds = attempts.map((attempt) => attempt.id);
+    .select('id').eq('provider_id', providerId);
+  const attemptIds = attempts?.map((attempt) => attempt.id) ?? [];
+  if (attemptIds.length > 0) {
     await supabase.from('assessment_attempt_responses').delete().in('attempt_id', attemptIds);
     await supabase.from('assessment_attempts').delete().in('id', attemptIds);
   }

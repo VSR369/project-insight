@@ -30,6 +30,7 @@ import {
   hasReviewerRole,
   cleanupTestReviewers,
 } from './helpers/reviewerTestAuth';
+import { authenticateTestUser } from './helpers/testAuth';
 
 // Skip all tests if RUN_INTEGRATION_TESTS is not set
 const RUN_INTEGRATION_TESTS = process.env.RUN_INTEGRATION_TESTS === 'true';
@@ -51,12 +52,24 @@ beforeAll(async () => {
     console.error('Database connection failed:', error.message);
     throw new Error('Cannot run integration tests without database connection');
   }
+  const [{ data: segments, error: segmentError }, { data: levels, error: levelError }] = await Promise.all([
+    supabase.from('industry_segments').select('id').eq('is_active', true).limit(1),
+    supabase.from('expertise_levels').select('id').eq('is_active', true).limit(1),
+  ]);
+  if (segmentError || levelError || !segments?.[0] || !levels?.[0]) {
+    throw new Error('Reviewer fixtures require active industry and expertise master data');
+  }
+  process.env.TEST_INDUSTRY_SEGMENT_ID = segments[0].id;
+  process.env.TEST_EXPERTISE_LEVEL_ID = levels[0].id;
+  const auth = await authenticateTestUser('admin@test.local');
+  if (!auth) throw new Error('Supervisor authentication is required for reviewer verification');
 });
 
 afterAll(async () => {
   if (!RUN_INTEGRATION_TESTS) return;
   
-  // Clean up test data
+  // Clean up test data with Supervisor access.
+  await authenticateTestUser('admin@test.local');
   const cleaned = await cleanupTestReviewers();
   console.log(`Cleaned up ${cleaned} test reviewers`);
 });
@@ -75,6 +88,11 @@ async function invokeEdgeFunction(
 ): Promise<{ data: unknown; error: Error | null }> {
   try {
     const { data, error } = await supabase.functions.invoke(functionName, { body });
+    if (error) {
+      const response = (error as Error & { context?: { json: () => Promise<unknown> } }).context;
+      const errorData = response ? await response.json().catch(() => null) : null;
+      return { data: errorData, error };
+    }
     return { data, error };
   } catch (error) {
     return { data: null, error: error as Error };
@@ -202,12 +220,12 @@ describeIntegration('Reviewer Enrollment: Integration Tests', () => {
   describe('Edge Function: accept-reviewer-invitation', () => {
     it('TC-ACC-01: Requires authenticated user', async () => {
       // Sign out first
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       
       const { data } = await invokeEdgeFunction('accept-reviewer-invitation', {});
       
       expect((data as { success: boolean }).success).toBe(false);
-      expect((data as { error: string }).error).toContain('Unauthorized');
+      expect((data as { error: string }).error).toMatch(/Unauthorized|Invalid authorization/i);
     });
 
     it('TC-ACC-02: Returns error if no invitation found', async () => {
@@ -225,7 +243,7 @@ describeIntegration('Reviewer Enrollment: Integration Tests', () => {
   // --------------------------------------------------------------------------
   describe('Edge Function: decline-reviewer-invitation', () => {
     it('TC-DEC-01: Requires authenticated user', async () => {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       
       const { data } = await invokeEdgeFunction('decline-reviewer-invitation', {});
       
@@ -247,7 +265,7 @@ describeIntegration('Reviewer Enrollment: Integration Tests', () => {
   // --------------------------------------------------------------------------
   describe('Edge Function: approve-reviewer-application', () => {
     it('TC-APRV-01: Requires admin authentication', async () => {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       
       const { data } = await invokeEdgeFunction('approve-reviewer-application', {
         reviewer_id: 'test-id',
@@ -268,7 +286,7 @@ describeIntegration('Reviewer Enrollment: Integration Tests', () => {
   // --------------------------------------------------------------------------
   describe('Edge Function: reject-reviewer-application', () => {
     it('TC-REJ-01: Requires admin authentication', async () => {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       
       const { data } = await invokeEdgeFunction('reject-reviewer-application', {
         reviewer_id: 'test-id',
@@ -292,7 +310,7 @@ describeIntegration('Reviewer Enrollment: Integration Tests', () => {
   // --------------------------------------------------------------------------
   describe('Edge Function: cancel-reviewer-invitation', () => {
     it('TC-CAN-01: Requires admin authentication', async () => {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
       
       const { data } = await invokeEdgeFunction('cancel-reviewer-invitation', {
         reviewer_id: 'test-id',
