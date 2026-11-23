@@ -30,3 +30,4 @@
 - [ ] W2 Lifecycle (51) · W3 Money (63) · W4a Legal (17) · W4b Roles (59) · W4c Registration (51) · W4d Security/Pulse (21) · W5 Certification (81) · W6 Other (54)
 - [ ] W7 BRD v1.2 text (133 rows)
 - [ ] Replace remaining hard-coded numbers with settings, theme by theme (W2+)
+- [ ] User-approved clean test-data reset (23 Nov 2026): clear only the reviewed test, transaction, history and audit data; retain configuration/master data and one functional platform administrator; report exact per-table before/after counts
